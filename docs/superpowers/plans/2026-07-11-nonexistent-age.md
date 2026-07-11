@@ -1,5 +1,7 @@
 # 《不存在的时代》Implementation Plan
 
+> Superseded before implementation by `2026-07-11-i-changed-history.md` after the product changed to real historical turning points and custom prompts.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a polished, mobile-first, fully playable five-turn AI improvised life simulation powered directly by DeepSeek V4 Flash.
