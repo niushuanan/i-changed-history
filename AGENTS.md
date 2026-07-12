@@ -17,6 +17,7 @@ When implementing from a selected generated mock, treat that image as the source
 - Preserve the current coal, newsprint, vermilion, teal, and yellow visual system unless the user explicitly requests a new visual direction.
 - A complete run has exactly 12 timeline nodes: 11 player decisions followed by the alternate 2026 summary. Early intervals are one day, one month, one year, three years, ten years, thirty years, and one hundred years before compressing adaptively toward 2026.
 - The player is not immortal. Later nodes switch to new era-appropriate identities, explain the consciousness relay, and move across domains or regions through a visible butterfly-effect chain. After node 3, the opening event cannot remain the main topic.
+- Surprise comes from changing the social carrier, conflict, institution, or affected population, not from forced travel. A timeline may remain in China; prefer real people, institutions, cities, and lived experiences familiar to Chinese players, while changing at least two narrative dimensions from the recent three nodes.
 - Active gameplay always provides an exit control that clears the run and returns to traveler profiling.
 - Event screens target the iPhone 13 viewport at 390 x 844 and must show the scene, mission, metrics, and all three choices without page scrolling.
 - Scene art must follow the simulated year as well as the chapter. Never show modern or space technology in a pre-industrial node merely because it is a late chapter.

@@ -23,7 +23,7 @@ const RELAY_STAGES: ReadonlyArray<{ role: string; location: string; topic: strin
   { role: "新一代地方账房", location: "区域商贸集市", topic: "资源开始重新流动", bridge: "一年后的贸易账目首次显出偏差，新一代账房接棒" },
   { role: "城市学堂教习", location: "远方城市学堂", topic: "观念进入下一代", bridge: "三年后制度余波进入教材，城市教习接棒" },
   { role: "工坊联合会书记", location: "新兴制造业城镇", topic: "技术与劳动重新组合", bridge: "十年后旧决定改变了订单与迁徙，工坊书记接棒" },
-  { role: "跨海商路调查员", location: "另一洲的通商港口", topic: "影响越过国界", bridge: "三十年形成的新商路抵达另一洲，港口调查员接棒" },
+  { role: "水陆商路调查员", location: "区域水陆商港", topic: "影响进入日常贸易", bridge: "三十年形成的新商路改变民生日用，商港调查员接棒" },
   { role: "公共卫生统计员", location: "跨区域行政中心", topic: "普通人的寿命与城市", bridge: "百年后人口流动改变城市风险，统计员从异常数字中接棒" },
   { role: "大众广播编辑", location: "国际新闻编辑部", topic: "世界如何理解这段历史", bridge: "新的社会常识进入大众传播，广播编辑在争议稿件前接棒" },
   { role: "城市系统规划师", location: "平行世界核心城市", topic: "制度进入日常基础设施", bridge: "历代选择沉入城市规则，规划师在旧档案被重启时接棒" },

@@ -19,7 +19,8 @@ export const TIMELINE_SYSTEM_PROMPT = [
   "所有后果必须由历史事实或玩家真实选择推导；每幕同时呈现收益、代价、受益者与承担者。",
   "三个选项必须是当场能执行的具体动作，恰好覆盖 nudge、reform、rupture，至少一个要能使用穿越者画像中的能力。",
   "玩家传递的是现代意识，不是长生不老的肉身。时间明显推进后必须进入符合时代的新人物，并解释接棒关系。",
-  "蝴蝶效应要跳跃：通过制度、技术、贸易、观念或人口流动切换地点、阶层和领域；原始事件不能垄断后续历史。",
+  "蝴蝶效应的惊奇来自事件线、矛盾线和社会载体的变化，不来自机械地跨国或跨洲；地域可以连续，原始事件不能垄断后续历史。",
+  "面向中国玩家，优先使用其熟悉的真实人物、制度、城市、典故与生活经验作锚点，用自然中文叙述，不用生僻分期术语制造深奥感。",
   "只输出一个可被 JSON.parse 解析的 JSON 对象，不要 Markdown、代码围栏、解释或思考过程。",
   "不得输出历史偏离度，客户端会自行计算。",
 ].join("\n");
@@ -40,7 +41,9 @@ function scenarioPayload(scenario: GameScenario) {
       actualHistory: scenario.seed.historicalOutcome,
       verifiedFacts: scenario.seed.baselineFacts,
       visualTone: scenario.seed.visualTone,
+      perspective: scenario.seed.perspective,
     },
+    audienceContext: "中国玩家；先给熟悉的真实历史锚点，再给反直觉但有因果依据的变化",
   };
 }
 
@@ -115,7 +118,7 @@ export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
   return messages({
-    task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题，只能作为因果源简短提及。第 6 节点起扩大社会范围，第 8 节点起优先跨地域或跨领域，用因果账本解释跳跃。避免连续出现同一地点、阶层、领域和主要矛盾。`,
+    task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题，只能作为因果源简短提及。惊奇不等于远行：不强制跨国或跨洲，中国历史可以继续留在中国；只有贸易、战争、移民或技术传播等已有因果成立时才跨境。比较最近三幕的社会载体、核心矛盾、制度场景、主要受影响人群，本幕至少更换其中两项。优先回收因果账本中尚未兑现的一项，不要写上一幕最直接的续集。选择中国玩家熟悉的真实人物、制度、城市或生活经验作锚点，再推演反直觉但可解释的新冲突。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     playedHistory: selectedHistory(playedTurns),

@@ -39,3 +39,11 @@ Final result: passed.
 - After increasing the turn response budget from 1100 to 1600 tokens and tightening copy limits, a real chapter-six continuation completed in one API request.
 - Real path observed distinct roles and topics: engineering centurion → records clerk → courier translator → local accountant → school teacher → mint deputy supervisor.
 - Active run exit control is visible at 14px,14px and covered by integration tests.
+
+# Familiar Surprise Loading QA (2026-07-14)
+
+- Added three generated 9:16 WebP backgrounds for opening reveal, social relay, and 2026 convergence.
+- Relay loading screen checked at 390 × 844: client and scroll height are both 844px; body scroll width is 390px.
+- Pale-gray paper overlay uses 56% opacity; coal copy, vermilion progress, and teal completion states remain legible.
+- Waiting state exposes current node, causal task, three processing stages, auto-advance note, global exit, and sound control.
+- Prompt no longer forces cross-border or cross-continent jumps. It permits a timeline to remain in China while requiring two of four narrative dimensions to change.

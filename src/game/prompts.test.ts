@@ -42,10 +42,22 @@ describe("modern traveler AI prompt contract", () => {
 
     expect(continuation).toContain("不得把玩家写成长生不老");
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
-    expect(continuation).toContain("跨地域或跨领域");
+    expect(continuation).toContain("社会载体、核心矛盾、制度场景、主要受影响人群");
     expect(continuation).toContain("identityBridge");
     expect(continuation).toContain("profileAdvantage");
     expect(continuation).toContain("usesTravelerStrength");
     expect(continuation).toContain("总输出控制在 1200 个汉字以内");
+  });
+
+  it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const }];
+    const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+
+    expect(continuation).toContain("不强制跨国或跨洲");
+    expect(continuation).toContain("可以继续留在中国");
+    expect(continuation).toContain("中国玩家熟悉");
+    expect(continuation).toContain("至少更换其中两项");
+    expect(continuation).not.toContain("第 8 节点起优先跨地域或跨领域");
   });
 });
