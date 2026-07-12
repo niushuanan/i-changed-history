@@ -10,7 +10,10 @@
 
 ## Funding claim checked
 
-Altera/FRL is the team behind Project Sid. Public announcements show a $2M pre-seed and a later $9M seed. This is material funding, but it is not evidence of a newly announced tens-of-millions round. The product direction remains relevant because it frames agents as persistent digital humans rather than chat windows.
+Altera is the team behind Project Sid and later became Fundamental Research Labs (FRL). It first raised a $2M pre-seed and $9M seed, then announced a $33M Series A led by Prosus in August 2025. The user's recollection of a tens-of-millions round was therefore correct. The product direction is relevant because FRL treats agents as persistent digital humans with memory and social behavior rather than chat windows.
+
+- Funding source: [TechCrunch, FRL raises $33M](https://techcrunch.com/2025/08/01/fundamental-research-labs-nabs-30-million-from-prosus-to-build-ai-agents-for-multiple-verticals/)
+- Earlier round: [TechCrunch, Altera raises $9M](https://techcrunch.com/2024/05/08/bye-bye-bots-alteras-game-playing-ai-agents-get-backing-from-eric-schmidt/)
 
 ## Product decisions for this game
 
