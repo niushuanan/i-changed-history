@@ -456,7 +456,7 @@ Run the focused integration tests, all unit tests, and production build. Inspect
 **Files:**
 - Create: `src/services/share.ts`
 - Create: `src/services/share.test.ts`
-- Create: `public/audio/epic-history-loop.ogg`
+- Create: `public/audio/epic-history-loop.mp3`
 - Create untracked: `.env.local`
 - Create: `design-qa.md`
 - Modify: `PROJECT_CONTEXT.md`
