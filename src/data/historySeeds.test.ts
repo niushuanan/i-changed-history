@@ -1,63 +1,75 @@
 import { describe, expect, it } from "vitest";
-import { HISTORY_SEEDS, dealHistorySeeds } from "./historySeeds";
+import { HISTORY_SEEDS, recommendHistorySeeds } from "./historySeeds";
+import type { TravelerProfile } from "../game/types";
 
-const eras = ["ancient", "medieval", "early-modern", "industrial", "modern"] as const;
+const profile: TravelerProfile = {
+  name: "阿开",
+  occupation: "product",
+  strengths: ["negotiation", "organization"],
+  riskStyle: "balanced",
+};
 
-describe("historical seed deck", () => {
-  it("contains fifty balanced and complete seeds", () => {
+describe("famous historical moment deck", () => {
+  it("contains fifty complete AD moments with a substantial Chinese-history set", () => {
     expect(HISTORY_SEEDS).toHaveLength(50);
-
-    for (const era of eras) {
-      expect(HISTORY_SEEDS.filter((seed) => seed.era === era)).toHaveLength(10);
-    }
-
-    expect(HISTORY_SEEDS.every((seed) => seed.baselineFacts.length === 3)).toBe(true);
     expect(new Set(HISTORY_SEEDS.map((seed) => seed.id)).size).toBe(50);
+    expect(HISTORY_SEEDS.every((seed) => seed.year > 0)).toBe(true);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china").length)
+      .toBeGreaterThanOrEqual(18);
+
+    for (const seed of HISTORY_SEEDS) {
+      expect(seed.baselineFacts).toHaveLength(3);
+      expect(seed.dateLabel.trim()).not.toBe("");
+      expect(seed.eventName.trim()).not.toBe("");
+      expect(seed.role.trim()).not.toBe("");
+      expect(seed.decision.trim()).not.toBe("");
+      expect(seed.urgency.trim()).not.toBe("");
+      expect(seed.historicalOutcome.trim()).not.toBe("");
+      expect(seed.strengthTags.length).toBeGreaterThan(0);
+    }
   });
 
-  it("contains no China-related card from 1840 onward", () => {
-    const forbidden = HISTORY_SEEDS.filter((seed) => seed.chinaRelated && seed.year >= 1840);
-    expect(forbidden).toEqual([]);
+  it("keeps Chinese moments before 1840 and includes globally famous pivot points", () => {
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china" && seed.year >= 1840))
+      .toEqual([]);
+    expect(HISTORY_SEEDS.map((seed) => seed.id)).toEqual(expect.arrayContaining([
+      "red-cliffs-208",
+      "xuanwu-gate-626",
+      "tumu-crisis-1449",
+      "sarajevo-1914",
+      "cuban-missile-1962",
+      "berlin-wall-1989",
+    ]));
   });
 
-  it("anchors the 1973 OAPEC embargo decision in Kuwait", () => {
-    expect(HISTORY_SEEDS.find((seed) => seed.id === "oapec-oil-embargo")).toMatchObject({
-      year: 1973,
-      location: "科威特城，科威特",
-      baselineFacts: [
-        "1973年10月OAPEC部长在科威特城举行会议",
-        "与会国决定立即削减石油产量",
-        "会议声明以供应限制施压支持以色列的国家",
-      ],
+  it("anchors Sarajevo to a concrete role, route decision, and actual outcome", () => {
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "sarajevo-1914")).toMatchObject({
+      dateLabel: "1914年6月28日",
+      location: "萨拉热窝，拉丁桥附近",
+      role: "塞尔维亚总理大臣帕希奇的特别联络员",
+      decision: "是否立即拦下车队，阻止其再次驶入刚刚发生未遂爆炸的街区",
+      historicalOutcome: "车队按错误路线驶近拉丁桥，普林西普枪杀斐迪南大公夫妇，危机在一个月内演变为第一次世界大战。",
     });
   });
 
-  it("anchors Asante state consolidation around the 1701 Kumasi turning point", () => {
-    expect(HISTORY_SEEDS.find((seed) => seed.id === "asante-confederacy")).toMatchObject({
-      year: 1701,
-      location: "库马西，今加纳",
-      baselineFacts: [
-        "奥塞图图将阿散蒂诸邦组织为联盟",
-        "阿散蒂在1701年击败登基拉并扩大影响",
-        "库马西成为联盟的政治中心",
-      ],
-    });
-  });
+  it("recommends a stable five-card set with China and world balance", () => {
+    const first = recommendHistorySeeds(profile);
+    const second = recommendHistorySeeds(profile);
 
-  it("deals one card from every era without immediate repeats", () => {
-    const first = dealHistorySeeds([], () => 0.25);
-    const second = dealHistorySeeds(first.map((seed) => seed.id), () => 0.25);
-
+    expect(first.map((seed) => seed.id)).toEqual(second.map((seed) => seed.id));
     expect(first).toHaveLength(5);
-    expect(new Set(first.map((seed) => seed.era))).toEqual(new Set(eras));
-    expect(second.some((seed) => first.some((prior) => prior.id === seed.id))).toBe(false);
+    expect(first.filter((seed) => seed.perspective === "china").length).toBeGreaterThanOrEqual(2);
+    expect(first.filter((seed) => seed.perspective === "world").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("does not mutate the source deck while dealing", () => {
-    const originalIds = HISTORY_SEEDS.map((seed) => seed.id);
+  it("changes recommendations when modern strengths change", () => {
+    const technical: TravelerProfile = {
+      ...profile,
+      occupation: "engineering",
+      strengths: ["technology", "strategy"],
+    };
 
-    dealHistorySeeds([], () => 0.75);
-
-    expect(HISTORY_SEEDS.map((seed) => seed.id)).toEqual(originalIds);
+    expect(recommendHistorySeeds(technical).map((seed) => seed.id))
+      .not.toEqual(recommendHistorySeeds(profile).map((seed) => seed.id));
   });
 });
