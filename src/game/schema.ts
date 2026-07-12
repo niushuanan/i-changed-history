@@ -81,7 +81,7 @@ export const timelineTurnSchema = z
     yearLabel: requiredString,
     location: requiredString,
     headline: requiredString,
-    narrative: requiredString,
+    narrative: requiredString.max(150),
     baselineAnchor: requiredString,
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,

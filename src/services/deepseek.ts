@@ -96,6 +96,15 @@ function isRetryable(error: unknown): error is DeepSeekError {
   );
 }
 
+function isAbortFailure(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
 function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) {
     return Promise.reject(new DeepSeekError("aborted", "本次推演已取消。"));
@@ -117,12 +126,7 @@ function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
 }
 
 async function readCompletion(response: Response): Promise<string> {
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new DeepSeekError("invalid_response", "DeepSeek 返回了无法读取的结果，请重新推演。");
-  }
+  const payload: unknown = await response.json();
 
   const content = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices?.[0]
     ?.message?.content;
@@ -185,6 +189,18 @@ async function performRequest(
     } catch (error) {
       if (timedOut) {
         throw new DeepSeekError("timeout", "推演超过 28 秒，请重新推演这一幕。");
+      }
+      if (externalSignal?.aborted) {
+        throw new DeepSeekError("aborted", "本次推演已取消。");
+      }
+      if (error instanceof TypeError || isAbortFailure(error)) {
+        throw new DeepSeekError("network", "网络连接中断，请重新推演这一幕。");
+      }
+      if (!(error instanceof DeepSeekError)) {
+        throw new DeepSeekError(
+          "invalid_response",
+          "DeepSeek 返回了无法读取的结果，请重新推演。",
+        );
       }
       throw error;
     }

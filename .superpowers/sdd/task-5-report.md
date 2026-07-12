@@ -61,3 +61,38 @@
 
 - No live DeepSeek request was made because this task must not add or expose an API key; transport behavior is verified with complete HTTP response fixtures.
 - `PROJECT_CONTEXT.md` already exists but is outside Task 5 exclusive ownership, so it is left for the integrating owner to update after this commit is incorporated.
+
+## Review Remediation - 2026-07-12
+
+### Changes
+
+- Widened continuation and ending APIs to accept `HistorySeed | string`. A custom premise now remains under `untrustedPlayerPremise` in every later request and never becomes a synthetic `historySeed`.
+- Extended `PlayedTurn` with custom-intervention source data. Persisted player text is serialized only as `untrustedPlayerIntervention`; the trusted choice object uses a fixed label.
+- Added post-Zod ending validation that compares all five `historyTimeline.playerChoice` values with played turns in order. A mismatch triggers the single repair request with `untrustedExpectedPlayerChoices`.
+- Added all eight valid `visualTone` values to the shared turn output contract used by ordinary and repair prompts.
+- Preserved response-body `TypeError`/`AbortError` semantics: network interruptions retry once, external aborts stop immediately, and timeouts retain the timeout code.
+- Added `expectedChapter` to opening and continuation repair requests, including chapter-name repair guidance.
+- Enforced the 150-character narrative limit in Zod.
+
+### RED Evidence
+
+- Custom scenario continuation/ending: 3 expected failures showed strings were expanded as seeds and crashed on `baselineFacts`; a separate repair regression showed `untrustedPlayerPremise` was omitted from the repair request.
+- Persisted intervention isolation: the regression received no `untrustedPlayerIntervention` and exposed the player text as a trusted label.
+- Ending choice consistency: a shape-valid ending with five incorrect choices was accepted without repair.
+- Visual tone contract: ordinary and repair output contracts returned no visual-tone enumeration.
+- Response-body errors: both body-stream network failure and external abort surfaced as `invalid_response`.
+- Wrong-chapter repair: the repair payload omitted `expectedChapter`.
+- Narrative length: a 151-character narrative passed schema validation.
+
+### GREEN Evidence
+
+- Focused: `npm test -- src/game/schema.test.ts src/game/prompts.test.ts src/services/deepseek.test.ts`
+  - Result: 3 files passed, 34 tests passed.
+- TypeScript: `npm run typecheck`
+  - Result: passed with no errors.
+- Full suite: `npm test`
+  - Result: 5 files passed, 47 tests passed.
+- Production build: `npm run build`
+  - Result: passed; Vite transformed 29 modules and emitted the production bundle.
+- Hygiene: `git diff --check`
+  - Result: passed with no whitespace errors.

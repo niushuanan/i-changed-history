@@ -21,6 +21,11 @@ describe("structured timeline parsing", () => {
     });
   });
 
+  it("rejects a narrative longer than 150 characters", () => {
+    const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(151) });
+    expect(() => parseTimelineTurn(raw)).toThrow();
+  });
+
   it("rejects choices that are not exactly A, B, and C", () => {
     const raw = JSON.stringify({
       ...turnFixture,
