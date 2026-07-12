@@ -81,6 +81,19 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(incompleteEcho)).toThrow();
   });
 
+  it("normalizes identity relay metadata and marks exactly one profile-powered action", () => {
+    const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
+    expect(parsed.identityBridge).toBeTruthy();
+    expect(parsed.profileAdvantage).toBeTruthy();
+    expect(parsed.choices.filter((choice) => choice.usesTravelerStrength)).toHaveLength(1);
+
+    const duplicate = {
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice) => ({ ...choice, usesTravelerStrength: true })),
+    };
+    expect(() => parseTimelineTurn(JSON.stringify(duplicate))).toThrow();
+  });
+
   it("requires a null first-turn echo and accepts decision chapters one through eleven", () => {
     expect(() =>
       parseTimelineTurn(

@@ -30,9 +30,10 @@ export function TimelineEventScreen({
         <small>历史锚点：{turn.baselineAnchor}</small>
       </article>
       <aside className="mission-brief">
-        <div><IdentificationBadge size={19} weight="bold" /><span><small>你现在是</small><strong>{turn.role}</strong></span></div>
+        <div><IdentificationBadge size={19} weight="bold" /><span><small>本代身份</small><strong>{turn.role}</strong><em>意识接力：{turn.identityBridge}</em></span></div>
         <div><HourglassHigh size={19} weight="bold" /><span><small>必须完成</small><strong>{turn.immediateObjective}</strong><em>{turn.timePressure}</em></span></div>
       </aside>
+      <aside className="profile-advantage"><span>现代优势</span><p>{turn.profileAdvantage}</p></aside>
       {turn.previousEcho && (
         <aside className="previous-echo">
           <span>上一选择的余波</span>

@@ -167,6 +167,10 @@ export function recommendHistorySeeds(
     .map((item) => item.seed);
 }
 
+export function browseHistorySeeds(_profile?: TravelerProfile): HistorySeed[] {
+  return [...HISTORY_SEEDS].sort((left, right) => left.year - right.year || left.eventName.localeCompare(right.eventName, "zh-CN"));
+}
+
 const DEFAULT_PROFILE: TravelerProfile = {
   name: "穿越者",
   occupation: "student",

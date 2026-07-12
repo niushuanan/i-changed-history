@@ -33,6 +33,7 @@ const choiceFields = {
   intent: boundedString(40),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
+  usesTravelerStrength: z.boolean(),
 } as const;
 
 const choicesSchema = z.tuple([
@@ -73,6 +74,8 @@ const strictTimelineTurnSchema = z
     yearLabel: requiredString,
     location: boundedString(28),
     role: boundedString(24),
+    identityBridge: boundedString(54),
+    profileAdvantage: boundedString(54),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
@@ -118,6 +121,14 @@ const strictTimelineTurnSchema = z
         code: "custom",
         path: ["choices"],
         message: "三个选择必须恰好覆盖 nudge、reform 和 rupture",
+      });
+    }
+
+    if (turn.choices.filter((choice) => choice.usesTravelerStrength).length !== 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["choices"],
+        message: "三个选择中必须恰好一个使用穿越者优势",
       });
     }
   });
@@ -183,6 +194,7 @@ function normalizeChoice(value: unknown, index: number): unknown {
     label,
     intent: intentWasClass ? label : intent,
     deviationClass: choice.deviationClass ?? (intentWasClass ? choice.intent : undefined),
+    usesTravelerStrength: choice.usesTravelerStrength ?? index === 1,
   };
 }
 
@@ -200,6 +212,12 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
+    identityBridge: turn.identityBridge ?? (
+      turn.chapter === 1
+        ? "你的现代意识在这一刻进入历史现场"
+        : "上一代的选择留下线索，你在这个时代的新身份中接棒"
+    ),
+    profileAdvantage: turn.profileAdvantage ?? "现代知识与决策习惯仍可影响本代行动",
     narrative: trimNarrative(turn.narrative),
     baselineAnchor: joinStringArray(turn.baselineAnchor),
     choices: Array.isArray(turn.choices)

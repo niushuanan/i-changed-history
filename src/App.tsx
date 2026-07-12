@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+import { SignOut, SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
 import { recommendHistorySeeds } from "./data/historySeeds";
 import { useGame } from "./hooks/useGame";
 import { SeedPickerScreen } from "./screens/SeedPickerScreen";
@@ -16,6 +16,7 @@ export function App() {
   const game = useGame();
   const { state } = game;
   const [seeds, setSeeds] = useState(() => state.profile ? recommendHistorySeeds(state.profile) : []);
+  const activeRun = !["profiling", "selecting", "result"].includes(state.phase);
 
   const shuffle = () => {
     if (!state.profile) return;
@@ -88,6 +89,11 @@ export function App() {
   return (
     <div className="app-stage">
       <div className="mobile-prototype game-shell">
+        {activeRun && (
+          <button className="exit-run icon-button" type="button" onClick={game.restart} aria-label="退出本次推演" title="退出本次推演">
+            <SignOut size={20} weight="bold" />
+          </button>
+        )}
         <button
           className="sound-toggle icon-button"
           type="button"

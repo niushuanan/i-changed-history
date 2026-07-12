@@ -41,7 +41,7 @@ export function TravelerProfileScreen({ onSubmit }: { onSubmit: (profile: Travel
       </header>
       <form className="profile-form" onSubmit={submit}>
         <section>
-          <div className="form-heading"><UserCircle size={24} weight="bold" /><div><strong>穿越者档案</strong><small>历史会依据你的画像选择你</small></div></div>
+          <div className="form-heading"><UserCircle size={24} weight="bold" /><div><strong>穿越者档案</strong><small>不限制历史节点，决定每一代接力者的优势与代价</small></div></div>
           <label className="name-field">你的名字<input aria-label="你的名字" value={name} maxLength={12} onChange={(event) => { setName(event.target.value); setError(""); }} placeholder="2-12 个字" /></label>
         </section>
         <fieldset><legend><b>你来自什么领域？</b><small>选择一项</small></legend><div className="profile-options profile-options--two">{OCCUPATIONS.map((item) => <label key={item.value} className={occupation === item.value ? "is-selected" : ""}><input type="radio" name="occupation" checked={occupation === item.value} onChange={() => { setOccupation(item.value); setError(""); }} />{OCCUPATION_LABELS[item.value]}</label>)}</div></fieldset>

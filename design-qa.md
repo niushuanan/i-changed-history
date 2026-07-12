@@ -31,3 +31,11 @@
 ## Final Result
 
 Final result: passed.
+# Butterfly Relay QA (2026-07-14)
+
+- 390 × 844: full history archive renders 50 selectable rows with no horizontal overflow.
+- Real DeepSeek opening generated identity relay, profile advantage, and exactly one profile-powered action.
+- All three opening choices fit above y=650 in an 844px viewport.
+- After increasing the turn response budget from 1100 to 1600 tokens and tightening copy limits, a real chapter-six continuation completed in one API request.
+- Real path observed distinct roles and topics: engineering centurion → records clerk → courier translator → local accountant → school teacher → mint deputy supervisor.
+- Active run exit control is visible at 14px,14px and covered by integration tests.

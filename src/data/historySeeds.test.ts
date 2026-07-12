@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HISTORY_SEEDS, recommendHistorySeeds } from "./historySeeds";
+import { browseHistorySeeds, HISTORY_SEEDS, recommendHistorySeeds } from "./historySeeds";
 import type { TravelerProfile } from "../game/types";
 
 const profile: TravelerProfile = {
@@ -71,5 +71,18 @@ describe("famous historical moment deck", () => {
 
     expect(recommendHistorySeeds(technical).map((seed) => seed.id))
       .not.toEqual(recommendHistorySeeds(profile).map((seed) => seed.id));
+  });
+
+  it("keeps every moment available regardless of traveler profile", () => {
+    const technical: TravelerProfile = {
+      name: "工程师",
+      occupation: "engineering",
+      strengths: ["technology", "strategy"],
+      riskStyle: "cautious",
+    };
+
+    expect(browseHistorySeeds(profile).map((seed) => seed.id).sort())
+      .toEqual(browseHistorySeeds(technical).map((seed) => seed.id).sort());
+    expect(browseHistorySeeds(profile)).toHaveLength(50);
   });
 });

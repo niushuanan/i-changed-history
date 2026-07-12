@@ -119,4 +119,21 @@ describe("complete player journey", () => {
     expect(await screen.findByText("周瑜帐下负责火船的军需官")).toBeVisible();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
+
+  it("lets every profile browse all fifty moments and exit an active run", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await completeProfile(user);
+    expect(screen.getByText(/画像影响每一代的优势/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /查看全部 50 个历史瞬间/ }));
+    expect(screen.getByRole("dialog", { name: "全部历史瞬间" })).toBeVisible();
+    expect(screen.getAllByRole("button", { name: /选择历史瞬间：/ })).toHaveLength(50);
+    await user.click(screen.getByRole("button", { name: "关闭全部历史瞬间" }));
+    await user.click(screen.getAllByRole("button", { name: /穿越到这一分钟：/ })[0]);
+
+    expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
+    expect(await screen.findByText(/意识接力/)).toBeVisible();
+    expect(screen.getByText(/现代优势/)).toBeVisible();
+  });
 });

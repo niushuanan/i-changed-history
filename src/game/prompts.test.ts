@@ -34,4 +34,18 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("1959");
     expect(ending).toContain("十一项");
   });
+
+  it("forces generational identity relay and butterfly-effect topic jumps", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const }];
+    const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+
+    expect(continuation).toContain("不得把玩家写成长生不老");
+    expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
+    expect(continuation).toContain("跨地域或跨领域");
+    expect(continuation).toContain("identityBridge");
+    expect(continuation).toContain("profileAdvantage");
+    expect(continuation).toContain("usesTravelerStrength");
+    expect(continuation).toContain("总输出控制在 1200 个汉字以内");
+  });
 });

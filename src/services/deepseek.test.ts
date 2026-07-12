@@ -28,6 +28,7 @@ describe("DeepSeek transport and structured generation", () => {
     await expect(requestCompletion(messages, { phase: "turn" })).resolves.toBe('{"ok":true}');
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
     expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "disabled" }, response_format: { type: "json_object" }, stream: false });
+    expect(body.max_tokens).toBe(1600);
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer test-key");
   });
 

@@ -18,6 +18,8 @@ export const TIMELINE_SYSTEM_PROMPT = [
   "玩家是带着现代经验穿越到真实历史瞬间的中国人。使用第二人称、现在时，让玩家看到真实人物、地点、物件和迫近的时间限制。",
   "所有后果必须由历史事实或玩家真实选择推导；每幕同时呈现收益、代价、受益者与承担者。",
   "三个选项必须是当场能执行的具体动作，恰好覆盖 nudge、reform、rupture，至少一个要能使用穿越者画像中的能力。",
+  "玩家传递的是现代意识，不是长生不老的肉身。时间明显推进后必须进入符合时代的新人物，并解释接棒关系。",
+  "蝴蝶效应要跳跃：通过制度、技术、贸易、观念或人口流动切换地点、阶层和领域；原始事件不能垄断后续历史。",
   "只输出一个可被 JSON.parse 解析的 JSON 对象，不要 Markdown、代码围栏、解释或思考过程。",
   "不得输出历史偏离度，客户端会自行计算。",
 ].join("\n");
@@ -44,35 +46,39 @@ function scenarioPayload(scenario: GameScenario) {
 
 function turnContract(chapter: TimelineTurn["chapter"]) {
   return {
-    requiredFields: ["timelineName", "chapter", "chapterName", "yearLabel", "location", "role", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
+    requiredFields: ["timelineName", "chapter", "chapterName", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
     rules: {
+      totalLength: "总输出控制在 1200 个汉字以内，宁可短句，不得省略字段",
       chapter,
       chapterName: CHAPTER_NAMES[chapter],
-      narrative: "100 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
+      narrative: "80 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
       headline: "22 个汉字以内",
       location: "28 个汉字以内",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
+      identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何落地" : "36 字以内；解释上一代影响如何让这一时代的新人物接棒",
+      profileAdvantage: "36 字以内；具体说明一项能力如何帮助本代身份",
       immediateObjective: "40 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "36 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
-      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 36 字以内、intent 40 字以内；含 deviationClass、instantEcho",
-      instantEcho: "含 directResult、unexpectedCost、beneficiary、payer",
+      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 28 字以内、intent 28 字以内；含 deviationClass、instantEcho、usesTravelerStrength；恰好一个 usesTravelerStrength 为 true",
+      instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       previousEcho: chapter === 1 ? "必须为 null" : "完整承接上一选择即时回响",
       metrics: "stability、prosperity、freedom、cost，均为 0-100 数值",
       metricDeltas: "与 metrics 相同四键的数值变化",
-      causalLedger: "数组，每项含 fact、causedByChapter、mustAffect",
+      causalLedger: "最多三项，只保留后续仍会生效的因果；每项含 fact、causedByChapter、mustAffect，字符串各 28 字以内",
       callbackUsed: "null 或字符串",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
     },
     exactShapeExample: {
       timelineName: "示例线名", chapter, chapterName: CHAPTER_NAMES[chapter], yearLabel: "具体年月日", location: "具体地点",
       role: "具体角色", immediateObjective: "当场目标", timePressure: "倒计时",
+      identityBridge: "这一代为何由此人接棒", profileAdvantage: "现代画像在本代的具体用处",
       headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点",
       previousEcho: chapter === 1 ? null : { directResult: "上次直接结果", unexpectedCost: "上次意外代价", beneficiary: "受益者", payer: "承担者" },
       choices: [
-        { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", usesTravelerStrength: false, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", usesTravelerStrength: true, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", usesTravelerStrength: false, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
       memorySummary: "本幕摘要", metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
       metricDeltas: { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
@@ -90,6 +96,10 @@ function selectedHistory(playedTurns: readonly PlayedTurn[]) {
     selectedDeviationClass,
     instantEcho: turn.choices.find((choice) => choice.id === selectedChoiceId)?.instantEcho,
     memorySummary: turn.memorySummary,
+    role: turn.role,
+    location: turn.location,
+    headline: turn.headline,
+    identityBridge: turn.identityBridge,
     causalLedger: turn.causalLedger,
     metrics: turn.metrics,
   }));
@@ -104,7 +114,13 @@ export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
 }
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
-  return messages({ task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。yearLabel 必须匹配权威目标年份和时间尺度。`, ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year), playedHistory: selectedHistory(playedTurns), outputContract: turnContract(chapter) });
+  return messages({
+    task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题，只能作为因果源简短提及。第 6 节点起扩大社会范围，第 8 节点起优先跨地域或跨领域，用因果账本解释跳跃。避免连续出现同一地点、阶层、领域和主要矛盾。`,
+    ...scenarioPayload(scenario),
+    authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
+    playedHistory: selectedHistory(playedTurns),
+    outputContract: turnContract(chapter),
+  });
 }
 
 export function buildEndingMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {

@@ -13,7 +13,7 @@ export function ChoiceList({
       {choices.map((choice) => (
         <button key={choice.id} type="button" onClick={() => onChoose(choice.id)}>
           <span className="choice-list__id">{choice.id}</span>
-          <span className="choice-list__copy"><strong>{choice.label}</strong><small>{choice.intent}</small></span>
+          <span className="choice-list__copy"><strong>{choice.label}</strong><small>{choice.intent}</small>{choice.usesTravelerStrength && <em>你的优势</em>}</span>
           <ArrowRight size={20} weight="bold" />
         </button>
       ))}
