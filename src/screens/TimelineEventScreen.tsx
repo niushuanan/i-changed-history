@@ -1,4 +1,4 @@
-import { PencilSimple } from "@phosphor-icons/react";
+import { HourglassHigh, IdentificationBadge } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { VISUAL_ASSETS } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
@@ -9,12 +9,10 @@ export function TimelineEventScreen({
   turn,
   deviation,
   onChoose,
-  onCustom,
 }: {
   turn: TimelineTurn;
   deviation: number;
   onChoose: (id: "A" | "B" | "C") => void;
-  onCustom: () => void;
 }) {
   return (
     <main className="event-screen">
@@ -29,6 +27,10 @@ export function TimelineEventScreen({
         <p>{turn.narrative}</p>
         <small>历史锚点：{turn.baselineAnchor}</small>
       </article>
+      <aside className="mission-brief">
+        <div><IdentificationBadge size={19} weight="bold" /><span><small>你现在是</small><strong>{turn.role}</strong></span></div>
+        <div><HourglassHigh size={19} weight="bold" /><span><small>必须完成</small><strong>{turn.immediateObjective}</strong><em>{turn.timePressure}</em></span></div>
+      </aside>
       {turn.previousEcho && (
         <aside className="previous-echo">
           <span>上一选择的余波</span>
@@ -39,9 +41,6 @@ export function TimelineEventScreen({
       <section className="decision-zone">
         <h2>这一刻，你决定</h2>
         <ChoiceList choices={turn.choices} onChoose={onChoose} />
-        <button className="intervention-command" type="button" onClick={onCustom}>
-          <PencilSimple size={20} weight="bold" />自己改写这一步
-        </button>
       </section>
     </main>
   );

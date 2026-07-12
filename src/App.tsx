@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
-import { dealHistorySeeds } from "./data/historySeeds";
+import { recommendHistorySeeds } from "./data/historySeeds";
 import { useGame } from "./hooks/useGame";
 import { SeedPickerScreen } from "./screens/SeedPickerScreen";
-import { CustomSeedSheet } from "./screens/CustomSeedSheet";
-import { CustomInterventionSheet } from "./screens/CustomInterventionSheet";
+import { TravelerProfileScreen } from "./screens/TravelerProfileScreen";
 import { TimelineEventScreen } from "./screens/TimelineEventScreen";
 import { ButterflyEchoScreen } from "./screens/ButterflyEchoScreen";
 import { GeneratingScreen } from "./screens/GeneratingScreen";
@@ -16,12 +15,11 @@ import "./styles/game.css";
 export function App() {
   const game = useGame();
   const { state } = game;
-  const [seeds, setSeeds] = useState(() => dealHistorySeeds());
-  const [customSeedOpen, setCustomSeedOpen] = useState(false);
-  const [interventionOpen, setInterventionOpen] = useState(false);
+  const [seeds, setSeeds] = useState(() => state.profile ? recommendHistorySeeds(state.profile) : []);
 
   const shuffle = () => {
-    setSeeds((current) => dealHistorySeeds(current.map((seed) => seed.id)));
+    if (!state.profile) return;
+    setSeeds((current) => recommendHistorySeeds(state.profile!, current.map((seed) => seed.id)));
   };
 
   const saveResult = async () => {
@@ -35,13 +33,16 @@ export function App() {
   };
 
   let screen: React.ReactNode;
-  if (state.phase === "selecting") {
+  if (state.phase === "profiling") {
+    screen = <TravelerProfileScreen onSubmit={(profile) => { setSeeds(recommendHistorySeeds(profile)); game.setProfile(profile); }} />;
+  } else if (state.phase === "selecting" && state.profile) {
     screen = (
       <SeedPickerScreen
         seeds={seeds}
         onShuffle={shuffle}
         onSelect={game.selectSeed}
-        onCustom={() => setCustomSeedOpen(true)}
+        onChangeProfile={game.changeProfile}
+        profile={state.profile}
       />
     );
   } else if (state.phase === "event" && state.currentTurn) {
@@ -50,7 +51,6 @@ export function App() {
         turn={state.currentTurn}
         deviation={state.deviation}
         onChoose={game.choose}
-        onCustom={() => setInterventionOpen(true)}
       />
     );
   } else if (state.phase === "echo" && state.echo) {
@@ -98,26 +98,6 @@ export function App() {
           {game.muted ? <SpeakerSlash size={21} weight="bold" /> : <SpeakerHigh size={21} weight="bold" />}
         </button>
         {screen}
-        {customSeedOpen && state.phase === "selecting" && (
-          <CustomSeedSheet
-            onClose={() => setCustomSeedOpen(false)}
-            onSubmit={(value) => {
-              const result = game.submitCustomSeed(value);
-              if (result.ok) setCustomSeedOpen(false);
-              return result;
-            }}
-          />
-        )}
-        {interventionOpen && state.phase === "event" && (
-          <CustomInterventionSheet
-            onClose={() => setInterventionOpen(false)}
-            onSubmit={(value, deviationClass) => {
-              const result = game.intervene(value, deviationClass);
-              if (result.ok) setInterventionOpen(false);
-              return result;
-            }}
-          />
-        )}
       </div>
     </div>
   );

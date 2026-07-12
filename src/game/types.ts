@@ -58,11 +58,3 @@ export type HistorySeed = {
   strengthTags: readonly TravelerStrength[];
   riskTags: readonly TravelerRiskStyle[];
 };
-
-export type CustomSeedResult =
-  | { ok: true; value: string }
-  | {
-      ok: false;
-      reason: "empty" | "too_short" | "too_long" | "not_chinese" | "modern_china";
-      value: string;
-    };

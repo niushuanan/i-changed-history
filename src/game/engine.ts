@@ -1,8 +1,6 @@
-import type { HistorySeed } from "./types";
+import type { GameScenario } from "./reducer";
 import {
   buildContinuationMessages,
-  buildCustomContinuationMessages,
-  buildCustomOpeningMessages,
   buildEndingMessages,
   buildContextualJsonRepairMessages,
   buildOpeningMessages,
@@ -15,7 +13,6 @@ import {
   parseAlternatePresent,
   parseTimelineTurn,
   type AlternatePresent,
-  type DeviationClass,
   type TimelineTurn,
 } from "./schema";
 import { requestCompletion, type CompletionOptions } from "../services/deepseek";
@@ -27,12 +24,7 @@ export type GenerationOptions = {
   signal?: AbortSignal;
 };
 
-export type NextTurnGenerationOptions = GenerationOptions & {
-  intervention?: {
-    text: string;
-    deviationClass: DeviationClass;
-  };
-};
+export type NextTurnGenerationOptions = GenerationOptions;
 
 export class StructuredGenerationError extends Error {
   readonly name = "StructuredGenerationError";
@@ -111,7 +103,7 @@ function expectedPreviousEcho(
   playedTurns: readonly PlayedTurn[],
 ): NonNullable<TimelineTurn["previousEcho"]> | undefined {
   const previous = playedTurns.at(-1);
-  if (!previous || previous.selectionSource === "custom_intervention") return undefined;
+  if (!previous) return undefined;
   return previous.turn.choices.find((choice) => choice.id === previous.selectedChoiceId)
     ?.instantEcho;
 }
@@ -131,55 +123,40 @@ function parseExpectedEnding(
   };
 }
 
-function scenarioRepairDetails(scenario: HistorySeed | string): JsonRepairDetails {
-  return typeof scenario === "string" ? { untrustedPlayerPremise: scenario } : {};
-}
-
 export function generateOpening(
-  seedOrPremise: HistorySeed | string,
+  scenario: GameScenario,
   options: GenerationOptions = {},
 ): Promise<TimelineTurn> {
-  const messages =
-    typeof seedOrPremise === "string"
-      ? buildCustomOpeningMessages(seedOrPremise)
-      : buildOpeningMessages(seedOrPremise);
+  const messages = buildOpeningMessages(scenario);
 
   return requestValidated(
     messages,
     { phase: "turn", signal: options.signal },
     "timeline_turn",
     parseRequestedTurn(1),
-    { ...scenarioRepairDetails(seedOrPremise), expectedChapter: 1 },
+    { expectedChapter: 1 },
   );
 }
 
 export function generateNextTurn(
-  scenario: HistorySeed | string,
+  scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
   chapter: 2 | 3 | 4 | 5,
   options: NextTurnGenerationOptions = {},
 ): Promise<TimelineTurn> {
-  const messages = options.intervention
-    ? buildCustomContinuationMessages(
-        scenario,
-        playedTurns,
-        chapter,
-        options.intervention.text,
-        options.intervention.deviationClass,
-      )
-    : buildContinuationMessages(scenario, playedTurns, chapter);
+  const messages = buildContinuationMessages(scenario, playedTurns, chapter);
 
   return requestValidated(
     messages,
     { phase: "turn", signal: options.signal },
     "timeline_turn",
     parseRequestedTurn(chapter, expectedPreviousEcho(playedTurns)),
-    { ...scenarioRepairDetails(scenario), expectedChapter: chapter },
+    { expectedChapter: chapter },
   );
 }
 
 export function generateEnding(
-  scenario: HistorySeed | string,
+  scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
   options: GenerationOptions = {},
 ): Promise<AlternatePresent> {
@@ -187,15 +164,11 @@ export function generateEnding(
     yearLabel: playedTurn.turn.yearLabel,
     playerChoice: getPlayedTurnChoiceText(playedTurn),
   }));
-  const expectedPlayerChoices = expectedHistoryTimeline.map((item) => item.playerChoice);
   return requestValidated(
     buildEndingMessages(scenario, playedTurns),
     { phase: "ending", signal: options.signal },
     "alternate_present",
     parseExpectedEnding(expectedHistoryTimeline),
-    {
-      ...scenarioRepairDetails(scenario),
-      untrustedExpectedPlayerChoices: expectedPlayerChoices,
-    },
+    {},
   );
 }

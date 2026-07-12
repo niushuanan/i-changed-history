@@ -68,13 +68,23 @@ describe("complete player journey", () => {
 
   afterEach(() => cleanup());
 
+  async function completeProfile(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByRole("textbox", { name: "你的名字" }), "林舟");
+    await user.click(screen.getByRole("radio", { name: "产品 / 运营" }));
+    await user.click(screen.getByRole("checkbox", { name: "谈判" }));
+    await user.click(screen.getByRole("checkbox", { name: "谋略" }));
+    await user.click(screen.getByRole("radio", { name: /权衡/ }));
+    await user.click(screen.getByRole("button", { name: /生成我的历史坐标/ }));
+  }
+
   it("plays five AI choices from a real card into an alternate 2026", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "哎！我改变了历史" })).toBeVisible();
-    expect(screen.getAllByRole("button", { name: /改写这段历史：/ })).toHaveLength(5);
-    await user.click(screen.getAllByRole("button", { name: /改写这段历史：/ })[0]);
+    expect(screen.getByRole("heading", { name: "I！我改变了历史" })).toBeVisible();
+    await completeProfile(user);
+    expect(screen.getAllByRole("button", { name: /穿越到这一分钟：/ })).toHaveLength(5);
+    await user.click(screen.getAllByRole("button", { name: /穿越到这一分钟：/ })[0]);
 
     for (let chapter = 1; chapter <= 5; chapter += 1) {
       expect(await screen.findByRole("heading", { name: `第${chapter}幕局势` })).toBeVisible();
@@ -93,39 +103,19 @@ describe("complete player journey", () => {
     expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
   });
 
-  it("keeps rejected custom text and supports a free intervention in chapter two", async () => {
+  it("matches cards from the traveler profile and exposes no free-text route", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "自己写一条历史裂缝" }));
-    const premise = screen.getByRole("textbox", { name: "历史裂缝" });
-    await user.type(premise, "如果1966年的中国发生变化");
-    await user.click(screen.getByRole("button", { name: "开始改写" }));
-    expect(screen.getByText("请避开中国近现代史，换一个时间或地点。")).toBeVisible();
-    expect(premise).toHaveValue("如果1966年的中国发生变化");
-
-    await user.clear(premise);
-    await user.type(premise, "如果古罗马普及蒸汽动力");
-    await user.click(screen.getByRole("button", { name: "开始改写" }));
-    expect(await screen.findByRole("heading", { name: "第1幕局势" })).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: /公开完整遗诏/ }));
-    await user.click(await screen.findByRole("button", { name: "继续时间线" }));
-    expect(await screen.findByRole("heading", { name: "第2幕局势" })).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: "自己改写这一步" }));
-    await user.type(screen.getByRole("textbox", { name: "本幕干预" }), "让各地城市共同保管道路税");
-    await user.click(screen.getByRole("radio", { name: "改写" }));
-    await user.click(screen.getByRole("button", { name: "写入时间线" }));
-
-    expect(await screen.findByText("你的干预已写入时间线")).toBeVisible();
-    await waitFor(() => expect(engine.generateNextTurn).toHaveBeenLastCalledWith(
-      "如果古罗马普及蒸汽动力",
-      expect.any(Array),
-      3,
-      expect.objectContaining({
-        intervention: { text: "让各地城市共同保管道路税", deviationClass: "reform" },
-      }),
+    await completeProfile(user);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/自己写|自由干预/)).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: /穿越到这一分钟：/ })[0]);
+    await waitFor(() => expect(engine.generateOpening).toHaveBeenCalledWith(
+      expect.objectContaining({ profile: expect.objectContaining({ name: "林舟", occupation: "product" }), seed: expect.objectContaining({ year: expect.any(Number), eventName: expect.any(String) }) }),
+      expect.any(Object),
     ));
+    expect(await screen.findByText("周瑜帐下负责火船的军需官")).toBeVisible();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 });

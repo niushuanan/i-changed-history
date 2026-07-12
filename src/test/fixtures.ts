@@ -2,11 +2,14 @@ export const turnFixture = {
   timelineName: "无王航线",
   chapter: 1,
   chapterName: "裂缝",
-  yearLabel: "公元前 322 年",
-  location: "巴比伦",
-  headline: "继业者同意共同摄政",
-  narrative: "亚历山大的遗诏没有被撕毁，档案写着「{共同摄政}」。",
-  baselineAnchor: "亚历山大于公元前323年在巴比伦去世。",
+  yearLabel: "208 年冬",
+  location: "长江赤壁水域",
+  role: "周瑜帐下负责火船的军需官",
+  immediateObjective: "在曹军识破诈降前决定火船启航时机",
+  timePressure: "距离曹军发现火船约半个时辰",
+  headline: "东南风还没有来",
+  narrative: "黄盖已经登船，曹军的巡哨却比预期更近。你握着发船铜令，任何迟疑都可能让火攻提前暴露。",
+  baselineAnchor: "孙刘联军最终借东风火攻曹操水军。",
   previousEcho: null,
   choices: [
     {
@@ -54,7 +57,7 @@ export const turnFixture = {
   callbackUsed: null,
   visualTone: "ancient",
   memorySummary: "遗诏公开后，继业者接受了暂时共同摄政。",
-};
+} as const;
 
 export const endingFixture = {
   worldName: "公议纪元",

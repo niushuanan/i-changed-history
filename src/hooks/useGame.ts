@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { generateEnding, generateNextTurn, generateOpening } from "../game/engine";
-import { normalizeCustomSeed } from "../game/input";
 import {
   createInitialGameState,
   gameReducer,
   type GameState,
 } from "../game/reducer";
 import { getDeviationStage } from "../game/deviation";
-import type { CustomSeedResult, HistorySeed } from "../game/types";
-import type { DeviationClass } from "../game/schema";
+import type { HistorySeed, TravelerProfile } from "../game/types";
 import { createEpicAudioController, type EpicAudioController } from "../services/audio";
 import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 
@@ -94,7 +92,6 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
             request.targetChapter,
             {
               signal: controller.signal,
-              ...(request.intervention ? { intervention: request.intervention } : {}),
             },
           );
           if (active) dispatch({ type: "TURN_RESOLVED", requestId: request.id, turn });
@@ -126,29 +123,11 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
 
   const selectSeed = useCallback((seed: HistorySeed) => {
     void dependencies.audio.start();
-    dispatch({ type: "START_SCENARIO", scenario: seed });
+    dispatch({ type: "START_SCENARIO", seed });
   }, [dependencies]);
 
-  const submitCustomSeed = useCallback((input: string): CustomSeedResult => {
-    const normalized = normalizeCustomSeed(input);
-    if (normalized.ok) {
-      void dependencies.audio.start();
-      dispatch({ type: "START_SCENARIO", scenario: normalized.value });
-    }
-    return normalized;
-  }, [dependencies]);
-
-  const intervene = useCallback((input: string, deviationClass: DeviationClass): CustomSeedResult => {
-    const normalized = normalizeCustomSeed(input);
-    if (normalized.ok) {
-      dispatch({
-        type: "COMMIT_INTERVENTION",
-        text: normalized.value,
-        deviationClass,
-      });
-    }
-    return normalized;
-  }, []);
+  const setProfile = useCallback((profile: TravelerProfile) => dispatch({ type: "SET_PROFILE", profile }), []);
+  const changeProfile = useCallback(() => dispatch({ type: "CHANGE_PROFILE" }), []);
 
   const choose = useCallback((choiceId: "A" | "B" | "C") => {
     dispatch({ type: "COMMIT_AI_CHOICE", choiceId });
@@ -171,10 +150,10 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     state,
     deviationStage: getDeviationStage(state.deviation),
     muted,
+    setProfile,
+    changeProfile,
     selectSeed,
-    submitCustomSeed,
     choose,
-    intervene,
     continueTimeline,
     retry,
     restart,

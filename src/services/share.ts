@@ -31,7 +31,7 @@ const DEFAULT_DEPENDENCIES: SaveFrontPageDependencies = {
 
 function fileNameFor(worldName: string): string {
   const safeWorldName = worldName.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "-");
-  return `哎-我改变了历史-${safeWorldName}.png`;
+  return `I-我改变了历史-${safeWorldName}.png`;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -60,7 +60,7 @@ export async function saveFrontPage(
 
   const file = new File([blob], fileNameFor(content.worldName), { type: "image/png" });
   const shareData: ShareData = {
-    title: "哎！我改变了历史",
+    title: "I！我改变了历史",
     text: content.shareLine,
     files: [file],
   };
