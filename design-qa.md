@@ -27,4 +27,4 @@
 
 ## Final Result
 
-Passed.
+Final result: passed.
