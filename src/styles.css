@@ -1,15 +1,42 @@
 :root {
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #f1eee7;
+  background: #0b0b0a;
+  font-synthesis: none;
 }
 
 * {
   box-sizing: border-box;
+  letter-spacing: 0;
 }
 
+html,
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #0b0b0a;
   -webkit-font-smoothing: antialiased;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #f2c94c;
+  outline-offset: 2px;
+}
+
+img {
+  display: block;
+  max-width: 100%;
 }
 
 .mobile-prototype {
@@ -18,4 +45,8 @@ body {
   margin-inline: auto;
   overflow: hidden;
   position: relative;
+}
+
+@media (max-height: 844px) {
+  .mobile-prototype { height: 100dvh; }
 }

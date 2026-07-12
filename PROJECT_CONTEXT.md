@@ -2,34 +2,47 @@
 
 ## 1. 这个项目是干什么的
 
-《哎！我改变了历史》是一款正在开发中的移动端 AI 反事实历史游戏。玩家从 50 个真实历史转折点中选择一个，或输入自己的历史假设；随后通过五幕选择改变时间线，最终生成另一个版本的 2026 年。
+《哎！我改变了历史》是一款可玩的移动端 AI 反事实历史游戏。玩家从 50 个真实历史转折点中选择一个，或输入自己的历史假设；随后通过五幕 AI 叙事、三个结构化选项或自由干预改变时间线，最终生成另一个版本的 2026 年。
 
-当前项目处于实现阶段：历史卡牌数据、输入边界、产品规格、视觉目标和基础前端已经存在；结构化 AI、完整游戏状态机和最终界面尚未全部完成。当前版本按用户要求为本地纯前端应用，将通过被 Git 忽略的 `.env.local` 调用 DeepSeek V4 Flash。
+当前版本是本地纯前端应用：在浏览器直接调用 DeepSeek `deepseek-v4-flash`，用 Zod 校验结构化输出，用前端公式计算历史偏离度，用本地音频构建史诗氛围，并可将结局头版导出为高清 PNG。密钥只放在被 Git 忽略的 `.env.local`。
 
 ## 2. 代码结构是什么
 
-- `src/data/`：历史种子数据。`historySeeds.ts` 包含 50 张卡牌和均衡发牌算法。
-- `src/game/`：游戏领域层。`types.ts` 和 `input.ts` 已实现；`schema.ts`、`prompts.ts` 当前只有 TDD 桩实现，配套失败测试定义了下一步行为。
-- `src/services/`：外部能力边界。`deepseek.ts` 当前为 TDD 桩，测试已锁定模型、JSON、重试和思考模式要求。
-- `src/test/`：Vitest 初始化和结构化 AI 完整测试夹具。
-- `design/`：三套 ImageGen 首屏方向和最终选定的 `redaction-room.png` 视觉目标。
-- `public/audio/`：本地史诗配乐与 CC0 来源记录。
-- `docs/superpowers/`：经 Superpowers 收敛的产品规格和逐任务实施计划。
+- `src/data/`：50 张历史卡牌、均衡发牌算法和视觉资产映射。
+- `src/game/`：游戏领域层，包含输入边界、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
+- `src/hooks/`：`useGame.ts` 负责请求取消、预生成、即时回响、存储、音频和重试编排。
+- `src/services/`：DeepSeek 传输、版本化本地存储、史诗配乐和 PNG 分享/下载。
+- `src/screens/` 和 `src/components/`：从历史档案选择到平行 2026 头版的完整界面。
+- `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
+- `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
+- `design/`：三套 ImageGen 首屏方向、选定的 `redaction-room.png` 和真实浏览器截图。
+- `public/assets/` 与 `public/audio/`：历史场景图、CC0 史诗配乐及授权记录。
+- `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
-数据流目标是：历史卡或自由 Prompt -> DeepSeek 结构化 JSON -> Zod 校验 -> 前端状态机 -> 即时蝴蝶效应 -> 确定性历史偏离度 -> 平行世界结局。尚未实现的模块不能视为当前可运行能力。
+实际数据流是：历史卡或自由 Prompt -> DeepSeek 结构化 JSON -> 格式归一与 Zod 校验 -> 前端状态机 -> 即时蝴蝶效应与后台预生成 -> 确定性历史偏离度 -> 平行世界结局 -> PNG 头版。
 
 ## 3. 关键入口在哪里
 
 - `index.html`：Vite 页面入口。
-- `src/main.jsx`：React 挂载入口，加载全局样式并渲染 `App`。
-- `src/App.jsx`：当前应用根组件，仍是空壳，后续承载完整游戏状态切换。
-- `src/data/historySeeds.ts`：当前最重要的已实现产品数据入口。
-- `src/game/input.ts`：开局和局内自由 Prompt 的本地输入边界。
+- `src/main.tsx`：React 挂载入口。
+- `src/App.tsx`：根组件，负责根据游戏 phase 切换界面、打开自由输入底部面板和导出结局。
+- `src/hooks/useGame.ts`：运行时编排入口。
+- `src/game/engine.ts`：结构化幕次与结局生成入口。
+- `src/data/historySeeds.ts`：历史卡牌数据入口。
 - `vite.config.mjs`：开发服务器和 Vitest jsdom 配置。
-- `package.json`：`npm run dev`、`npm test`、`npm run build` 命令入口。
-- `design/selected-visual.md`：image-to-code 实施时必须遵守的目标稿和尺寸约束。
+- `package.json`：`npm run dev`、`npm test`、`npm run typecheck`、`npm run build` 命令入口。
+- `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
+- `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-12 14:34 - 完成可玩五幕游戏与头版导出
+
+- 本次任务：完成《哎！我改变了历史》从历史选择到平行 2026 的全流程，并用真实 DeepSeek 调用验收。
+- 改了哪些文件：`src/App.tsx`、`src/screens/*`、`src/components/*`、`src/styles/game.css`、`src/game/{engine,prompts,schema}.ts`、`src/services/{deepseek,audio,storage,share}.ts`、`design/captures/*`、`design-qa.md` 及配套测试。
+- 改了什么：实现五张随机历史卡、自定义开局、五幕结构化叙事、每幕自由干预、即时回响与后台预生成、偏离度、史诗配乐、本地恢复、错误重试、平行世界头版和高清 PNG 分享/下载；同时针对真实 V4-flash 输出漂移补强了格式归一、修复上下文和玩家选择权威数据。
+- 为什么这样改：让模型保留自由推演能力，但由前端保证可玩格式、及时反馈、历史选择不被改写和失败可恢复。
+- 影响了哪些模块：全部玩家旅程、DeepSeek 调用协议、状态机、存储、音频、结局分享、视觉系统和测试。
 
 ### 2026-07-12 11:58 - 建立项目上下文
 

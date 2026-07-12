@@ -1,0 +1,8 @@
+Task 1: complete (commit 643657b, visual selection self-reviewed)
+Task 2: complete (three ImageGen picker directions, selected redaction-room target, public-domain historical scene set; later supporting ImageGen retries were network-blocked)
+Task 3: complete (React/Vite/TypeScript runtime, tests, DeepSeek browser transport, local environment template)
+Task 4: complete (commits 804b06a, 658c0ea, b7cdc71, 68b61e4; focused tests 13/13; reviewer approved)
+Task 5: complete (commits 2588e65, d9fecfb, 1d10f17; full suite 48/48; reviewer approved)
+Task 6A: complete (commits 2606c8f, 500b98c; full suite 73/73; reviewer approved)
+Task 6B: complete (commits b738809, abd2b0a; full suite 83/83; reviewer approved)
+Task 7: complete (full image-to-code journey, real five-turn DeepSeek run, PNG export, 98/98 tests, typecheck and build passed)
