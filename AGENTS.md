@@ -12,7 +12,7 @@ When implementing from a selected generated mock, treat that image as the source
 - The player is a modern Chinese traveler, not an abstract observer. The first screen builds a traveler profile before any historical choice.
 - Opening cards must be famous, concrete AD historical turning points with an exact date, place, assigned role, immediate decision, deadline, and actual outcome.
 - The deck must include substantial Chinese history before 1840 and frame world history in language accessible to Chinese players.
-- All 50 history moments are available to every profile. Five cards may be recommended for a fast start, but the profile never locks or hides a moment.
+- All 50 history moments are always visible in one chronological horizontal filmstrip. Never reintroduce a recommended subset, shuffle, expand-all action, archive modal, or second browsing layout.
 - The profile controls cross-generation advantages and their costs: exactly one action per node visibly uses the traveler's modern strengths. During play the user can only choose the three AI-generated actions; there is no free-text opening or intervention.
 - Preserve the current coal, newsprint, vermilion, teal, and yellow visual system unless the user explicitly requests a new visual direction.
 - A complete run has exactly 12 timeline nodes: 11 player decisions followed by the alternate 2026 summary. Early intervals are one day, one month, one year, three years, ten years, thirty years, and one hundred years before compressing adaptively toward 2026.
@@ -28,3 +28,6 @@ When implementing from a selected generated mock, treat that image as the source
 - The traveler's profile grants one named cross-generation ability. Once per node it can reveal the beneficiary and hidden cost of the single profile-tailored action before the player chooses.
 - The complete fifty-moment archive expands inside the same horizontal carousel as the recommended five. Do not reintroduce a modal or a separate archive layout.
 - Every history seed owns a local `/assets/history/<seed-id>.webp` path with an event-accurate source or a local period-art fallback; broken remote images must never be part of runtime rendering.
+- The picker timeline and card filmstrip are one synchronized control: scrolling cards centers the matching year, and selecting a year scrolls the matching card into view.
+- Active play is a continuous cinematic surface, not a dashboard. Use one scene, one compact causal receipt, and three separated action rows; avoid nested cards, metrics, badges, and explanatory panels.
+- The AI is framed as a grounded Game Master that resolves player actions against historical constraints and causal memory. The visible proof is source provenance, a causal receipt, and a new era-appropriate identity, not long model prose.

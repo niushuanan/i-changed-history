@@ -23,13 +23,17 @@ describe("clear change event screen", () => {
       onExit={vi.fn()}
     />);
 
-    expect(screen.getByText("你真的改变了历史")).toBeVisible();
+    expect(screen.getByText("因果回执")).toBeVisible();
     const proof = screen.getByRole("region", { name: "历史改变证据" });
-    expect(within(proof).getByText("扶植年幼继承人")).toBeVisible();
-    expect(within(proof).getByText("摄政制度被正式确立")).toBeVisible();
+    expect(within(proof).getByText(/扶植年幼继承人/)).toBeVisible();
+    expect(within(proof).getByText(/摄政制度被正式确立/)).toBeVisible();
     expect(screen.getByText("DeepSeek 实时生成")).toBeVisible();
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
     expect(screen.queryByText(/历史锚点：/)).not.toBeInTheDocument();
+    expect(screen.getByText("微调")).toBeVisible();
+    expect(screen.getByText("改制")).toBeVisible();
+    expect(screen.getByText("断裂")).toBeVisible();
+    expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
   });
 });

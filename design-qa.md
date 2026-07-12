@@ -44,6 +44,19 @@ Final result: passed.
 - Historical assets use 43 exact Wikipedia event pages and 7 project-local period-art fallbacks; all fifty are cached as local WebP files with credits.
 - Real click verification covered profile creation, archive expansion, card selection, dynamic loading, profile forecast, choice submission, butterfly echo, next-node change proof, and exit.
 - Captures: `design/captures/archive-recommended-390x844.png`, `loading-dynamic-390x844.png`, `event-opening-390x844.png`, `profile-forecast-390x844.png`, and `event-change-proof-390x844.png`.
+
+# Living History Filmstrip QA (2026-07-13)
+
+- At 390 x 844 the picker has one chronological set of 50 cards, no recommended subset, shuffle, expand action, modal, or second archive UI.
+- Clicking year 626 moved the card strip to `scrollLeft=2408` and the timeline to `scrollLeft=294`; a subsequent 688px horizontal wheel gesture advanced both controls to year 755.
+- Full traversal ended at year 1989 with 50/50 card images loaded and zero broken images.
+- The picker and event document dimensions are exactly 390 x 844 with no body overflow.
+- The event page's third action ends at y=735, leaving safe space inside the 844px frame. The exit button occupies only x=9..39 and y=7..37.
+- The opening scene inherited `/assets/history/xuanwu-gate-626.webp` from the selected card instead of a generic ancient image.
+- Two real DeepSeek requests returned HTTP 200. The second node changed the role from palace-gate captain to Yuchi Jingde's deputy and showed the previous choice, direct result, and new cost.
+- Profile foresight, choice submission, cinematic world verdict, next-node continuation, and exit were clicked in the real browser; browser console reported zero errors.
+- Captures: `design/captures/filmstrip-start-390x844.png`, `filmstrip-626-390x844.png`, `event-cinematic-390x844.png`, `world-verdict-390x844.png`, and `event-causal-receipt-390x844.png`.
+- Final result: passed.
 # Butterfly Relay QA (2026-07-14)
 
 - 390 × 844: full history archive renders 50 selectable rows with no horizontal overflow.

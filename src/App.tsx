@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
-import { recommendHistorySeeds } from "./data/historySeeds";
 import { useGame } from "./hooks/useGame";
 import { SeedPickerScreen } from "./screens/SeedPickerScreen";
 import { TravelerProfileScreen } from "./screens/TravelerProfileScreen";
@@ -11,18 +9,13 @@ import { ErrorScreen } from "./screens/ErrorScreen";
 import { AlternatePresentScreen } from "./screens/AlternatePresentScreen";
 import { saveFrontPage } from "./services/share";
 import { getTravelerAbility } from "./game/profile";
+import { historyAssetForSeed, visualAssetForTurn } from "./data/visualAssets";
 import "./styles/game.css";
 
 export function App() {
   const game = useGame();
   const { state } = game;
-  const [seeds, setSeeds] = useState(() => state.profile ? recommendHistorySeeds(state.profile) : []);
   const ability = state.profile ? getTravelerAbility(state.profile) : null;
-
-  const shuffle = () => {
-    if (!state.profile) return;
-    setSeeds((current) => recommendHistorySeeds(state.profile!, current.map((seed) => seed.id)));
-  };
 
   const saveResult = async () => {
     if (!state.result) throw new Error("结局头版尚未生成。");
@@ -36,12 +29,10 @@ export function App() {
 
   let screen: React.ReactNode;
   if (state.phase === "profiling") {
-    screen = <TravelerProfileScreen onSubmit={(profile) => { setSeeds(recommendHistorySeeds(profile)); game.setProfile(profile); }} />;
+    screen = <TravelerProfileScreen onSubmit={game.setProfile} />;
   } else if (state.phase === "selecting" && state.profile) {
     screen = (
       <SeedPickerScreen
-        seeds={seeds}
-        onShuffle={shuffle}
         onSelect={game.selectSeed}
         onChangeProfile={game.changeProfile}
         profile={state.profile}
@@ -56,6 +47,9 @@ export function App() {
         abilityTitle={ability?.title ?? "现代认知"}
         onChoose={game.choose}
         onExit={game.restart}
+        sceneImage={state.currentTurn.chapter === 1 && state.scenario
+          ? historyAssetForSeed(state.scenario.seed)
+          : visualAssetForTurn(state.currentTurn)}
       />
     );
   } else if (state.phase === "echo" && state.echo) {
@@ -65,6 +59,11 @@ export function App() {
         isFinal={state.currentTurn?.chapter === 11}
         onContinue={game.continueTimeline}
         onExit={game.restart}
+        sceneImage={state.currentTurn
+          ? state.currentTurn.chapter === 1 && state.scenario
+            ? historyAssetForSeed(state.scenario.seed)
+            : visualAssetForTurn(state.currentTurn)
+          : undefined}
       />
     );
   } else if (state.phase === "error" && state.error) {
