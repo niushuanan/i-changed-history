@@ -495,6 +495,9 @@
 .front-page__masthead span { color: var(--red); font-size: 10px; font-weight: 900; }
 .front-page__masthead h1 { margin: 5px 0 2px; font-family: var(--serif); font-size: 35px; line-height: 1.08; }
 .front-page__masthead p { margin: 6px 0 0; font-family: var(--serif); font-size: 16px; font-weight: 800; line-height: 1.4; }
+.front-page__scene { position: relative; height: 138px; margin: 0; overflow: hidden; border-bottom: 2px solid var(--ink); background: #242320; }
+.front-page__scene img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.82) contrast(1.04); }
+.front-page__scene figcaption { position: absolute; right: 8px; bottom: 7px; padding: 4px 6px; background: var(--paper); color: var(--red-dark); font-size: 9px; font-weight: 900; }
 .front-page__scores { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 2px solid var(--ink); }
 .front-page__scores > div { padding: 11px 9px; display: grid; grid-template-columns: 1fr 44px; align-items: center; border-right: 1px solid var(--ink); }
 .front-page__scores > div:last-child { border-right: 0; }

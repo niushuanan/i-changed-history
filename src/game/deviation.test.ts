@@ -12,6 +12,16 @@ describe("deterministic historical deviation", () => {
     expect(calculateStepImpact("rupture", 5)).toBe(35);
   });
 
+  it("keeps every one of the eleven decision nodes finite and progressively weightier", () => {
+    const impacts = Array.from({ length: 11 }, (_, index) =>
+      calculateStepImpact("reform", (index + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11),
+    );
+
+    expect(impacts.every(Number.isFinite)).toBe(true);
+    expect(impacts).toEqual([...impacts].sort((left, right) => left - right));
+    expect(calculateDeviation(48, "rupture", 11).nextDeviation).toBeGreaterThan(48);
+  });
+
   it("compounds impact instead of adding scores", () => {
     expect(calculateDeviation(10, "reform", 2)).toEqual({
       stepImpact: 12,

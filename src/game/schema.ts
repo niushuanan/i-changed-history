@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CHAPTER_NAMES, type DecisionChapter } from "./timelinePlan";
 
 const requiredString = z.string().trim().min(1);
+const boundedString = (max: number) => requiredString.max(max);
 const chapterSchema = z.number().int().min(1).max(11).transform((value) => value as DecisionChapter);
 const causalChapterSchema = z.number().int().min(0).max(11);
 const chapterNameSchema = z.enum([
@@ -28,8 +29,8 @@ const echoSchema = z.object({
 });
 
 const choiceFields = {
-  label: requiredString,
-  intent: requiredString,
+  label: boundedString(36),
+  intent: boundedString(40),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
 } as const;
@@ -70,13 +71,13 @@ const strictTimelineTurnSchema = z
     chapter: chapterSchema,
     chapterName: chapterNameSchema,
     yearLabel: requiredString,
-    location: requiredString,
-    role: requiredString,
-    immediateObjective: requiredString,
-    timePressure: requiredString,
-    headline: requiredString,
+    location: boundedString(28),
+    role: boundedString(24),
+    immediateObjective: boundedString(40),
+    timePressure: boundedString(36),
+    headline: boundedString(22),
     narrative: requiredString.max(100),
-    baselineAnchor: requiredString,
+    baselineAnchor: boundedString(54),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
     memorySummary: requiredString,
@@ -146,6 +147,20 @@ function joinStringArray(value: unknown): unknown {
     : value;
 }
 
+function trimNarrative(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const characters = [...value];
+  if (characters.length <= 100) return value;
+
+  const candidate = characters.slice(0, 100).join("");
+  const sentenceEnd = Math.max(
+    candidate.lastIndexOf("。"),
+    candidate.lastIndexOf("！"),
+    candidate.lastIndexOf("？"),
+  );
+  return sentenceEnd >= 20 ? candidate.slice(0, sentenceEnd + 1) : candidate;
+}
+
 function normalizeChoice(value: unknown, index: number): unknown {
   const choice = asRecord(value);
   const expectedId = CHOICE_IDS[index];
@@ -158,12 +173,15 @@ function normalizeChoice(value: unknown, index: number): unknown {
     typeof choice.label === "string"
       ? choice.label.replace(new RegExp(`^\\s*${expectedId}[.\\u3001：:]\\s*`), "")
       : choice.label;
+  const intent = typeof choice.intent === "string"
+    ? choice.intent.replace(/\s*[（(](?:nudge|reform|rupture)[）)]\s*$/i, "").trim()
+    : choice.intent;
 
   return {
     ...choice,
     id: choice.id ?? expectedId,
     label,
-    intent: intentWasClass ? label : choice.intent,
+    intent: intentWasClass ? label : intent,
     deviationClass: choice.deviationClass ?? (intentWasClass ? choice.intent : undefined),
   };
 }
@@ -182,7 +200,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
-    narrative: typeof turn.narrative === "string" ? [...turn.narrative].slice(0, 100).join("") : turn.narrative,
+    narrative: trimNarrative(turn.narrative),
     baselineAnchor: joinStringArray(turn.baselineAnchor),
     choices: Array.isArray(turn.choices)
       ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
@@ -239,7 +257,7 @@ export const alternatePresentSchema = z
         context.addIssue({
           code: "custom",
           path: ["historyTimeline", index, "chapter"],
-          message: "结局时间线必须按第一幕到第五幕排列",
+          message: "结局时间线必须按第一节点到第十一节点排列",
         });
       }
     });
@@ -249,6 +267,8 @@ export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
 export type AlternatePresent = z.infer<typeof alternatePresentSchema>;
 export type DeviationClass = z.infer<typeof deviationClassSchema>;
 export type TimelineTurnParseOptions = {
+  expectedChapter?: DecisionChapter;
+  expectedYearLabel?: string;
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>;
 };
 export type ExpectedHistoryTimelineItem = {
@@ -318,11 +338,13 @@ export function parseTimelineTurn(
 ): TimelineTurn {
   const parsed = parseJsonObject(raw);
   const candidate = asRecord(parsed);
-  return timelineTurnSchema.parse(
-    candidate && options.expectedPreviousEcho
-      ? { ...candidate, previousEcho: options.expectedPreviousEcho }
-      : parsed,
-  );
+  if (!candidate) return timelineTurnSchema.parse(parsed);
+  return timelineTurnSchema.parse({
+    ...candidate,
+    ...(options.expectedChapter ? { chapter: options.expectedChapter, chapterName: CHAPTER_NAMES[options.expectedChapter] } : {}),
+    ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
+    ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),
+  });
 }
 
 export function parseAlternatePresent(

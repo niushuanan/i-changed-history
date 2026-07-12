@@ -1,8 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
-import { parseTimelineTurn } from "../game/schema";
-import { turnFixture } from "../test/fixtures";
+import { createInitialGameState, type GameState } from "../game/reducer";
+import { parseAlternatePresent, parseTimelineTurn } from "../game/schema";
+import { endingFixture, turnFixture } from "../test/fixtures";
 import { useGame, type UseGameDependencies } from "./useGame";
 
 const profile = { name: "林舟", occupation: "product", strengths: ["negotiation", "strategy"], riskStyle: "balanced" } as const;
@@ -23,5 +24,35 @@ describe("useGame profile orchestration", () => {
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
     expect(dependencies.generateOpening).toHaveBeenCalledWith({ profile, seed: HISTORY_SEEDS[0] }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it("automatically runs a restored ending request after refresh", async () => {
+    const dependencies = deps();
+    const restored: GameState = {
+      ...createInitialGameState(9),
+      phase: "ending",
+      profile,
+      scenario: { profile, seed: HISTORY_SEEDS[0] },
+      currentTurn: turn,
+      playedTurns: [{
+        turn,
+        selectedChoiceId: "A",
+        selectedChoiceLabel: turn.choices[0].label,
+        selectedDeviationClass: "nudge",
+      }],
+      request: { kind: "ending", id: 8 },
+    };
+    vi.mocked(dependencies.loadSnapshot).mockReturnValue(restored);
+    vi.mocked(dependencies.generateEnding).mockResolvedValue(
+      parseAlternatePresent(JSON.stringify(endingFixture)),
+    );
+
+    const { result } = renderHook(() => useGame(dependencies));
+    await waitFor(() => expect(result.current.state.phase).toBe("result"));
+    expect(dependencies.generateEnding).toHaveBeenCalledWith(
+      restored.scenario,
+      restored.playedTurns,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 });

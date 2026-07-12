@@ -6,7 +6,19 @@ export const BASE_IMPACT = Object.freeze({
   rupture: 22,
 } as const satisfies Record<DeviationClass, number>);
 
-export const CHAPTER_MULTIPLIER = Object.freeze([1, 1.15, 1.3, 1.45, 1.6] as const);
+export const CHAPTER_MULTIPLIER = Object.freeze([
+  1,
+  1.15,
+  1.3,
+  1.45,
+  1.6,
+  1.72,
+  1.84,
+  1.96,
+  2.08,
+  2.2,
+  2.35,
+] as const);
 
 export type DeviationStage = {
   label: "原史余波" | "蝴蝶分岔" | "新世界线" | "时代重写" | "完全异史";

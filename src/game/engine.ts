@@ -15,8 +15,8 @@ import {
   type AlternatePresent,
   type TimelineTurn,
 } from "./schema";
-import { requestCompletion, type CompletionOptions } from "../services/deepseek";
-import type { DecisionChapter } from "./timelinePlan";
+import { DeepSeekError, requestCompletion, type CompletionOptions } from "../services/deepseek";
+import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackEnding, createFallbackTurn } from "./fallbackTurn";
 
 type RepairTarget = "timeline_turn" | "alternate_present";
@@ -68,22 +68,31 @@ async function requestValidated<T>(
   parse: Parser<T>,
   repairDetails: JsonRepairDetails = {},
 ): Promise<T> {
-  const raw = await requestCompletion(messages, requestOptions);
+  const complete = async (requestMessages: ChatMessage[]) => {
+    try {
+      return await requestCompletion(requestMessages, requestOptions);
+    } catch (error) {
+      if (error instanceof DeepSeekError && error.code === "invalid_response") {
+        throw new StructuredGenerationError(target, error);
+      }
+      throw error;
+    }
+  };
+  const raw = await complete(messages);
 
   try {
     return parse(raw);
   } catch (validationError) {
-    const repairedRaw = await requestCompletion(
+    const repairedRaw = await complete(
       buildContextualJsonRepairMessages(messages, raw, target, {
         ...repairDetails,
         validationErrors: summarizeValidationError(validationError),
       }),
-      requestOptions,
     );
     try {
       return parse(repairedRaw);
     } catch (repairError) {
-      const regeneratedRaw = await requestCompletion(messages, requestOptions);
+      const regeneratedRaw = await complete(messages);
       try {
         return parse(regeneratedRaw);
       } catch (error) {
@@ -95,15 +104,23 @@ async function requestValidated<T>(
 
 function parseRequestedTurn(
   expectedChapter: TimelineTurn["chapter"],
+  expectedYearLabel: string,
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>,
 ): Parser<TimelineTurn> {
   return (raw) => {
-    const turn = parseTimelineTurn(raw, { expectedPreviousEcho });
+    const turn = parseTimelineTurn(raw, { expectedChapter, expectedYearLabel, expectedPreviousEcho });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
     }
     return turn;
   };
+}
+
+function expectedYearLabel(scenario: GameScenario, chapter: DecisionChapter): string {
+  if (chapter === 1) return scenario.seed.dateLabel;
+  if (chapter === 2) return `${scenario.seed.year}年 · 一天后`;
+  if (chapter === 3) return `${scenario.seed.year}年 · 一个月后`;
+  return `${getTimelineNode(chapter, scenario.seed.year).targetYear}年`;
 }
 
 function expectedPreviousEcho(
@@ -124,7 +141,7 @@ function parseExpectedEnding(
       (item, index) => item.playerChoice === expectedHistoryTimeline[index]?.playerChoice,
     );
     if (!choicesMatch || ending.historyTimeline.length !== expectedHistoryTimeline.length) {
-      throw new Error("结局时间线没有按顺序保留玩家的五次真实选择。");
+      throw new Error("结局时间线没有按顺序保留玩家的十一次真实选择。");
     }
     return ending;
   };
@@ -137,7 +154,7 @@ export async function generateOpening(
   const messages = buildOpeningMessages(scenario);
 
   try {
-    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(1), { expectedChapter: 1 });
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(1, expectedYearLabel(scenario, 1)), { expectedChapter: 1 });
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, [], 1);
     throw error;
@@ -153,7 +170,7 @@ export async function generateNextTurn(
   const messages = buildContinuationMessages(scenario, playedTurns, chapter);
 
   try {
-    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedPreviousEcho(playedTurns)), { expectedChapter: chapter });
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns)), { expectedChapter: chapter });
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, playedTurns, chapter);
     throw error;

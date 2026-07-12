@@ -29,5 +29,7 @@ describe("authoritative twelve-node timeline", () => {
       expect(plan.every((node, index) => index === 0 || node.targetYear >= plan[index - 1].targetYear)).toBe(true);
       expect(plan[10].targetYear).toBeLessThan(2026);
     }
+    expect(getTimelinePlan(1962)[7].targetYear).toBe(1988);
+    expect(getTimelinePlan(1989)[7].targetYear).toBe(2004);
   });
 });

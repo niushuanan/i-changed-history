@@ -41,19 +41,18 @@ function yearBetween(from: number, ratio: number): number {
 
 export function getTimelinePlan(startYear: number): readonly TimelineNode[] {
   const start = Math.min(startYear, FINAL_YEAR - 1);
-  const hundredYear = Math.min(
-    FINAL_YEAR - 1,
-    Math.max(start + 30, Math.min(start + 100, yearBetween(start, 0.4))),
-  );
+  const scaledYear = (offset: number, ratio: number) =>
+    Math.min(start + offset, yearBetween(start, ratio));
+  const hundredYear = scaledYear(100, 0.4);
   const remaining = FINAL_YEAR - hundredYear;
   const targetYears = [
     start,
     start,
     start,
-    Math.min(start + 1, FINAL_YEAR - 1),
-    Math.min(start + 3, FINAL_YEAR - 1),
-    Math.min(start + 10, FINAL_YEAR - 1),
-    Math.min(start + 30, FINAL_YEAR - 1),
+    scaledYear(1, 0.05),
+    scaledYear(3, 0.1),
+    scaledYear(10, 0.2),
+    scaledYear(30, 0.3),
     hundredYear,
     Math.min(FINAL_YEAR - 1, Math.round(hundredYear + remaining * 0.25)),
     Math.min(FINAL_YEAR - 1, Math.round(hundredYear + remaining * 0.5)),

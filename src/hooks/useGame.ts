@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { generateEnding, generateNextTurn, generateOpening } from "../game/engine";
 import {
   createInitialGameState,
@@ -55,7 +55,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const requestControllerRef = useRef<AbortController | null>(null);
   const [muted, setMutedState] = useState(() => dependencies.audio.isMuted());
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     dependencies.saveSnapshot(state);
   }, [dependencies, state]);
 

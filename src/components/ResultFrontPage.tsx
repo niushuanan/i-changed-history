@@ -11,6 +11,11 @@ export function ResultFrontPage({ result, deviation }: { result: AlternatePresen
         <p>{result.frontPageHeadline}</p>
       </header>
 
+      <figure className="front-page__scene">
+        <img src="/assets/stage-2026.webp" alt="平行世界 2026 城市图景" />
+        <figcaption>第十二节点 · 2026 年现场</figcaption>
+      </figure>
+
       <section className="front-page__scores" aria-label="世界线评估">
         <div><span>历史偏离度</span><strong>{deviation}</strong><small>{stage.label}</small></div>
         <div><span>历史可信度</span><strong>{result.plausibilityScore}</strong><small>{result.rewriteLevel}</small></div>

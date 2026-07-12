@@ -11,19 +11,22 @@
 ## Browser Checks
 
 - Viewport: 390 x 844.
-- Picker: one primary historical card, neighboring-card hint, five-era rail, shuffle, and custom start are visible without horizontal overflow.
-- Event: stable scene crop, chapter rail, deviation meter, four world metrics, three AI choices, and free intervention render without overlap.
+- Picker: one primary historical card, neighboring-card hint, five-era rail, and shuffle are visible without horizontal overflow.
+- Event: stable scene crop, 12-node rail, deviation meter, four world metrics, and all three AI choices render together without overlap or vertical page scrolling.
 - Result: 390 px capture node width equals its scroll width; document client width equals document scroll width, so there is no horizontal overflow.
 - Export: verified real PNG at 780 x 2686 with no clipped timeline, causal chain, balance, or footer content.
 - Typography, borders, color accents, spacing, and image crops remain consistent with the selected coal/newsprint archive direction.
 
 ## Functional Checks
 
-- Completed a real five-turn DeepSeek `deepseek-v4-flash` run from a curated card.
-- Used a free intervention in chapter two and verified immediate local echo plus background pre-generation.
-- Verified deterministic deviation from 0 to 64 and an AI plausibility score of 78.
+- Completed a real 11-decision DeepSeek `deepseek-v4-flash` run from the 1962 Cuban Missile Crisis through the alternate 2026 result.
+- Verified the final node contains exactly 11 history records and uses the generated 2026 city scene.
+- Verified deterministic deviation reached 94 without the former post-chapter-five reset.
+- Verified era navigation changes the active starting card and starts a different historical simulation.
+- Verified a reload during node generation automatically resumes to a three-choice event without showing the interruption screen.
+- Verified malformed model structure repairs, regenerates, or falls back locally while transport/authentication errors remain retryable.
 - Verified native share/download fallback and actual PNG creation.
-- Verified mute, retry, restart, custom start, custom intervention, and alternate-present actions.
+- Verified mute, retry, restart, era switching, three-choice decisions, and alternate-present actions.
 
 ## Final Result
 

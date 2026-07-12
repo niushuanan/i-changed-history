@@ -26,6 +26,16 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw).narrative).toHaveLength(100);
   });
 
+  it("ends a trimmed narrative at a complete sentence when possible", () => {
+    const completeSentence = "战情室里所有人都看向你。你必须在两封来信之间作出判断。";
+    const raw = JSON.stringify({
+      ...turnFixture,
+      narrative: `${completeSentence}${"下一句尚未讲完".repeat(12)}`,
+    });
+
+    expect(parseTimelineTurn(raw).narrative).toBe(completeSentence);
+  });
+
   it("strips harmless extra model fields", () => {
     const raw = JSON.stringify({
       ...turnFixture,
@@ -119,6 +129,28 @@ describe("structured timeline parsing", () => {
     expect(parsed.visualTone).toBe("ancient");
   });
 
+  it("removes internal deviation labels from player-facing choice copy", () => {
+    const raw = JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice) => ({
+        ...choice,
+        intent: `${choice.intent}（${choice.deviationClass}）`,
+      })),
+    });
+
+    expect(parseTimelineTurn(raw).choices.map((choice) => choice.intent))
+      .toEqual(turnFixture.choices.map((choice) => choice.intent));
+  });
+
+  it("rejects copy that cannot fit the fixed iPhone event regions", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, headline: "过".repeat(23) })))
+      .toThrow();
+    expect(() => parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: [{ ...turnFixture.choices[0], label: "选".repeat(37) }, turnFixture.choices[1], turnFixture.choices[2]],
+    }))).toThrow();
+  });
+
   it("uses the selected choice echo as the authoritative continuation callback", () => {
     const expectedEcho = turnFixture.choices[1].instantEcho;
     const raw = JSON.stringify({
@@ -134,6 +166,17 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw, { expectedPreviousEcho: expectedEcho }).previousEcho).toEqual(
       expectedEcho,
     );
+  });
+
+  it("uses the client timeline node as authoritative when the model returns an old chapter label", () => {
+    const raw = JSON.stringify({ ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho });
+    const parsed = parseTimelineTurn(raw, { expectedChapter: 8, expectedPreviousEcho: turnFixture.choices[0].instantEcho });
+    expect(parsed).toMatchObject({ chapter: 8, chapterName: "百年分野" });
+  });
+
+  it("uses the client target date when the model repeats an old year", () => {
+    const raw = JSON.stringify({ ...turnFixture, yearLabel: "错误的旧年份" });
+    expect(parseTimelineTurn(raw, { expectedYearLabel: "1700年" }).yearLabel).toBe("1700年");
   });
 
   it("requires eleven decision entries, three causal chains, and three ordinary-life details", () => {

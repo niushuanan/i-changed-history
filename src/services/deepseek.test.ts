@@ -63,10 +63,18 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
+  it("falls back locally when DeepSeek returns an empty successful response", async () => {
+    const fetcher = vi.fn().mockResolvedValue(completion(""));
+    vi.stubGlobal("fetch", fetcher);
+    const turn = await generateOpening(scenario);
+    expect(turn).toMatchObject({ chapter: 1, chapterName: "历史现场" });
+    expect(turn.choices).toHaveLength(3);
+  });
+
   it("generates the requested continuation with authoritative previous echo", async () => {
     const second = { ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
-    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, previousEcho: turnFixture.choices[0].instantEcho });
+    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho });
   });
 
   it("keeps the eleven player choices authoritative in the ending", async () => {

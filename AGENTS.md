@@ -14,3 +14,7 @@ When implementing from a selected generated mock, treat that image as the source
 - The deck must include substantial Chinese history before 1840 and frame world history in language accessible to Chinese players.
 - Cards are matched deterministically from occupation, two strengths, and risk style. During play the user can only choose the three AI-generated actions; there is no free-text opening or intervention.
 - Preserve the current coal, newsprint, vermilion, teal, and yellow visual system unless the user explicitly requests a new visual direction.
+- A complete run has exactly 12 timeline nodes: 11 player decisions followed by the alternate 2026 summary. Early intervals are one day, one month, one year, three years, ten years, thirty years, and one hundred years before compressing adaptively toward 2026.
+- Event screens target the iPhone 13 viewport at 390 x 844 and must show the scene, mission, metrics, and all three choices without page scrolling.
+- Scene art must follow the simulated year as well as the chapter. Never show modern or space technology in a pre-industrial node merely because it is a late chapter.
+- A refresh or development-server reconnect during generation must resume the saved AI request automatically; structural model drift must fall back locally and must not strand the player on an interruption screen.
