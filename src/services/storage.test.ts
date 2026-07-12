@@ -62,4 +62,57 @@ describe("versioned game storage", () => {
     expect(loadGameSnapshot(storage)).toBeNull();
     expect(storage.getItem(GAME_STORAGE_KEY)).toBeNull();
   });
+
+  it("rejects impossible phases and deeply corrupted played turns", () => {
+    const storage = new MemoryStorage();
+    saveGameSnapshot(eventState(), storage);
+    const valid = JSON.parse(storage.getItem(GAME_STORAGE_KEY) ?? "{}");
+
+    storage.setItem(GAME_STORAGE_KEY, JSON.stringify({
+      ...valid,
+      state: { ...valid.state, phase: "echo" },
+    }));
+    expect(loadGameSnapshot(storage)).toBeNull();
+
+    saveGameSnapshot(eventState(), storage);
+    const withPlayedTurn = JSON.parse(storage.getItem(GAME_STORAGE_KEY) ?? "{}");
+    withPlayedTurn.state.playedTurns = [{
+      turn: turnFixture,
+      selectedChoiceId: "A",
+      selectedChoiceLabel: 42,
+    }];
+    storage.setItem(GAME_STORAGE_KEY, JSON.stringify(withPlayedTurn));
+    expect(loadGameSnapshot(storage)).toBeNull();
+  });
+
+  it("rejects malformed retry data and numeric state", () => {
+    const storage = new MemoryStorage();
+    const chosen = gameReducer(eventState(), { type: "COMMIT_AI_CHOICE", choiceId: "A" });
+    saveGameSnapshot(chosen, storage);
+    const snapshot = JSON.parse(storage.getItem(GAME_STORAGE_KEY) ?? "{}");
+    snapshot.state.nextRequestId = -2;
+    snapshot.state.error.message = 17;
+    snapshot.state.error.retry.intervention = { text: "改写", deviationClass: "extreme" };
+    storage.setItem(GAME_STORAGE_KEY, JSON.stringify(snapshot));
+
+    expect(loadGameSnapshot(storage)).toBeNull();
+  });
+
+  it("treats unavailable browser storage as an empty session", () => {
+    const unavailable = {
+      getItem() { throw new Error("blocked"); },
+      setItem() { throw new Error("blocked"); },
+      removeItem() { throw new Error("blocked"); },
+    };
+    expect(() => loadGameSnapshot(unavailable)).not.toThrow();
+    expect(loadGameSnapshot(unavailable)).toBeNull();
+
+    const removeBlocked = {
+      getItem() { return "broken"; },
+      setItem() {},
+      removeItem() { throw new Error("blocked"); },
+    };
+    expect(() => loadGameSnapshot(removeBlocked)).not.toThrow();
+    expect(loadGameSnapshot(removeBlocked)).toBeNull();
+  });
 });

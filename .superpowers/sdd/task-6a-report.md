@@ -31,3 +31,10 @@
 - `src/game/reducer.test.ts`
 - `src/services/storage.ts`
 - `src/services/storage.test.ts`
+
+## Review Remediation
+
+- Replaced shallow snapshot checks with strict Zod validation for stable phases, scenarios, played turns, retries, errors, numeric bounds, and chapter ordering.
+- Stored snapshots now accept only `selecting`, `event`, `result`, and `error`; impossible transient phases are rejected and cleared.
+- Storage privacy/access failures from `getItem` or `removeItem` now return `null` without escaping.
+- Added three regression groups. Full suite now passes 73/73 with typecheck, build, and diff-check green.
