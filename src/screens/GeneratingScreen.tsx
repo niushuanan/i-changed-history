@@ -49,6 +49,14 @@ export function GeneratingScreen({ chapter, ending, onCancel }: { chapter: numbe
   return (
     <main className="generating-screen" aria-live="polite">
       <img className="generating-screen__art" src={stage.image} alt={stage.alt} />
+      <div className="developing-motion" data-testid="developing-motion" aria-hidden="true">
+        <i className="causal-thread causal-thread--one" />
+        <i className="causal-thread causal-thread--two" />
+        <b className="developing-exposure" />
+        {["one", "two", "three", "four"].map((position) => (
+          <span key={position} className={`causal-pulse causal-pulse--${position}`} data-testid="causal-pulse" />
+        ))}
+      </div>
       <div className="developing-stamp"><Aperture size={18} weight="bold" /><span>历史显影室</span></div>
       <div className="developing-copy">
         <span>{ending ? "第 12 节点 · 平行 2026" : `第 ${chapter} 节点 · 因果推演中`}</span>

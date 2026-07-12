@@ -47,3 +47,6 @@ Final result: passed.
 - Pale-gray paper overlay uses 56% opacity; coal copy, vermilion progress, and teal completion states remain legible.
 - Waiting state exposes current node, causal task, three processing stages, auto-advance note, global exit, and sound control.
 - Prompt no longer forces cross-border or cross-continent jumps. It permits a timeline to remain in China while requiring two of four narrative dimensions to change.
+- Loading motion adds slow image drift, two developing causal threads, four pulse nodes, an exposure pass, rotating aperture, and staged status transitions. Reduced-motion mode disables every nonessential animation.
+- DeepSeek turn and ending output ceilings are both 8192 tokens; prompt length limits continue to keep the visible copy concise.
+- Browser animation audit found all six named animations active; the motion layer has four pulse nodes and remains exactly 390 × 844 with no overflow.

@@ -22,3 +22,5 @@ When implementing from a selected generated mock, treat that image as the source
 - Event screens target the iPhone 13 viewport at 390 x 844 and must show the scene, mission, metrics, and all three choices without page scrolling.
 - Scene art must follow the simulated year as well as the chapter. Never show modern or space technology in a pre-industrial node merely because it is a late chapter.
 - A refresh or development-server reconnect during generation must resume the saved AI request automatically; structural model drift must fall back locally and must not strand the player on an interruption screen.
+- DeepSeek turn and ending requests use an 8192-token output ceiling so transport truncation cannot strand normal JSON; concise output is controlled by the prompt and schema, not a small token cap.
+- Loading-room motion includes archival drift, causal-thread tracing, pulse nodes, exposure passes, and status cycling, with a `prefers-reduced-motion` static fallback.

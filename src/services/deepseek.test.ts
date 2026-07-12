@@ -28,14 +28,14 @@ describe("DeepSeek transport and structured generation", () => {
     await expect(requestCompletion(messages, { phase: "turn" })).resolves.toBe('{"ok":true}');
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
     expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "disabled" }, response_format: { type: "json_object" }, stream: false });
-    expect(body.max_tokens).toBe(1600);
+    expect(body.max_tokens).toBe(8192);
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer test-key");
   });
 
   it("enables high effort reasoning for the final alternate present", async () => {
     const fetcher = vi.fn().mockResolvedValue(completion()); vi.stubGlobal("fetch", fetcher);
     await requestCompletion(messages, { phase: "ending" });
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ thinking: { type: "enabled" }, reasoning_effort: "high" });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ thinking: { type: "enabled" }, reasoning_effort: "high", max_tokens: 8192 });
   });
 
   it("repairs one invalid opening and validates the concrete traveler fields", async () => {

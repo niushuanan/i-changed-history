@@ -58,14 +58,14 @@ function requestBody(messages: readonly ChatMessage[], phase: DeepSeekPhase) {
       ...shared,
       thinking: { type: "enabled" },
       reasoning_effort: "high",
-      max_tokens: 1800,
+      max_tokens: 8192,
     } as const;
   }
 
   return {
     ...shared,
     thinking: { type: "disabled" },
-    max_tokens: 1600,
+    max_tokens: 8192,
   } as const;
 }
 

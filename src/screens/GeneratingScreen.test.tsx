@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeneratingScreen } from "./GeneratingScreen";
 
 describe("history developing room", () => {
+  afterEach(() => cleanup());
   it("uses the opening archive art for early nodes", () => {
     render(<GeneratingScreen chapter={1} ending={false} onCancel={vi.fn()} />);
     expect(screen.getByRole("img", { name: "历史现场正在显影" })).toHaveAttribute("src", "/assets/generating-opening.webp");
@@ -13,6 +14,8 @@ describe("history developing room", () => {
     render(<GeneratingScreen chapter={6} ending={false} onCancel={vi.fn()} />);
     expect(screen.getByRole("img", { name: "历史因果正在接力" })).toHaveAttribute("src", "/assets/generating-relay.webp");
     expect(screen.getByText("寻找意外落点")).toBeVisible();
+    expect(screen.getByTestId("developing-motion")).toBeInTheDocument();
+    expect(screen.getAllByTestId("causal-pulse")).toHaveLength(4);
   });
 
   it("uses the 2026 convergence art for the ending", () => {
