@@ -64,6 +64,8 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
   let targetVolume: number = VOLUME_BY_CHAPTER[1];
   let fadeTimer: ReturnType<typeof globalThis.setInterval> | null = null;
   let playing = false;
+  let desiredPlaying = false;
+  let playGeneration = 0;
 
   const clearFade = () => {
     if (fadeTimer === null) return;
@@ -108,6 +110,8 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
   };
 
   const stop = () => {
+    playGeneration += 1;
+    desiredPlaying = false;
     clearFade();
     playing = false;
     if (!audio) return;
@@ -122,15 +126,29 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
 
   return {
     async start() {
+      const generation = ++playGeneration;
+      desiredPlaying = true;
       const player = ensureAudio();
       player.muted = muted;
       try {
         await player.play();
+        if (generation !== playGeneration || !desiredPlaying || audio !== player) {
+          if (!desiredPlaying || audio !== player) {
+            try {
+              player.pause();
+              player.currentTime = 0;
+              player.volume = 0;
+            } catch {
+              // A stale player is already detached from the game.
+            }
+          }
+          return false;
+        }
         playing = true;
         fadeToTarget();
         return true;
       } catch {
-        playing = false;
+        if (generation === playGeneration) playing = false;
         return false;
       }
     },

@@ -26,3 +26,8 @@
 - `src/services/audio.test.ts`
 - `src/hooks/useGame.ts`
 - `src/hooks/useGame.test.tsx`
+
+## Review Remediation
+
+- Added audio play-generation tracking so a delayed `play()` promise cannot revive music after restart/stop or leak playback after unmount/dispose.
+- Added two delayed-play regression tests. Full suite now passes 83/83; typecheck, build, and diff-check remain green.

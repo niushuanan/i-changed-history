@@ -17,6 +17,12 @@ class FakeAudio implements AudioLike {
   pause = vi.fn();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => { resolve = next; });
+  return { promise, resolve };
+}
+
 describe("epic score controller", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -75,5 +81,36 @@ describe("epic score controller", () => {
     await expect(controller.start()).resolves.toBe(false);
     expect(() => controller.toggleMuted()).not.toThrow();
     expect(() => controller.stop()).not.toThrow();
+  });
+
+  it("does not revive a pending start after stop", async () => {
+    const pendingPlay = deferred<void>();
+    const audio = new FakeAudio();
+    audio.play.mockReturnValue(pendingPlay.promise);
+    const controller = createEpicAudioController({ createAudio: () => audio, storage: new MemoryStorage() });
+
+    const starting = controller.start();
+    controller.stop();
+    pendingPlay.resolve();
+
+    await expect(starting).resolves.toBe(false);
+    vi.advanceTimersByTime(2_000);
+    expect(audio.pause).toHaveBeenCalled();
+    expect(audio.volume).toBe(0);
+  });
+
+  it("does not leak a pending start after dispose", async () => {
+    const pendingPlay = deferred<void>();
+    const audio = new FakeAudio();
+    audio.play.mockReturnValue(pendingPlay.promise);
+    const controller = createEpicAudioController({ createAudio: () => audio, storage: new MemoryStorage() });
+
+    const starting = controller.start();
+    controller.dispose();
+    pendingPlay.resolve();
+
+    await expect(starting).resolves.toBe(false);
+    expect(audio.pause).toHaveBeenCalled();
+    expect(audio.currentTime).toBe(0);
   });
 });
