@@ -20,7 +20,7 @@ const visualToneSchema = z.enum([
   "digital",
 ]);
 
-const echoSchema = z.strictObject({
+const echoSchema = z.object({
   directResult: requiredString,
   unexpectedCost: requiredString,
   beneficiary: requiredString,
@@ -35,37 +35,37 @@ const choiceFields = {
 } as const;
 
 const choicesSchema = z.tuple([
-  z.strictObject({ id: z.literal("A"), ...choiceFields }),
-  z.strictObject({ id: z.literal("B"), ...choiceFields }),
-  z.strictObject({ id: z.literal("C"), ...choiceFields }),
+  z.object({ id: z.literal("A"), ...choiceFields }),
+  z.object({ id: z.literal("B"), ...choiceFields }),
+  z.object({ id: z.literal("C"), ...choiceFields }),
 ]);
 
 const clampedMetricSchema = z.number().finite().transform((value) =>
   Math.min(100, Math.max(0, Math.round(value))),
 );
 
-const metricsSchema = z.strictObject({
+const metricsSchema = z.object({
   stability: clampedMetricSchema,
   prosperity: clampedMetricSchema,
   freedom: clampedMetricSchema,
   cost: clampedMetricSchema,
 });
 
-const metricDeltasSchema = z.strictObject({
+const metricDeltasSchema = z.object({
   stability: z.number().finite(),
   prosperity: z.number().finite(),
   freedom: z.number().finite(),
   cost: z.number().finite(),
 });
 
-const causalLedgerEntrySchema = z.strictObject({
+const causalLedgerEntrySchema = z.object({
   fact: requiredString,
   causedByChapter: causalChapterSchema,
   mustAffect: requiredString,
 });
 
 const strictTimelineTurnSchema = z
-  .strictObject({
+  .object({
     timelineName: requiredString,
     chapter: chapterSchema,
     chapterName: chapterNameSchema,
@@ -182,6 +182,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
+    narrative: typeof turn.narrative === "string" ? [...turn.narrative].slice(0, 150).join("") : turn.narrative,
     baselineAnchor: joinStringArray(turn.baselineAnchor),
     choices: Array.isArray(turn.choices)
       ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
@@ -202,21 +203,21 @@ export const timelineTurnSchema = z.preprocess(
   strictTimelineTurnSchema,
 );
 
-const historyTimelineItemSchema = z.strictObject({
+const historyTimelineItemSchema = z.object({
   chapter: chapterSchema,
   yearLabel: requiredString,
   playerChoice: requiredString,
   consequence: requiredString,
 });
 
-const causalChainSchema = z.strictObject({
+const causalChainSchema = z.object({
   origin: requiredString,
   transformation: requiredString,
   payoff: requiredString,
 });
 
 export const alternatePresentSchema = z
-  .strictObject({
+  .object({
     worldName: requiredString,
     frontPageHeadline: requiredString,
     historyTimeline: z.array(historyTimelineItemSchema).length(11),

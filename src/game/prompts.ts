@@ -1,6 +1,6 @@
 import type { GameScenario } from "./reducer";
 import type { DeviationClass, TimelineTurn } from "./schema";
-import { CHAPTER_NAMES, type DecisionChapter } from "./timelinePlan";
+import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -97,20 +97,20 @@ function messages(payload: unknown): ChatMessage[] {
 }
 
 export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
-  return messages({ task: "生成第一幕。玩家刚穿越落地，必须立即理解自己是谁、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。", ...scenarioPayload(scenario), outputContract: turnContract(1) });
+  return messages({ task: "生成第一节点。玩家刚穿越落地，必须立即理解自己是谁、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。", ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(1, scenario.seed.year), outputContract: turnContract(1) });
 }
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
-  return messages({ task: `生成第 ${chapter} 幕，只承接已发生的玩家选择，不得替换玩家行为。`, ...scenarioPayload(scenario), playedHistory: selectedHistory(playedTurns), outputContract: turnContract(chapter) });
+  return messages({ task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。yearLabel 必须匹配权威目标年份和时间尺度。`, ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year), playedHistory: selectedHistory(playedTurns), outputContract: turnContract(chapter) });
 }
 
 export function buildEndingMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
   return messages({
-    task: "根据五次真实选择生成替代世界 2026 年头版总结。不得加入此前没有因果来源的决定性发明、战争或人物。",
+    task: "根据十一项真实选择生成第十二节点：平行世界 2026 年头版总结。不得加入此前没有因果来源的决定性发明、战争或人物。",
     ...scenarioPayload(scenario), playedHistory: selectedHistory(playedTurns),
     outputContract: {
       requiredFields: ["worldName", "frontPageHeadline", "historyTimeline", "causalChains", "ordinaryLife2026", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
-      historyTimeline: "恰好五项，每项含 chapter、yearLabel、playerChoice、consequence",
+      historyTimeline: "恰好十一项，每项含 chapter、yearLabel、playerChoice、consequence",
       causalChains: "恰好三项，每项含 origin、transformation、payoff",
       ordinaryLife2026: "恰好三个具体生活细节",
       plausibilityScore: "0-100 数值",

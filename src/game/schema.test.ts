@@ -21,9 +21,18 @@ describe("structured timeline parsing", () => {
     });
   });
 
-  it("rejects a narrative longer than 150 characters", () => {
+  it("truncates an overlong narrative instead of interrupting gameplay", () => {
     const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(151) });
-    expect(() => parseTimelineTurn(raw)).toThrow();
+    expect(parseTimelineTurn(raw).narrative).toHaveLength(150);
+  });
+
+  it("strips harmless extra model fields", () => {
+    const raw = JSON.stringify({
+      ...turnFixture,
+      modelComment: "extra",
+      choices: turnFixture.choices.map((choice) => ({ ...choice, forecast: "extra" })),
+    });
+    expect(parseTimelineTurn(raw)).not.toHaveProperty("modelComment");
   });
 
   it("rejects choices that are not exactly A, B, and C", () => {

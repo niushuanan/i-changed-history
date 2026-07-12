@@ -25,10 +25,13 @@ describe("modern traveler AI prompt contract", () => {
   it("serializes only generated choices in continuation and ending", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const }];
-    const continuation = buildContinuationMessages(scenario, played, 2).at(-1)!.content;
-    const ending = buildEndingMessages(scenario, Array(5).fill(played[0])).at(-1)!.content;
+    const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+    const ending = buildEndingMessages(scenario, Array(11).fill(played[0])).at(-1)!.content;
     expect(continuation).not.toContain("customIntervention");
     expect(ending).not.toContain("customIntervention");
     expect(continuation).toContain(turnFixture.choices[0].label);
+    expect(continuation).toContain("百年分野");
+    expect(continuation).toContain("1959");
+    expect(ending).toContain("十一项");
   });
 });

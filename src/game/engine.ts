@@ -17,6 +17,7 @@ import {
 } from "./schema";
 import { requestCompletion, type CompletionOptions } from "../services/deepseek";
 import type { DecisionChapter } from "./timelinePlan";
+import { createFallbackEnding, createFallbackTurn } from "./fallbackTurn";
 
 type RepairTarget = "timeline_turn" | "alternate_present";
 type Parser<T> = (raw: string) => T;
@@ -81,8 +82,13 @@ async function requestValidated<T>(
     );
     try {
       return parse(repairedRaw);
-    } catch (error) {
-      throw new StructuredGenerationError(target, error);
+    } catch (repairError) {
+      const regeneratedRaw = await requestCompletion(messages, requestOptions);
+      try {
+        return parse(regeneratedRaw);
+      } catch (error) {
+        throw new StructuredGenerationError(target, { validationError, repairError, error });
+      }
     }
   }
 }
@@ -124,22 +130,21 @@ function parseExpectedEnding(
   };
 }
 
-export function generateOpening(
+export async function generateOpening(
   scenario: GameScenario,
   options: GenerationOptions = {},
 ): Promise<TimelineTurn> {
   const messages = buildOpeningMessages(scenario);
 
-  return requestValidated(
-    messages,
-    { phase: "turn", signal: options.signal },
-    "timeline_turn",
-    parseRequestedTurn(1),
-    { expectedChapter: 1 },
-  );
+  try {
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(1), { expectedChapter: 1 });
+  } catch (error) {
+    if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, [], 1);
+    throw error;
+  }
 }
 
-export function generateNextTurn(
+export async function generateNextTurn(
   scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
   chapter: Exclude<DecisionChapter, 1>,
@@ -147,16 +152,15 @@ export function generateNextTurn(
 ): Promise<TimelineTurn> {
   const messages = buildContinuationMessages(scenario, playedTurns, chapter);
 
-  return requestValidated(
-    messages,
-    { phase: "turn", signal: options.signal },
-    "timeline_turn",
-    parseRequestedTurn(chapter, expectedPreviousEcho(playedTurns)),
-    { expectedChapter: chapter },
-  );
+  try {
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedPreviousEcho(playedTurns)), { expectedChapter: chapter });
+  } catch (error) {
+    if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, playedTurns, chapter);
+    throw error;
+  }
 }
 
-export function generateEnding(
+export async function generateEnding(
   scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
   options: GenerationOptions = {},
@@ -165,11 +169,10 @@ export function generateEnding(
     yearLabel: playedTurn.turn.yearLabel,
     playerChoice: getPlayedTurnChoiceText(playedTurn),
   }));
-  return requestValidated(
-    buildEndingMessages(scenario, playedTurns),
-    { phase: "ending", signal: options.signal },
-    "alternate_present",
-    parseExpectedEnding(expectedHistoryTimeline),
-    {},
-  );
+  try {
+    return await requestValidated(buildEndingMessages(scenario, playedTurns), { phase: "ending", signal: options.signal }, "alternate_present", parseExpectedEnding(expectedHistoryTimeline), {});
+  } catch (error) {
+    if (error instanceof StructuredGenerationError) return createFallbackEnding(scenario, playedTurns);
+    throw error;
+  }
 }
