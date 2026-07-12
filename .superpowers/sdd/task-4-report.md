@@ -79,6 +79,24 @@
 - Hygiene: `git diff --check`
   - Result: passed with no whitespace errors.
 
+## Follow-Up Re-Review Remediation - 2026-07-12
+
+### Changes
+
+- Added the major prefecture-city group to the date-gated lexicon, including `苏州` and other common city references alongside the existing province-level coverage.
+- Added a separate always-modern `post1840HistoricalReferences` group, including `辛亥革命` and other major post-1840 historical references.
+- Kept the policy conservative and finite: it recognizes documented lexical references without claiming universal semantic classification. Pre-1840 China and modern foreign premises remain allowed.
+
+### Commands And Results
+
+- RED: `npm test -- src/game/input.test.ts`
+  - Expected failure observed: `如果1911年辛亥革命成功` was accepted before `辛亥革命` entered the always-modern group. The same test also covers the initially accepted `如果1949年苏州发生另一种变化` bypass.
+  - Result: 1 failed, 6 passed.
+- GREEN: `npm test -- src/data/historySeeds.test.ts src/game/input.test.ts`
+  - Result: 2 files passed, 13 tests passed. The focused coverage now rejects both reported bypasses while allowing 1433 Beijing, 1839 Guangzhou, and 1914 Paris premises.
+- Hygiene: `git diff --check`
+  - Result: passed with no whitespace errors.
+
 ### Review Concerns
 
 - The assigned Task 4 tests pass. The repository-wide suite remains blocked by the unrelated untracked test modules above; `npm test` was not rerun after the final `清末` preservation adjustment, to honor the requested single full-suite execution.
