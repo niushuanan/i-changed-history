@@ -1,13 +1,7 @@
+import type { DecisionChapter } from "../game/timelinePlan";
+
 export const MUTE_STORAGE_KEY = "i-changed-history:audio-muted:v1";
 const SCORE_PATH = "/audio/epic-history-loop.mp3";
-const VOLUME_BY_CHAPTER = Object.freeze({
-  1: 0.32,
-  2: 0.34,
-  3: 0.36,
-  4: 0.38,
-  5: 0.4,
-  result: 0.24,
-} as const);
 
 export type AudioLike = {
   src: string;
@@ -31,7 +25,7 @@ export type EpicAudioOptions = {
 export type EpicAudioController = {
   start(): Promise<boolean>;
   stop(): void;
-  setChapter(chapter: 1 | 2 | 3 | 4 | 5 | "result"): void;
+  setChapter(chapter: DecisionChapter | "result"): void;
   isMuted(): boolean;
   setMuted(muted: boolean): boolean;
   toggleMuted(): boolean;
@@ -61,7 +55,7 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
   const clearIntervalFn = options.clearInterval ?? globalThis.clearInterval;
   let audio: AudioLike | null = null;
   let muted = readMuted(storage);
-  let targetVolume: number = VOLUME_BY_CHAPTER[1];
+  let targetVolume = 0.32;
   let fadeTimer: ReturnType<typeof globalThis.setInterval> | null = null;
   let playing = false;
   let desiredPlaying = false;
@@ -154,7 +148,7 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
     },
     stop,
     setChapter(chapter) {
-      targetVolume = VOLUME_BY_CHAPTER[chapter];
+      targetVolume = chapter === "result" ? 0.24 : Math.min(0.52, 0.3 + chapter * 0.02);
       fadeToTarget();
     },
     isMuted() {

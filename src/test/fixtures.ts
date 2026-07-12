@@ -1,7 +1,7 @@
 export const turnFixture = {
   timelineName: "无王航线",
   chapter: 1,
-  chapterName: "裂缝",
+  chapterName: "历史现场",
   yearLabel: "208 年冬",
   location: "长江赤壁水域",
   role: "周瑜帐下负责火船的军需官",
@@ -62,7 +62,7 @@ export const turnFixture = {
 export const endingFixture = {
   worldName: "公议纪元",
   frontPageHeadline: "跨洲公议院通过第两千份城市自治章程",
-  historyTimeline: Array.from({ length: 5 }, (_, index) => ({
+  historyTimeline: Array.from({ length: 11 }, (_, index) => ({
     chapter: index + 1,
     yearLabel: `${index + 1}纪元`,
     playerChoice: `选择${index + 1}`,

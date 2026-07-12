@@ -62,7 +62,7 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(incompleteEcho)).toThrow();
   });
 
-  it("requires a null first-turn echo and chapters from one through five", () => {
+  it("requires a null first-turn echo and accepts decision chapters one through eleven", () => {
     expect(() =>
       parseTimelineTurn(
         JSON.stringify({
@@ -73,7 +73,11 @@ describe("structured timeline parsing", () => {
     ).toThrow();
 
     expect(() =>
-      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 6, chapterName: "裂缝" })),
+      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 11, chapterName: "终局前夜", previousEcho: turnFixture.choices[0].instantEcho })),
+    ).not.toThrow();
+
+    expect(() =>
+      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 12, chapterName: "平行 2026" })),
     ).toThrow();
   });
 
@@ -111,7 +115,7 @@ describe("structured timeline parsing", () => {
     const raw = JSON.stringify({
       ...turnFixture,
       chapter: 2,
-      chapterName: "余震",
+      chapterName: "一日余波",
       previousEcho: {
         directResult: "模型改写了直接结果",
         unexpectedCost: "模型遗漏了受益者和承担者",
@@ -123,7 +127,7 @@ describe("structured timeline parsing", () => {
     );
   });
 
-  it("requires five timeline entries, three causal chains, and three ordinary-life details", () => {
+  it("requires eleven decision entries, three causal chains, and three ordinary-life details", () => {
     expect(parseAlternatePresent(JSON.stringify(endingFixture))).toMatchObject({
       worldName: "公议纪元",
       plausibilityScore: 78,
@@ -133,7 +137,7 @@ describe("structured timeline parsing", () => {
     ).toThrow();
     expect(() =>
       parseAlternatePresent(
-        JSON.stringify({ ...endingFixture, historyTimeline: endingFixture.historyTimeline.slice(0, 4) }),
+        JSON.stringify({ ...endingFixture, historyTimeline: endingFixture.historyTimeline.slice(0, 10) }),
       ),
     ).toThrow();
     expect(() =>

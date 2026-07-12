@@ -1,5 +1,6 @@
 import type { GameScenario } from "./reducer";
 import type { DeviationClass, TimelineTurn } from "./schema";
+import { CHAPTER_NAMES, type DecisionChapter } from "./timelinePlan";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -8,7 +9,7 @@ export type PlayedTurn = {
   selectedChoiceLabel: string;
   selectedDeviationClass: DeviationClass;
 };
-type ContinuationChapter = 2 | 3 | 4 | 5;
+type ContinuationChapter = Exclude<DecisionChapter, 1>;
 type RepairTarget = "timeline_turn" | "alternate_present";
 export type JsonRepairDetails = { expectedChapter?: TimelineTurn["chapter"]; validationErrors?: readonly string[] };
 
@@ -22,7 +23,6 @@ export const TIMELINE_SYSTEM_PROMPT = [
 ].join("\n");
 
 const SYSTEM: ChatMessage = { role: "system", content: TIMELINE_SYSTEM_PROMPT };
-const CHAPTER_NAMES = { 1: "裂缝", 2: "余震", 3: "新秩序", 4: "世界线", 5: "此刻" } as const;
 
 function scenarioPayload(scenario: GameScenario) {
   return {

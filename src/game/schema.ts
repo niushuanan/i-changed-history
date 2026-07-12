@@ -1,15 +1,13 @@
 import { z } from "zod";
+import { CHAPTER_NAMES, type DecisionChapter } from "./timelinePlan";
 
 const requiredString = z.string().trim().min(1);
-const chapterSchema = z.union([
-  z.literal(1),
-  z.literal(2),
-  z.literal(3),
-  z.literal(4),
-  z.literal(5),
+const chapterSchema = z.number().int().min(1).max(11).transform((value) => value as DecisionChapter);
+const causalChapterSchema = z.number().int().min(0).max(11);
+const chapterNameSchema = z.enum([
+  "历史现场", "一日余波", "月度震荡", "年轮初成", "三年变局", "十年改写",
+  "三十年秩序", "百年分野", "跨时代", "新世界", "终局前夜",
 ]);
-const causalChapterSchema = z.union([z.literal(0), chapterSchema]);
-const chapterNameSchema = z.enum(["裂缝", "余震", "新秩序", "世界线", "此刻"]);
 const deviationClassSchema = z.enum(["nudge", "reform", "rupture"]);
 const visualToneSchema = z.enum([
   "ancient",
@@ -66,14 +64,6 @@ const causalLedgerEntrySchema = z.strictObject({
   mustAffect: requiredString,
 });
 
-const chapterNames = {
-  1: "裂缝",
-  2: "余震",
-  3: "新秩序",
-  4: "世界线",
-  5: "此刻",
-} as const;
-
 const strictTimelineTurnSchema = z
   .strictObject({
     timelineName: requiredString,
@@ -97,7 +87,7 @@ const strictTimelineTurnSchema = z
     visualTone: visualToneSchema,
   })
   .superRefine((turn, context) => {
-    if (turn.chapterName !== chapterNames[turn.chapter]) {
+    if (turn.chapterName !== CHAPTER_NAMES[turn.chapter]) {
       context.addIssue({
         code: "custom",
         path: ["chapterName"],
@@ -229,7 +219,7 @@ export const alternatePresentSchema = z
   .strictObject({
     worldName: requiredString,
     frontPageHeadline: requiredString,
-    historyTimeline: z.array(historyTimelineItemSchema).length(5),
+    historyTimeline: z.array(historyTimelineItemSchema).length(11),
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
     ordinaryLife2026: z.tuple([requiredString, requiredString, requiredString]),
     greatestGain: requiredString,
