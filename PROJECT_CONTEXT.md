@@ -2,14 +2,14 @@
 
 ## 1. 这个项目是干什么的
 
-《哎！我改变了历史》是一款可玩的移动端 AI 反事实历史游戏。玩家从 50 个真实历史转折点中选择一个，或输入自己的历史假设；随后通过五幕 AI 叙事、三个结构化选项或自由干预改变时间线，最终生成另一个版本的 2026 年。
+《I！我改变了历史》是一款可玩的移动端 AI 穿越历史游戏。玩家先建立现代穿越者档案，系统再从 50 个公元后的著名真实历史瞬间中匹配五张卡；玩家成为当时的具体参与者，通过五幕 AI 即兴叙事和每幕三个现场行动改变时间线，最终生成另一个版本的 2026 年。
 
 当前版本是本地纯前端应用：在浏览器直接调用 DeepSeek `deepseek-v4-flash`，用 Zod 校验结构化输出，用前端公式计算历史偏离度，用本地音频构建史诗氛围，并可将结局头版导出为高清 PNG。密钥只放在被 Git 忽略的 `.env.local`。
 
 ## 2. 代码结构是什么
 
-- `src/data/`：50 张历史卡牌、均衡发牌算法和视觉资产映射。
-- `src/game/`：游戏领域层，包含输入边界、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
+- `src/data/`：50 张公元后著名历史瞬间、画像推荐算法和视觉资产映射。
+- `src/game/`：游戏领域层，包含穿越者画像校验、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
 - `src/hooks/`：`useGame.ts` 负责请求取消、预生成、即时回响、存储、音频和重试编排。
 - `src/services/`：DeepSeek 传输、版本化本地存储、史诗配乐和 PNG 分享/下载。
 - `src/screens/` 和 `src/components/`：从历史档案选择到平行 2026 头版的完整界面。
@@ -19,13 +19,13 @@
 - `public/assets/` 与 `public/audio/`：历史场景图、CC0 史诗配乐及授权记录。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
-实际数据流是：历史卡或自由 Prompt -> DeepSeek 结构化 JSON -> 格式归一与 Zod 校验 -> 前端状态机 -> 即时蝴蝶效应与后台预生成 -> 确定性历史偏离度 -> 平行世界结局 -> PNG 头版。
+实际数据流是：穿越者档案 -> 本地确定性画像推荐 -> 选择真实历史卡 -> DeepSeek 结构化 JSON -> 格式归一与 Zod 校验 -> 前端状态机 -> 即时蝴蝶效应与后台预生成 -> 确定性历史偏离度 -> 平行世界结局 -> PNG 头版。
 
 ## 3. 关键入口在哪里
 
 - `index.html`：Vite 页面入口。
 - `src/main.tsx`：React 挂载入口。
-- `src/App.tsx`：根组件，负责根据游戏 phase 切换界面、打开自由输入底部面板和导出结局。
+- `src/App.tsx`：根组件，负责穿越者档案、画像匹配、游戏 phase 切换和结局导出。
 - `src/hooks/useGame.ts`：运行时编排入口。
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
 - `src/data/historySeeds.ts`：历史卡牌数据入口。
@@ -35,6 +35,14 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-12 23:50 - 重构为现代穿越者与真实历史瞬间
+
+- 本次任务：把难以理解的泛化反事实游戏重构成 `I！我改变了历史` 的现代人穿越体验，并通过真实 DeepSeek 续幕验证。
+- 改了哪些文件：`AGENTS.md`、`PROJECT_CONTEXT.md`、`index.html`、`src/App.tsx`、`src/data/historySeeds.ts`、`src/game/{profile,reducer,prompts,engine,schema,types}.ts`、`src/hooks/useGame.ts`、`src/services/{storage,share}.ts`、`src/screens/*`、`src/components/HistoryCard.tsx`、`src/styles/game.css` 及配套测试。
+- 改了什么：加入画像首屏和本地推荐；重写 50 个公元后具体历史瞬间，其中 18 个为 1840 年前中国史；将场景绑定为“画像 + 卡片”；AI 幕次强制输出身份、现场目标、倒计时和三个具体动作；删除自定义开局与自由干预；存档升级为 v2；品牌统一为 `I！我改变了历史`。
+- 为什么这样改：让玩家一眼明白自己是谁、身处哪一个著名瞬间、现在必须决定什么，同时保留 AI 即兴因果推演而不把关键交互变成聊天框。
+- 影响了哪些模块：首屏、卡牌推荐、全部游戏状态、DeepSeek 契约、续幕恢复、本地存档、分享品牌、移动端视觉和测试。
 
 ### 2026-07-12 14:34 - 完成可玩五幕游戏与头版导出
 
