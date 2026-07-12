@@ -82,3 +82,24 @@
 ### Review Concerns
 
 - The assigned Task 4 tests pass. The repository-wide suite remains blocked by the unrelated untracked test modules above; `npm test` was not rerun after the final `清末` preservation adjustment, to honor the requested single full-suite execution.
+
+## Critical Re-Review Remediation - 2026-07-12
+
+### Changes
+
+- Replaced the narrow modern-China regex branches with `MODERN_CHINA_ENTITY_LEXICON`, grouped into date-gated China names, all province-level regions, major cities, historical terms, modern context markers, and always-modern political entities, movements, and figures.
+- Date-gated entities now reject post-1840 Guangzhou, Hong Kong, and Taiwan premises while preserving pre-1840 Beijing and Guangzhou premises.
+- Explicitly modern political references, including `毛泽东`, are rejected even when a year is omitted.
+
+### Commands And Results
+
+- RED: `npm test -- src/game/input.test.ts`
+  - Expected failure observed: `如果1949年广州发生另一种变化` was accepted, proving the previous lexicon did not cover Guangzhou or the other new entity cases.
+  - Result: 1 failed, 6 passed.
+- GREEN: `npm test -- src/data/historySeeds.test.ts src/game/input.test.ts`
+  - Result: 2 files passed, 13 tests passed. Coverage includes 1949 Guangzhou, 1997 Hong Kong, 1949 Taiwan, `毛泽东`, explicit modern Guangzhou, and the allowed 1839 Guangzhou and 1433 Beijing cases.
+- Full suite, run once as requested: `npm test`
+  - Result: 2 files passed and 3 files failed; 13 tests passed and 14 tests failed.
+  - Expected unrelated Task 5 RED failures remain confined to untracked `src/game/prompts.test.ts`, `src/game/schema.test.ts`, and `src/services/deepseek.test.ts`; they were not changed.
+- Hygiene: `git diff --check`
+  - Result: passed with no whitespace errors.

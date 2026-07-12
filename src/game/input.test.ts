@@ -26,6 +26,11 @@ describe("custom historical premise", () => {
       "如果1919年上海发生另一种变化",
       "如果1949年清朝发生另一种变化",
       "如果1911年清末发生另一种变化",
+      "如果1949年广州发生另一种变化",
+      "如果1997年香港发生另一种变化",
+      "如果1949年台湾发生另一种变化",
+      "如果现代广州发生另一种变化",
+      "如果毛泽东选择另一种道路",
     ]) {
       expect(normalizeCustomSeed(value)).toEqual({ ok: false, reason: "modern_china", value });
     }
@@ -39,6 +44,10 @@ describe("custom historical premise", () => {
     expect(normalizeCustomSeed("如果1433年北京继续支持远航")).toEqual({
       ok: true,
       value: "如果1433年北京继续支持远航",
+    });
+    expect(normalizeCustomSeed("如果1839年广州继续开放商贸港口")).toEqual({
+      ok: true,
+      value: "如果1839年广州继续开放商贸港口",
     });
     expect(normalizeCustomSeed("如果古罗马在公元一世纪普及蒸汽动力").ok).toBe(true);
   });
