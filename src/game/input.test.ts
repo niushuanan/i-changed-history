@@ -20,10 +20,25 @@ describe("custom historical premise", () => {
     expect(normalizeCustomSeed(value)).toEqual({ ok: false, reason: "modern_china", value });
   });
 
+  it("blocks modern Chinese premises that use place or dynasty references", () => {
+    for (const value of [
+      "如果1840年北京发生另一种变化",
+      "如果1919年上海发生另一种变化",
+      "如果1949年清朝发生另一种变化",
+      "如果1911年清末发生另一种变化",
+    ]) {
+      expect(normalizeCustomSeed(value)).toEqual({ ok: false, reason: "modern_china", value });
+    }
+  });
+
   it("allows pre-modern China and globally framed premises", () => {
     expect(normalizeCustomSeed("如果郑和船队在1433年后继续远航")).toEqual({
       ok: true,
       value: "如果郑和船队在1433年后继续远航",
+    });
+    expect(normalizeCustomSeed("如果1433年北京继续支持远航")).toEqual({
+      ok: true,
+      value: "如果1433年北京继续支持远航",
     });
     expect(normalizeCustomSeed("如果古罗马在公元一世纪普及蒸汽动力").ok).toBe(true);
   });
