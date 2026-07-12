@@ -12,6 +12,12 @@ const profile: TravelerProfile = {
   riskStyle: "balanced",
 };
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
+const eleventhTurn = parseTimelineTurn(JSON.stringify({
+  ...turnFixture,
+  chapter: 11,
+  chapterName: "终局前夜",
+  previousEcho: turnFixture.choices[0].instantEcho,
+}));
 
 describe("profile-first choice-only game reducer", () => {
   it("starts in profiling and requires a profile before a historical moment", () => {
@@ -52,5 +58,25 @@ describe("profile-first choice-only game reducer", () => {
     const changed = gameReducer(restarted, { type: "CHANGE_PROFILE" });
     expect(changed.phase).toBe("profiling");
     expect(changed.profile).toBeNull();
+  });
+
+  it("requests the 2026 ending only after the eleventh player decision", () => {
+    const state = {
+      ...createInitialGameState(),
+      phase: "event" as const,
+      profile,
+      scenario: { profile, seed: HISTORY_SEEDS[0] },
+      currentTurn: eleventhTurn,
+      playedTurns: Array.from({ length: 10 }, () => ({
+        turn,
+        selectedChoiceId: "A" as const,
+        selectedChoiceLabel: turn.choices[0].label,
+        selectedDeviationClass: "nudge" as const,
+      })),
+    };
+
+    const chosen = gameReducer(state, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
+    expect(chosen.playedTurns).toHaveLength(11);
+    expect(chosen.request).toMatchObject({ kind: "ending" });
   });
 });

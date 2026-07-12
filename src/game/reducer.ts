@@ -2,10 +2,11 @@ import { calculateDeviation } from "./deviation";
 import type { PlayedTurn } from "./prompts";
 import type { AlternatePresent, TimelineTurn } from "./schema";
 import type { HistorySeed, TravelerProfile } from "./types";
+import type { DecisionChapter } from "./timelinePlan";
 
 export type GamePhase = "profiling" | "selecting" | "generating" | "event" | "echo" | "ending" | "result" | "error";
 export type GameScenario = { profile: TravelerProfile; seed: HistorySeed };
-export type RetryIntent = { kind: "opening" } | { kind: "next-turn"; targetChapter: 2 | 3 | 4 | 5 } | { kind: "ending" };
+export type RetryIntent = { kind: "opening" } | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> } | { kind: "ending" };
 export type RequestIntent = RetryIntent & { id: number };
 
 export type EchoState = {
@@ -73,9 +74,9 @@ function cleanSession(state: GameState): GameState {
 
 function requestAfterChoice(state: GameState) {
   const chapter = state.currentTurn?.chapter;
-  if (chapter === 5) return withRequest(state, { kind: "ending" });
+  if (chapter === 11) return withRequest(state, { kind: "ending" });
   if (!chapter) return { request: null, nextRequestId: state.nextRequestId };
-  return withRequest(state, { kind: "next-turn", targetChapter: (chapter + 1) as 2 | 3 | 4 | 5 });
+  return withRequest(state, { kind: "next-turn", targetChapter: (chapter + 1) as Exclude<DecisionChapter, 1> });
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {

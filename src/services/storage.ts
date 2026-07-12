@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { GameState, RetryIntent } from "../game/reducer";
 import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v2";
-const STORAGE_VERSION = 2;
+export const GAME_STORAGE_KEY = "i-changed-history:session:v3";
+const STORAGE_VERSION = 3;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "request" | "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -34,14 +34,14 @@ const playedSchema = z.strictObject({
 });
 const retrySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("opening") }),
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]) }),
+  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(11) }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retry: retrySchema });
 const stateSchema = z.strictObject({
   phase: z.enum(["profiling", "selecting", "event", "result", "error"]),
   profile: profileSchema.nullable(), scenario: scenarioSchema.nullable(), currentTurn: timelineTurnSchema.nullable(),
-  playedTurns: z.array(playedSchema).max(5), deviation: z.number().int().min(0).max(100), lastImpact: z.number().int().min(0).max(100),
+  playedTurns: z.array(playedSchema).max(11), deviation: z.number().int().min(0).max(100), lastImpact: z.number().int().min(0).max(100),
   result: alternatePresentSchema.nullable(), error: errorSchema.nullable(), nextRequestId: z.number().int().positive(),
 }).superRefine((state, context) => {
   if (state.phase === "profiling" && state.profile !== null) context.addIssue({ code: "custom", message: "档案阶段不应已有档案" });

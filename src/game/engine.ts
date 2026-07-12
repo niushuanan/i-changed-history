@@ -16,6 +16,7 @@ import {
   type TimelineTurn,
 } from "./schema";
 import { requestCompletion, type CompletionOptions } from "../services/deepseek";
+import type { DecisionChapter } from "./timelinePlan";
 
 type RepairTarget = "timeline_turn" | "alternate_present";
 type Parser<T> = (raw: string) => T;
@@ -141,7 +142,7 @@ export function generateOpening(
 export function generateNextTurn(
   scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
-  chapter: 2 | 3 | 4 | 5,
+  chapter: Exclude<DecisionChapter, 1>,
   options: NextTurnGenerationOptions = {},
 ): Promise<TimelineTurn> {
   const messages = buildContinuationMessages(scenario, playedTurns, chapter);
