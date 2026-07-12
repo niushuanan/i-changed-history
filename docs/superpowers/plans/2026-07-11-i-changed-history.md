@@ -1,4 +1,4 @@
-# 《我改变了历史》Implementation Plan
+# 《哎！我改变了历史》Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,12 +10,16 @@
 
 ## Global Constraints
 
-- The product name is `我改变了历史` and must be the first-viewport brand signal.
+- The product name is `哎！我改变了历史` and must be the first-viewport brand signal.
 - The first screen is the usable five-card history picker, not a marketing page.
 - The curated dataset contains exactly 50 cards: 10 in each of five era buckets.
 - No curated or custom scenario may concern China from 1840 onward.
 - A run contains exactly five generated timeline turns and one generated alternate-2026 ending.
-- Every turn offers exactly three choices and reports stability, prosperity, freedom, and cost on a 0-100 scale.
+- Every turn offers exactly three AI choices plus one custom-intervention command, and reports stability, prosperity, freedom, and cost on a 0-100 scale.
+- Every AI choice includes one of `nudge/reform/rupture` and a complete instant echo; the three classes appear exactly once per turn.
+- Historical deviation is calculated only by deterministic frontend code; the model never outputs its numeric value.
+- Ordinary turns use V4 Flash non-thinking short JSON; only the ending enables thinking mode.
+- Epic background music starts only after a user gesture and never blocks play.
 - No authored plot branches or fallback story text; only card baseline facts are curated.
 - The current build is frontend-only and local-use-only; `.env.local` stays ignored.
 - Reference viewport is 390 x 844 with no horizontal scroll or off-screen primary action.
@@ -35,8 +39,9 @@
 - `src/data/historySeeds.ts`: fifty seeds and balanced deal algorithm.
 - `src/data/historySeeds.test.ts`: dataset and dealing invariants.
 - `src/game/input.ts`: custom prompt normalization and policy boundary.
+- `src/game/deviation.ts`: deterministic deviation calculation and labels.
 - `src/game/types.ts`, `schema.ts`, `prompts.ts`, `reducer.ts`, `engine.ts`: game domain.
-- `src/services/deepseek.ts`, `storage.ts`, `share.ts`: external boundaries.
+- `src/services/deepseek.ts`, `storage.ts`, `share.ts`, `audio.ts`: external boundaries.
 - `src/screens/*.tsx`, `src/components/*.tsx`: complete player journey.
 - `src/styles/*.css`: selected-target visual implementation.
 - `design-qa.md`: source-versus-build review.
@@ -325,7 +330,7 @@ git commit -m "feat: add fifty historical turning points"
 
 - [ ] **Step 1: Write failing schema tests**
 
-Test extraction through Markdown noise, exactly three `A/B/C` choices, metric clamping, first-turn null echo, chapter `1..5`, five ending timeline items, and exactly three causal chains.
+Test extraction through Markdown noise, exactly three `A/B/C` choices, one each of `nudge/reform/rupture`, complete instant echoes, metric clamping, first-turn null echo, chapter `1..5`, five ending timeline items, and exactly three causal chains.
 
 - [ ] **Step 2: Verify RED and implement schemas**
 
@@ -333,7 +338,7 @@ Run the focused test and confirm missing-module failure. Implement a quote-aware
 
 - [ ] **Step 3: Write failing prompt tests**
 
-Assert that curated opening prompts include all three baseline facts; custom prompts are serialized under `untrustedPlayerPremise`; continuation prompts include every selected choice and causal fact; ending prompts require three ordinary-life details and prohibit decisive new inventions.
+Assert that curated opening prompts include all three baseline facts; custom start prompts are serialized under `untrustedPlayerPremise`; in-game free interventions are serialized under `untrustedPlayerIntervention` with the player-selected deviation class; continuation prompts include every selected choice and causal fact; ending prompts require three ordinary-life details and prohibit decisive new inventions.
 
 - [ ] **Step 4: Implement prompt builders**
 
@@ -341,11 +346,11 @@ Use one immutable system prompt. It tells the model to reason privately, output 
 
 - [ ] **Step 5: Write failing transport tests**
 
-Assert endpoint, model, thinking mode, JSON response format, 45-second abort, one 429 retry followed by success, and no retry on 401.
+Assert endpoint, model, per-request thinking mode, JSON response format, 28-second abort, one 429 retry followed by success, and no retry on 401.
 
 - [ ] **Step 6: Implement DeepSeek transport and repair**
 
-Send `deepseek-v4-flash`, `thinking: { type: "enabled" }`, `reasoning_effort: "high"`, `response_format: { type: "json_object" }`, `stream: false`, and `max_tokens: 2200`. Retry 429/5xx/network twice at 600ms and 1500ms. On schema failure, issue one JSON-only repair request; never invent fallback narrative.
+For opening and continuation send `deepseek-v4-flash`, `thinking: { type: "disabled" }`, `response_format: { type: "json_object" }`, `stream: false`, and `max_tokens: 1100`. For ending use `thinking: { type: "enabled" }`, `reasoning_effort: "high"`, and `max_tokens: 1800`. Retry 429/5xx/network once after 650ms and abort at 28 seconds. On schema failure, issue one JSON-only repair request; never invent fallback narrative.
 
 - [ ] **Step 7: Verify and commit**
 
@@ -358,8 +363,12 @@ Run all schema, prompt, and transport tests plus `npm run build`. Commit the str
 **Files:**
 - Create: `src/game/reducer.ts`
 - Create: `src/game/reducer.test.ts`
+- Create: `src/game/deviation.ts`
+- Create: `src/game/deviation.test.ts`
 - Create: `src/services/storage.ts`
 - Create: `src/services/storage.test.ts`
+- Create: `src/services/audio.ts`
+- Create: `src/services/audio.test.ts`
 - Create: `src/hooks/useGame.ts`
 
 **Interfaces:**
@@ -367,11 +376,11 @@ Run all schema, prompt, and transport tests plus `npm run build`. Commit the str
 
 - [ ] **Step 1: Write failing reducer tests**
 
-Cover seed selection, duplicate-choice suppression, echo after every choice, ending after chapter five, stale request ID rejection, recoverable error, and full restart.
+Cover seed selection, duplicate-choice suppression, immediate echo after every AI choice, free intervention at every chapter, ending after chapter five, stale request ID rejection, recoverable error, and full restart.
 
 - [ ] **Step 2: Verify RED and implement reducer**
 
-Keep state transitions pure. Compute history deviation client-side from metric distance and ledger length. Do not use model output for request IDs or phase control.
+Keep state transitions pure. Compute history deviation with `BASE_IMPACT = { nudge: 3, reform: 10, rupture: 22 }`, chapter multipliers `[1, 1.15, 1.3, 1.45, 1.6]`, and the compounding formula from the spec. Do not use model output for numeric deviation, request IDs, or phase control.
 
 - [ ] **Step 3: Write and implement storage tests**
 
@@ -379,9 +388,13 @@ Persist versioned stable states under `i-changed-history:session:v1`. Invalid JS
 
 - [ ] **Step 4: Implement `useGame`**
 
-Use one AbortController per request, abort on restart/unmount, persist only stable phases, and translate typed errors into retryable user states without losing the timeline.
+Use one AbortController per request, abort on restart/unmount, persist only stable phases, start the next request immediately when a choice is committed, and translate typed errors into retryable user states without losing the timeline.
 
-- [ ] **Step 5: Verify and commit**
+- [ ] **Step 5: Test-first implement audio control**
+
+Use one local looped audio asset. Start only after card selection/custom-start submission, fade to volume 0.32, persist mute state, raise intensity gradually by chapter, and treat load/play rejection as silent non-blocking fallback.
+
+- [ ] **Step 6: Verify and commit**
 
 Run reducer and storage tests, then full tests and build. Commit only after green.
 
@@ -392,6 +405,7 @@ Run reducer and storage tests, then full tests and build. Commit only after gree
 **Files:**
 - Create: `src/screens/SeedPickerScreen.tsx`
 - Create: `src/screens/CustomSeedSheet.tsx`
+- Create: `src/screens/CustomInterventionSheet.tsx`
 - Create: `src/screens/TimelineEventScreen.tsx`
 - Create: `src/screens/ButterflyEchoScreen.tsx`
 - Create: `src/screens/GeneratingScreen.tsx`
@@ -412,11 +426,11 @@ Run reducer and storage tests, then full tests and build. Commit only after gree
 
 - [ ] **Step 1: Write the failing card-route integration test**
 
-Mock five generated turns and one ending. Select a card, make five choices, verify each butterfly echo, and assert the result includes world name, three ordinary-life details, rewrite level, save action, and restart action.
+Mock five generated turns and one ending. Select a card, make five choices, verify every AI choice displays its pre-generated butterfly echo immediately, and assert the result includes world name, three ordinary-life details, rewrite level, deterministic deviation, save action, and restart action.
 
 - [ ] **Step 2: Write the failing custom-route integration test**
 
-Open the custom sheet, verify invalid modern-China input keeps its text and shows the neutral boundary message, then submit a valid Roman steam premise and complete the same five-turn route.
+Open the custom-start sheet, verify invalid modern-China input keeps its text and shows the neutral boundary message, then submit a valid Roman steam premise. During chapter two open “自己改写这一步”, enter a free intervention, choose `改写`, and complete the same five-turn route.
 
 - [ ] **Step 3: Verify RED**
 
@@ -425,11 +439,11 @@ Expected: FAIL because the screens and controls do not exist.
 
 - [ ] **Step 4: Implement picker and custom prompt**
 
-Match `redaction-room.png` measurements. Use a horizontal snap carousel with one full card and neighboring hints, real tone images, a Phosphor shuffle icon with tooltip, and a bottom sheet for the 140-character prompt. No nested cards.
+Match `redaction-room.png` measurements. Use a horizontal snap carousel with one full card and neighboring hints, real tone images, a Phosphor shuffle icon with tooltip, and a bottom sheet for the 140-character starting prompt. Use the exact title `哎！我改变了历史`. No nested cards.
 
 - [ ] **Step 5: Implement event, echo, and result screens**
 
-Match the two supporting target images. Scene area has stable aspect ratio; choices have stable min-height; metrics never resize; result has a dedicated 1080 x 1440 capture node. Dynamic text clamps only where the schema already imposes a maximum; never hide a primary action.
+Match the two supporting target images. Scene area has stable aspect ratio; three AI choices have stable min-height; the separate pencil-icon custom command opens a 140-character sheet with a `微调/改写/颠覆` segmented control; metrics and deviation never resize; result has a dedicated 1080 x 1440 capture node. Dynamic text clamps only where the schema already imposes a maximum; never hide a primary action.
 
 - [ ] **Step 6: Verify GREEN and commit**
 
@@ -442,6 +456,7 @@ Run the focused integration tests, all unit tests, and production build. Inspect
 **Files:**
 - Create: `src/services/share.ts`
 - Create: `src/services/share.test.ts`
+- Create: `public/audio/epic-history-loop.ogg`
 - Create untracked: `.env.local`
 - Create: `design-qa.md`
 - Modify: `PROJECT_CONTEXT.md`
@@ -471,7 +486,7 @@ Expected: no whitespace failures, all tests green, build succeeds, and `dist` re
 
 - [ ] **Step 4: Start the local app and use the in-app Browser**
 
-Run on the first free port. Inspect at 390 x 844, test card shuffle, custom prompt, five choices, retry state, refresh recovery, save/share fallback, and restart. Check browser console errors.
+Run on the first free port. Inspect at 390 x 844, test card shuffle, custom start prompt, in-game free intervention, deterministic deviation, instant echoes, music/mute, retry state, refresh recovery, save/share fallback, and restart. Check browser console errors.
 
 - [ ] **Step 5: Complete three real DeepSeek runs**
 
