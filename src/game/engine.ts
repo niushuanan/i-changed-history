@@ -4,7 +4,7 @@ import {
   buildCustomContinuationMessages,
   buildCustomOpeningMessages,
   buildEndingMessages,
-  buildJsonRepairMessages,
+  buildContextualJsonRepairMessages,
   buildOpeningMessages,
   getPlayedTurnChoiceText,
   type ChatMessage,
@@ -48,6 +48,25 @@ export class StructuredGenerationError extends Error {
   }
 }
 
+function summarizeValidationError(error: unknown): string[] {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "issues" in error &&
+    Array.isArray(error.issues)
+  ) {
+    return error.issues.slice(0, 12).map((issue) => {
+      if (typeof issue !== "object" || issue === null) return String(issue);
+      const path =
+        "path" in issue && Array.isArray(issue.path) ? issue.path.join(".") : "response";
+      const message = "message" in issue ? String(issue.message) : "invalid value";
+      return `${path || "response"}: ${message}`;
+    });
+  }
+
+  return [error instanceof Error ? error.message : "Response did not match the required schema."];
+}
+
 async function requestValidated<T>(
   messages: ChatMessage[],
   requestOptions: CompletionOptions,
@@ -59,9 +78,12 @@ async function requestValidated<T>(
 
   try {
     return parse(raw);
-  } catch {
+  } catch (validationError) {
     const repairedRaw = await requestCompletion(
-      buildJsonRepairMessages(raw, target, repairDetails),
+      buildContextualJsonRepairMessages(messages, raw, target, {
+        ...repairDetails,
+        validationErrors: summarizeValidationError(validationError),
+      }),
       requestOptions,
     );
     try {
@@ -72,9 +94,12 @@ async function requestValidated<T>(
   }
 }
 
-function parseRequestedTurn(expectedChapter: TimelineTurn["chapter"]): Parser<TimelineTurn> {
+function parseRequestedTurn(
+  expectedChapter: TimelineTurn["chapter"],
+  expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>,
+): Parser<TimelineTurn> {
   return (raw) => {
-    const turn = parseTimelineTurn(raw);
+    const turn = parseTimelineTurn(raw, { expectedPreviousEcho });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
     }
@@ -82,13 +107,24 @@ function parseRequestedTurn(expectedChapter: TimelineTurn["chapter"]): Parser<Ti
   };
 }
 
-function parseExpectedEnding(expectedChoices: readonly string[]): Parser<AlternatePresent> {
+function expectedPreviousEcho(
+  playedTurns: readonly PlayedTurn[],
+): NonNullable<TimelineTurn["previousEcho"]> | undefined {
+  const previous = playedTurns.at(-1);
+  if (!previous || previous.selectionSource === "custom_intervention") return undefined;
+  return previous.turn.choices.find((choice) => choice.id === previous.selectedChoiceId)
+    ?.instantEcho;
+}
+
+function parseExpectedEnding(
+  expectedHistoryTimeline: readonly { yearLabel: string; playerChoice: string }[],
+): Parser<AlternatePresent> {
   return (raw) => {
-    const ending = parseAlternatePresent(raw);
+    const ending = parseAlternatePresent(raw, { expectedHistoryTimeline });
     const choicesMatch = ending.historyTimeline.every(
-      (item, index) => item.playerChoice === expectedChoices[index],
+      (item, index) => item.playerChoice === expectedHistoryTimeline[index]?.playerChoice,
     );
-    if (!choicesMatch || ending.historyTimeline.length !== expectedChoices.length) {
+    if (!choicesMatch || ending.historyTimeline.length !== expectedHistoryTimeline.length) {
       throw new Error("结局时间线没有按顺序保留玩家的五次真实选择。");
     }
     return ending;
@@ -137,7 +173,7 @@ export function generateNextTurn(
     messages,
     { phase: "turn", signal: options.signal },
     "timeline_turn",
-    parseRequestedTurn(chapter),
+    parseRequestedTurn(chapter, expectedPreviousEcho(playedTurns)),
     { ...scenarioRepairDetails(scenario), expectedChapter: chapter },
   );
 }
@@ -147,12 +183,16 @@ export function generateEnding(
   playedTurns: readonly PlayedTurn[],
   options: GenerationOptions = {},
 ): Promise<AlternatePresent> {
-  const expectedPlayerChoices = playedTurns.map(getPlayedTurnChoiceText);
+  const expectedHistoryTimeline = playedTurns.map((playedTurn) => ({
+    yearLabel: playedTurn.turn.yearLabel,
+    playerChoice: getPlayedTurnChoiceText(playedTurn),
+  }));
+  const expectedPlayerChoices = expectedHistoryTimeline.map((item) => item.playerChoice);
   return requestValidated(
     buildEndingMessages(scenario, playedTurns),
     { phase: "ending", signal: options.signal },
     "alternate_present",
-    parseExpectedEnding(expectedPlayerChoices),
+    parseExpectedEnding(expectedHistoryTimeline),
     {
       ...scenarioRepairDetails(scenario),
       untrustedExpectedPlayerChoices: expectedPlayerChoices,

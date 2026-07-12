@@ -77,6 +77,52 @@ describe("structured timeline parsing", () => {
     ).toThrow();
   });
 
+  it("normalizes the stable V4-flash formatting drift seen in real opening turns", () => {
+    const drifted = {
+      ...turnFixture,
+      baselineAnchor: [turnFixture.baselineAnchor, "继业者尚未分割帝国。"],
+      choices: turnFixture.choices.map((choice, index) => ({
+        label: `${["A", "B", "C"][index]}. ${choice.label}`,
+        intent: choice.deviationClass,
+        instantEcho: choice.instantEcho,
+      })),
+      memorySummary: [turnFixture.memorySummary],
+      causalLedger: [
+        { fact: "巴比伦的继承危机", causedByChapter: 0, mustAffect: "帝国合法性" },
+      ],
+      callbackUsed: false,
+      visualTone: ["ancient", "exchange"],
+    };
+
+    const parsed = parseTimelineTurn(JSON.stringify(drifted));
+    expect(parsed.baselineAnchor).toContain("继业者");
+    expect(parsed.choices).toMatchObject([
+      { id: "A", label: turnFixture.choices[0].label, deviationClass: "nudge" },
+      { id: "B", label: turnFixture.choices[1].label, deviationClass: "reform" },
+      { id: "C", label: turnFixture.choices[2].label, deviationClass: "rupture" },
+    ]);
+    expect(parsed.causalLedger[0].causedByChapter).toBe(0);
+    expect(parsed.callbackUsed).toBeNull();
+    expect(parsed.visualTone).toBe("ancient");
+  });
+
+  it("uses the selected choice echo as the authoritative continuation callback", () => {
+    const expectedEcho = turnFixture.choices[1].instantEcho;
+    const raw = JSON.stringify({
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "余震",
+      previousEcho: {
+        directResult: "模型改写了直接结果",
+        unexpectedCost: "模型遗漏了受益者和承担者",
+      },
+    });
+
+    expect(parseTimelineTurn(raw, { expectedPreviousEcho: expectedEcho }).previousEcho).toEqual(
+      expectedEcho,
+    );
+  });
+
   it("requires five timeline entries, three causal chains, and three ordinary-life details", () => {
     expect(parseAlternatePresent(JSON.stringify(endingFixture))).toMatchObject({
       worldName: "公议纪元",
@@ -95,5 +141,20 @@ describe("structured timeline parsing", () => {
         JSON.stringify({ ...endingFixture, causalChains: endingFixture.causalChains.slice(0, 2) }),
       ),
     ).toThrow();
+  });
+
+  it("rebuilds string-only ending timeline entries from authoritative played turns", () => {
+    const expectedHistoryTimeline = endingFixture.historyTimeline.map((item) => ({
+      yearLabel: item.yearLabel,
+      playerChoice: item.playerChoice,
+    }));
+    const raw = JSON.stringify({
+      ...endingFixture,
+      historyTimeline: endingFixture.historyTimeline.map((item) => item.consequence),
+    });
+
+    expect(parseAlternatePresent(raw, { expectedHistoryTimeline }).historyTimeline).toEqual(
+      endingFixture.historyTimeline,
+    );
   });
 });

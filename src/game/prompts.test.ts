@@ -4,6 +4,7 @@ import {
   buildCustomContinuationMessages,
   buildCustomOpeningMessages,
   buildEndingMessages,
+  buildContextualJsonRepairMessages,
   buildJsonRepairMessages,
   buildOpeningMessages,
 } from "./prompts";
@@ -151,6 +152,23 @@ describe("timeline prompt construction", () => {
     expect(endingFixture.ordinaryLife2026).toHaveLength(3);
   });
 
+  it("shows the exact object shape for all five ending timeline entries", () => {
+    const payload = JSON.parse(
+      buildEndingMessages(seed, Array(5).fill(playedTurn)).at(-1)?.content ?? "{}",
+    );
+    const example = payload.outputContract.exactJsonExample;
+
+    expect(example.historyTimeline).toHaveLength(5);
+    expect(example.historyTimeline[0]).toEqual({
+      chapter: 1,
+      yearLabel: "第一幕年份",
+      playerChoice: "逐字复制第一幕玩家真实选择",
+      consequence: "该选择造成的具体后果",
+    });
+    expect(example.causalChains).toHaveLength(3);
+    expect(example.ordinaryLife2026).toHaveLength(3);
+  });
+
   it("enumerates all eight visual tones in turn and repair contracts", () => {
     const expectedTones = [
       "ancient",
@@ -169,5 +187,81 @@ describe("timeline prompt construction", () => {
 
     expect(openingPayload.outputContract.visualTone).toEqual(expectedTones);
     expect(repairPayload.outputContract.visualTone).toEqual(expectedTones);
+  });
+
+  it("provides an exact JSON shape so enum values cannot be mistaken for intent text", () => {
+    const openingPayload = JSON.parse(buildOpeningMessages(seed).at(-1)?.content ?? "{}");
+    const example = openingPayload.outputContract.exactJsonExample;
+
+    expect(example.choices).toMatchObject([
+      { id: "A", deviationClass: "nudge" },
+      { id: "B", deviationClass: "reform" },
+      { id: "C", deviationClass: "rupture" },
+    ]);
+    expect(example.choices[0].intent).not.toBe("nudge");
+    expect(typeof example.visualTone).toBe("string");
+    expect(example.callbackUsed).toBeNull();
+    expect(example.causalLedger[0]).toMatchObject({ causedByChapter: 0 });
+  });
+
+  it("uses a complete previous echo in continuation and repair examples", () => {
+    const continuationPayload = JSON.parse(
+      buildContinuationMessages(seed, [playedTurn], 2).at(-1)?.content ?? "{}",
+    );
+    const repairPayload = JSON.parse(
+      buildJsonRepairMessages("{}", "timeline_turn", { expectedChapter: 2 }).at(-1)
+        ?.content ?? "{}",
+    );
+
+    for (const payload of [continuationPayload, repairPayload]) {
+      const example = payload.outputContract.exactJsonExample;
+      expect(example).toMatchObject({ chapter: 2, chapterName: "余震" });
+      expect(example.previousEcho).toEqual({
+        directResult: "上次选择的直接结果",
+        unexpectedCost: "上次选择的意外代价",
+        beneficiary: "上次选择的受益者",
+        payer: "上次选择的承担者",
+      });
+    }
+  });
+
+  it("includes parser diagnostics in a repair request", () => {
+    const repairPayload = JSON.parse(
+      buildJsonRepairMessages("{}", "timeline_turn", {
+        expectedChapter: 1,
+        validationErrors: [
+          "choices.0.id: expected A",
+          "visualTone: expected one enum string, received array",
+        ],
+      }).at(-1)?.content ?? "{}",
+    );
+
+    expect(repairPayload.validationErrors).toEqual([
+      "choices.0.id: expected A",
+      "visualTone: expected one enum string, received array",
+    ]);
+    expect(repairPayload.instruction).toContain("完整顶层对象");
+    expect(repairPayload.instruction).toContain("requiredFields");
+  });
+
+  it("keeps the full generation context when asking the model to repair a fragment", () => {
+    const original = buildContinuationMessages(seed, [playedTurn], 2);
+    const repaired = buildContextualJsonRepairMessages(
+      original,
+      '{"directResult":"fragment only"}',
+      "timeline_turn",
+      { expectedChapter: 2 },
+    );
+
+    expect(repaired).toHaveLength(original.length + 1);
+    expect(repaired.slice(0, original.length)).toEqual(original);
+    const originalPayload = JSON.parse(repaired[1].content);
+    const repairPayload = JSON.parse(repaired.at(-1)?.content ?? "{}");
+    expect(originalPayload.targetChapter).toMatchObject({ chapter: 2, chapterName: "余震" });
+    expect(repairPayload).toMatchObject({
+      task: "repair_invalid_json",
+      expectedChapter: 2,
+      untrustedInvalidModelOutput: '{"directResult":"fragment only"}',
+    });
   });
 });

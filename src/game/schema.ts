@@ -8,6 +8,7 @@ const chapterSchema = z.union([
   z.literal(4),
   z.literal(5),
 ]);
+const causalChapterSchema = z.union([z.literal(0), chapterSchema]);
 const chapterNameSchema = z.enum(["裂缝", "余震", "新秩序", "世界线", "此刻"]);
 const deviationClassSchema = z.enum(["nudge", "reform", "rupture"]);
 const visualToneSchema = z.enum([
@@ -61,7 +62,7 @@ const metricDeltasSchema = z.strictObject({
 
 const causalLedgerEntrySchema = z.strictObject({
   fact: requiredString,
-  causedByChapter: chapterSchema,
+  causedByChapter: causalChapterSchema,
   mustAffect: requiredString,
 });
 
@@ -73,7 +74,7 @@ const chapterNames = {
   5: "此刻",
 } as const;
 
-export const timelineTurnSchema = z
+const strictTimelineTurnSchema = z
   .strictObject({
     timelineName: requiredString,
     chapter: chapterSchema,
@@ -127,6 +128,87 @@ export const timelineTurnSchema = z
     }
   });
 
+const DEVIATION_CLASSES = ["nudge", "reform", "rupture"] as const;
+const CHOICE_IDS = ["A", "B", "C"] as const;
+const VISUAL_TONES = [
+  "ancient",
+  "exchange",
+  "print",
+  "revolution",
+  "industry",
+  "war",
+  "space",
+  "digital",
+] as const;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function joinStringArray(value: unknown): unknown {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value.join("；")
+    : value;
+}
+
+function normalizeChoice(value: unknown, index: number): unknown {
+  const choice = asRecord(value);
+  const expectedId = CHOICE_IDS[index];
+  if (!choice || !expectedId) return value;
+
+  const intentWasClass = DEVIATION_CLASSES.includes(
+    choice.intent as (typeof DEVIATION_CLASSES)[number],
+  );
+  const label =
+    typeof choice.label === "string"
+      ? choice.label.replace(new RegExp(`^\\s*${expectedId}[.\\u3001：:]\\s*`), "")
+      : choice.label;
+
+  return {
+    ...choice,
+    id: choice.id ?? expectedId,
+    label,
+    intent: intentWasClass ? label : choice.intent,
+    deviationClass: choice.deviationClass ?? (intentWasClass ? choice.intent : undefined),
+  };
+}
+
+function normalizeTimelineTurnCandidate(value: unknown): unknown {
+  const turn = asRecord(value);
+  if (!turn) return value;
+
+  const toneCandidates = Array.isArray(turn.visualTone)
+    ? turn.visualTone
+    : [turn.visualTone];
+  const visualTone = toneCandidates.find(
+    (tone): tone is (typeof VISUAL_TONES)[number] =>
+      typeof tone === "string" && VISUAL_TONES.includes(tone as (typeof VISUAL_TONES)[number]),
+  );
+
+  return {
+    ...turn,
+    baselineAnchor: joinStringArray(turn.baselineAnchor),
+    choices: Array.isArray(turn.choices)
+      ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
+      : turn.choices,
+    memorySummary: joinStringArray(turn.memorySummary),
+    callbackUsed:
+      turn.callbackUsed === false
+        ? null
+        : turn.callbackUsed === true
+          ? "已回收上一幕选择"
+          : turn.callbackUsed,
+    visualTone: visualTone ?? turn.visualTone,
+  };
+}
+
+export const timelineTurnSchema = z.preprocess(
+  normalizeTimelineTurnCandidate,
+  strictTimelineTurnSchema,
+);
+
 const historyTimelineItemSchema = z.strictObject({
   chapter: chapterSchema,
   yearLabel: requiredString,
@@ -172,6 +254,16 @@ export const alternatePresentSchema = z
 export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
 export type AlternatePresent = z.infer<typeof alternatePresentSchema>;
 export type DeviationClass = z.infer<typeof deviationClassSchema>;
+export type TimelineTurnParseOptions = {
+  expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>;
+};
+export type ExpectedHistoryTimelineItem = {
+  yearLabel: string;
+  playerChoice: string;
+};
+export type AlternatePresentParseOptions = {
+  expectedHistoryTimeline?: readonly ExpectedHistoryTimelineItem[];
+};
 
 function scanBalancedObject(raw: string, start: number): string | null {
   let depth = 0;
@@ -226,10 +318,55 @@ function parseJsonObject(raw: string): unknown {
   return JSON.parse(extractFirstJsonObject(raw));
 }
 
-export function parseTimelineTurn(raw: string): TimelineTurn {
-  return timelineTurnSchema.parse(parseJsonObject(raw));
+export function parseTimelineTurn(
+  raw: string,
+  options: TimelineTurnParseOptions = {},
+): TimelineTurn {
+  const parsed = parseJsonObject(raw);
+  const candidate = asRecord(parsed);
+  return timelineTurnSchema.parse(
+    candidate && options.expectedPreviousEcho
+      ? { ...candidate, previousEcho: options.expectedPreviousEcho }
+      : parsed,
+  );
 }
 
-export function parseAlternatePresent(raw: string): AlternatePresent {
-  return alternatePresentSchema.parse(parseJsonObject(raw));
+export function parseAlternatePresent(
+  raw: string,
+  options: AlternatePresentParseOptions = {},
+): AlternatePresent {
+  const parsed = parseJsonObject(raw);
+  const candidate = asRecord(parsed);
+  const expected = options.expectedHistoryTimeline;
+
+  if (!candidate || !expected || !Array.isArray(candidate.historyTimeline)) {
+    return alternatePresentSchema.parse(parsed);
+  }
+
+  const historyTimeline = candidate.historyTimeline.map((item, index) => {
+    const authoritative = expected[index];
+    if (!authoritative) return item;
+    const chapter = index + 1;
+
+    if (typeof item === "string") {
+      return {
+        chapter,
+        yearLabel: authoritative.yearLabel,
+        playerChoice: authoritative.playerChoice,
+        consequence: item,
+      };
+    }
+
+    const record = asRecord(item);
+    return record
+      ? {
+          ...record,
+          chapter,
+          yearLabel: authoritative.yearLabel,
+          playerChoice: authoritative.playerChoice,
+        }
+      : item;
+  });
+
+  return alternatePresentSchema.parse({ ...candidate, historyTimeline });
 }

@@ -403,7 +403,7 @@ describe("DeepSeek transport", () => {
     ).resolves.toMatchObject({ worldName: "公议纪元" });
   });
 
-  it("repairs a shape-valid ending whose choices do not match played turns", async () => {
+  it("uses played turns as the authoritative ending timeline without another request", async () => {
     const wrongEnding = {
       ...endingFixture,
       historyTimeline: endingFixture.historyTimeline.map((item) => ({
@@ -411,20 +411,13 @@ describe("DeepSeek transport", () => {
         playerChoice: `错误：${item.playerChoice}`,
       })),
     };
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(completion(JSON.stringify(wrongEnding)))
-      .mockResolvedValueOnce(completion(JSON.stringify(endingFixture)));
+    const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(wrongEnding)));
     vi.stubGlobal("fetch", fetcher);
 
     const ending = await generateEnding(seed, endingPlayedTurns);
     const expectedChoices = endingPlayedTurns.map((turn) => turn.selectedChoiceLabel);
     expect(ending.historyTimeline.map((item) => item.playerChoice)).toEqual(expectedChoices);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-
-    const repairBody = JSON.parse(fetcher.mock.calls[1][1].body);
-    const repairPayload = JSON.parse(repairBody.messages.at(-1).content);
-    expect(repairPayload.untrustedExpectedPlayerChoices).toEqual(expectedChoices);
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("generates and validates the alternate present", async () => {
