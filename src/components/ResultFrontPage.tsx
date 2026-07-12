@@ -17,7 +17,7 @@ export function ResultFrontPage({ result, deviation }: { result: AlternatePresen
       </section>
 
       <section className="front-page__timeline">
-        <h2>这五次选择，写成了今天</h2>
+        <h2>十一次选择，写成了第十二节点</h2>
         <ol>
           {result.historyTimeline.map((item) => (
             <li key={item.chapter}>

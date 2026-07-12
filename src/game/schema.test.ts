@@ -22,8 +22,8 @@ describe("structured timeline parsing", () => {
   });
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
-    const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(151) });
-    expect(parseTimelineTurn(raw).narrative).toHaveLength(150);
+    const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(111) });
+    expect(parseTimelineTurn(raw).narrative).toHaveLength(100);
   });
 
   it("strips harmless extra model fields", () => {

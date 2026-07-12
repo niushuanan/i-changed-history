@@ -48,7 +48,7 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
     rules: {
       chapter,
       chapterName: CHAPTER_NAMES[chapter],
-      narrative: "150 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
+      narrative: "100 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
       role: "玩家此刻被历史人物认可的具体身份",
       immediateObjective: "这一幕必须在现场完成的单一目标",
       timePressure: "可感知的分钟、小时、天数或迫近事件",

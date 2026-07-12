@@ -1,13 +1,13 @@
 import { getDeviationStage } from "../game/deviation";
+import { JUMP_LABELS, TOTAL_NODE_COUNT, type DecisionChapter } from "../game/timelinePlan";
 
-const CHAPTERS = ["裂缝", "余震", "新秩序", "世界线", "此刻"];
-
-export function TimelineProgress({ chapter, deviation }: { chapter: number; deviation: number }) {
+export function TimelineProgress({ chapter, deviation }: { chapter: DecisionChapter; deviation: number }) {
   const stage = getDeviationStage(deviation);
   return (
     <div className="timeline-progress">
-      <ol aria-label="五幕时间线">
-        {CHAPTERS.map((name, index) => {
+      <div className="timeline-progress__now"><span>节点 {chapter}/{TOTAL_NODE_COUNT}</span><strong>{JUMP_LABELS[chapter - 1]}</strong></div>
+      <ol aria-label="十二节点时间线">
+        {JUMP_LABELS.map((name, index) => {
           const value = index + 1;
           return (
             <li

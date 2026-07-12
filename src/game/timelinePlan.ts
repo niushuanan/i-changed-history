@@ -21,7 +21,7 @@ export const CHAPTER_NAMES = {
   12: "平行 2026",
 } as const;
 
-const JUMP_LABELS = [
+export const JUMP_LABELS = [
   "历史现场", "一天后", "一个月后", "一年后", "三年后", "十年后",
   "三十年后", "一百年后", "跨时代", "新世界", "2026 前夕", "2026",
 ] as const;

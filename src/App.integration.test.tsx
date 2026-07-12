@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { endingFixture, turnFixture } from "./test/fixtures";
 import { parseAlternatePresent, parseTimelineTurn } from "./game/schema";
+import { CHAPTER_NAMES, type DecisionChapter } from "./game/timelinePlan";
 
 const engine = vi.hoisted(() => ({
   generateOpening: vi.fn(),
@@ -32,14 +33,12 @@ vi.mock("./services/storage", async (importOriginal) => {
 
 import { App } from "./App";
 
-const chapterNames = ["裂缝", "余震", "新秩序", "世界线", "此刻"] as const;
-
-function turnFor(chapter: 1 | 2 | 3 | 4 | 5) {
+function turnFor(chapter: DecisionChapter) {
   return parseTimelineTurn(JSON.stringify({
     ...turnFixture,
     timelineName: "无王航线",
     chapter,
-    chapterName: chapterNames[chapter - 1],
+    chapterName: CHAPTER_NAMES[chapter],
     yearLabel: `第${chapter}幕纪年`,
     headline: `第${chapter}幕局势`,
     previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
@@ -61,7 +60,7 @@ describe("complete player journey", () => {
     vi.clearAllMocks();
     engine.generateOpening.mockResolvedValue(turnFor(1));
     engine.generateNextTurn.mockImplementation(
-      (_scenario, _playedTurns, chapter: 2 | 3 | 4 | 5) => Promise.resolve(turnFor(chapter)),
+      (_scenario, _playedTurns, chapter: Exclude<DecisionChapter, 1>) => Promise.resolve(turnFor(chapter)),
     );
     engine.generateEnding.mockResolvedValue(completedEnding());
   });
@@ -86,8 +85,9 @@ describe("complete player journey", () => {
     expect(screen.getAllByRole("button", { name: /穿越到这一分钟：/ })).toHaveLength(5);
     await user.click(screen.getAllByRole("button", { name: /穿越到这一分钟：/ })[0]);
 
-    for (let chapter = 1; chapter <= 5; chapter += 1) {
+    for (let chapter = 1; chapter <= 11; chapter += 1) {
       expect(await screen.findByRole("heading", { name: `第${chapter}幕局势` })).toBeVisible();
+      expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
       await user.click(screen.getByRole("button", { name: /公开完整遗诏/ }));
       expect(await screen.findByRole("heading", { name: "蝴蝶效应" })).toBeVisible();
       expect(screen.getByText("继业者暂停争夺")).toBeVisible();
@@ -97,6 +97,7 @@ describe("complete player journey", () => {
     }
 
     expect(await screen.findByRole("heading", { name: "公议纪元" })).toBeVisible();
+    expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(11);
     for (const detail of endingFixture.ordinaryLife2026) expect(screen.getByText(detail)).toBeVisible();
     expect(screen.getByText(/历史偏离度/)).toBeVisible();
     expect(screen.getByRole("button", { name: "保存这张头版" })).toBeEnabled();

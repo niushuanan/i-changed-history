@@ -75,7 +75,7 @@ const strictTimelineTurnSchema = z
     immediateObjective: requiredString,
     timePressure: requiredString,
     headline: requiredString,
-    narrative: requiredString.max(150),
+    narrative: requiredString.max(100),
     baselineAnchor: requiredString,
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
@@ -182,7 +182,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
-    narrative: typeof turn.narrative === "string" ? [...turn.narrative].slice(0, 150).join("") : turn.narrative,
+    narrative: typeof turn.narrative === "string" ? [...turn.narrative].slice(0, 100).join("") : turn.narrative,
     baselineAnchor: joinStringArray(turn.baselineAnchor),
     choices: Array.isArray(turn.choices)
       ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
