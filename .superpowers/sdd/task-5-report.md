@@ -96,3 +96,28 @@
   - Result: passed; Vite transformed 29 modules and emitted the production bundle.
 - Hygiene: `git diff --check`
   - Result: passed with no whitespace errors.
+
+## Final Review Remediation - 2026-07-12
+
+### Changes
+
+- Added `baselineAnchor` to the played-turn prompt contract and every serialized history item, preserving the model-extracted historical anchor through custom-premise continuation and ending requests.
+- Derived `expectedChapterName` from the shared `CHAPTERS` mapping and included it in turn repair payloads; chapter 2 now explicitly repairs to `余震`.
+
+### RED Evidence
+
+- Baseline-anchor regression: continuation and ending payloads returned `undefined` for the first played turn's `baselineAnchor`.
+- Wrong-chapter repair regression: the repair payload contained `expectedChapter: 2` but returned `undefined` for `expectedChapterName`.
+
+### GREEN Evidence
+
+- Focused: `npm test -- src/game/schema.test.ts src/game/prompts.test.ts src/services/deepseek.test.ts`
+  - Result: 3 files passed, 35 tests passed.
+- TypeScript: `npm run typecheck`
+  - Result: passed with no errors.
+- Full suite: `npm test`
+  - Result: 5 files passed, 48 tests passed.
+- Production build: `npm run build`
+  - Result: passed; Vite transformed 29 modules and emitted the production bundle.
+- Hygiene: `git diff --check`
+  - Result: passed with no whitespace errors.

@@ -68,6 +68,18 @@ describe("timeline prompt construction", () => {
     }
   });
 
+  it("preserves the extracted baseline anchor in continuation and ending history", () => {
+    const premise = "如果古罗马普及蒸汽动力";
+    const payloads = [
+      buildContinuationMessages(premise, [playedTurn], 2),
+      buildEndingMessages(premise, Array(5).fill(playedTurn)),
+    ].map((messages) => JSON.parse(messages.at(-1)?.content ?? "{}"));
+
+    for (const payload of payloads) {
+      expect(payload.playedTurns[0].baselineAnchor).toBe(turnFixture.baselineAnchor);
+    }
+  });
+
   it("carries prior choices and causal facts into continuation", () => {
     const secondPlayedTurn = {
       ...playedTurn,

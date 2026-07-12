@@ -355,6 +355,7 @@ describe("DeepSeek transport", () => {
     const repairBody = JSON.parse(fetcher.mock.calls[1][1].body);
     const repairPayload = JSON.parse(repairBody.messages.at(-1).content);
     expect(repairPayload.expectedChapter).toBe(2);
+    expect(repairPayload.expectedChapterName).toBe("余震");
   });
 
   it("continues a custom-premise game without a synthetic seed", async () => {
