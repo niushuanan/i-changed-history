@@ -1,0 +1,83 @@
+export const turnFixture = {
+  timelineName: "无王航线",
+  chapter: 1,
+  chapterName: "裂缝",
+  yearLabel: "公元前 322 年",
+  location: "巴比伦",
+  headline: "继业者同意共同摄政",
+  narrative: "亚历山大的遗诏没有被撕毁，档案写着「{共同摄政}」。",
+  baselineAnchor: "亚历山大于公元前323年在巴比伦去世。",
+  previousEcho: null,
+  choices: [
+    {
+      id: "A",
+      label: "公开完整遗诏",
+      intent: "用透明换取短暂团结",
+      deviationClass: "nudge",
+      instantEcho: {
+        directResult: "继业者暂停争夺",
+        unexpectedCost: "地方军团开始索要表决权",
+        beneficiary: "城市书记官",
+        payer: "世袭将领",
+      },
+    },
+    {
+      id: "B",
+      label: "扶植年幼继承人",
+      intent: "保住王朝名义",
+      deviationClass: "reform",
+      instantEcho: {
+        directResult: "摄政制度被正式确立",
+        unexpectedCost: "宫廷派系掌握幼主",
+        beneficiary: "摄政官",
+        payer: "边疆总督",
+      },
+    },
+    {
+      id: "C",
+      label: "承认各地自治",
+      intent: "用分权避免内战",
+      deviationClass: "rupture",
+      instantEcho: {
+        directResult: "各行省停止进军巴比伦",
+        unexpectedCost: "统一税制当场失效",
+        beneficiary: "地方议会",
+        payer: "帝国军需官",
+      },
+    },
+  ],
+  metrics: { stability: 45, prosperity: 52, freedom: 31, cost: 18 },
+  metricDeltas: { stability: 4, prosperity: 2, freedom: -3, cost: 5 },
+  causalLedger: [
+    { fact: "完整遗诏被公开", causedByChapter: 1, mustAffect: "继业者的合法性" },
+  ],
+  callbackUsed: null,
+  visualTone: "ancient",
+  memorySummary: "遗诏公开后，继业者接受了暂时共同摄政。",
+};
+
+export const endingFixture = {
+  worldName: "公议纪元",
+  frontPageHeadline: "跨洲公议院通过第两千份城市自治章程",
+  historyTimeline: Array.from({ length: 5 }, (_, index) => ({
+    chapter: index + 1,
+    yearLabel: `${index + 1}纪元`,
+    playerChoice: `选择${index + 1}`,
+    consequence: `后果${index + 1}`,
+  })),
+  causalChains: [
+    { origin: "公开遗诏", transformation: "摄政议会", payoff: "城市自治" },
+    { origin: "共享道路", transformation: "跨洲税制", payoff: "公共交通" },
+    { origin: "承认地方语言", transformation: "多语教育", payoff: "翻译网络" },
+  ],
+  ordinaryLife2026: ["通勤者使用公共驿路", "家庭持有多语身份证", "学校教授城市议事"],
+  greatestGain: "地方自治成为默认制度",
+  hiddenPrice: "跨洲协调极其缓慢",
+  strangestDetail: "婚礼要交换城市通行章",
+  biggestBeneficiary: "自治城市居民",
+  biggestLoser: "世袭总督",
+  rewriteLevel: "大陆改写",
+  plausibilityScore: 78,
+  plausibilityReason: "制度变化沿既有道路与继承危机扩散。",
+  shareLine: "我让帝国没有立刻分裂，却创造了一个由城市投票的2026。",
+};
