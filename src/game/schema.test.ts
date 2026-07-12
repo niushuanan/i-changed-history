@@ -19,6 +19,7 @@ describe("structured timeline parsing", () => {
       freedom: 31,
       cost: 18,
     });
+    expect(parseTimelineTurn(raw).generationSource).toBe("deepseek");
   });
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {

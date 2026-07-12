@@ -49,6 +49,41 @@ const occupationValues = new Set(OCCUPATIONS.map((item) => item.value));
 const strengthValues = new Set(STRENGTHS.map((item) => item.value));
 const riskValues = new Set(RISK_STYLES.map((item) => item.value));
 
+const ABILITY_TITLES: Record<TravelerOccupation, string> = {
+  student: "快速学习",
+  product: "系统拆解",
+  engineering: "技术逆向",
+  business: "资源重组",
+  creative: "叙事改写",
+  "public-service": "制度谈判",
+};
+
+const STRENGTH_LABELS: Record<TravelerStrength, string> = Object.fromEntries(
+  STRENGTHS.map((item) => [item.value, item.label]),
+) as Record<TravelerStrength, string>;
+
+const RISK_ACTIONS: Record<TravelerRiskStyle, string> = {
+  cautious: "先看清最坏代价，再做可逆试探",
+  balanced: "先比较收益与代价，再推动制度落地",
+  bold: "先找到最高杠杆，再承担不可逆后果",
+};
+
+export type TravelerAbility = {
+  title: string;
+  strengths: string;
+  action: string;
+  style: string;
+};
+
+export function getTravelerAbility(profile: TravelerProfile): TravelerAbility {
+  return {
+    title: ABILITY_TITLES[profile.occupation],
+    strengths: profile.strengths.map((strength) => STRENGTH_LABELS[strength]).join(" + "),
+    action: "每幕可预判一个专属行动的受益者与隐藏代价",
+    style: RISK_ACTIONS[profile.riskStyle],
+  };
+}
+
 export function validateTravelerProfile(input: ProfileInput): ProfileValidationResult {
   const errors: Partial<Record<"name" | "occupation" | "strengths" | "riskStyle", string>> = {};
   const name = typeof input.name === "string" ? input.name.trim() : "";

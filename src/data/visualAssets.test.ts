@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { visualAssetForTurn } from "./visualAssets";
+import { HISTORY_SEEDS } from "./historySeeds";
+import { historyAssetForSeed, visualAssetForTurn } from "./visualAssets";
 
 describe("timeline scene selection", () => {
   it("never puts modern technology into an early-modern century jump", () => {
@@ -25,5 +26,11 @@ describe("timeline scene selection", () => {
   it("parses one and two digit AD years without leaking modern art", () => {
     expect(visualAssetForTurn({ chapter: 4, visualTone: "digital", yearLabel: "公元64年" }))
       .toBe("/assets/tone-ancient.webp");
+  });
+
+  it("gives every opening archive a dedicated local image", () => {
+    const images = HISTORY_SEEDS.map(historyAssetForSeed);
+    expect(new Set(images)).toHaveLength(50);
+    expect(images.every((image) => image.startsWith("/assets/history/") && image.endsWith(".webp"))).toBe(true);
   });
 });

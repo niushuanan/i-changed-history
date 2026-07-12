@@ -31,6 +31,19 @@
 ## Final Result
 
 Final result: passed.
+
+# Clear Change Gameplay QA (2026-07-15)
+
+- Full automated verification: 20 test files and 96 tests passed; TypeScript, production build, and `git diff --check` passed.
+- At 390 x 844, the exit button occupies the first cell of the compact timeline header and does not overlay the scene or copy.
+- The event page no longer renders the four world metrics, long relay explanation, repeated anchor, or expanded choice intentions.
+- A real DeepSeek opening request returned HTTP 200 and displayed `DeepSeek 实时生成`; the following prefetched node also returned HTTP 200.
+- The profile ability `系统拆解` revealed the tailored action's beneficiary and hidden cost before selection without another model request.
+- The second node visibly repeated the previous action, its direct result, and its new cost; its identity changed from `火船营军需官` to `被征用的船匠领班`.
+- Expanding the archive produced 50 cards in the existing horizontal carousel and zero dialogs. Browser traversal loaded 50 of 50 images with zero broken assets.
+- Historical assets use 43 exact Wikipedia event pages and 7 project-local period-art fallbacks; all fifty are cached as local WebP files with credits.
+- Real click verification covered profile creation, archive expansion, card selection, dynamic loading, profile forecast, choice submission, butterfly echo, next-node change proof, and exit.
+- Captures: `design/captures/archive-recommended-390x844.png`, `loading-dynamic-390x844.png`, `event-opening-390x844.png`, `profile-forecast-390x844.png`, and `event-change-proof-390x844.png`.
 # Butterfly Relay QA (2026-07-14)
 
 - 390 × 844: full history archive renders 50 selectable rows with no horizontal overflow.

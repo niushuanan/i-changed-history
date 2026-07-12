@@ -15,6 +15,7 @@ describe("deterministic fallback turn", () => {
     expect(() => parseTimelineTurn(JSON.stringify(turn))).not.toThrow();
     expect(turn).toMatchObject({ chapter: 1, chapterName: "历史现场", previousEcho: null });
     expect(turn.choices).toHaveLength(3);
+    expect(turn.generationSource).toBe("fallback");
   });
 
   it("carries the authoritative previous echo into a later time jump", () => {

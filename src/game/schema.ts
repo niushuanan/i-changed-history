@@ -20,6 +20,7 @@ const visualToneSchema = z.enum([
   "space",
   "digital",
 ]);
+const generationSourceSchema = z.enum(["deepseek", "fallback"]);
 
 const echoSchema = z.object({
   directResult: requiredString,
@@ -89,6 +90,7 @@ const strictTimelineTurnSchema = z
     causalLedger: z.array(causalLedgerEntrySchema),
     callbackUsed: requiredString.nullable(),
     visualTone: visualToneSchema,
+    generationSource: generationSourceSchema,
   })
   .superRefine((turn, context) => {
     if (turn.chapterName !== CHAPTER_NAMES[turn.chapter]) {
@@ -212,6 +214,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
+    generationSource: turn.generationSource ?? "deepseek",
     identityBridge: turn.identityBridge ?? (
       turn.chapter === 1
         ? "你的现代意识在这一刻进入历史现场"

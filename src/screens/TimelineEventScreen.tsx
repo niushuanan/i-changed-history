@@ -1,49 +1,64 @@
-import { HourglassHigh, IdentificationBadge } from "@phosphor-icons/react";
+import { Clock, IdentificationBadge, Sparkle } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
-import { JUMP_LABELS } from "../game/timelinePlan";
 import { TimelineProgress } from "../components/TimelineProgress";
-import { WorldMetrics } from "../components/WorldMetrics";
 import { ChoiceList } from "../components/ChoiceList";
 
 export function TimelineEventScreen({
   turn,
   deviation,
+  lastChoiceLabel,
+  abilityTitle,
   onChoose,
+  onExit,
 }: {
   turn: TimelineTurn;
   deviation: number;
+  lastChoiceLabel?: string;
+  abilityTitle: string;
   onChoose: (id: "A" | "B" | "C") => void;
+  onExit: () => void;
 }) {
   return (
     <main className="event-screen">
-      <TimelineProgress chapter={turn.chapter} deviation={deviation} />
+      <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
       <figure className="event-scene">
         <img src={visualAssetForTurn(turn)} alt="" />
-        {turn.chapter >= 8 && <span className="era-shift-badge">时代跃迁 · {JUMP_LABELS[turn.chapter - 1]}</span>}
+        <span className={`generation-source is-${turn.generationSource}`}>
+          {turn.generationSource === "deepseek" ? "DeepSeek 实时生成" : "本地保底续写"}
+        </span>
         <figcaption><span>{turn.yearLabel}</span><strong>{turn.location}</strong></figcaption>
       </figure>
       <article className="event-copy">
-        <span className="chapter-kicker">第 {turn.chapter} 节点 · {turn.chapterName}</span>
+        <span className="chapter-kicker">{turn.chapterName}</span>
         <h1>{turn.headline}</h1>
         <p>{turn.narrative}</p>
-        <small>历史锚点：{turn.baselineAnchor}</small>
+        <small><Clock size={12} weight="bold" /> {turn.timePressure}</small>
       </article>
-      <aside className="mission-brief">
-        <div><IdentificationBadge size={19} weight="bold" /><span><small>本代身份</small><strong>{turn.role}</strong><em>意识接力：{turn.identityBridge}</em></span></div>
-        <div><HourglassHigh size={19} weight="bold" /><span><small>必须完成</small><strong>{turn.immediateObjective}</strong><em>{turn.timePressure}</em></span></div>
-      </aside>
-      <aside className="profile-advantage"><span>现代优势</span><p>{turn.profileAdvantage}</p></aside>
-      {turn.previousEcho && (
-        <aside className="previous-echo">
-          <span>上一选择的余波</span>
-          <p>{turn.previousEcho.directResult}；但{turn.previousEcho.unexpectedCost}</p>
-        </aside>
+
+      {turn.previousEcho ? (
+        <section className="change-proof" aria-label="历史改变证据">
+          <span className="change-proof__kicker">你真的改变了历史</span>
+          <div><small>上一幕你选择</small><strong>{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}</strong></div>
+          <div className="is-result"><small>所以现在</small><strong>{turn.previousEcho.directResult}</strong></div>
+          <p>新的代价：{turn.previousEcho.unexpectedCost}</p>
+        </section>
+      ) : (
+        <section className="change-proof is-opening" aria-label="真实历史切入口">
+          <span className="change-proof__kicker">真实历史停在这里</span>
+          <div><small>原本发生</small><strong>{turn.baselineAnchor}</strong></div>
+          <div className="is-result"><small>你的切入口</small><strong>{turn.immediateObjective}</strong></div>
+        </section>
       )}
-      <WorldMetrics metrics={turn.metrics} />
+
+      <div className="identity-strip">
+        <IdentificationBadge size={17} weight="bold" />
+        <span><small>本代身份</small><strong>{turn.role}</strong></span>
+        <em><Sparkle size={12} weight="fill" />{abilityTitle}</em>
+      </div>
       <section className="decision-zone">
-        <h2>这一刻，你决定</h2>
-        <ChoiceList choices={turn.choices} onChoose={onChoose} />
+        <h2>下一步，改哪里？</h2>
+        <ChoiceList choices={turn.choices} abilityTitle={abilityTitle} onChoose={onChoose} />
       </section>
     </main>
   );

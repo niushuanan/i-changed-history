@@ -9,10 +9,12 @@ export function ButterflyEchoScreen({
   echo,
   isFinal,
   onContinue,
+  onExit,
 }: {
   echo: EchoState;
   isFinal: boolean;
   onContinue: () => void;
+  onExit: () => void;
 }) {
   const [ready, setReady] = useState(ECHO_DELAY_MS === 0);
   const stage = getDeviationStage(echo.nextDeviation);
@@ -25,6 +27,7 @@ export function ButterflyEchoScreen({
 
   return (
     <main className="echo-screen">
+      <button className="echo-screen__exit text-command" type="button" onClick={onExit}>退出本次推演</button>
       <div className="echo-screen__mark"><Butterfly size={38} weight="fill" /></div>
       <span className="echo-screen__kicker">选择已落笔</span>
       <h1>蝴蝶效应</h1>

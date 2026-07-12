@@ -1,5 +1,6 @@
 import type { VisualTone } from "../game/types";
 import type { TimelineTurn } from "../game/schema";
+import type { HistorySeed } from "../game/types";
 
 export const VISUAL_ASSETS: Record<VisualTone, string> = {
   ancient: "/assets/tone-ancient.webp",
@@ -11,6 +12,10 @@ export const VISUAL_ASSETS: Record<VisualTone, string> = {
   space: "/assets/tone-space.webp",
   digital: "/assets/tone-digital.webp",
 };
+
+export function historyAssetForSeed(seed: Pick<HistorySeed, "id">): string {
+  return `/assets/history/${seed.id}.webp`;
+}
 
 const INDUSTRIAL_SCENES = [
   "/assets/tone-revolution.webp",

@@ -46,7 +46,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("identityBridge");
     expect(continuation).toContain("profileAdvantage");
     expect(continuation).toContain("usesTravelerStrength");
-    expect(continuation).toContain("总输出控制在 1200 个汉字以内");
+    expect(continuation).toContain("总输出控制在 700 个汉字以内");
   });
 
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
@@ -59,5 +59,12 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("中国玩家熟悉");
     expect(continuation).toContain("至少更换其中两项");
     expect(continuation).not.toContain("第 8 节点起优先跨地域或跨领域");
+  });
+
+  it("keeps generated display copy concise without lowering transport headroom", () => {
+    const body = buildOpeningMessages(scenario).at(-1)!.content;
+    expect(body).toContain("总输出控制在 700 个汉字以内");
+    expect(body).toContain("60 个汉字以内");
+    expect(body).toContain("每个 label 22 字以内");
   });
 });

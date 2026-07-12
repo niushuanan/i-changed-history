@@ -77,6 +77,7 @@ export function createFallbackTurn(
     ],
     callbackUsed: playedTurns.at(-1)?.selectedChoiceLabel ?? null,
     visualTone: visualTone(scenario, chapter),
+    generationSource: "fallback",
   });
 }
 

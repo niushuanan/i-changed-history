@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SignOut, SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
 import { recommendHistorySeeds } from "./data/historySeeds";
 import { useGame } from "./hooks/useGame";
 import { SeedPickerScreen } from "./screens/SeedPickerScreen";
@@ -10,13 +10,14 @@ import { GeneratingScreen } from "./screens/GeneratingScreen";
 import { ErrorScreen } from "./screens/ErrorScreen";
 import { AlternatePresentScreen } from "./screens/AlternatePresentScreen";
 import { saveFrontPage } from "./services/share";
+import { getTravelerAbility } from "./game/profile";
 import "./styles/game.css";
 
 export function App() {
   const game = useGame();
   const { state } = game;
   const [seeds, setSeeds] = useState(() => state.profile ? recommendHistorySeeds(state.profile) : []);
-  const activeRun = !["profiling", "selecting", "result"].includes(state.phase);
+  const ability = state.profile ? getTravelerAbility(state.profile) : null;
 
   const shuffle = () => {
     if (!state.profile) return;
@@ -51,7 +52,10 @@ export function App() {
       <TimelineEventScreen
         turn={state.currentTurn}
         deviation={state.deviation}
+        lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
+        abilityTitle={ability?.title ?? "现代认知"}
         onChoose={game.choose}
+        onExit={game.restart}
       />
     );
   } else if (state.phase === "echo" && state.echo) {
@@ -60,6 +64,7 @@ export function App() {
         echo={state.echo}
         isFinal={state.currentTurn?.chapter === 11}
         onContinue={game.continueTimeline}
+        onExit={game.restart}
       />
     );
   } else if (state.phase === "error" && state.error) {
@@ -89,11 +94,6 @@ export function App() {
   return (
     <div className="app-stage">
       <div className="mobile-prototype game-shell">
-        {activeRun && (
-          <button className="exit-run icon-button" type="button" onClick={game.restart} aria-label="退出本次推演" title="退出本次推演">
-            <SignOut size={20} weight="bold" />
-          </button>
-        )}
         <button
           className="sound-toggle icon-button"
           type="button"
