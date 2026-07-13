@@ -3,7 +3,6 @@ import { IdentificationCard } from "@phosphor-icons/react";
 import type { HistorySeed, TravelerProfile } from "../game/types";
 import { HistoryCard } from "../components/HistoryCard";
 import { browseHistorySeeds } from "../data/historySeeds";
-import { getTravelerAbility } from "../game/profile";
 
 const CARD_STEP = 312;
 
@@ -29,7 +28,6 @@ export function SeedPickerScreen({
   const carouselRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLElement>(null);
   const timelineNodes = useRef<Array<HTMLButtonElement | null>>([]);
-  const ability = getTravelerAbility(profile);
 
   const cardStep = () => {
     const first = carouselRef.current?.children[0] as HTMLElement | undefined;
@@ -65,9 +63,9 @@ export function SeedPickerScreen({
           <span>I！我改变了历史</span>
           <strong>选择你要闯入的瞬间</strong>
         </div>
-        <button type="button" onClick={onChangeProfile} aria-label="重设画像能力" title="重设画像能力">
+        <button type="button" onClick={onChangeProfile} aria-label="重设时间人格" title="重设时间人格">
           <IdentificationCard size={19} weight="bold" />
-          <span>{profile.typeCode} · {ability.title}</span>
+          <span>另一种你 · 已就绪</span>
         </button>
       </header>
 

@@ -17,13 +17,12 @@ export function App() {
   const { state } = game;
   const ability = state.profile ? getTravelerAbility(state.profile) : null;
 
-  const saveResult = async () => {
-    if (!state.result) throw new Error("结局头版尚未生成。");
+  const saveResult = async (result: NonNullable<typeof state.result>) => {
     const target = document.getElementById("result-capture");
     if (!(target instanceof HTMLElement)) throw new Error("未找到可导出的头版。");
     return saveFrontPage(target, {
-      worldName: state.result.worldName,
-      shareLine: state.result.shareLine,
+      worldName: result.worldName,
+      shareLine: result.shareLine,
     });
   };
 
@@ -44,15 +43,13 @@ export function App() {
         turn={state.currentTurn}
         deviation={state.deviation}
         lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
-        abilityTitle={ability?.title ?? "现代认知"}
-        abilityCode={ability?.typeCode ?? "----"}
         abilityPreviewMode={ability?.previewMode ?? "system"}
         abilityCustomAction={ability?.customAction ?? "结果立即成为正史，AI 只推演传播与隐藏代价"}
         customActionsRemaining={Math.max(0, 3 - state.customActionsUsed)}
         onChoose={game.choose}
         onCustomAction={game.submitCustomAction}
         onExit={game.restart}
-        sceneImage={state.currentTurn.chapter === 1 && state.scenario
+        sceneImage={state.currentTurn.chapter <= 3 && state.scenario
           ? historyAssetForSeed(state.scenario.seed)
           : visualAssetForTurn(state.currentTurn)}
       />
@@ -64,8 +61,9 @@ export function App() {
         isFinal={state.currentTurn?.chapter === 12}
         onContinue={game.continueTimeline}
         onExit={game.restart}
+        parallelProgress={state.instinctPlayedTurns.length}
         sceneImage={state.currentTurn
-          ? state.currentTurn.chapter === 1 && state.scenario
+          ? state.currentTurn.chapter <= 3 && state.scenario
             ? historyAssetForSeed(state.scenario.seed)
             : visualAssetForTurn(state.currentTurn)
           : undefined}
@@ -73,11 +71,13 @@ export function App() {
     );
   } else if (state.phase === "error" && state.error) {
     screen = <ErrorScreen error={state.error} onRetry={game.retry} onRestart={game.restart} />;
-  } else if (state.phase === "result" && state.result) {
+  } else if (state.phase === "result" && state.result && state.instinctResult) {
     screen = (
       <AlternatePresentScreen
-        result={state.result}
-        deviation={state.deviation}
+        playerResult={state.result}
+        instinctResult={state.instinctResult}
+        playerDeviation={state.deviation}
+        instinctDeviation={state.instinctDeviation}
         onSave={saveResult}
         onRestart={game.restart}
       />

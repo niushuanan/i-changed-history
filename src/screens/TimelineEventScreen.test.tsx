@@ -8,8 +8,6 @@ describe("clear change event screen", () => {
   afterEach(() => cleanup());
   const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
   const abilityProps = {
-    abilityTitle: "因果侦探",
-    abilityCode: "INTP",
     abilityPreviewMode: "system" as const,
     abilityCustomAction: "三次自由改命中可用独立推演",
   };
@@ -48,9 +46,8 @@ describe("clear change event screen", () => {
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
     expect(screen.queryByText(/历史锚点：/)).not.toBeInTheDocument();
-    expect(screen.getByText("微调")).toBeVisible();
-    expect(screen.getByText("改制")).toBeVisible();
-    expect(screen.getByText("断裂")).toBeVisible();
+    expect(screen.queryByText(/INTP|ENFP|微调|改制|断裂/)).not.toBeInTheDocument();
+    expect(screen.getByText(/你与黄盖/)).toBeVisible();
     expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
     expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("3 次");
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();

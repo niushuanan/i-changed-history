@@ -44,6 +44,17 @@ function errorDetails(error: unknown): { code: string; message: string } {
   return { code: "request_failed", message: "这一幕推演失败，请重试。" };
 }
 
+function historiesAreIdentical(left: GameState["playedTurns"], right: GameState["playedTurns"]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((turn, index) => {
+    const other = right[index];
+    return other
+      && turn.selectedChoiceLabel === other.selectedChoiceLabel
+      && turn.playerAuthored === other.playerAuthored
+      && JSON.stringify(turn.resolvedEcho) === JSON.stringify(other.resolvedEcho);
+  });
+}
+
 export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const dependenciesRef = useRef<UseGameDependencies | null>(null);
   if (dependenciesRef.current === null) dependenciesRef.current = resolveDependencies(overrides);
@@ -89,15 +100,14 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
         }
 
         if (request.kind === "next-turn") {
-          const turn = await dependencies.generateNextTurn(
-            scenario,
-            state.playedTurns,
-            request.targetChapter,
-            {
-              signal: controller.signal,
-            },
-          );
-          if (active) dispatch({ type: "TURN_RESOLVED", requestId: request.id, turn });
+          const playerPromise = dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, { signal: controller.signal });
+          const [turn, instinctTurn] = historiesAreIdentical(state.playedTurns, state.instinctPlayedTurns)
+            ? await playerPromise.then((generated) => [generated, generated] as const)
+            : await Promise.all([
+                playerPromise,
+                dependencies.generateNextTurn(scenario, state.instinctPlayedTurns, request.targetChapter, { signal: controller.signal }),
+              ]);
+          if (active) dispatch({ type: "TURN_PAIR_RESOLVED", requestId: request.id, turn, instinctTurn });
           return;
         }
 
@@ -114,10 +124,14 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
           return;
         }
 
-        const ending = await dependencies.generateEnding(scenario, state.playedTurns, {
-          signal: controller.signal,
-        });
-        if (active) dispatch({ type: "ENDING_RESOLVED", requestId: request.id, ending });
+        const playerEndingPromise = dependencies.generateEnding(scenario, state.playedTurns, { signal: controller.signal });
+        const [ending, instinctEnding] = historiesAreIdentical(state.playedTurns, state.instinctPlayedTurns)
+          ? await playerEndingPromise.then((generated) => [generated, generated] as const)
+          : await Promise.all([
+              playerEndingPromise,
+              dependencies.generateEnding(scenario, state.instinctPlayedTurns, { signal: controller.signal }),
+            ]);
+        if (active) dispatch({ type: "ENDING_PAIR_RESOLVED", requestId: request.id, ending, instinctEnding });
       } catch (error) {
         if (!active) return;
         dispatch({ type: "REQUEST_FAILED", requestId: request.id, ...errorDetails(error) });

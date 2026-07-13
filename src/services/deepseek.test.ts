@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
-import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpening } from "../game/engine";
+import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpening, StructuredGenerationError } from "../game/engine";
 import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "../game/timelinePlan";
 import { buildTravelerProfile } from "../game/profile";
-import { buildPivotalBrief, pivotalSceneMatches } from "../game/worldCanon";
 
 const messages = [{ role: "system" as const, content: "system" }, { role: "user" as const, content: "user" }];
 const scenario = { profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }), seed: HISTORY_SEEDS[0] };
@@ -29,7 +28,7 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockResolvedValue(completion()); vi.stubGlobal("fetch", fetcher);
     await expect(requestCompletion(messages, { phase: "turn" })).resolves.toBe('{"ok":true}');
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
-    expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "disabled" }, response_format: { type: "json_object" }, stream: false });
+    expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "enabled" }, reasoning_effort: "high", response_format: { type: "json_object" }, stream: false });
     expect(body.max_tokens).toBe(8192);
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer test-key");
   });
@@ -57,58 +56,50 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
-  it("falls back to a playable local turn when all model structures are invalid", async () => {
+  it("surfaces a retryable structure error instead of inventing a generic local turn", async () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
     vi.stubGlobal("fetch", fetcher);
-    const turn = await generateOpening(scenario);
-    expect(turn).toMatchObject({ chapter: 1, chapterName: "历史现场" });
-    expect(turn.choices).toHaveLength(3);
+    await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
-  it("falls back locally when DeepSeek returns an empty successful response", async () => {
+  it("surfaces an empty model response instead of replacing history with a template", async () => {
     const fetcher = vi.fn().mockResolvedValue(completion(""));
     vi.stubGlobal("fetch", fetcher);
-    const turn = await generateOpening(scenario);
-    expect(turn).toMatchObject({ chapter: 1, chapterName: "历史现场" });
-    expect(turn.choices).toHaveLength(3);
+    await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
   });
 
   it("generates the requested continuation with authoritative previous echo", async () => {
-    const brief = buildPivotalBrief(scenario, [playedTurn], 2);
     const second = {
       ...turnFixture,
       chapter: 2,
       chapterName: "三日余波",
       lifeStage: "三日后",
       previousEcho: turnFixture.choices[0].instantEcho,
-      rippleLens: brief.rippleLens,
+      rippleLens: "livelihood",
       role: "全国粮政使",
       location: "土地与粮食分配大会",
       headline: "粮食法决定民生",
       narrative: "公开遗诏改变继承，土地与粮食法成为新政权第一次全国决断。",
       causalBridge: "公开遗诏经新政权命令进入土地与粮食分配",
       turningPointStakes: "这项土地法将决定粮食、劳动与人口的长期分配",
-      worldStateChange: "公开完整遗诏已成正史，新政权被迫公开全国粮食账册",
+      worldStateChange: "立刻放出第一批火船已成正史，曹军左翼火势提前扩散",
       divergenceProof: "真实历史没有公开粮食议政，当前线由遗诏催生全国土地大会",
       immediateObjective: "决定土地与粮食优先保障谁",
-      causalLedger: [{ fact: "公开完整遗诏", causedByChapter: 1, mustAffect: "土地与粮食分配" }],
+      causalLedger: [{ fact: "立刻放出第一批火船", causedByChapter: 1, mustAffect: "曹军水寨与粮道" }],
     };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
-    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 三日后 · 24岁`, protagonistName: firstTurn.protagonistName, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: brief.rippleLens, worldStateChange: expect.stringContaining("公开完整遗诏") });
+    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 三日后 · 24岁`, protagonistName: firstTurn.protagonistName, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: "livelihood", worldStateChange: expect.stringContaining("立刻放出第一批火船") });
   });
 
-  it("rejects a relabeled but semantically unchanged continuation and uses routed fallback", async () => {
+  it("keeps the model-selected social lens instead of routing through a client template", async () => {
     const unchanged = { ...turnFixture, chapter: 2, chapterName: "三日余波", lifeStage: "三日后", previousEcho: turnFixture.choices[0].instantEcho };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(unchanged))));
     vi.stubGlobal("fetch", fetcher);
-    const brief = buildPivotalBrief(scenario, [playedTurn], 2);
-
     const result = await generateNextTurn(scenario, [playedTurn], 2);
 
-    expect(result).toMatchObject({ generationSource: "fallback", rippleLens: brief.rippleLens });
-    expect(pivotalSceneMatches(brief, result)).toBe(true);
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({ generationSource: "deepseek", rippleLens: "origin" });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a continuation that negates an active player-authored fact", async () => {
@@ -122,14 +113,13 @@ describe("DeepSeek transport and structured generation", () => {
       canonStatus: "玩家钦定" as const,
       causalMechanism: "登基诏书进入官署执行",
     };
-    const brief = buildPivotalBrief(scenario, [customPlayed], 2);
     const contradictory = {
       ...turnFixture,
       chapter: 2,
       chapterName: "三日余波",
       lifeStage: "三日后",
       previousEcho: customPlayed.resolvedEcho,
-      rippleLens: brief.rippleLens,
+      rippleLens: "power",
       role: "新朝册立使",
       location: "继承诏书宣读现场",
       headline: "新政权第一次册立",
@@ -144,11 +134,8 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
     vi.stubGlobal("fetch", fetcher);
 
-    const result = await generateNextTurn(scenario, [customPlayed], 2);
-
-    expect(result.generationSource).toBe("fallback");
-    expect(result.worldStateChange).toContain("我成为新皇帝");
-    expect(JSON.stringify(result)).not.toMatch(/并未成为皇帝|称帝失败/);
+    await expect(generateNextTurn(scenario, [customPlayed], 2)).rejects.toBeInstanceOf(StructuredGenerationError);
+    expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
   it("returns a player-canon result without feasibility adjudication", async () => {
@@ -239,18 +226,13 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
     vi.stubGlobal("fetch", fetcher);
 
-    const ending = await generateEnding(scenario, customPlayedTurns);
-
-    expect(ending.historyTimeline[0].consequence).toContain("我成为新皇帝");
-    expect(ending.historyTimeline[0].consequence).not.toContain("称帝计划最终失败");
+    await expect(generateEnding(scenario, customPlayedTurns)).rejects.toBeInstanceOf(StructuredGenerationError);
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
-  it("falls back to a complete 2026 summary after invalid ending structures", async () => {
+  it("keeps an invalid ending retryable instead of fabricating a local report", async () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
     vi.stubGlobal("fetch", fetcher);
-    const ending = await generateEnding(scenario, endingPlayedTurns);
-    expect(ending.historyTimeline).toHaveLength(12);
-    expect(ending.frontPageHeadline).toContain("2026");
+    await expect(generateEnding(scenario, endingPlayedTurns)).rejects.toBeInstanceOf(StructuredGenerationError);
   });
 });

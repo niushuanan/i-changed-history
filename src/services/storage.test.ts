@@ -10,7 +10,7 @@ import { buildTravelerProfile } from "../game/profile";
 const profile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v9 resumable single-life history storage", () => {
+describe("v10 resumable dual-history storage", () => {
   it("persists a traveler profile and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
@@ -21,7 +21,7 @@ describe("v9 resumable single-life history storage", () => {
     expect(loadGameSnapshot(old)).toBeNull();
   });
 
-  it("migrates a v4 session instead of discarding an in-progress game", () => {
+  it("returns an incompatible v4 run to selection while preserving the profile", () => {
     const current = memoryStorage();
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
@@ -42,14 +42,14 @@ describe("v9 resumable single-life history storage", () => {
     });
 
     expect(loadGameSnapshot(legacy)).toMatchObject({
-      phase: "generating",
+      phase: "selecting",
       profile: { typeCode: "ENFJ", name: "共识建造者" },
       customActionsUsed: 0,
-      request: { kind: "opening", id: generating.request!.id },
+      request: null,
     });
   });
 
-  it("migrates an active v5 adjudication without losing its turn, request, or usage", () => {
+  it("returns an incompatible v5 run to selection instead of mixing engines", () => {
     const current = memoryStorage();
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
@@ -78,14 +78,14 @@ describe("v9 resumable single-life history storage", () => {
     });
 
     expect(loadGameSnapshot(legacy)).toMatchObject({
-      phase: "adjudicating",
+      phase: "selecting",
       profile: { typeCode: "ENFJ", name: "共识建造者" },
-      scenario: { profile: { typeCode: "ENFJ" }, seed: { id: HISTORY_SEEDS[0].id } },
-      currentTurn: { headline: turnFixture.headline },
-      customActionsUsed: 2,
-      request: { kind: "custom-action", action: "先扣下军令，再请皇帝临朝", id: adjudicating.request!.id },
+      scenario: null,
+      currentTurn: null,
+      customActionsUsed: 0,
+      request: null,
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -99,7 +99,7 @@ describe("v9 resumable single-life history storage", () => {
       request: { kind: "opening", id: generating.request?.id },
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
   });
 
   it("automatically resumes the posthumous report without losing twelve decisions", () => {
@@ -118,6 +118,8 @@ describe("v9 resumable single-life history storage", () => {
       scenario: { profile, seed: HISTORY_SEEDS[0] },
       currentTurn: playedTurns[11].turn,
       playedTurns,
+      instinctCurrentTurn: playedTurns[11].turn,
+      instinctPlayedTurns: playedTurns,
       request: { kind: "ending" as const, id: 11 },
     };
 
@@ -139,7 +141,7 @@ describe("v9 resumable single-life history storage", () => {
       resolvedEcho: turnFixture.choices[0].instantEcho,
     }));
     const storage = memoryStorage();
-    const state = { ...createInitialGameState(), phase: "event" as const, profile, scenario: { profile, seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[11].turn, playedTurns };
+    const state = { ...createInitialGameState(), phase: "event" as const, profile, scenario: { profile, seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[11].turn, playedTurns, instinctCurrentTurn: playedTurns[11].turn, instinctPlayedTurns: playedTurns };
     expect(saveGameSnapshot(state as never, storage)).toBe(true);
     expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
@@ -163,7 +165,7 @@ describe("v9 resumable single-life history storage", () => {
     });
   });
 
-  it("migrates a v6 active timeline by restoring ripple routing fields", () => {
+  it("returns an incompatible v6 run to selection", () => {
     const current = memoryStorage();
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
@@ -189,16 +191,11 @@ describe("v9 resumable single-life history storage", () => {
     });
 
     expect(loadGameSnapshot(legacy)).toMatchObject({
-      phase: "event",
-      currentTurn: {
-        rippleLens: "origin",
-        causalBridge: expect.stringContaining("旧时间线"),
-      },
-      playedTurns: [expect.objectContaining({
-        turn: expect.objectContaining({ rippleLens: "origin", causalBridge: expect.stringContaining("旧时间线") }),
-      })],
+      phase: "selecting",
+      currentTurn: null,
+      playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
@@ -234,7 +231,7 @@ describe("v9 resumable single-life history storage", () => {
     });
   });
 
-  it("migrates a v7 active turn by supplying pivotal evidence fields", () => {
+  it("returns an incompatible v7 run to selection", () => {
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(generating, {
@@ -251,11 +248,7 @@ describe("v9 resumable single-life history storage", () => {
     delete envelope.state.currentTurn.divergenceProof;
     const legacy = memoryStorage({ "i-changed-history:session:v7": JSON.stringify(envelope) });
 
-    expect(loadGameSnapshot(legacy)?.currentTurn).toMatchObject({
-      turningPointStakes: expect.stringContaining("重大"),
-      worldStateChange: expect.stringContaining("旧时间线"),
-      divergenceProof: expect.stringContaining("真实历史"),
-    });
+    expect(loadGameSnapshot(legacy)).toMatchObject({ phase: "selecting", currentTurn: null, playedTurns: [] });
   });
 
   it("returns an incompatible v8 cross-generation run to selection while preserving the profile", () => {
@@ -275,6 +268,6 @@ describe("v9 resumable single-life history storage", () => {
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
   });
 });

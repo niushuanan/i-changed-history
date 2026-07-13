@@ -4,11 +4,11 @@ import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
 import { migrateLegacyTravelerProfile } from "../game/profile";
 import { RIPPLE_LENSES } from "../game/rippleRouter";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v9";
-const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v8", "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
-const STORAGE_VERSION = 9;
+export const GAME_STORAGE_KEY = "i-changed-history:session:v10";
+const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v9", "i-changed-history:session:v8", "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
+const STORAGE_VERSION = 10;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
+type StoredState = Omit<GameState, "pendingTurn" | "pendingInstinctTurn" | "pendingEnding" | "pendingInstinctEnding" | "echo">;
 
 const occupation = z.enum(["student", "product", "engineering", "business", "creative", "public-service"]);
 const strength = z.enum(["negotiation", "organization", "technology", "business", "writing", "strategy", "law", "medicine"]);
@@ -67,28 +67,32 @@ const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retr
 const stateSchema = z.strictObject({
   phase: z.enum(["profiling", "selecting", "generating", "adjudicating", "event", "ending", "result", "error"]),
   profile: profileSchema.nullable(), scenario: scenarioSchema.nullable(), currentTurn: timelineTurnSchema.nullable(),
-  playedTurns: z.array(playedSchema).max(12), deviation: z.number().int().min(0).max(100), lastImpact: z.number().int().min(0).max(100), customActionsUsed: z.number().int().min(0).max(3),
-  request: requestSchema.nullable(), result: alternatePresentSchema.nullable(), error: errorSchema.nullable(), nextRequestId: z.number().int().positive(),
+  playedTurns: z.array(playedSchema).max(12), instinctCurrentTurn: timelineTurnSchema.nullable(), instinctPlayedTurns: z.array(playedSchema).max(12),
+  deviation: z.number().int().min(0).max(100), instinctDeviation: z.number().int().min(0).max(100), lastImpact: z.number().int().min(0).max(100), customActionsUsed: z.number().int().min(0).max(3),
+  request: requestSchema.nullable(), result: alternatePresentSchema.nullable(), instinctResult: alternatePresentSchema.nullable(), error: errorSchema.nullable(), nextRequestId: z.number().int().positive(),
 }).superRefine((state, context) => {
   if (state.phase === "profiling" && state.profile !== null) context.addIssue({ code: "custom", message: "档案阶段不应已有档案" });
   if (state.phase !== "profiling" && state.profile === null) context.addIssue({ code: "custom", message: "缺少穿越者档案" });
   if (["generating", "adjudicating", "event", "ending", "result", "error"].includes(state.phase) && !state.scenario) context.addIssue({ code: "custom", message: "缺少历史场景" });
   if (state.scenario && JSON.stringify(state.scenario.profile) !== JSON.stringify(state.profile)) context.addIssue({ code: "custom", message: "场景档案不一致" });
   if (state.phase === "event" && !state.currentTurn) context.addIssue({ code: "custom", message: "事件缺少幕次" });
+  if (state.phase === "event" && !state.instinctCurrentTurn) context.addIssue({ code: "custom", message: "事件缺少平行人格幕次" });
   if (state.phase === "adjudicating" && !state.currentTurn) context.addIssue({ code: "custom", message: "自由改命缺少当前幕次" });
   if (state.phase === "result" && !state.result) context.addIssue({ code: "custom", message: "结局缺失" });
+  if (state.phase === "result" && !state.instinctResult) context.addIssue({ code: "custom", message: "平行人格结局缺失" });
+  if (state.playedTurns.length !== state.instinctPlayedTurns.length) context.addIssue({ code: "custom", message: "双时间线进度不一致" });
   if (state.phase === "error" && !state.error) context.addIssue({ code: "custom", message: "错误恢复信息缺失" });
   if (["generating", "adjudicating", "ending"].includes(state.phase) && !state.request) context.addIssue({ code: "custom", message: "生成阶段缺少可恢复请求" });
 });
 const envelopeSchema = z.strictObject({ version: z.literal(STORAGE_VERSION), state: stateSchema });
 
 function base(state: GameState) {
-  return { profile: state.profile, scenario: state.scenario, currentTurn: state.currentTurn, playedTurns: state.playedTurns, deviation: state.deviation, lastImpact: state.lastImpact, customActionsUsed: state.customActionsUsed, result: state.result, nextRequestId: state.nextRequestId };
+  return { profile: state.profile, scenario: state.scenario, currentTurn: state.currentTurn, playedTurns: state.playedTurns, instinctCurrentTurn: state.instinctCurrentTurn, instinctPlayedTurns: state.instinctPlayedTurns, deviation: state.deviation, instinctDeviation: state.instinctDeviation, lastImpact: state.lastImpact, customActionsUsed: state.customActionsUsed, result: state.result, instinctResult: state.instinctResult, nextRequestId: state.nextRequestId };
 }
 
 function toStored(state: GameState): StoredState | null {
-  if (state.pendingTurn) return { ...base(state), phase: "event", currentTurn: state.pendingTurn, request: null, error: null };
-  if (state.pendingEnding) return { ...base(state), phase: "result", result: state.pendingEnding, request: null, error: null };
+  if (state.pendingTurn && state.pendingInstinctTurn) return { ...base(state), phase: "event", currentTurn: state.pendingTurn, instinctCurrentTurn: state.pendingInstinctTurn, request: null, error: null };
+  if (state.pendingEnding && state.pendingInstinctEnding) return { ...base(state), phase: "result", result: state.pendingEnding, instinctResult: state.pendingInstinctEnding, request: null, error: null };
   if (state.request) return {
     ...base(state),
     phase: state.request.kind === "ending" ? "ending" : state.request.kind === "custom-action" ? "adjudicating" : "generating",
@@ -104,7 +108,7 @@ function remove(storage: StorageLike, key = GAME_STORAGE_KEY) { try { storage.re
 
 function migrateLegacy(raw: string): unknown {
   const envelope = JSON.parse(raw) as { version?: unknown; state?: Record<string, unknown> };
-  if (![4, 5, 6, 7, 8].includes(envelope.version as number) || !envelope.state) return envelope;
+  if (![4, 5, 6, 7, 8, 9].includes(envelope.version as number) || !envelope.state) return envelope;
   const playedTurns = envelope.version === 4 && Array.isArray(envelope.state.playedTurns)
     ? envelope.state.playedTurns.map((value) => {
         if (typeof value !== "object" || value === null) return value;
@@ -121,7 +125,7 @@ function migrateLegacy(raw: string): unknown {
     if (typeof candidate.typeCode === "string" && candidate.dimensions) return candidate;
     return migrateLegacyTravelerProfile(candidate);
   };
-  if (envelope.version === 8) {
+  if ([4, 5, 6, 7, 8, 9].includes(envelope.version as number)) {
     const profile = migrateProfile(envelope.state.profile);
     return {
       version: STORAGE_VERSION,
@@ -131,11 +135,15 @@ function migrateLegacy(raw: string): unknown {
         scenario: null,
         currentTurn: null,
         playedTurns: [],
+        instinctCurrentTurn: null,
+        instinctPlayedTurns: [],
         deviation: 0,
+        instinctDeviation: 0,
         lastImpact: 0,
         customActionsUsed: 0,
         request: null,
         result: null,
+        instinctResult: null,
         error: null,
         nextRequestId: typeof envelope.state.nextRequestId === "number" ? envelope.state.nextRequestId : 1,
       },
@@ -211,6 +219,6 @@ export function loadGameSnapshot(storage: StorageLike = localStorage): GameState
       storage.setItem(GAME_STORAGE_KEY, JSON.stringify(parsed.data));
       remove(storage, legacyKey);
     }
-    return { ...parsed.data.state, pendingTurn: null, pendingEnding: null, echo: null } as GameState;
+    return { ...parsed.data.state, pendingTurn: null, pendingInstinctTurn: null, pendingEnding: null, pendingInstinctEnding: null, echo: null } as GameState;
   } catch { remove(storage); return null; }
 }

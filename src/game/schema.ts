@@ -22,7 +22,7 @@ const visualToneSchema = z.enum([
   "space",
   "digital",
 ]);
-const generationSourceSchema = z.enum(["deepseek", "fallback"]);
+const generationSourceSchema = z.literal("deepseek");
 const rippleLensSchema = z.enum(["origin", "power", "livelihood", "knowledge", "technology", "culture", "trade", "migration", "ecology", "diplomacy"]);
 
 const echoSchema = z.object({
@@ -30,6 +30,15 @@ const echoSchema = z.object({
   unexpectedCost: boundedString(32),
   beneficiary: boundedString(24),
   payer: boundedString(24),
+});
+
+const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
+
+const actionSpecSchema = z.object({
+  actor: boundedString(20),
+  action: boundedString(28),
+  target: boundedString(28),
+  deadline: boundedString(20),
 });
 
 export const customActionResolutionSchema = z.object({
@@ -47,6 +56,7 @@ const choiceFields = {
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
   usesTravelerStrength: z.boolean(),
+  actionSpec: actionSpecSchema,
 } as const;
 
 const choicesSchema = z.tuple([
@@ -102,6 +112,7 @@ const strictTimelineTurnSchema = z
     headline: boundedString(22),
     narrative: requiredString.max(72),
     baselineAnchor: boundedString(54),
+    historicalAnchors: z.array(boundedString(32)).min(2).max(4),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
     memorySummary: requiredString,
@@ -153,6 +164,24 @@ const strictTimelineTurnSchema = z
         message: "三个选择中必须恰好一个使用穿越者优势",
       });
     }
+
+    turn.choices.forEach((choice, index) => {
+      if (GENERIC_ACTION_PATTERN.test(`${choice.label} ${choice.intent} ${choice.actionSpec.action}`)) {
+        context.addIssue({
+          code: "custom",
+          path: ["choices", index, "label"],
+          message: "行动过于抽象，必须写明谁在期限内对什么对象做什么",
+        });
+      }
+      const specificity = `${choice.label}${choice.actionSpec.actor}${choice.actionSpec.action}${choice.actionSpec.target}${choice.actionSpec.deadline}`;
+      if (specificity.length < 18) {
+        context.addIssue({
+          code: "custom",
+          path: ["choices", index, "actionSpec"],
+          message: "行动缺少足够具体的执行信息",
+        });
+      }
+    });
   });
 
 const DEVIATION_CLASSES = ["nudge", "reform", "rupture"] as const;
@@ -221,6 +250,12 @@ function normalizeChoice(value: unknown, index: number): unknown {
     intent: intentWasClass ? label : intent,
     deviationClass: choice.deviationClass ?? (intentWasClass ? choice.intent : undefined),
     usesTravelerStrength: choice.usesTravelerStrength ?? index === 1,
+    actionSpec: choice.actionSpec ?? {
+      actor: "你与当前同伴",
+      action: trimBounded(label, 28),
+      target: trimBounded(intentWasClass ? label : intent, 28),
+      deadline: "本幕时限结束前",
+    },
   };
 }
 
@@ -238,7 +273,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
-    generationSource: turn.generationSource ?? "deepseek",
+    generationSource: "deepseek",
     protagonistName: turn.protagonistName ?? "无名穿越者",
     protagonistAge: turn.protagonistAge ?? 24,
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
@@ -254,6 +289,10 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     worldStateChange: trimBounded(turn.worldStateChange, 72),
     divergenceProof: trimBounded(turn.divergenceProof, 72),
     baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
+    historicalAnchors: turn.historicalAnchors ?? [
+      trimBounded(turn.location ?? "当前历史地点", 32),
+      trimBounded(turn.role ?? "当前历史身份", 32),
+    ],
     choices: Array.isArray(turn.choices)
       ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
       : turn.choices,

@@ -10,12 +10,14 @@ export function ButterflyEchoScreen({
   onContinue,
   onExit,
   sceneImage,
+  parallelProgress,
 }: {
   echo: EchoState;
   isFinal: boolean;
   onContinue: () => void;
   onExit: () => void;
   sceneImage?: string;
+  parallelProgress?: number;
 }) {
   const [ready, setReady] = useState(ECHO_DELAY_MS === 0);
 
@@ -36,6 +38,7 @@ export function ButterflyEchoScreen({
         {echo.canonStatus && <p className="echo-screen__ruling">{echo.canonStatus} · {echo.personalityLens} · {echo.causalMechanism}</p>}
         <strong>{echo.directResult}</strong>
         <p className="echo-screen__cost">但 {echo.unexpectedCost}</p>
+        {parallelProgress !== undefined && <p className="echo-screen__parallel">另一条时间线已同步推进至 {parallelProgress}/12</p>}
         <dl className="echo-people">
           <div><dt>获益</dt><dd>{echo.beneficiary}</dd></div>
           <div><dt>付出</dt><dd>{echo.payer}</dd></div>

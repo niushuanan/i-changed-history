@@ -46,7 +46,7 @@ describe("profile-first choice-only game reducer", () => {
     expect(started.request?.kind).toBe("opening");
   });
 
-  it("records only one of the generated choices", () => {
+  it("records the player choice and the profile-driven instinct choice on separate lines", () => {
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(started, {
@@ -54,9 +54,12 @@ describe("profile-first choice-only game reducer", () => {
       requestId: started.request!.id,
       turn,
     });
-    const chosen = gameReducer(event, { type: "COMMIT_AI_CHOICE", choiceId: "B" });
+    const chosen = gameReducer(event, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
     expect(chosen.playedTurns).toHaveLength(1);
-    expect(chosen.playedTurns[0].selectedChoiceId).toBe("B");
+    expect(chosen.playedTurns[0].selectedChoiceId).toBe("A");
+    expect(chosen.instinctPlayedTurns).toHaveLength(1);
+    expect(chosen.instinctPlayedTurns[0].selectedChoiceId).toBe("B");
+    expect(chosen.instinctPlayedTurns[0].selectedChoiceLabel).not.toBe(chosen.playedTurns[0].selectedChoiceLabel);
     expect(chosen.playedTurns[0]).not.toHaveProperty("customIntervention");
   });
 

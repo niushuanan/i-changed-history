@@ -37,6 +37,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-07-13 18:35 - 删除七类剧情模板并建立双时间线开放推演
+
+- 本次任务：根治董卓线路被本地“国运会战”等七类模板接管、选项抽象、MBTI 只作标签、事件页空白过大，以及人格没有实际玩法的问题。
+- 改了哪些文件：`src/game/{worldCanon,fallbackTurn,prompts,schema,engine,reducer,instinctTimeline}.ts`、`src/hooks/useGame.ts`、`src/services/{deepseek,storage}.ts`、`src/screens/{TravelerProfileScreen,SeedPickerScreen,TimelineEventScreen,ButterflyEchoScreen,AlternatePresentScreen}.tsx`、`src/components/{ChoiceList,ResultFrontPage}.tsx`、`src/App.tsx`、`src/styles/game.css`、相关测试与夹具、`AGENTS.md`、`docs/superpowers/`。
+- 改了什么：物理删除七类 `PIVOT_SCENES`、固定剧情分类器、通用 A/B/C 和本地历史/结局生成器；DeepSeek 直接接收不可撤销正史、最近三幕、年龄与时代约束，自行做一至三阶因果推理；新增 2-4 个时代锚点和行动者/动作/对象/期限结构校验；结构连续失败改为保留进度并显式重试；人格从可见 ENFP 标签改为隐藏的第二条人生，每幕自动选择人格行动，分岔后两条历史并行调用 DeepSeek，结局可翻页比较两份 2026 报告；存档升级 v10；事件图压到 184px，正文与因果回执改为自然紧凑布局。
+- 为什么这样改：惊奇必须由模型从玩家真实决定中推导，而不是由客户端轮换题材；人格只有真的替玩家走完另一种人生并在结局形成对照才有游戏价值；失败也不能用看似可玩的套话掩盖真实模型状态。
+- 影响了哪些模块：AI 推演协议、历史连续性、玩家正史、人格机制、双分支状态机、请求并发、存档恢复、事件页、回响页、结局报告与完整回归测试。
+- 验证：Vitest、TypeScript 和生产构建通过；390 x 844 真实浏览器中完成四问人格、50 卡时间轴、董卓首幕、行动回响与第二幕。DeepSeek 生成同一主角赵谦从“宣阳门伏：吕布生死一线”进入三日后的“李傕搜营：三日惊变”，选项包含张济、搜捕队、亲兵、具体期限；场景、因果回执、三项动作和自由改写在一屏内完整可操作。
+
 ### 2026-07-13 17:40 - 把循环假进度改为单向历史书写
 
 - 本次任务：解决等待页三项状态完成后又退回第一项、让玩家误以为即将翻页却重新开始的问题，并去掉生硬的“因果推演”命名。

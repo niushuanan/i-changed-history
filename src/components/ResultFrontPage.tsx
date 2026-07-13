@@ -1,10 +1,10 @@
 import type { AlternatePresent } from "../game/schema";
 import { getDeviationStage } from "../game/deviation";
 
-export function ResultFrontPage({ result, deviation }: { result: AlternatePresent; deviation: number }) {
+export function ResultFrontPage({ result, deviation, reportId = "result-capture" }: { result: AlternatePresent; deviation: number; reportId?: string }) {
   const stage = getDeviationStage(deviation);
   return (
-    <article id="result-capture" className="result-front-page legacy-report" data-export-target="parallel-front-page">
+    <article id={reportId} className="result-front-page legacy-report" data-export-target="parallel-front-page">
       <header className="front-page__masthead">
         <span>身后历史报告 · 截至 2026</span>
         <h1>{result.worldName}</h1>

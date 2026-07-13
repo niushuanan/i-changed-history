@@ -4,7 +4,7 @@ import type { ChatMessage } from "../game/prompts";
 
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
 const DEEPSEEK_MODEL = "deepseek-v4-flash";
-const REQUEST_TIMEOUT_MS = 28_000;
+const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_DELAY_MS = 650;
 const MAX_ATTEMPTS = 2;
 
@@ -53,18 +53,10 @@ function requestBody(messages: readonly ChatMessage[], phase: DeepSeekPhase) {
     stream: false,
   } as const;
 
-  if (phase === "ending") {
-    return {
-      ...shared,
-      thinking: { type: "enabled" },
-      reasoning_effort: "high",
-      max_tokens: 8192,
-    } as const;
-  }
-
   return {
     ...shared,
-    thinking: { type: "disabled" },
+    thinking: { type: "enabled" },
+    reasoning_effort: "high",
     max_tokens: 8192,
   } as const;
 }
@@ -170,7 +162,7 @@ async function performRequest(
       });
     } catch (error) {
       if (timedOut) {
-        throw new DeepSeekError("timeout", "推演超过 28 秒，请重新推演这一幕。");
+        throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
       }
       if (externalSignal?.aborted) {
         throw new DeepSeekError("aborted", "本次推演已取消。");
@@ -179,7 +171,7 @@ async function performRequest(
     }
 
     if (timedOut) {
-      throw new DeepSeekError("timeout", "推演超过 28 秒，请重新推演这一幕。");
+      throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
     }
     if (!response.ok) throw errorForStatus(response.status);
 
@@ -188,7 +180,7 @@ async function performRequest(
       content = await readCompletion(response);
     } catch (error) {
       if (timedOut) {
-        throw new DeepSeekError("timeout", "推演超过 28 秒，请重新推演这一幕。");
+        throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
       }
       if (externalSignal?.aborted) {
         throw new DeepSeekError("aborted", "本次推演已取消。");
@@ -205,7 +197,7 @@ async function performRequest(
       throw error;
     }
     if (timedOut) {
-      throw new DeepSeekError("timeout", "推演超过 28 秒，请重新推演这一幕。");
+      throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
     }
     return content;
   } finally {

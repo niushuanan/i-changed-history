@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Clock, PencilSimpleLine, Sparkle, X } from "@phosphor-icons/react";
+import { ArrowRight, Clock, PencilSimpleLine, X } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
@@ -10,8 +10,6 @@ export function TimelineEventScreen({
   turn,
   deviation,
   lastChoiceLabel,
-  abilityTitle,
-  abilityCode,
   abilityPreviewMode,
   abilityCustomAction,
   customActionsRemaining,
@@ -23,8 +21,6 @@ export function TimelineEventScreen({
   turn: TimelineTurn;
   deviation: number;
   lastChoiceLabel?: string;
-  abilityTitle: string;
-  abilityCode: string;
   abilityPreviewMode: TravelerAbility["previewMode"];
   abilityCustomAction: string;
   customActionsRemaining: number;
@@ -54,7 +50,7 @@ export function TimelineEventScreen({
       <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />
-        <span className={`generation-source is-${turn.generationSource}`}><i />{turn.generationSource === "deepseek" ? "DeepSeek 实时生成" : "本地保底续写"}</span>
+        <span className="generation-source is-deepseek"><i />DeepSeek 实时生成</span>
         <figcaption><span>{turn.yearLabel}</span><strong>{turn.location}</strong></figcaption>
       </figure>
       <section className="event-body">
@@ -88,8 +84,8 @@ export function TimelineEventScreen({
       )}
 
       <section className="decision-zone">
-        <h2><span>你要怎么做？</span><em><Sparkle size={11} weight="fill" />{abilityCode} · {abilityTitle}</em></h2>
-        <ChoiceList choices={turn.choices} abilityTitle={abilityTitle} previewMode={abilityPreviewMode} onChoose={onChoose} />
+        <h2><span>你要怎么做？</span></h2>
+        <ChoiceList choices={turn.choices} previewMode={abilityPreviewMode} onChoose={onChoose} />
         <button
           className="custom-action-command"
           type="button"

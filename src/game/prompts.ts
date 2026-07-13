@@ -2,8 +2,7 @@ import type { GameScenario } from "./reducer";
 import { getTravelerAbility } from "./profile";
 import type { DeviationClass, TimelineTurn } from "./schema";
 import { CHAPTER_NAMES, JUMP_LABELS, getTimelineNode, type DecisionChapter } from "./timelinePlan";
-import type { RippleLens } from "./rippleRouter";
-import { buildPivotalBrief, buildWorldCanon } from "./worldCanon";
+import { buildWorldCanon } from "./worldCanon";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -24,9 +23,9 @@ export const TIMELINE_SYSTEM_PROMPT = [
   "你是《I！我改变了历史》的结构化即兴历史推演引擎。",
   "玩家是带着现代经验穿越到真实历史瞬间的中国人。使用第二人称、现在时，让玩家看到真实人物、地点、物件和迫近的时间限制。",
   "所有后果必须由历史事实或玩家真实选择推导；每幕同时呈现收益、代价、受益者与承担者。",
-  "十二幕都必须是这条平行时间线中的重大转折点：决定政权、战争、制度、技术、贸易、知识或公共秩序，不得用普通工作与日常记录填充节点。",
+  "十二幕都必须是这条平行时间线中的重大转折点，不得用普通工作与日常记录填充节点。不要从预设题材、七类模板或固定剧情槽中选题；请根据完整因果账本自行推演下一处最值得玩家决定的历史冲突。",
   "玩家已经完成的选择组成不可撤销正史。尤其是玩家钦定结果：不得否认、降级、反转或假设失败，必须在其后三幕持续兑现为具体世界事实。",
-  "三个选项必须是当场能执行的具体动作，恰好覆盖 nudge、reform、rupture，至少一个要能使用穿越者画像中的能力。",
+  "三个选项必须是当场能执行的具体动作，写清行动者、动作、对象和期限，恰好覆盖 nudge、reform、rupture，至少一个要能使用穿越者画像中的能力。禁止使用“重写规则”“稳步推进”“交给新联盟”等抽象概括代替行动。",
   "十二幕必须始终是同一个有姓名、会衰老的人。可以改变职位、阵营和城市，但绝不能换身体、转生、意识接力或让后代替玩家行动。",
   "第三幕以后，开场事件只能作为因果源，不能继续垄断标题与任务；同一个主角要沿亲手造成的后果进入新的重大冲突。",
   "蝴蝶效应的惊奇来自事件线、矛盾线和社会载体的变化，不来自机械地跨国或跨洲；地域可以连续，原始事件不能垄断后续历史。",
@@ -41,7 +40,8 @@ function scenarioPayload(scenario: GameScenario) {
   const ability = getTravelerAbility(scenario.profile);
   return {
     traveler: {
-      ...scenario.profile,
+      typeCode: scenario.profile.typeCode,
+      dimensions: scenario.profile.dimensions,
       gameplayRules: {
         archetype: ability.title,
         dedicatedChoice: ability.action,
@@ -67,11 +67,11 @@ function scenarioPayload(scenario: GameScenario) {
   };
 }
 
-function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens = "origin") {
+function turnContract(chapter: TimelineTurn["chapter"]) {
   return {
-    requiredFields: ["timelineName", "chapter", "chapterName", "protagonistName", "protagonistAge", "lifeStage", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
+    requiredFields: ["timelineName", "chapter", "chapterName", "protagonistName", "protagonistAge", "lifeStage", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "historicalAnchors", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
     rules: {
-      totalLength: "总输出控制在 700 个汉字以内，宁可短句，不得省略字段",
+      totalLength: "完整 JSON 可到 1800 个汉字，不得为了短而省略字段；玩家可见的 headline、narrative、choice.label 必须保持短句",
       chapter,
       chapterName: CHAPTER_NAMES[chapter],
       protagonistName: chapter === 1 ? "2-16 个汉字；给主角一个符合时代与地域的固定姓名" : "必须逐字等于 authoritativeProtagonist.name",
@@ -83,7 +83,7 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
       identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何进入主角此后唯一的一生" : "36 字以内；说明同一主角如何从上一职位走到当前职位，禁止接棒或换人",
       profileAdvantage: "36 字以内；必须具体说明 traveler.gameplayRules.directive 如何帮助主角当前身份，不得泛称现代能力",
-      rippleLens: `必须为 ${rippleLens}，不得自行更换社会载体`,
+      rippleLens: "根据本幕真正受影响的社会载体自行选择，不得按固定轮次或模板选择",
       causalBridge: chapter === 1 ? "54 字以内；说明玩家决定如何成为时间线源头" : "54 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
       turningPointStakes: "54 字以内；说明本幕将不可逆地决定哪种政权、战争、制度、技术或文明秩序，以及主要受影响者",
       worldStateChange: chapter === 1 ? "72 字以内；指出玩家一旦介入将首先改变的事实" : "72 字以内；把上一项玩家选择写成已经落地的具体世界事实，不得只复述行动",
@@ -91,7 +91,8 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
       immediateObjective: "28 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
-      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesTravelerStrength；恰好一个 usesTravelerStrength 为 true，且该行动必须具体体现 traveler.gameplayRules.directive",
+      historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念",
+      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesTravelerStrength、actionSpec；actionSpec 必须含 actor、action、target、deadline，四项合起来构成历史人物此刻真的能下达或执行的动作；恰好一个 usesTravelerStrength 为 true",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       previousEcho: chapter === 1 ? "必须为 null" : "完整承接上一选择即时回响",
       metrics: "stability、prosperity、freedom、cost，均为 0-100 数值",
@@ -104,16 +105,16 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
       timelineName: "示例线名", chapter, chapterName: CHAPTER_NAMES[chapter], protagonistName: "沈砚", protagonistAge: 24, lifeStage: JUMP_LABELS[chapter - 1], yearLabel: "具体年月日 · 24岁", location: "具体地点",
       role: "具体角色", immediateObjective: "当场目标", timePressure: "倒计时",
       identityBridge: "同一主角如何走到当前身份", profileAdvantage: "现代画像在当前身份的具体用处",
-      rippleLens, causalBridge: "上一结果通过具体媒介进入本幕的新社会冲突",
+      rippleLens: "power", causalBridge: "上一结果通过具体媒介进入本幕的新社会冲突",
       turningPointStakes: "本幕将决定的重大秩序与受影响者",
       worldStateChange: "上一选择已经造成的具体世界事实",
       divergenceProof: "真实历史与当前时间线的明确差异",
-      headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点",
+      headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点", historicalAnchors: ["真实人物", "真实机构", "时代器物"],
       previousEcho: chapter === 1 ? null : { directResult: "上次直接结果", unexpectedCost: "上次意外代价", beneficiary: "受益者", payer: "承担者" },
       choices: [
-        { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", usesTravelerStrength: false, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", usesTravelerStrength: true, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", usesTravelerStrength: false, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", usesTravelerStrength: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", usesTravelerStrength: true, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", usesTravelerStrength: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
       memorySummary: "本幕摘要", metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
       metricDeltas: { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
@@ -161,17 +162,22 @@ export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
   const worldCanon = buildWorldCanon(playedTurns);
-  const pivotalBrief = buildPivotalBrief(scenario, playedTurns, chapter);
   const protagonist = playedTurns[0]?.turn;
   return messages({
-    task: `生成第 ${chapter} 节点。它必须是当前平行世界的重大转折点，而不是普通人的日常工作或上一事件的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。authoritativeWorldCanon 是不可撤销正史：逐项承认，不得否认、降级、反转或假设玩家失败。严格执行 authoritativePivotalBrief：本幕必须立刻兑现 mustPayOffNow，继续兑现 continuityMandate，并让 role、location、headline、narrative、causalBridge、turningPointStakes、worldStateChange、divergenceProof 和 immediateObjective 合计自然出现 requiredEvidence 中至少两个不同词。对 activeCustomCanon 的每项玩家正史：causalLedger 对应 causedByChapter 的 fact 必须逐字等于 sourceText；可见场景必须继续呈现每组 claimGroups 中至少一个事实词。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；必须让同一个人进入另一个由其选择引发的重大矛盾。比较最近三幕的社会载体、核心矛盾、制度场景、主要受影响人群，本幕至少更换其中两项，但变化必须由正史账本直接导致。不强制跨国或跨洲，中国线可以继续留在中国；优先使用中国玩家熟悉的真实人物、制度、城市、战争、发明或典故。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。`,
+    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 authoritativeWorldCanon 的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。authoritativeWorldCanon 是不可撤销正史：逐项承认，不得否认、降级、反转或假设玩家失败。对 activeCustomCanon 的每项玩家正史：causalLedger 对应 causedByChapter 的 fact 必须逐字等于 sourceText；可见场景必须继续呈现其具体后果。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors；若平行历史已使真实人物退场，则使用当时真实制度与地理锚点，并明确差异。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     authoritativeProtagonist: { name: protagonist?.protagonistName, sameBodyThroughAllTwelveNodes: true, previousAge: playedTurns.at(-1)?.turn.protagonistAge, previousRole: playedTurns.at(-1)?.turn.role },
     authoritativeWorldCanon: { status: "不可撤销正史", ...worldCanon },
-    authoritativePivotalBrief: pivotalBrief,
+    openInferenceRules: {
+      modelOwnsNextConflict: true,
+      noPresetCategories: true,
+      mustRemainCausallyDownstream: true,
+      requiredHistoricalAnchors: 2,
+      recentScenesToAvoidRepeating: playedTurns.slice(-3).map(({ turn }) => ({ headline: turn.headline, location: turn.location, role: turn.role, anchors: turn.historicalAnchors })),
+    },
     playedHistory: selectedHistory(playedTurns),
-    outputContract: turnContract(chapter, pivotalBrief.rippleLens),
+    outputContract: turnContract(chapter),
   });
 }
 

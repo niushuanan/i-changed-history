@@ -17,8 +17,10 @@ describe("alternate present export", () => {
     const user = userEvent.setup();
     render(
       <AlternatePresentScreen
-        result={result}
-        deviation={64}
+        playerResult={result}
+        instinctResult={{ ...result, worldName: "本能纪元" }}
+        playerDeviation={64}
+        instinctDeviation={51}
         onSave={onSave}
         onRestart={vi.fn()}
       />,
@@ -35,8 +37,10 @@ describe("alternate present export", () => {
     const user = userEvent.setup();
     render(
       <AlternatePresentScreen
-        result={result}
-        deviation={64}
+        playerResult={result}
+        instinctResult={{ ...result, worldName: "本能纪元" }}
+        playerDeviation={64}
+        instinctDeviation={51}
         onSave={vi.fn().mockRejectedValue(new Error("render failed"))}
         onRestart={vi.fn()}
       />,
@@ -45,5 +49,23 @@ describe("alternate present export", () => {
     await user.click(screen.getByRole("button", { name: "保存历史报告" }));
     expect(await screen.findByRole("status")).toHaveTextContent("报告生成失败，请重试");
     expect(screen.getByRole("button", { name: "重新保存报告" })).toBeEnabled();
+  });
+
+  it("pages between the player's world and the profile-instinct world", async () => {
+    const user = userEvent.setup();
+    render(
+      <AlternatePresentScreen
+        playerResult={result}
+        instinctResult={{ ...result, worldName: "本能纪元" }}
+        playerDeviation={64}
+        instinctDeviation={51}
+        onSave={vi.fn().mockResolvedValue("downloaded")}
+        onRestart={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(result.worldName)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "如果你始终听从第一反应" }));
+    expect(screen.getByText("本能纪元")).toBeVisible();
   });
 });

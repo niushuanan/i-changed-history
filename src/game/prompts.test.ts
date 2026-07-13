@@ -5,7 +5,6 @@ import { parseTimelineTurn } from "./schema";
 import { buildTravelerProfile } from "./profile";
 import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
-import { buildPivotalBrief } from "./worldCanon";
 
 const scenario: GameScenario = {
   profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
@@ -18,7 +17,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain("萨拉热窝刺杀");
     expect(body).toContain("塞尔维亚总理大臣帕希奇的特别联络员");
     expect(body).toContain("距离车队再次经过拉丁桥约 8 分钟");
-    expect(body).toContain("strategy");
+    expect(body).toContain('"dimensions"');
     expect(body).toContain("INTP");
     expect(body).toContain("因果侦探");
     expect(body).toContain("三次直接改写");
@@ -45,18 +44,19 @@ describe("modern traveler AI prompt contract", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
-    const brief = buildPivotalBrief(scenario, played, 8);
 
     expect(continuation).toContain("authoritativeProtagonist.name 本人");
     expect(continuation).toContain("禁止换身体、转生、意识接力");
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
-    expect(continuation).toContain("社会载体、核心矛盾、制度场景、主要受影响人群");
+    expect(continuation).toContain("不要从预设类别、通用模板或固定章节槽中选题");
+    expect(continuation).toContain("一阶、二阶和三阶后果");
     expect(continuation).toContain("identityBridge");
     expect(continuation).toContain("profileAdvantage");
     expect(continuation).toContain("usesTravelerStrength");
-    expect(continuation).toContain("总输出控制在 700 个汉字以内");
-    expect(continuation).toContain(brief.rippleLens);
-    expect(continuation).toContain(brief.significanceRequirement);
+    expect(continuation).toContain("完整 JSON 可到 1800 个汉字");
+    expect(continuation).not.toContain("authoritativePivotalBrief");
+    expect(continuation).toContain("historicalAnchors");
+    expect(continuation).toContain("actionSpec");
     expect(continuation).toContain("rippleLens");
     expect(continuation).toContain("causalBridge");
   });
@@ -86,8 +86,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("turningPointStakes");
     expect(continuation).toContain("worldStateChange");
     expect(continuation).toContain("divergenceProof");
-    expect(continuation).toContain("权力与继承");
-    expect(continuation).toContain("技术与生产");
+    expect(continuation).toContain("自行选择其中最意外、最重大");
+    expect(continuation).toContain("不得否认、降级、反转");
   });
 
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
@@ -95,16 +95,15 @@ describe("modern traveler AI prompt contract", () => {
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
 
-    expect(continuation).toContain("不强制跨国或跨洲");
-    expect(continuation).toContain("可以继续留在中国");
-    expect(continuation).toContain("中国玩家熟悉");
-    expect(continuation).toContain("至少更换其中两项");
+    expect(continuation).toContain("允许留在同一地区");
+    expect(continuation).toContain("中国玩家；先给熟悉的真实历史锚点");
+    expect(continuation).toContain("不能总围绕同一事件、同一敌人、同一任务");
     expect(continuation).not.toContain("第 8 节点起优先跨地域或跨领域");
   });
 
   it("keeps generated display copy concise without lowering transport headroom", () => {
     const body = buildOpeningMessages(scenario).at(-1)!.content;
-    expect(body).toContain("总输出控制在 700 个汉字以内");
+    expect(body).toContain("完整 JSON 可到 1800 个汉字");
     expect(body).toContain("60 个汉字以内");
     expect(body).toContain("每个 label 22 字以内");
   });

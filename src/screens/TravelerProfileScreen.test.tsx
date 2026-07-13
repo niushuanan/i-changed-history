@@ -25,7 +25,8 @@ describe("traveler personality calibration screen", () => {
 
     expect(screen.getByText("INTP")).toBeVisible();
     expect(screen.getByText("因果侦探")).toBeVisible();
-    expect(screen.getByText(/每幕专属行动/)).toBeVisible();
+    expect(screen.getByText(/另一条平行人生/)).toBeVisible();
+    expect(screen.getByText(/自动走完另一条十二幕人生/)).toBeVisible();
     expect(screen.getByText("三次直接改写")).toBeVisible();
     await user.click(screen.getByRole("button", { name: /进入五十个历史瞬间/ }));
 

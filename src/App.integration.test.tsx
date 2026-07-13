@@ -54,7 +54,7 @@ function completedEnding() {
     ...endingFixture,
     historyTimeline: endingFixture.historyTimeline.map((item) => ({
       ...item,
-      playerChoice: "公开完整遗诏",
+      playerChoice: "立刻放出第一批火船",
     })),
   }));
 }
@@ -94,9 +94,9 @@ describe("complete player journey", () => {
     for (let chapter = 1; chapter <= 12; chapter += 1) {
       expect(await screen.findByRole("heading", { name: `第${chapter}幕局势` })).toBeVisible();
       expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
-      await user.click(screen.getByRole("button", { name: /公开完整遗诏/ }));
+      await user.click(screen.getByRole("button", { name: /立刻放出第一批火船/ }));
       expect(await screen.findByRole("heading", { name: "世界已回应" })).toBeVisible();
-      expect(screen.getByText("继业者暂停争夺")).toBeVisible();
+      expect(screen.getByText("曹军左翼提前起火")).toBeVisible();
       const continueButton = await screen.findByRole("button", { name: /继续推演|查看平行世界/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);
@@ -142,7 +142,8 @@ describe("complete player journey", () => {
     render(<App />);
 
     await completeProfile(user);
-    expect(screen.getAllByText(/因果侦探/).length).toBeGreaterThan(0);
+    expect(screen.getByText("另一种你 · 已就绪")).toBeVisible();
+    expect(screen.queryByText(/INTP|因果侦探/)).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
     expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(50);
@@ -153,6 +154,6 @@ describe("complete player journey", () => {
 
     expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
     expect(await screen.findByText("DeepSeek 实时生成")).toBeVisible();
-    expect(screen.getAllByText(/因果侦探/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/INTP|因果侦探/)).not.toBeInTheDocument();
   });
 });

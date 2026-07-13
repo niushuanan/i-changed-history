@@ -93,7 +93,7 @@ export function TravelerProfileScreen({ onSubmit, onStartExperience }: {
             <p>{ability.strengths}</p>
           </div>
           <div className="type-rules">
-            <article><Sparkle size={21} weight="fill" /><div><strong>每幕专属行动</strong><span>{ability.action}</span></div></article>
+            <article><Sparkle size={21} weight="fill" /><div><strong>另一条平行人生</strong><span>系统会按「{profile.name}」的第一反应，自动走完另一条十二幕人生</span></div></article>
             <article><Eye size={21} weight="bold" /><div><strong>因果预判</strong><span>{ability.preview}</span></div></article>
             <article><Lightning size={21} weight="fill" /><div><strong>三次直接改写</strong><span>{ability.customAction}</span></div></article>
           </div>
