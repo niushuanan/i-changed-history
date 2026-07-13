@@ -135,6 +135,12 @@ Final result: passed.
 - A maximum-copy 390 x 844 browser run used an 88-character prehistory, three 32-character actions, and all three comparison fields at their limits. Each comparison body stayed within two lines.
 - At maximum legal copy, document and event page remained exactly 844px high, the event body client and scroll height were both 544px, the comparison bottom stayed at 836px, and browser inspection found no clipped prose, ellipsis, errors, or warnings.
 
+# Two-Row Scene Caption QA (2026-07-13)
+
+- The scene caption has a dedicated time row and a dedicated location row; it no longer uses opposing left/right columns.
+- Tested at 390 x 844 with `1939年 · 六周后 · 24岁` and `上海法租界霞飞路 549 号咖啡馆二楼雅座`.
+- Time occupied y=297.3..315.7 and location occupied y=317.7..330.7, so the rows did not overlap; event page and event body client/scroll heights remained equal at 844px and 504px.
+
 # Familiar Surprise Loading QA (2026-07-14)
 
 - Added three generated 9:16 WebP backgrounds for opening reveal, social relay, and 2026 convergence.

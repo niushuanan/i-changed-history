@@ -68,6 +68,21 @@ describe("clear change event screen", () => {
     expect(screen.getByRole("button", { name: "写入时间线" })).toBeDisabled();
   });
 
+  it("renders event time and location as separate caption rows", () => {
+    const { container } = render(<TimelineEventScreen
+      turn={openingTurn}
+      deviation={0}
+      onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    const caption = container.querySelector(".event-scene__caption");
+    expect(caption).toBeInTheDocument();
+    expect(caption?.querySelector(".event-scene__time")).toHaveTextContent(openingTurn.yearLabel);
+    expect(caption?.querySelector(".event-scene__location")).toHaveTextContent(openingTurn.location);
+  });
+
   it("switches to dense layout when a continuation contains the maximum useful copy", () => {
     const fullNarrative = "前".repeat(44) + "。" + "情".repeat(42) + "。";
     const fullCausalBridge = "因".repeat(36);

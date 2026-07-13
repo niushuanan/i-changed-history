@@ -56,7 +56,10 @@ export function TimelineEventScreen({
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />
         <span className="generation-source is-deepseek"><i />DeepSeek 实时生成</span>
-        <figcaption><span>{turn.yearLabel}</span><strong>{turn.location}</strong></figcaption>
+        <figcaption className="event-scene__caption">
+          <span className="event-scene__time">{turn.yearLabel}</span>
+          <strong className="event-scene__location">{turn.location}</strong>
+        </figcaption>
       </figure>
       <section className="event-body">
         <article className="event-copy">
