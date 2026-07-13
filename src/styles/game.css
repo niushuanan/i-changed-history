@@ -1141,9 +1141,9 @@
 .change-proof__cause > span:last-child { color: #aeb7b4; font-weight: 400; }
 .change-proof.is-opening { align-content: start; }
 .event-screen[data-density="compact"] {
-  grid-template-rows: 52px 288px minmax(0, 1fr);
+  grid-template-rows: 52px 310px minmax(0, 1fr);
 }
-.event-screen[data-density="compact"] .event-scene { height: 288px; }
+.event-screen[data-density="compact"] .event-scene { height: 310px; }
 .event-screen[data-density="compact"] .event-copy { padding-top: 7px; padding-bottom: 6px; }
 .event-screen[data-density="compact"] .event-copy h1 { margin: 2px 0 3px; font-size: 20px; }
 .event-screen[data-density="compact"] .event-copy p { font-size: 11px; line-height: 1.32; }
@@ -1151,20 +1151,24 @@
 .event-screen[data-density="compact"] .custom-action-command { flex-basis: 40px; height: 40px; }
 .event-screen[data-density="compact"] .change-proof { padding: 7px 0 5px; }
 .event-screen[data-density="dense"] {
-  grid-template-rows: 52px 248px minmax(0, 1fr);
+  grid-template-rows: 52px 300px minmax(0, 1fr);
 }
-.event-screen[data-density="dense"] .event-scene { height: 248px; }
+.event-screen[data-density="dense"] .event-scene { height: 300px; }
 .event-screen[data-density="dense"] .event-copy { padding-top: 7px; padding-bottom: 6px; }
 .event-screen[data-density="dense"] .event-copy h1 { margin: 2px 0 3px; font-size: 20px; }
 .event-screen[data-density="dense"] .event-copy p { font-size: 11px; line-height: 1.32; }
 .event-screen[data-density="dense"] .event-copy small { margin-top: 3px; font-size: 9px; }
-.event-screen[data-density="dense"] .change-proof { padding: 7px 0 5px; }
+.event-screen[data-density="dense"] .change-proof { gap: 3px; padding: 7px 0 5px; }
 .event-screen[data-density="dense"] .change-proof__row strong,
 .event-screen[data-density="dense"] .change-proof__row p { font-size: 11px; line-height: 1.3; }
 .event-screen[data-density="dense"] .change-proof__cause { font-size: 9px; }
 .event-screen[data-density="dense"] .choice-action { padding-top: 3px; padding-bottom: 3px; }
 .event-screen[data-density="dense"] .choice-list { grid-template-rows: repeat(3, 50px); }
 .event-screen[data-density="dense"] .custom-action-command { flex-basis: 38px; height: 38px; }
+.event-screen[data-density="dense"][data-history-mode="opening"] {
+  grid-template-rows: 52px 330px minmax(0, 1fr);
+}
+.event-screen[data-density="dense"][data-history-mode="opening"] .event-scene { height: 330px; }
 
 /* Final report: two readings of one life, never two personality timelines. */
 .result-screen {

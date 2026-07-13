@@ -1,5 +1,18 @@
 # Design QA
 
+## Rich Three-Layer Event Context QA (2026-07-13)
+
+- Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-4088f082-fbfc-4662-a318-f2ed6c058613.png`.
+- Final implementation screenshot: `.playwright-cli/page-2026-07-13T15-46-08-266Z.png`.
+- A real DeepSeek 1939 opening produced 154 Chinese characters in exactly three complete sentences: historical setup, named actors and visible evidence, then the player's leverage, deadline, and failure cost.
+- The first response also contained invalid or missing fields. Field-level validation reported the narrative together with those fields, and one compact repair supplied all four fields; both DeepSeek requests returned HTTP 200 and the playable page retained `DeepSeek 实时生成`.
+- Old v11 saves with a one-sentence narrative load through a compatibility schema without rewriting or deleting the saved run; new model responses still use the strict three-sentence schema.
+- At 390 x 844, the real 154-character opening has document, event, and body `scrollHeight === clientHeight`; all three choices, unlimited direct rewrite, factual baseline, and editable objective are visible. The deepest visible copy ends at 812.02px.
+- A maximum-copy continuation used a 160-character narrative, three 32-character actions, and 36/48/36-character comparison rows. Document, event, and body remain non-scrolling; the deepest visible copy ends at 834.96px against a 836px safe boundary.
+- Dense continuation art uses 300px while a dense opening uses 330px, avoiding both text clipping and the earlier large empty lower block. Browser console: 0 errors and 0 warnings.
+
+final result: passed
+
 ## Plain Decision Result QA (2026-07-13)
 
 - Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-57f880b5-7010-4ed4-a05c-3a8f251bd611.png`.

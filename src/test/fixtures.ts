@@ -13,7 +13,7 @@ export const turnFixture = {
   immediateObjective: "在曹军识破诈降前决定火船启航时机",
   timePressure: "距离曹军发现火船约半个时辰",
   headline: "东南风还没有来",
-  narrative: "黄盖已经登船，曹军的巡哨却比预期更近。你握着发船铜令，任何迟疑都可能让火攻提前暴露。",
+  narrative: "黄盖已经登船，曹操连环船在江面列阵，周瑜只等东南风起便要放出诈降火船。曹军巡哨却比约定更早逼近，前列水手发现对岸开始收紧拦江索。你握着发船铜令，若半刻内不能决定启航次序，火攻可能在接近曹营前暴露。",
   baselineAnchor: "孙刘联军最终借东风火攻曹操水军。",
   historicalAnchors: ["周瑜", "黄盖诈降", "曹操连环船"],
   rippleLens: "origin",

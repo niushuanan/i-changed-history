@@ -96,8 +96,16 @@ const causalLedgerEntrySchema = z.object({
   mustAffect: requiredString,
 });
 
-const strictTimelineTurnSchema = z
-  .object({
+const richNarrativeSchema = requiredString
+  .max(160)
+  .refine((narrative) => [...narrative].length >= 96, {
+    message: "现场前情至少需要 96 字",
+  })
+  .refine((narrative) => (narrative.match(/[。！？!?]/g)?.length ?? 0) === 3, {
+    message: "现场前情必须用恰好三句完整叙事交代来路、各方与风险",
+  });
+
+const timelineTurnFields = {
     timelineName: requiredString,
     chapter: chapterSchema,
     chapterName: chapterNameSchema,
@@ -117,7 +125,6 @@ const strictTimelineTurnSchema = z
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
-    narrative: requiredString.max(88),
     baselineAnchor: boundedString(54),
     historicalAnchors: z.array(boundedString(32)).min(2).max(4),
     previousEcho: echoSchema.nullable(),
@@ -129,8 +136,24 @@ const strictTimelineTurnSchema = z
     callbackUsed: requiredString.nullable(),
     visualTone: visualToneSchema,
     generationSource: generationSourceSchema,
-  })
-  .superRefine((turn, context) => {
+} as const;
+
+const timelineTurnObjectSchema = z.object({
+  ...timelineTurnFields,
+  narrative: richNarrativeSchema,
+});
+
+const compatibleStoredTimelineTurnObjectSchema = z.object({
+  ...timelineTurnFields,
+  narrative: requiredString.max(160),
+});
+
+type TimelineTurnCandidate = z.infer<typeof timelineTurnObjectSchema>;
+
+function validateTimelineTurn(
+  turn: TimelineTurnCandidate,
+  context: z.RefinementCtx,
+) {
     if (turn.chapterName !== CHAPTER_NAMES[turn.chapter]) {
       context.addIssue({
         code: "custom",
@@ -180,15 +203,6 @@ const strictTimelineTurnSchema = z
       });
     }
 
-    const narrativeSentences = turn.narrative.match(/[。！？!?]/g)?.length ?? 0;
-    if (narrativeSentences < 2 || narrativeSentences > 3) {
-      context.addIssue({
-        code: "custom",
-        path: ["narrative"],
-        message: "现场前情必须用两句完整叙事交代来路与冲突",
-      });
-    }
-
     turn.choices.forEach((choice, index) => {
       if (GENERIC_ACTION_PATTERN.test(`${choice.label} ${choice.intent} ${choice.actionSpec.action}`)) {
         context.addIssue({
@@ -206,7 +220,15 @@ const strictTimelineTurnSchema = z
         });
       }
     });
-  });
+}
+
+const strictTimelineTurnSchema = timelineTurnObjectSchema.superRefine((turn, context) => {
+  validateTimelineTurn(turn, context);
+});
+
+const compatibleStoredTimelineTurnSchema = compatibleStoredTimelineTurnObjectSchema.superRefine((turn, context) => {
+  validateTimelineTurn(turn, context);
+});
 
 const DEVIATION_CLASSES = ["nudge", "reform", "rupture"] as const;
 const CHOICE_IDS = ["A", "B", "C"] as const;
@@ -236,9 +258,9 @@ function joinStringArray(value: unknown): unknown {
 function trimNarrative(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const characters = [...value];
-  if (characters.length <= 88) return value;
+  if (characters.length <= 160) return value;
 
-  const candidate = characters.slice(0, 88).join("");
+  const candidate = characters.slice(0, 160).join("");
   const sentenceEnd = Math.max(
     candidate.lastIndexOf("。"),
     candidate.lastIndexOf("！"),
@@ -375,6 +397,11 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 export const timelineTurnSchema = z.preprocess(
   normalizeTimelineTurnCandidate,
   strictTimelineTurnSchema,
+);
+
+export const storedTimelineTurnSchema = z.preprocess(
+  normalizeTimelineTurnCandidate,
+  compatibleStoredTimelineTurnSchema,
 );
 
 const historyTimelineItemSchema = z.object({

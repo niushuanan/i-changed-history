@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
-import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
+import { alternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
 
 export const GAME_STORAGE_KEY = "i-changed-history:session:v11";
 const LEGACY_GAME_STORAGE_KEYS = [
@@ -30,7 +30,7 @@ const resolvedEchoSchema = z.strictObject({
   directResult: z.string(), unexpectedCost: z.string(), beneficiary: z.string(), payer: z.string(),
 });
 const playedSchema = z.strictObject({
-  turn: timelineTurnSchema,
+  turn: storedTimelineTurnSchema,
   selectedChoiceId: z.enum(["A", "B", "C", "custom"]),
   selectedChoiceLabel: z.string(),
   selectedDeviationClass: deviationClass,
@@ -55,7 +55,7 @@ const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retr
 const stateSchema = z.strictObject({
   phase: z.enum(["selecting", "generating", "adjudicating", "event", "ending", "result", "error"]),
   scenario: scenarioSchema.nullable(),
-  currentTurn: timelineTurnSchema.nullable(),
+  currentTurn: storedTimelineTurnSchema.nullable(),
   playedTurns: z.array(playedSchema).max(12),
   deviation: z.number().int().min(0).max(100),
   lastImpact: z.number().int().min(0).max(100),

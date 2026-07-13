@@ -182,25 +182,25 @@ describe("structured timeline parsing", () => {
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
     const raw = JSON.stringify({
       ...turnFixture,
-      narrative: `${"史".repeat(43)}。${"记".repeat(43)}。${"余波".repeat(20)}`,
+      narrative: `${"史".repeat(52)}。${"记".repeat(52)}。${"变".repeat(53)}。${"余波".repeat(20)}`,
     });
-    expect(parseTimelineTurn(raw).narrative).toHaveLength(88);
+    expect(parseTimelineTurn(raw).narrative).toHaveLength(160);
   });
 
-  it("keeps a complete two-sentence prehistory at the new visible limit", () => {
-    const narrative = `${"前".repeat(43)}。${"情".repeat(43)}。`;
+  it("keeps a complete three-sentence prehistory at the new visible limit", () => {
+    const narrative = `${"前".repeat(52)}。${"情".repeat(52)}。${"险".repeat(53)}。`;
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("rejects a scene prehistory that collapses into one sentence", () => {
+  it("rejects a newly generated prehistory that has fewer than three rich sentences", () => {
     expect(() => parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      narrative: "你站在宣阳门城楼箭垛后，俯视着押送百官的吕布。",
-    }))).toThrow(/两句/);
+      narrative: "你站在宣阳门城楼箭垛后，俯视着押送百官的吕布。城外的并州军正在集结。",
+    }))).toThrow(/三句/);
   });
 
   it("ends a trimmed narrative at a complete sentence when possible", () => {
-    const completeSentence = "战情室里所有人都看向你。你必须在两封来信之间作出判断。";
+    const completeSentence = `${"前".repeat(35)}。${"因".repeat(35)}。${"险".repeat(35)}。`;
     const raw = JSON.stringify({
       ...turnFixture,
       narrative: `${completeSentence}${"下一句尚未讲完".repeat(12)}`,

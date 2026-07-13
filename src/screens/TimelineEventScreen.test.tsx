@@ -84,7 +84,7 @@ describe("clear change event screen", () => {
   });
 
   it("switches to dense layout when a continuation contains the maximum useful copy", () => {
-    const fullNarrative = "前".repeat(44) + "。" + "情".repeat(42) + "。";
+    const fullNarrative = "前".repeat(52) + "。" + "情".repeat(52) + "。" + "险".repeat(53) + "。";
     const fullCausalBridge = "因".repeat(36);
     const fullWorldChange = "变".repeat(36);
     const fullRealHistory = "史".repeat(48);
@@ -117,6 +117,24 @@ describe("clear change event screen", () => {
     expect(screen.getByText(fullCausalBridge, { exact: false })).toBeVisible();
     expect(screen.getByText(fullWorldChange)).toBeVisible();
     expect(screen.getByText(fullRealHistory)).toBeVisible();
+  });
+
+  it("uses the dense layout for a realistic rich opening so the history anchor stays in view", () => {
+    const richOpening = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      narrative: "1939年9月1日凌晨，柏林最高统帅部，你手中握着刚签发的白色方案进攻口令，窗外能听见远处引擎的预热声。希特勒要求你立刻将口令传往波兰边境，而内政部伪造的格莱维茨电台攻击报告已准备就绪，英法使馆尚未收到任何警告。作为通信军官，你有权扣下口令二十分钟，但逾期不传将以叛国罪被处决；你必须决定是否让战争车轮启动。",
+    }));
+
+    const { container } = render(<TimelineEventScreen
+      turn={richOpening}
+      deviation={0}
+      onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
+    expect(container.querySelector(".event-screen")).toHaveAttribute("data-history-mode", "opening");
   });
 
   it("shows a complete thirty-two-character action instead of cutting it mid-sentence", () => {

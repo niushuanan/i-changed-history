@@ -110,6 +110,31 @@ describe("DeepSeek transport and structured generation", () => {
     expect(stages).toEqual(["connected", "writing", "validating", "repairing"]);
   });
 
+  it("repairs missing fields and an overlong prehistory in the same compact patch", async () => {
+    const incomplete = {
+      ...turnFixture,
+      immediateObjective: undefined,
+      narrative: `${"前".repeat(60)}。${"因".repeat(60)}。${"尚未收束的第三句".repeat(8)}`,
+    };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(completion(JSON.stringify(incomplete)))
+      .mockResolvedValueOnce(completion(JSON.stringify({
+        immediateObjective: turnFixture.immediateObjective,
+        narrative: turnFixture.narrative,
+      })));
+    vi.stubGlobal("fetch", fetcher);
+
+    await expect(generateOpening(scenario)).resolves.toMatchObject({
+      immediateObjective: turnFixture.immediateObjective,
+      narrative: turnFixture.narrative,
+    });
+
+    const repairBody = JSON.parse(fetcher.mock.calls[1][1].body);
+    const repairPayload = JSON.parse(repairBody.messages.at(-1).content);
+    expect(repairPayload.details.repairFields).toEqual(expect.arrayContaining(["immediateObjective", "narrative"]));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("stops after one compact repair instead of regenerating the whole page a third time", async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(completion('{"bad":1}'))
@@ -143,7 +168,7 @@ describe("DeepSeek transport and structured generation", () => {
       role: "全国粮政使",
       location: "土地与粮食分配大会",
       headline: "粮食法决定民生",
-      narrative: "公开遗诏已经改变继承秩序。土地与粮食法成为新政权第一次全国决断。",
+      narrative: "公开遗诏已经改变继承秩序，各地粮仓开始拒绝旧贵族调粮，长安米价在三日内翻倍。新政权的执政者、军府与商帮围住粮册争夺第一批赈济去向，城门外已有饥民聚集。你作为全国粮政使掌握仓印与驿站，必须在日落前决定先救哪一方，否则守军会为争粮发生兵变。",
       causalBridge: "公开遗诏经新政权命令进入土地与粮食分配",
       turningPointStakes: "这项土地法将决定粮食、劳动与人口的长期分配",
       worldStateChange: "立刻放出第一批火船已成正史，曹军左翼火势提前扩散",

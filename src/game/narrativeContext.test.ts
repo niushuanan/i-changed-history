@@ -15,7 +15,7 @@ function played(chapter: DecisionChapter, custom = false): PlayedTurn {
     lifeStage: node.lifeStage,
     yearLabel: `${node.targetYear}年 · ${node.protagonistAge}岁`,
     headline: `第${chapter}幕重大冲突`,
-    narrative: `这是第${chapter}幕不应进入下轮上下文的现场正文。人物正面对本幕冲突。`,
+    narrative: `第${chapter}幕此前的决定已经沿驿站与官署扩散，各地守军因此改变了原有部署。真实人物与地方机构正围绕新命令争夺粮册、兵符和城门控制权。你握有本幕唯一有效的调令，必须在日落前决定交给哪一方，否则冲突会立即演变成兵变。`,
     previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
     causalLedger: [{ fact: `第${chapter}幕仍生效的事实`, causedByChapter: chapter, mustAffect: `第${chapter + 1}幕` }],
   }));

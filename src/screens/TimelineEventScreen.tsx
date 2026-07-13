@@ -33,9 +33,10 @@ export function TimelineEventScreen({
       : [turn.baselineAnchor, turn.immediateObjective]),
     ...turn.choices.map((choice) => choice.label),
   ].reduce((total, copy) => total + [...(copy ?? "")].length, 0);
-  const density = visibleCopyLength > 320
+  const narrativeLength = [...turn.narrative].length;
+  const density = narrativeLength > 132 || visibleCopyLength > 300
     ? "dense"
-    : visibleCopyLength > 280 || turn.previousEcho
+    : narrativeLength > 108 || visibleCopyLength > 260 || turn.previousEcho
       ? "compact"
       : "comfortable";
 
@@ -51,7 +52,11 @@ export function TimelineEventScreen({
   };
 
   return (
-    <main className="event-screen" data-density={density}>
+    <main
+      className="event-screen"
+      data-density={density}
+      data-history-mode={turn.previousEcho ? "continuation" : "opening"}
+    >
       <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />

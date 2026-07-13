@@ -138,6 +138,29 @@ describe("v11 resumable single-history storage", () => {
     expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
 
+  it("preserves an active v11 run whose AI narrative predates the richer three-sentence contract", () => {
+    const storage = memoryStorage();
+    const selecting = createInitialGameState();
+    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const event = gameReducer(generating, {
+      type: "OPENING_RESOLVED",
+      requestId: generating.request!.id,
+      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
+    });
+    saveGameSnapshot(event, storage);
+
+    const envelope = JSON.parse(storage.getItem(GAME_STORAGE_KEY)!);
+    envelope.state.currentTurn.narrative = "你坐在霞飞路咖啡馆二楼，窗外报童叫卖号外，日军潜艇封锁长江口。";
+    storage.setItem(GAME_STORAGE_KEY, JSON.stringify(envelope));
+
+    expect(loadGameSnapshot(storage)).toMatchObject({
+      phase: "event",
+      currentTurn: {
+        narrative: "你坐在霞飞路咖啡馆二楼，窗外报童叫卖号外，日军潜艇封锁长江口。",
+      },
+    });
+  });
+
   it("persists an unlimited custom rewrite counter", () => {
     const storage = memoryStorage();
     const state = { ...createInitialGameState(), customActionsUsed: 9 };

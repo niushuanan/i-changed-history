@@ -148,9 +148,11 @@ describe("modern traveler AI prompt contract", () => {
   it("keeps generated display copy concise without lowering transport headroom", () => {
     const protocol = buildOpeningMessages(scenario)[1].content;
     expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
-    expect(protocol).toContain("88 个汉字以内");
-    expect(protocol).toContain("恰好两句");
+    expect(protocol).toContain("96-160 个汉字");
+    expect(protocol).toContain("恰好三句");
     expect(protocol).toContain("上一项决定如何造成当前局面");
+    expect(protocol).toContain("真实人物、机构或阵营");
+    expect(protocol).toContain("失败会立即失去什么");
     expect(protocol).toContain("只写真实历史的对应结果");
     expect(protocol).toContain('"causalBridge":"36 字以内');
     expect(protocol).toContain('"worldStateChange":"36 字以内');
