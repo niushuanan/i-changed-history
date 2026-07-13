@@ -52,6 +52,7 @@ type RunResult = {
   customOutcomes: string[];
   manualRetries: number;
   customFallbacks: number;
+  endingMs?: number;
   diagnostics: GenerationDiagnostic[];
   failures: StepFailure[];
   nodes: NodeResult[];
@@ -243,6 +244,7 @@ async function runGame(
       }),
       run,
     );
+    run.endingMs = ending.durationMs;
     expect(ending.value.historyTimeline).toHaveLength(12);
     expect(ending.value.historyTimeline.map((item) => item.playerChoice))
       .toEqual(playedTurns.map((played) => played.selectedChoiceLabel));
@@ -290,6 +292,10 @@ describe("real DeepSeek twelve-node long-run stability", () => {
     await Promise.all(Array.from({ length: Math.min(SOAK_CONCURRENCY, selectedCases.length) }, () => worker()));
     const successes = results.filter((result) => result.success).length;
     const totalCustomOutcomes = results.reduce((sum, result) => sum + result.customOutcomes.length, 0);
+    const plannedCustomOutcomes = selectedCases.reduce((sum, item) => sum + item.customChapters.length, 0);
+    const successfulRunCustomOutcomes = results
+      .filter((result) => result.success)
+      .reduce((sum, result) => sum + result.customOutcomes.length, 0);
     const summary = {
       batchId: BATCH_ID,
       model: import.meta.env.VITE_DEEPSEEK_MODEL || "deepseek-v4-flash",
@@ -297,7 +303,9 @@ describe("real DeepSeek twelve-node long-run stability", () => {
       successes,
       successRate: successes / results.length,
       requiredSuccesses: Math.ceil(results.length * 0.9),
+      plannedCustomOutcomes,
       totalCustomOutcomes,
+      successfulRunCustomOutcomes,
       uniqueCustomOutcomes: usedCustomOutcomes.size,
       totalManualRetries: results.reduce((sum, result) => sum + result.manualRetries, 0),
       totalCustomFallbacks: results.reduce((sum, result) => sum + result.customFallbacks, 0),
@@ -310,14 +318,22 @@ describe("real DeepSeek twelve-node long-run stability", () => {
         manualRetries: result.manualRetries,
         customFallbacks: result.customFallbacks,
         durationMs: result.durationMs,
+        endingMs: result.endingMs,
         terminalError: result.terminalError,
       })),
     };
     await writeJson(path.join(outputDirectory, "summary.json"), summary);
 
-    expect(totalCustomOutcomes).toBe(selectedCases.reduce((sum, item) => sum + item.customChapters.length, 0));
+    expect(new Set(selectedCases.map((item) => item.seedId)).size).toBe(selectedCases.length);
+    selectedCases.forEach((item) => {
+      expect(item.customChapters.length).toBeGreaterThanOrEqual(4);
+      expect(item.customChapters.length).toBeLessThanOrEqual(5);
+    });
+    results.filter((result) => result.success).forEach((result) => {
+      const soakCase = selectedCases.find((item) => item.id === result.id)!;
+      expect(result.customOutcomes).toHaveLength(soakCase.customChapters.length);
+    });
     expect(usedCustomOutcomes.size).toBe(totalCustomOutcomes);
     expect(successes).toBeGreaterThanOrEqual(summary.requiredSuccesses);
   }, 7_200_000);
 });
-
