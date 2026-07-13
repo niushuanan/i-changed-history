@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeneratingScreen } from "./GeneratingScreen";
 
@@ -38,20 +38,21 @@ describe("history developing room", () => {
     expect(screen.queryByText("核对现场可用资源")).not.toBeInTheDocument();
   });
 
-  it("advances once and never resets completed stages while the model is still working", () => {
-    vi.useFakeTimers();
-    render(<GeneratingScreen chapter={2} ending={false} onCancel={vi.fn()} />);
-
-    act(() => vi.advanceTimersByTime(3_000));
+  it("advances from actual model progress instead of a timer", () => {
+    const { rerender } = render(<GeneratingScreen chapter={2} ending={false} progressStage="connected" onCancel={vi.fn()} />);
     const stages = screen.getAllByRole("listitem");
-    expect(stages[0]).toHaveClass("is-complete");
-    expect(stages[1]).toHaveClass("is-complete");
-    expect(stages[2]).toHaveClass("is-active");
+    expect(stages[0]).toHaveClass("is-active");
 
-    act(() => vi.advanceTimersByTime(30_000));
+    rerender(<GeneratingScreen chapter={2} ending={false} progressStage="writing" onCancel={vi.fn()} />);
     expect(stages[0]).toHaveClass("is-complete");
     expect(stages[1]).toHaveClass("is-complete");
     expect(stages[2]).toHaveClass("is-active");
     expect(screen.getAllByTestId("developing-track-segment")[2]).toHaveClass("is-active");
+  });
+
+  it("shows a truthful repair state without returning to the first stage", () => {
+    render(<GeneratingScreen chapter={2} ending={false} progressStage="repairing" onCancel={vi.fn()} />);
+    expect(screen.getByText("校正返回格式，不改写已经完成的剧情")).toBeVisible();
+    expect(screen.getAllByRole("listitem")[2]).toHaveClass("is-active");
   });
 });

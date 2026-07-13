@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { Aperture, Check, Circle, CircleNotch } from "@phosphor-icons/react";
+import type { DeepSeekProgressStage } from "../services/deepseek";
 
 type DevelopingStage = {
   image: string;
@@ -46,23 +46,17 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
   };
 }
 
-export function GeneratingScreen({ chapter, ending, customAction = false, onCancel }: { chapter: number; ending: boolean; customAction?: boolean; onCancel: () => void }) {
+export function GeneratingScreen({ chapter, ending, customAction = false, progressStage = "connected", onCancel }: { chapter: number; ending: boolean; customAction?: boolean; progressStage?: DeepSeekProgressStage; onCancel: () => void }) {
   const stage = stageFor(chapter, ending, customAction);
-  const [activeStep, setActiveStep] = useState(0);
-
-  useEffect(() => {
-    setActiveStep(0);
-    const secondStep = window.setTimeout(() => setActiveStep(1), 1_050);
-    const finalStep = window.setTimeout(() => setActiveStep(2), 2_250);
-    return () => {
-      window.clearTimeout(secondStep);
-      window.clearTimeout(finalStep);
-    };
-  }, [chapter, customAction, ending]);
+  const activeStep = progressStage === "connected" ? 0 : progressStage === "reasoning" ? 1 : 2;
 
   const stamp = customAction ? "决定生效中" : ending ? "身后历史书写中" : "历史正在发生";
   const kicker = ending ? "十二次决定已结束 · 身后历史" : customAction ? `第 ${chapter} 节点 · 你的决定已写入` : `第 ${chapter} 节点 · 新历史正在成形`;
-  const note = ending ? "DeepSeek 正在写身后历史，完成后打开 2026 报告" : customAction ? "世界正在回应你的决定，完成后进入下一幕" : "DeepSeek 正在写这一幕，完成后直接进入现场";
+  const note = progressStage === "repairing"
+    ? "校正返回格式，不改写已经完成的剧情"
+    : progressStage === "validating"
+      ? "内容已经返回，正在核对历史连续性"
+      : ending ? "DeepSeek 正在写身后历史，完成后打开 2026 报告" : customAction ? "世界正在回应你的决定，完成后进入下一幕" : "DeepSeek 正在写这一幕，完成后直接进入现场";
 
   return (
     <main className="generating-screen" aria-live="polite">

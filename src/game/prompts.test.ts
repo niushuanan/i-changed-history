@@ -11,7 +11,9 @@ const scenario: GameScenario = {
 
 describe("modern traveler AI prompt contract", () => {
   it("grounds the opening without a personality profile", () => {
-    const body = buildOpeningMessages(scenario).at(-1)!.content;
+    const opening = buildOpeningMessages(scenario);
+    const body = opening.at(-1)!.content;
+    const protocol = opening[1].content;
     expect(body).toContain("萨拉热窝刺杀");
     expect(body).toContain("塞尔维亚总理大臣帕希奇的特别联络员");
     expect(body).toContain("距离车队再次经过拉丁桥约 8 分钟");
@@ -19,15 +21,32 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).not.toContain("INTP");
     expect(body).not.toContain("因果侦探");
     expect(body).toContain("没有固定人格");
-    expect(body).toContain("role");
-    expect(body).toContain("immediateObjective");
-    expect(body).toContain("timePressure");
+    expect(protocol).toContain("role");
+    expect(protocol).toContain("immediateObjective");
+    expect(protocol).toContain("timePressure");
+  });
+
+  it("keeps one identical turn protocol prefix for DeepSeek context caching", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
+    const opening = buildOpeningMessages(scenario);
+    const continuation = buildContinuationMessages(scenario, played, 2);
+
+    expect(opening).toHaveLength(3);
+    expect(continuation).toHaveLength(3);
+    expect(opening[0]).toEqual(continuation[0]);
+    expect(opening[1]).toEqual(continuation[1]);
+    expect(opening[1].content).toContain("requiredFields");
+    expect(opening[2].content).not.toContain("exactShapeExample");
+    expect(continuation[2].content).not.toContain("exactShapeExample");
   });
 
   it("serializes one compact narrative context instead of duplicated histories", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
-    const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+    const continuationMessages = buildContinuationMessages(scenario, played, 8);
+    const continuation = continuationMessages.at(-1)!.content;
+    const protocol = continuationMessages[1].content;
     const biography = buildBiographyMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
     const worldReport = buildWorldReportMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
     expect(continuation).toContain('"narrativeContext"');
@@ -62,22 +81,24 @@ describe("modern traveler AI prompt contract", () => {
   it("forces one aging protagonist through butterfly-effect topic changes", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
-    const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+    const continuationMessages = buildContinuationMessages(scenario, played, 8);
+    const continuation = continuationMessages.at(-1)!.content;
+    const protocol = continuationMessages[1].content;
 
     expect(continuation).toContain("authoritativeProtagonist.name 本人");
     expect(continuation).toContain("禁止换身体、转生、意识接力");
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
     expect(continuation).toContain("不要从预设类别、通用模板或固定章节槽中选题");
     expect(continuation).toContain("一阶、二阶和三阶后果");
-    expect(continuation).toContain("identityBridge");
-    expect(continuation).toContain("modernAdvantage");
-    expect(continuation).toContain("usesModernKnowledge");
-    expect(continuation).toContain("完整 JSON 控制在 1200 个汉字左右");
+    expect(protocol).toContain("identityBridge");
+    expect(protocol).toContain("modernAdvantage");
+    expect(protocol).toContain("usesModernKnowledge");
+    expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
     expect(continuation).not.toContain("authoritativePivotalBrief");
-    expect(continuation).toContain("historicalAnchors");
-    expect(continuation).toContain("actionSpec");
-    expect(continuation).toContain("rippleLens");
-    expect(continuation).toContain("causalBridge");
+    expect(protocol).toContain("historicalAnchors");
+    expect(protocol).toContain("actionSpec");
+    expect(protocol).toContain("rippleLens");
+    expect(protocol).toContain("causalBridge");
   });
 
   it("treats every continuation as a major turning point with a visible alternate-world payoff", () => {
@@ -97,14 +118,16 @@ describe("modern traveler AI prompt contract", () => {
       canonStatus: "玩家钦定" as const,
       causalMechanism: "登基诏书和科学院预算进入官署执行",
     }];
-    const continuation = buildContinuationMessages(scenario, played, 2).at(-1)!.content;
+    const continuationMessages = buildContinuationMessages(scenario, played, 2);
+    const continuation = continuationMessages.at(-1)!.content;
+    const protocol = continuationMessages[1].content;
 
     expect(continuation).toContain("不可撤销正史");
     expect(continuation).toContain("我成为新皇帝，并设立国家科学院大力发展科技");
     expect(continuation).toContain("重大转折点");
-    expect(continuation).toContain("turningPointStakes");
-    expect(continuation).toContain("worldStateChange");
-    expect(continuation).toContain("divergenceProof");
+    expect(protocol).toContain("turningPointStakes");
+    expect(protocol).toContain("worldStateChange");
+    expect(protocol).toContain("divergenceProof");
     expect(continuation).toContain("自行选择其中最意外、最重大");
     expect(continuation).toContain("不得否认、降级、反转");
   });
@@ -121,12 +144,12 @@ describe("modern traveler AI prompt contract", () => {
   });
 
   it("keeps generated display copy concise without lowering transport headroom", () => {
-    const body = buildOpeningMessages(scenario).at(-1)!.content;
-    expect(body).toContain("完整 JSON 控制在 1200 个汉字左右");
-    expect(body).toContain("56 个汉字以内");
-    expect(body).toContain("每个 label 22 字以内");
-    expect(body).toContain("clientOwnedFields");
-    expect(body).toContain("禁止输出");
+    const protocol = buildOpeningMessages(scenario)[1].content;
+    expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
+    expect(protocol).toContain("56 个汉字以内");
+    expect(protocol).toContain("每个 label 22 字以内");
+    expect(protocol).toContain("clientOwnedFields");
+    expect(protocol).toContain("禁止输出");
   });
 
   it("makes a player-declared result canon instead of judging whether it succeeds", () => {

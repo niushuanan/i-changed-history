@@ -15,6 +15,7 @@ import {
   parseAlternatePresent,
   parseBiographyReport,
   parseCustomActionResolution,
+  extractFirstJsonObject,
   parseTimelineTurn,
   parseWorldReport,
   type AlternatePresent,
@@ -22,7 +23,7 @@ import {
   type CustomActionResolution,
   type TimelineTurn,
 } from "./schema";
-import { DeepSeekError, requestCompletion, type CompletionOptions } from "../services/deepseek";
+import { DeepSeekError, requestCompletion, type CompletionOptions, type DeepSeekProgressStage } from "../services/deepseek";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution } from "./fallbackTurn";
 import { buildCanonicalCustomResolution } from "./customCanon";
@@ -35,6 +36,7 @@ type Parser<T> = (raw: string) => T;
 
 export type GenerationOptions = {
   signal?: AbortSignal;
+  onProgress?: (stage: DeepSeekProgressStage) => void;
 };
 
 export type NextTurnGenerationOptions = GenerationOptions;
@@ -74,6 +76,43 @@ function summarizeValidationError(error: unknown): string[] {
   return [error instanceof Error ? error.message : "Response did not match the required schema."];
 }
 
+function repairableRootFields(error: unknown): string[] | null {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("issues" in error) ||
+    !Array.isArray(error.issues) ||
+    error.issues.length === 0
+  ) {
+    return null;
+  }
+
+  const fields = new Set<string>();
+  for (const issue of error.issues) {
+    if (typeof issue !== "object" || issue === null || !("path" in issue) || !Array.isArray(issue.path)) {
+      return null;
+    }
+    const root = issue.path[0];
+    if (typeof root !== "string" || root.length === 0) return null;
+    fields.add(root);
+  }
+  return [...fields];
+}
+
+function mergeAiFieldPatch(originalRaw: string, patchRaw: string, fields: readonly string[]): string {
+  const original: unknown = JSON.parse(extractFirstJsonObject(originalRaw));
+  const patch: unknown = JSON.parse(extractFirstJsonObject(patchRaw));
+  if (typeof original !== "object" || original === null || Array.isArray(original)) return patchRaw;
+  if (typeof patch !== "object" || patch === null || Array.isArray(patch)) return patchRaw;
+
+  const originalRecord = original as Record<string, unknown>;
+  const patchRecord = patch as Record<string, unknown>;
+  const acceptedPatch = Object.fromEntries(
+    fields.filter((field) => Object.hasOwn(patchRecord, field)).map((field) => [field, patchRecord[field]]),
+  );
+  return JSON.stringify({ ...originalRecord, ...acceptedPatch });
+}
+
 async function requestValidated<T>(
   messages: ChatMessage[],
   requestOptions: CompletionOptions,
@@ -81,9 +120,12 @@ async function requestValidated<T>(
   parse: Parser<T>,
   repairDetails: JsonRepairDetails = {},
 ): Promise<T> {
-  const complete = async (requestMessages: ChatMessage[]) => {
+  const complete = async (requestMessages: ChatMessage[], relayProgress = true) => {
     try {
-      return await requestCompletion(requestMessages, requestOptions);
+      return await requestCompletion(requestMessages, {
+        ...requestOptions,
+        onProgress: relayProgress ? requestOptions.onProgress : undefined,
+      });
     } catch (error) {
       if (error instanceof DeepSeekError && error.code === "invalid_response") {
         throw new StructuredGenerationError(target, error);
@@ -96,18 +138,33 @@ async function requestValidated<T>(
   try {
     return parse(raw);
   } catch (validationError) {
+    const repairFields = repairableRootFields(validationError);
+    const patchOnly = repairFields !== null;
+    requestOptions.onProgress?.({ stage: "repairing" });
     const repairedRaw = await complete(
       buildContextualJsonRepairMessages(messages, raw, target, {
         ...repairDetails,
         validationErrors: summarizeValidationError(validationError),
+        ...(patchOnly ? { patchOnly: true, repairFields } : {}),
       }),
+      false,
     );
     try {
-      return parse(repairedRaw);
+      return parse(patchOnly ? mergeAiFieldPatch(raw, repairedRaw, repairFields) : repairedRaw);
     } catch (repairError) {
       throw new StructuredGenerationError(target, { validationError, repairError });
     }
   }
+}
+
+function completionOptions(phase: CompletionOptions["phase"], options: GenerationOptions): CompletionOptions {
+  return {
+    phase,
+    signal: options.signal,
+    onProgress: options.onProgress
+      ? ({ stage }) => options.onProgress?.(stage)
+      : undefined,
+  };
 }
 
 function parseRequestedTurn(
@@ -184,7 +241,7 @@ export async function adjudicateCustomAction(
   try {
     return await requestValidated(
       messages,
-      { phase: "turn", signal: options.signal },
+      completionOptions("turn", options),
       "custom_action",
       parseCanonicalResult,
     );
@@ -233,7 +290,7 @@ export async function generateOpening(
   const messages = buildOpeningMessages(scenario);
 
   const node = getTimelineNode(1, scenario.seed.year);
-  return requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(1, expectedYearLabel(scenario, 1), undefined, { age: node.protagonistAge, lifeStage: node.lifeStage }), { expectedChapter: 1 });
+  return requestValidated(messages, completionOptions("turn", options), "timeline_turn", parseRequestedTurn(1, expectedYearLabel(scenario, 1), undefined, { age: node.protagonistAge, lifeStage: node.lifeStage }), { expectedChapter: 1 });
 }
 
 export async function generateNextTurn(
@@ -246,7 +303,7 @@ export async function generateNextTurn(
   const node = getTimelineNode(chapter, scenario.seed.year);
   const protagonistName = playedTurns[0]?.turn.protagonistName;
   const customCanon = playedTurns.filter((turn) => turn.playerAuthored);
-  return requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon), { expectedChapter: chapter });
+  return requestValidated(messages, completionOptions("turn", options), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon), { expectedChapter: chapter });
 }
 
 export async function generateEnding(
@@ -266,14 +323,14 @@ export async function generateEnding(
   }
   const biographyPromise = requestValidated(
     buildBiographyMessages(scenario, playedTurns),
-    { phase: "ending", signal: options.signal },
+    completionOptions("ending", options),
     "biography_report",
     parseExpectedBiography(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }),
     {},
   );
   const worldReportPromise = requestValidated(
     buildWorldReportMessages(scenario, playedTurns),
-    { phase: "ending", signal: options.signal },
+    completionOptions("ending", options),
     "world_report",
     parseWorldReport,
     {},

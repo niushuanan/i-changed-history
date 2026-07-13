@@ -238,13 +238,9 @@ function normalizeEcho(value: unknown): unknown {
   };
 }
 
-function normalizeActionSpec(value: unknown, label: unknown, intent: unknown): unknown {
-  const spec = asRecord(value) ?? {
-    actor: "你与当前同伴",
-    action: label,
-    target: intent,
-    deadline: "本幕时限结束前",
-  };
+function normalizeActionSpec(value: unknown): unknown {
+  const spec = asRecord(value);
+  if (!spec) return value;
   return {
     ...spec,
     actor: trimBounded(spec.actor, 20),
@@ -277,7 +273,7 @@ function normalizeChoice(value: unknown, index: number): unknown {
     intent: trimBounded(intentWasClass ? label : intent, 24),
     deviationClass: DEVIATION_CLASSES[index],
     usesModernKnowledge: choice.usesModernKnowledge,
-    actionSpec: normalizeActionSpec(choice.actionSpec, label, intentWasClass ? label : intent),
+    actionSpec: normalizeActionSpec(choice.actionSpec),
     instantEcho: normalizeEcho(choice.instantEcho),
   };
 }
@@ -305,22 +301,18 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
   return {
     ...turn,
     generationSource: "deepseek",
-    timelineName: trimBounded(turn.timelineName ?? "未命名新史", 24),
-    protagonistName: turn.protagonistName ?? "无名穿越者",
+    timelineName: trimBounded(turn.timelineName, 24),
+    protagonistName: turn.protagonistName,
     protagonistAge: turn.protagonistAge ?? 24,
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
-    identityBridge: trimBounded(turn.identityBridge ?? (
-      turn.chapter === 1
-        ? "你的现代意识在这一刻进入这个人的一生"
-        : "你仍是同一个人，只是身份与责任已经改变"
-    ), 54),
-    modernAdvantage: trimBounded(turn.modernAdvantage ?? "现代知识与决策习惯仍可影响本代行动", 54),
+    identityBridge: trimBounded(turn.identityBridge, 54),
+    modernAdvantage: trimBounded(turn.modernAdvantage, 54),
     location: trimBounded(turn.location, 28),
     role: trimBounded(turn.role, 24),
     immediateObjective: trimBounded(turn.immediateObjective, 40),
     timePressure: trimBounded(turn.timePressure, 36),
-    headline: trimBounded(turn.headline ?? turn.immediateObjective ?? "命运正在改写", 22),
-    narrative: trimNarrative(turn.narrative ?? `${turn.location ?? "历史现场"}，${turn.role ?? "你"}必须在${turn.timePressure ?? "窗口关闭"}前完成${turn.immediateObjective ?? "这次决定"}。`),
+    headline: trimBounded(turn.headline, 22),
+    narrative: trimNarrative(turn.narrative),
     causalBridge: trimBounded(turn.causalBridge, 44),
     turningPointStakes: trimBounded(turn.turningPointStakes, 44),
     worldStateChange: trimBounded(turn.worldStateChange, 44),
@@ -328,7 +320,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
     historicalAnchors: Array.isArray(turn.historicalAnchors)
       ? turn.historicalAnchors.map((anchor) => trimBounded(anchor, 32))
-      : [trimBounded(turn.location ?? "当前历史地点", 32), trimBounded(turn.role ?? "当前历史身份", 32)],
+      : turn.historicalAnchors,
     previousEcho:
       turn.previousEcho == null && Number(turn.chapter ?? 1) === 1
         ? null

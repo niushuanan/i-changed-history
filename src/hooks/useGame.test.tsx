@@ -43,6 +43,35 @@ describe("useGame single-life orchestration", () => {
     expect(dependencies.generateOpening).toHaveBeenCalledWith(expect.objectContaining({ seed: HISTORY_SEEDS[0] }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
+  it("exposes real DeepSeek progress stages while a request is running", async () => {
+    const dependencies = deps();
+    vi.mocked(dependencies.generateOpening).mockImplementation(async (_scenario, options) => {
+      options?.onProgress?.("reasoning");
+      options?.onProgress?.("writing");
+      return turn;
+    });
+    const { result } = renderHook(() => useGame(dependencies));
+
+    act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
+    await waitFor(() => expect(result.current.generationStage).toBe("writing"));
+    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+  });
+
+  it("never lets concurrent or retried progress move backward", async () => {
+    const dependencies = deps();
+    vi.mocked(dependencies.generateOpening).mockImplementation(async (_scenario, options) => {
+      options?.onProgress?.("writing");
+      options?.onProgress?.("reasoning");
+      return turn;
+    });
+    const { result } = renderHook(() => useGame(dependencies));
+
+    act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
+    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+
+    expect(result.current.generationStage).toBe("writing");
+  });
+
   it("automatically runs a restored ending request after refresh", async () => {
     const dependencies = deps();
     const restored: GameState = {

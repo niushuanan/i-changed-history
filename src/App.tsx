@@ -75,6 +75,7 @@ export function App() {
         chapter={targetChapter}
         ending={state.phase === "ending" || state.request?.kind === "ending"}
         customAction={state.phase === "adjudicating" || state.request?.kind === "custom-action"}
+        progressStage={game.generationStage}
         onCancel={game.restart}
       />
     );

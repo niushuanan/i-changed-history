@@ -37,7 +37,11 @@ export class DeepSeekError extends Error {
 export type CompletionOptions = {
   phase: DeepSeekPhase;
   signal?: AbortSignal;
+  onProgress?: (progress: DeepSeekProgress) => void;
 };
+
+export type DeepSeekProgressStage = "connected" | "reasoning" | "writing" | "validating" | "repairing";
+export type DeepSeekProgress = { stage: DeepSeekProgressStage };
 
 function apiKey(): string {
   const key = import.meta.env.VITE_DEEPSEEK_API_KEY?.trim();
@@ -50,7 +54,8 @@ function requestBody(messages: readonly ChatMessage[], phase: DeepSeekPhase) {
     model: DEEPSEEK_MODEL,
     messages,
     response_format: { type: "json_object" },
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
   } as const;
 
   return {
@@ -117,7 +122,20 @@ function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
   });
 }
 
-async function readCompletion(response: Response): Promise<string> {
+function progressReporter(onProgress?: CompletionOptions["onProgress"]) {
+  const emitted = new Set<DeepSeekProgressStage>();
+  return (stage: DeepSeekProgressStage) => {
+    if (emitted.has(stage)) return;
+    emitted.add(stage);
+    try {
+      onProgress?.({ stage });
+    } catch {
+      // UI progress must never interrupt the model request.
+    }
+  };
+}
+
+async function readJsonCompletion(response: Response, report: (stage: DeepSeekProgressStage) => void): Promise<string> {
   const payload: unknown = await response.json();
 
   const content = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices?.[0]
@@ -126,7 +144,100 @@ async function readCompletion(response: Response): Promise<string> {
     throw new DeepSeekError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
   }
 
+  report("writing");
+  report("validating");
   return content;
+}
+
+function sseData(event: string): string | null {
+  const lines = event.replace(/\r\n/g, "\n").split("\n");
+  const data = lines
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).replace(/^ /, ""));
+  return data.length > 0 ? data.join("\n") : null;
+}
+
+async function readStreamedCompletion(
+  response: Response,
+  report: (stage: DeepSeekProgressStage) => void,
+): Promise<string> {
+  if (!response.body) {
+    throw new DeepSeekError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let finished = false;
+
+  const consume = (event: string) => {
+    const data = sseData(event);
+    if (!data) return;
+    if (data === "[DONE]") {
+      finished = true;
+      return;
+    }
+
+    let chunk: {
+      choices?: Array<{
+        delta?: { content?: unknown; reasoning_content?: unknown };
+        finish_reason?: unknown;
+      }>;
+    };
+    try {
+      chunk = JSON.parse(data) as typeof chunk;
+    } catch {
+      throw new DeepSeekError("invalid_response", "DeepSeek 流式结果无法解析，请重新推演。");
+    }
+
+    const choice = chunk.choices?.[0];
+    if (choice?.finish_reason === "length") {
+      throw new DeepSeekError("invalid_response", "DeepSeek 输出被截断，请重新推演。");
+    }
+    if (typeof choice?.delta?.reasoning_content === "string" && choice.delta.reasoning_content) {
+      report("reasoning");
+    }
+    if (typeof choice?.delta?.content === "string" && choice.delta.content) {
+      report("writing");
+      content += choice.delta.content;
+    }
+  };
+
+  while (!finished) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+
+    let boundary = buffer.search(/\r?\n\r?\n/);
+    while (boundary >= 0) {
+      const event = buffer.slice(0, boundary);
+      const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)?.[0] ?? "\n\n";
+      buffer = buffer.slice(boundary + separator.length);
+      consume(event);
+      if (finished) break;
+      boundary = buffer.search(/\r?\n\r?\n/);
+    }
+
+    if (done) break;
+  }
+
+  if (!finished && buffer.trim()) consume(buffer);
+  if (!content.trim()) {
+    throw new DeepSeekError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
+  }
+  report("validating");
+  return content;
+}
+
+async function readCompletion(
+  response: Response,
+  onProgress?: CompletionOptions["onProgress"],
+): Promise<string> {
+  const report = progressReporter(onProgress);
+  report("connected");
+  return response.headers.get("Content-Type")?.includes("text/event-stream")
+    ? readStreamedCompletion(response, report)
+    : readJsonCompletion(response, report);
 }
 
 async function performRequest(
@@ -134,6 +245,7 @@ async function performRequest(
   phase: DeepSeekPhase,
   key: string,
   externalSignal?: AbortSignal,
+  onProgress?: CompletionOptions["onProgress"],
 ): Promise<string> {
   if (externalSignal?.aborted) {
     throw new DeepSeekError("aborted", "本次推演已取消。");
@@ -177,7 +289,7 @@ async function performRequest(
 
     let content: string;
     try {
-      content = await readCompletion(response);
+      content = await readCompletion(response, onProgress);
     } catch (error) {
       if (timedOut) {
         throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
@@ -214,7 +326,7 @@ export async function requestCompletion(
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await performRequest(messages, options.phase, key, options.signal);
+      return await performRequest(messages, options.phase, key, options.signal, options.onProgress);
     } catch (error) {
       if (attempt === 0 && isRetryable(error)) {
         await waitBeforeRetry(options.signal);

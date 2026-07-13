@@ -19,17 +19,58 @@ function completion(content = '{"ok":true}') {
   return new Response(JSON.stringify({ id: "test", choices: [{ message: { role: "assistant", content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
+function streamedCompletion(chunks: readonly string[]) {
+  const encoder = new TextEncoder();
+  return new Response(new ReadableStream({
+    start(controller) {
+      chunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
+      controller.close();
+    },
+  }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+function streamedBytes(chunks: readonly Uint8Array[]) {
+  return new Response(new ReadableStream({
+    start(controller) {
+      chunks.forEach((chunk) => controller.enqueue(chunk));
+      controller.close();
+    },
+  }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
 describe("DeepSeek transport and structured generation", () => {
   beforeEach(() => { vi.stubEnv("VITE_DEEPSEEK_API_KEY", "test-key"); vi.stubEnv("VITE_DEEPSEEK_MODEL", "deepseek-v4-flash"); });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-  it("uses DeepSeek V4 Flash JSON mode", async () => {
+  it("uses DeepSeek V4 Flash streaming JSON mode", async () => {
     const fetcher = vi.fn().mockResolvedValue(completion()); vi.stubGlobal("fetch", fetcher);
     await expect(requestCompletion(messages, { phase: "turn" })).resolves.toBe('{"ok":true}');
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
-    expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "enabled" }, reasoning_effort: "high", response_format: { type: "json_object" }, stream: false });
+    expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "enabled" }, reasoning_effort: "high", response_format: { type: "json_object" }, stream: true, stream_options: { include_usage: true } });
     expect(body.max_tokens).toBe(8192);
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer test-key");
+  });
+
+  it("reassembles UTF-8 JSON from arbitrarily split SSE chunks and reports real stages once", async () => {
+    const events = [
+      'data: {"choices":[{"delta":{"reasoning_content":"先核对史实"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"{\\"标题\\":\\"赤"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"壁\\"}"}}]}\n\n',
+      'data: {"choices":[],"usage":{"prompt_tokens":100,"prompt_cache_hit_tokens":80,"prompt_cache_miss_tokens":20,"completion_tokens":12,"total_tokens":112}}\n\n',
+      'data: [DONE]\n\n',
+    ].join("");
+    const bytes = new TextEncoder().encode(events);
+    const response = streamedBytes(Array.from(bytes, (byte) => Uint8Array.of(byte)));
+    const fetcher = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal("fetch", fetcher);
+    const stages: string[] = [];
+
+    await expect(requestCompletion(messages, {
+      phase: "turn",
+      onProgress: (progress) => stages.push(progress.stage),
+    })).resolves.toBe('{"标题":"赤壁"}');
+
+    expect(stages).toEqual(["connected", "reasoning", "writing", "validating"]);
   });
 
   it("enables high effort reasoning for the final alternate present", async () => {
@@ -43,6 +84,30 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
     await expect(generateOpening(scenario)).resolves.toMatchObject({ chapter: 1, role: turnFixture.role, timePressure: turnFixture.timePressure });
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks DeepSeek to repair only an invalid root field and merges it into the original scene", async () => {
+    const incomplete = { ...turnFixture, headline: undefined };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(completion(JSON.stringify(incomplete)))
+      .mockResolvedValueOnce(completion(JSON.stringify({ headline: "铜令决定东风之前" })));
+    vi.stubGlobal("fetch", fetcher);
+
+    const stages: string[] = [];
+    await expect(generateOpening(scenario, { onProgress: (stage) => stages.push(stage) })).resolves.toMatchObject({
+      headline: "铜令决定东风之前",
+      narrative: turnFixture.narrative,
+      choices: turnFixture.choices,
+    });
+
+    const repairBody = JSON.parse(fetcher.mock.calls[1][1].body);
+    const repairPayload = JSON.parse(repairBody.messages.at(-1).content);
+    expect(repairPayload.details).toMatchObject({
+      patchOnly: true,
+      repairFields: ["headline"],
+    });
+    expect(repairPayload.task).toContain("仅含 repairFields");
+    expect(stages).toEqual(["connected", "writing", "validating", "repairing"]);
   });
 
   it("stops after one compact repair instead of regenerating the whole page a third time", async () => {

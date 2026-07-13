@@ -97,16 +97,12 @@ describe("structured timeline parsing", () => {
     });
   });
 
-  it("locally completes omitted display headings instead of forcing a full AI retry", () => {
-    const parsed = parseTimelineTurn(JSON.stringify({
+  it("rejects omitted display prose instead of inventing local history", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       headline: undefined,
       narrative: undefined,
-    }));
-
-    expect(parsed.headline).toBe(turnFixture.immediateObjective.slice(0, 22));
-    expect(parsed.narrative).toContain(turnFixture.location);
-    expect(parsed.narrative.length).toBeLessThanOrEqual(56);
+    }))).toThrow();
   });
 
   it("keeps the decisive turning point and visible divergence proof", () => {
@@ -297,6 +293,8 @@ describe("structured timeline parsing", () => {
       choices: turnFixture.choices.map((choice, index) => ({
         label: `${["A", "B", "C"][index]}. ${choice.label}`,
         intent: choice.deviationClass,
+        usesModernKnowledge: choice.usesModernKnowledge,
+        actionSpec: choice.actionSpec,
         instantEcho: choice.instantEcho,
       })),
       memorySummary: [turnFixture.memorySummary],

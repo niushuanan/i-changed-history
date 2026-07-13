@@ -8,6 +8,8 @@ export const turnFixture = {
   yearLabel: "208 年冬",
   location: "长江赤壁水域",
   role: "周瑜帐下负责火船的军需官",
+  identityBridge: "你的现代意识进入沈砚此后唯一的一生",
+  modernAdvantage: "你懂得用分批点火和旗语降低提前暴露的风险",
   immediateObjective: "在曹军识破诈降前决定火船启航时机",
   timePressure: "距离曹军发现火船约半个时辰",
   headline: "东南风还没有来",

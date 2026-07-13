@@ -17,7 +17,12 @@ export type PlayedTurn = {
 };
 type ContinuationChapter = Exclude<DecisionChapter, 1>;
 type RepairTarget = "timeline_turn" | "biography_report" | "world_report" | "custom_action";
-export type JsonRepairDetails = { expectedChapter?: TimelineTurn["chapter"]; validationErrors?: readonly string[] };
+export type JsonRepairDetails = {
+  expectedChapter?: TimelineTurn["chapter"];
+  validationErrors?: readonly string[];
+  patchOnly?: boolean;
+  repairFields?: readonly string[];
+};
 
 export const TIMELINE_SYSTEM_PROMPT = [
   "你是《哎！我改变了历史？》的结构化即兴历史推演引擎。",
@@ -56,24 +61,24 @@ function scenarioPayload(scenario: GameScenario) {
   };
 }
 
-function turnContract(chapter: TimelineTurn["chapter"]) {
+function turnContract() {
   return {
     clientOwnedFields: ["chapter", "chapterName", "protagonistAge", "lifeStage", "yearLabel", "previousEcho", "metrics", "metricDeltas", "callbackUsed"],
     requiredFields: ["timelineName", "protagonistName", "location", "role", "identityBridge", "modernAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "historicalAnchors", "choices", "memorySummary", "causalLedger", "visualTone"],
     rules: {
       totalLength: "只返回 requiredFields，完整 JSON 控制在 1200 个汉字左右；玩家可见文案必须是短句",
       clientOwnedFields: "这些字段由客户端注入，禁止输出，避免重复与冲突",
-      protagonistName: chapter === 1 ? "2-16 个汉字；给主角一个符合时代与地域的固定姓名" : "必须逐字等于 authoritativeProtagonist.name",
+      protagonistName: "第一幕给主角一个符合时代与地域的固定姓名；续幕必须逐字等于 authoritativeProtagonist.name",
       narrative: "56 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
       headline: "22 个汉字以内",
       location: "28 个汉字以内",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
-      identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何进入主角此后唯一的一生" : "36 字以内；说明同一主角如何从上一职位走到当前职位，禁止接棒或换人",
+      identityBridge: "36 字以内；第一幕解释现代意识如何进入主角此后唯一的一生；续幕说明同一主角如何从上一职位走到当前职位，禁止接棒或换人",
       modernAdvantage: "36 字以内；说明现代常识或信息差在当前身份的具体用处，不得套用人格、职业或超能力",
       rippleLens: "根据本幕真正受影响的社会载体自行选择，不得按固定轮次或模板选择",
-      causalBridge: chapter === 1 ? "44 字以内；说明玩家决定如何成为时间线源头" : "44 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
+      causalBridge: "44 字以内；第一幕说明玩家决定如何成为时间线源头；续幕明确写出上次结果通过何种媒介传到本幕新冲突",
       turningPointStakes: "44 字以内；说明本幕将不可逆地决定的重大秩序与主要受影响者",
-      worldStateChange: chapter === 1 ? "44 字以内；指出玩家介入首先改变的事实" : "44 字以内；把上一项选择写成已经落地的世界事实",
+      worldStateChange: "44 字以内；第一幕指出玩家介入首先改变的事实；续幕把上一项选择写成已经落地的世界事实",
       divergenceProof: "56 字以内；用真实历史与当前时间线的可核验对照证明已经不同",
       immediateObjective: "28 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
@@ -103,6 +108,15 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
     },
   };
 }
+
+const TURN_PROTOCOL: ChatMessage = {
+  role: "system",
+  content: JSON.stringify({
+    protocol: "timeline_turn_v1",
+    purpose: "生成一个由 DeepSeek 完整创作、可由客户端严格校验的历史幕次 JSON",
+    outputContract: turnContract(),
+  }),
+};
 
 function selectedHistory(playedTurns: readonly PlayedTurn[]) {
   return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass, resolvedEcho, playerAuthored, canonStatus, causalMechanism }) => ({
@@ -137,14 +151,18 @@ function messages(payload: unknown): ChatMessage[] {
   return [SYSTEM, { role: "user", content: JSON.stringify(payload) }];
 }
 
+function turnMessages(payload: unknown): ChatMessage[] {
+  return [SYSTEM, TURN_PROTOCOL, { role: "user", content: JSON.stringify(payload) }];
+}
+
 export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
-  return messages({ task: "生成第一节点。玩家刚穿越落地，必须立即理解主角姓名、年龄、身份、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。这个姓名和身体将持续整整十二幕，第一节点必须是决定真实历史走向的重大转折点。", ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(1, scenario.seed.year), outputContract: turnContract(1) });
+  return turnMessages({ task: "生成第一节点。玩家刚穿越落地，必须立即理解主角姓名、年龄、身份、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。这个姓名和身体将持续整整十二幕，第一节点必须是决定真实历史走向的重大转折点。", ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(1, scenario.seed.year) });
 }
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
   const narrativeContext = buildNarrativeContext(playedTurns);
   const protagonist = playedTurns[0]?.turn;
-  return messages({
+  return turnMessages({
     task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。对 narrativeContext.playerCanon 的每项玩家正史：causalLedger 对应 causedByChapter 的 fact 必须逐字等于 sourceText；可见场景必须继续呈现其具体后果。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
@@ -157,7 +175,6 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
       requiredHistoricalAnchors: 2,
       recentScenesToAvoidRepeating: narrativeContext.recentScenes,
     },
-    outputContract: turnContract(chapter),
   });
 }
 
@@ -249,7 +266,8 @@ export function buildWorldReportMessages(scenario: GameScenario, playedTurns: re
 export function getPlayedTurnChoiceText(turn: PlayedTurn): string { return turn.selectedChoiceLabel; }
 
 export function buildJsonRepairMessages(raw: string, target: RepairTarget, details: JsonRepairDetails = {}): ChatMessage[] {
-  return messages({ task: "修复下面的模型输出，只修正 JSON 结构与字段类型，不改变事实和玩家选择。", target, details, invalidOutput: raw });
+  const payload = { task: "修复下面的模型输出，只修正 JSON 结构与字段类型，不改变事实和玩家选择。", target, details, invalidOutput: raw };
+  return target === "timeline_turn" ? turnMessages(payload) : messages(payload);
 }
 
 export function buildContextualJsonRepairMessages(original: readonly ChatMessage[], raw: string, target: RepairTarget, details: JsonRepairDetails = {}): ChatMessage[] {
@@ -265,8 +283,10 @@ export function buildContextualJsonRepairMessages(original: readonly ChatMessage
     ? payload.narrativeContext as Record<string, unknown>
     : null;
 
-  return messages({
-    task: "上一输出校验失败。只修正列出的结构问题，保留原有历史事实与玩家决定，只返回 JSON。",
+  const repairPayload = {
+    task: details.patchOnly
+      ? "上一输出只有部分字段校验失败。只返回一个仅含 repairFields 所列根字段的 JSON 对象；不要复述或改写其他字段。修复字段必须与原场景、权威历史和玩家决定一致。"
+      : "上一输出校验失败。只修正列出的结构问题，保留原有历史事实与玩家决定，只返回 JSON。",
     target,
     details,
     authoritative: {
@@ -278,7 +298,8 @@ export function buildContextualJsonRepairMessages(original: readonly ChatMessage
       lifeRecord: payload.lifeRecord,
       endingContext: payload.endingContext,
     },
-    outputContract: payload.outputContract,
+    outputContract: target === "timeline_turn" ? turnContract() : payload.outputContract,
     invalidOutput: raw,
-  });
+  };
+  return target === "timeline_turn" ? turnMessages(repairPayload) : messages(repairPayload);
 }
