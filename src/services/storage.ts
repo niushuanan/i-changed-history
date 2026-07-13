@@ -59,7 +59,7 @@ const stateSchema = z.strictObject({
   playedTurns: z.array(playedSchema).max(12),
   deviation: z.number().int().min(0).max(100),
   lastImpact: z.number().int().min(0).max(100),
-  customActionsUsed: z.number().int().min(0).max(3),
+  customActionsUsed: z.number().int().min(0),
   request: requestSchema.nullable(),
   result: alternatePresentSchema.nullable(),
   error: errorSchema.nullable(),

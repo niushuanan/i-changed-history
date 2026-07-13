@@ -9,7 +9,6 @@ export function TimelineEventScreen({
   turn,
   deviation,
   lastChoiceLabel,
-  customActionsRemaining,
   onChoose,
   onCustomAction,
   onExit,
@@ -18,7 +17,6 @@ export function TimelineEventScreen({
   turn: TimelineTurn;
   deviation: number;
   lastChoiceLabel?: string;
-  customActionsRemaining: number;
   onChoose: (id: "A" | "B" | "C") => void;
   onCustomAction: (action: string) => void;
   onExit: () => void;
@@ -27,7 +25,7 @@ export function TimelineEventScreen({
   const [customOpen, setCustomOpen] = useState(false);
   const [customAction, setCustomAction] = useState("");
   const actionLength = [...customAction.trim()].length;
-  const canSubmitCustom = actionLength >= 2 && actionLength <= 80 && customActionsRemaining > 0;
+  const canSubmitCustom = actionLength >= 2 && actionLength <= 80;
   const visibleCopyLength = [
     turn.headline,
     turn.narrative,
@@ -68,19 +66,29 @@ export function TimelineEventScreen({
         <small><Clock size={12} weight="bold" /> {turn.timePressure}</small>
         </article>
 
+      <section className="decision-zone" role="group" aria-label="本幕决定">
+        <h2><span>你要怎么做？</span></h2>
+        <ChoiceList choices={turn.choices} onChoose={onChoose} />
+        <button
+          className="custom-action-command"
+          type="button"
+          aria-label="直接改写结果，不限次数"
+          onClick={() => setCustomOpen(true)}
+        >
+          <PencilSimpleLine size={16} weight="bold" />
+          <span>直接改写结果</span>
+          <strong>不限次数</strong>
+        </button>
+      </section>
+
       {turn.previousEcho ? (
-        <section className="change-proof" aria-label="历史改变证据">
-          <span className="change-proof__kicker">因果回执</span>
-          <div className="change-chain">
-            <span><small>你的决定</small><strong>{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}</strong></span>
-            <span className="is-result"><small>已经改变</small><strong>{turn.worldStateChange}</strong></span>
-            <span className="is-pivot"><small>重大节点</small><strong>{turn.turningPointStakes}</strong></span>
-          </div>
-          <p className="butterfly-turn">
-            <span className="butterfly-turn__label">为何来到这里</span>
-            <span className="butterfly-turn__copy">{turn.causalBridge}</span>
-            <span className="butterfly-turn__proof">{turn.divergenceProof}</span>
+        <section className="change-proof" aria-label="历史已经改变">
+          <span className="change-proof__kicker">历史已经改变</span>
+          <strong className="change-proof__result">{turn.worldStateChange}</strong>
+          <p className="change-proof__cause">
+            因为你选择“{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}”，{turn.causalBridge}
           </p>
+          <small className="change-proof__proof">{turn.divergenceProof}</small>
         </section>
       ) : (
         <section className="change-proof is-opening" aria-label="真实历史切入口">
@@ -89,22 +97,6 @@ export function TimelineEventScreen({
           <small>你能改：{turn.immediateObjective}</small>
         </section>
       )}
-
-      <section className="decision-zone">
-        <h2><span>你要怎么做？</span></h2>
-        <ChoiceList choices={turn.choices} onChoose={onChoose} />
-        <button
-          className="custom-action-command"
-          type="button"
-          disabled={customActionsRemaining === 0}
-          aria-label={customActionsRemaining === 0 ? "改写机会已用完" : `直接改写结果，剩余 ${customActionsRemaining} 次`}
-          onClick={() => setCustomOpen(true)}
-        >
-          <PencilSimpleLine size={16} weight="bold" />
-          <span>{customActionsRemaining === 0 ? "结果改写已经用完" : "直接改写结果"}</span>
-          <strong>{customActionsRemaining} 次</strong>
-        </button>
-      </section>
       </section>
       {customOpen && (
         <div className="custom-action-backdrop">
@@ -113,7 +105,7 @@ export function TimelineEventScreen({
               <div><span>玩家拥有最终解释权</span><h2>直接改写结果</h2></div>
               <button type="button" aria-label="关闭结果改写" onClick={() => setCustomOpen(false)}><X size={20} /></button>
             </header>
-            <p>你写下的结果将直接成为这条时间线的既成事实。AI 不判断成败，只推演它的传播、受益者与隐藏代价。</p>
+            <p>本局不限次数。你写下的结果将直接成为这条时间线的既成事实。AI 不判断成败，只推演它的传播、受益者与隐藏代价。</p>
             <textarea
               autoFocus
               aria-label="你要写入的历史结果"

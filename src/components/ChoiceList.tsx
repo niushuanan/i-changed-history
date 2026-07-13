@@ -14,7 +14,7 @@ export function ChoiceList({
         <div className="choice-item" key={choice.id}>
           <button className="choice-action" type="button" onClick={() => onChoose(choice.id)}>
             <span className="choice-list__id">{choice.id}</span>
-            <span className="choice-list__copy"><strong>{choice.label}</strong><small>{choice.actionSpec.actor} · {choice.actionSpec.deadline}</small></span>
+            <span className="choice-list__copy"><strong>{choice.label}</strong></span>
             <ArrowRight size={19} weight="bold" />
           </button>
         </div>

@@ -99,6 +99,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("actionSpec");
     expect(protocol).toContain("rippleLens");
     expect(protocol).toContain("causalBridge");
+    expect(protocol).toContain("议事厅");
+    expect(protocol).toContain("时代真实称谓");
   });
 
   it("treats every continuation as a major turning point with a visible alternate-world payoff", () => {

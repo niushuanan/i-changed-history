@@ -119,7 +119,7 @@ describe("single-life choice-only game reducer", () => {
     expect(JSON.stringify(resolved.echo)).not.toMatch(/模型擅自|模型声称|其实幸存|挫败刺杀|失败的刺客/);
   });
 
-  it("does not allow a fourth custom rewrite", () => {
+  it("allows a fourth custom rewrite", () => {
     const state = {
       ...createInitialGameState(),
       phase: "event" as const,
@@ -127,7 +127,11 @@ describe("single-life choice-only game reducer", () => {
       currentTurn: turn,
       customActionsUsed: 3,
     };
-    expect(gameReducer(state, { type: "SUBMIT_CUSTOM_ACTION", action: "再改一次" })).toBe(state);
+    expect(gameReducer(state, { type: "SUBMIT_CUSTOM_ACTION", action: "再改一次" })).toMatchObject({
+      phase: "adjudicating",
+      customActionsUsed: 3,
+      request: { kind: "custom-action", action: "再改一次" },
+    });
   });
 
   it("does not spend a custom rewrite when adjudication fails and retries", () => {

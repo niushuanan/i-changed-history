@@ -32,7 +32,6 @@ export function App() {
         turn={state.currentTurn}
         deviation={state.deviation}
         lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
-        customActionsRemaining={Math.max(0, 3 - state.customActionsUsed)}
         onChoose={game.choose}
         onCustomAction={game.submitCustomAction}
         onExit={game.restart}

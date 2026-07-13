@@ -138,6 +138,13 @@ describe("v11 resumable single-history storage", () => {
     expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
 
+  it("persists an unlimited custom rewrite counter", () => {
+    const storage = memoryStorage();
+    const state = { ...createInitialGameState(), customActionsUsed: 9 };
+    expect(saveGameSnapshot(state, storage)).toBe(true);
+    expect(loadGameSnapshot(storage)).toMatchObject({ customActionsUsed: 9 });
+  });
+
   it("resumes a custom-action ruling without spending the chance early", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();

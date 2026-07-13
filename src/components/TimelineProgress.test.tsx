@@ -8,6 +8,8 @@ describe("twelve-node progress", () => {
     const timeline = screen.getByRole("list", { name: "十二节点时间线" });
     expect(within(timeline).getAllByRole("listitem")).toHaveLength(12);
     expect(screen.getAllByText("盛年危局")[0]).toBeVisible();
+    expect(screen.getByText("历史改变 42% · 历史明显不同")).toBeVisible();
+    expect(screen.queryByText(/改写 42%|新世界线/)).not.toBeInTheDocument();
     expect(within(timeline).getByText("8").closest("li")).toHaveAttribute("aria-current", "step");
     expect(screen.getByRole("button", { name: "退出本次推演" }).closest(".timeline-progress")).toBeVisible();
   });

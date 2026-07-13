@@ -7,12 +7,8 @@ import { TimelineEventScreen } from "./TimelineEventScreen";
 describe("clear change event screen", () => {
   afterEach(() => cleanup());
   const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-  const abilityProps = {
-    abilityPreviewMode: "system" as const,
-    abilityCustomAction: "三次自由改命中可用独立推演",
-  };
 
-  it("shows proof of change and removes dashboard noise", () => {
+  it("moves compact change proof below the decisions and removes repeated labels", () => {
     const turn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
@@ -26,40 +22,37 @@ describe("clear change event screen", () => {
       turn={turn}
       deviation={18}
       lastChoiceLabel="扶植年幼继承人"
-      {...abilityProps}
-      customActionsRemaining={3}
       onChoose={vi.fn()}
       onCustomAction={vi.fn()}
       onExit={vi.fn()}
     />);
 
-    expect(screen.getByText("因果回执")).toBeVisible();
-    const proof = screen.getByRole("region", { name: "历史改变证据" });
+    expect(screen.queryByText("因果回执")).not.toBeInTheDocument();
+    const proof = screen.getByRole("region", { name: "历史已经改变" });
     expect(within(proof).getByText(/扶植年幼继承人/)).toBeVisible();
-    expect(within(proof).getByText("你的决定")).toBeVisible();
-    expect(within(proof).getByText("已经改变")).toBeVisible();
-    expect(within(proof).getByText("重大节点")).toBeVisible();
+    expect(within(proof).queryByText("你的决定")).not.toBeInTheDocument();
+    expect(within(proof).queryByText("重大节点")).not.toBeInTheDocument();
     expect(within(proof).getByText(turn.worldStateChange)).toBeVisible();
-    expect(within(proof).getByText(turn.turningPointStakes)).toBeVisible();
     expect(within(proof).getByText(turn.divergenceProof)).toBeVisible();
     expect(screen.getByText("DeepSeek 实时生成")).toBeVisible();
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
     expect(screen.queryByText(/历史锚点：/)).not.toBeInTheDocument();
     expect(screen.queryByText(/INTP|ENFP|微调|改制|断裂/)).not.toBeInTheDocument();
-    expect(screen.getByText(/你与黄盖/)).toBeVisible();
+    expect(screen.queryByText(/你与黄盖/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/巡哨抵近前半刻/)).not.toBeInTheDocument();
     expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
-    expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("3 次");
+    expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("不限次数");
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
+    const decisions = screen.getByRole("group", { name: "本幕决定" });
+    expect(decisions.compareDocumentPosition(proof) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("validates free action length and disables the entry after three uses", async () => {
+  it("validates free action length while keeping result rewrites unlimited", async () => {
     const onCustomAction = vi.fn();
-    const { rerender } = render(<TimelineEventScreen
+    render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      {...abilityProps}
-      customActionsRemaining={3}
       onChoose={vi.fn()}
       onCustomAction={onCustomAction}
       onExit={vi.fn()}
@@ -67,19 +60,9 @@ describe("clear change event screen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /直接改写结果/ }));
     expect(screen.getByRole("dialog", { name: "钦定历史结果" })).toBeVisible();
+    expect(screen.getByText(/本局不限次数/)).toBeVisible();
     expect(screen.getByText(/将直接成为这条时间线的既成事实/)).toBeVisible();
     expect(screen.getByRole("button", { name: "写入时间线" })).toBeDisabled();
-
-    rerender(<TimelineEventScreen
-      turn={openingTurn}
-      deviation={0}
-      {...abilityProps}
-      customActionsRemaining={0}
-      onChoose={vi.fn()}
-      onCustomAction={onCustomAction}
-      onExit={vi.fn()}
-    />);
-    expect(screen.getByRole("button", { name: /改写机会已用完/ })).toBeDisabled();
   });
 
   it("switches to dense layout when a continuation contains the maximum useful copy", () => {
@@ -99,8 +82,6 @@ describe("clear change event screen", () => {
       turn={denseTurn}
       deviation={36}
       lastChoiceLabel={"玩家上一项不可撤销的重大决定".repeat(2)}
-      {...abilityProps}
-      customActionsRemaining={3}
       onChoose={vi.fn()}
       onCustomAction={vi.fn()}
       onExit={vi.fn()}

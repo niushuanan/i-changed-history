@@ -123,7 +123,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "SUBMIT_CUSTOM_ACTION": {
       const customAction = action.action.trim();
-      if (state.phase !== "event" || !state.currentTurn || state.customActionsUsed >= 3) return state;
+      if (state.phase !== "event" || !state.currentTurn) return state;
       if ([...customAction].length < 2 || [...customAction].length > 80) return state;
       return {
         ...state,
@@ -154,7 +154,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playedTurns: [...state.playedTurns, playedTurn],
         deviation: impact.nextDeviation,
         lastImpact: impact.stepImpact,
-        customActionsUsed: Math.min(3, state.customActionsUsed + 1),
+        customActionsUsed: state.customActionsUsed + 1,
         echo: {
           source: "custom_action",
           choiceLabel: canonicalOutcome,

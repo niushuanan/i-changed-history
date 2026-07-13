@@ -111,7 +111,7 @@ describe("complete player journey", () => {
     await waitFor(() => expect(score.start).toHaveBeenCalledTimes(1));
   });
 
-  it("keeps free text inside the three-use player-canon result action", async () => {
+  it("keeps free text inside the unlimited player-canon result action", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -124,7 +124,7 @@ describe("complete player journey", () => {
     ));
     expect(await screen.findByText(/周瑜帐下负责火船的军需官/)).toBeVisible();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /直接改写结果，剩余 3 次/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /直接改写结果，不限次数/ })).toBeVisible();
   });
 
   it("always exposes one chronological fifty-moment filmstrip and exits an active run", async () => {

@@ -33,6 +33,13 @@ const echoSchema = z.object({
 });
 
 const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
+const PRE_MODERN_LOCATION_PATTERN = /议事厅|会议室|办公室|指挥中心|新闻中心|发布厅|报告厅|展览厅|作战室|控制室|调度室/;
+const preModernLocationSchema = z.object({
+  location: z.string().refine(
+    (location) => !PRE_MODERN_LOCATION_PATTERN.test(location),
+    "地点称谓与时代不符，请改用当时真实存在的空间称谓",
+  ),
+});
 
 const actionSpecSchema = z.object({
   actor: boundedString(20),
@@ -500,8 +507,7 @@ export function parseTimelineTurn(
 ): TimelineTurn {
   const parsed = parseJsonObject(raw);
   const candidate = asRecord(parsed);
-  if (!candidate) return timelineTurnSchema.parse(parsed);
-  return timelineTurnSchema.parse({
+  const turn = timelineTurnSchema.parse(candidate ? {
     ...candidate,
     ...(options.expectedChapter ? { chapter: options.expectedChapter, chapterName: CHAPTER_NAMES[options.expectedChapter] } : {}),
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
@@ -510,7 +516,12 @@ export function parseTimelineTurn(
     ...(options.expectedProtagonistName ? { protagonistName: options.expectedProtagonistName } : {}),
     ...(options.expectedProtagonistAge !== undefined ? { protagonistAge: options.expectedProtagonistAge } : {}),
     ...(options.expectedLifeStage ? { lifeStage: options.expectedLifeStage } : {}),
-  });
+  } : parsed);
+  const expectedYear = Number(options.expectedYearLabel?.match(/\d+/)?.[0]);
+  if (Number.isFinite(expectedYear) && expectedYear < 1900) {
+    preModernLocationSchema.parse({ location: turn.location });
+  }
+  return turn;
 }
 
 export function parseCustomActionResolution(raw: string): CustomActionResolution {

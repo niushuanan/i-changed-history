@@ -12,7 +12,7 @@ export type RippleLens = "origin" | (typeof RIPPLE_LENSES)[number];
 type RoutedLens = (typeof RIPPLE_LENSES)[number];
 
 const LENS_COPY: Record<RoutedLens, { label: string; instruction: string; evidence: readonly string[]; role: string; location: string; topic: string }> = {
-  power: { label: "权力与继承", instruction: "把影响转入军令、继承、官僚或地方权力，不复述上一场冲突", evidence: ["军令", "继承", "官僚", "权力", "官署", "议会"], role: "地方议事厅书记", location: "新设地方议事厅", topic: "继承与地方权力重排" },
+  power: { label: "权力与继承", instruction: "把影响转入军令、继承、官僚或地方权力，不复述上一场冲突", evidence: ["军令", "继承", "官僚", "权力", "官署", "议会"], role: "地方官署书记", location: "地方官署正堂", topic: "继承与地方权力重排" },
   livelihood: { label: "普通人的生活", instruction: "把影响转入家庭、劳动、粮食、住房或日常安全", evidence: ["家庭", "粮食", "住房", "劳动", "工钱", "市民"], role: "城市粮食配给员", location: "居民粮食配给站", topic: "家庭生计开始承压" },
   knowledge: { label: "记录与知识", instruction: "把影响转入史书、教育、新闻、测量或知识传播", evidence: ["史书", "学校", "学堂", "报纸", "档案", "教育"], role: "公共档案校订员", location: "城市档案与学堂", topic: "新历史进入教育记录" },
   technology: { label: "技术与生产", instruction: "把影响转入工具、工艺、基础设施或生产组织", evidence: ["工具", "工坊", "机器", "工艺", "桥梁", "生产"], role: "工坊生产统筹员", location: "新兴城市联合工坊", topic: "生产工具改变劳动秩序" },

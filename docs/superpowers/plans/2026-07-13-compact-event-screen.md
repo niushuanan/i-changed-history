@@ -21,35 +21,35 @@
 
 **Files:** `src/game/deviation.ts`, `src/components/TimelineProgress.tsx`, `src/game/reducer.ts`, `src/services/storage.ts`, `src/App.tsx`, and their tests.
 
-- [ ] Write tests for `历史改变`, the five plain-language stages, a fourth custom rewrite, and unbounded stored usage.
-- [ ] Run the focused tests and confirm failures describe the old wording and three-use cap.
-- [ ] Remove the cap while retaining the internal usage counter and change the header copy.
-- [ ] Run focused tests until green.
+- [x] Write tests for `历史改变`, the five plain-language stages, a fourth custom rewrite, and unbounded stored usage.
+- [x] Run the focused tests and confirm failures describe the old wording and three-use cap.
+- [x] Remove the cap while retaining the internal usage counter and change the header copy.
+- [x] Run focused tests until green.
 
 ### Task 2: Era-Appropriate Locations
 
 **Files:** `src/game/prompts.ts`, `src/game/schema.ts`, `src/game/engine.ts`, and their tests.
 
-- [ ] Write tests proving a pre-1900 `议事厅` location is rejected and the static protocol instructs era-appropriate naming.
-- [ ] Run the focused tests and confirm the current candidate passes incorrectly.
-- [ ] Add the location rule to the prompt and contextual schema validation so DeepSeek repairs only `location`.
-- [ ] Run focused tests until green.
+- [x] Write tests proving a pre-1900 `议事厅` location is rejected and the static protocol instructs era-appropriate naming.
+- [x] Run the focused tests and confirm the current candidate passes incorrectly.
+- [x] Add the location rule to the prompt and contextual schema validation so DeepSeek repairs only `location`.
+- [x] Run focused tests until green.
 
 ### Task 3: Compact Decision-First Layout
 
 **Files:** `src/screens/TimelineEventScreen.tsx`, `src/components/ChoiceList.tsx`, `src/styles/game.css`, and component tests.
 
-- [ ] Write tests for hidden actor/deadline copy, unlimited rewrite command, no `因果回执`, and causal evidence after decisions.
-- [ ] Run focused tests and confirm they fail against the old component hierarchy.
-- [ ] Reorder the screen, reduce choice rows, and render one bottom causal strip.
-- [ ] Run focused tests until green.
+- [x] Write tests for hidden actor/deadline copy, unlimited rewrite command, no `因果回执`, and causal evidence after decisions.
+- [x] Run focused tests and confirm they fail against the old component hierarchy.
+- [x] Reorder the screen, reduce choice rows, and render one bottom causal strip.
+- [x] Run focused tests until green.
 
 ### Task 4: Documentation and Visual Verification
 
 **Files:** `AGENTS.md`, `PROJECT_CONTEXT.md`, `design-qa.md`.
 
-- [ ] Update durable product decisions and current project history.
-- [ ] Run all tests, typecheck, build, portability check, and `git diff --check`.
-- [ ] Capture and inspect matching event states at 390 x 844 and desktop scale; verify controls and console.
-- [ ] Record `final result: passed` only after no P0/P1/P2 layout issues remain.
+- [x] Update durable product decisions and current project history.
+- [x] Run all tests, typecheck, build, portability check, and `git diff --check`.
+- [x] Capture and inspect matching event states at 390 x 844 and desktop scale; verify controls and console.
+- [x] Record `final result: passed` only after no P0/P1/P2 layout issues remain.
 - [ ] Commit, push `main`, and verify local/remote SHA plus GitHub Actions.

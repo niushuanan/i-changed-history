@@ -22,17 +22,17 @@ export const CHAPTER_MULTIPLIER = Object.freeze([
 ] as const);
 
 export type DeviationStage = {
-  label: "原史余波" | "蝴蝶分岔" | "新世界线" | "时代重写" | "完全异史";
+  label: "变化刚刚发生" | "影响正在扩大" | "历史明显不同" | "世界正在重塑" | "已是全新世界";
   min: number;
   max: number;
 };
 
 const STAGES: readonly DeviationStage[] = [
-  { label: "原史余波", min: 0, max: 9 },
-  { label: "蝴蝶分岔", min: 10, max: 29 },
-  { label: "新世界线", min: 30, max: 54 },
-  { label: "时代重写", min: 55, max: 79 },
-  { label: "完全异史", min: 80, max: 100 },
+  { label: "变化刚刚发生", min: 0, max: 9 },
+  { label: "影响正在扩大", min: 10, max: 29 },
+  { label: "历史明显不同", min: 30, max: 54 },
+  { label: "世界正在重塑", min: 55, max: 79 },
+  { label: "已是全新世界", min: 80, max: 100 },
 ];
 
 function clampScore(value: number): number {

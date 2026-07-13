@@ -368,6 +368,11 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw, { expectedYearLabel: "1700年" }).yearLabel).toBe("1700年");
   });
 
+  it("rejects modern generic room names in pre-1900 scenes", () => {
+    const raw = JSON.stringify({ ...turnFixture, location: "吴郡太守府议事厅" });
+    expect(() => parseTimelineTurn(raw, { expectedYearLabel: "195年" })).toThrow(/时代不符/);
+  });
+
   it("requires twelve decisions, a death scene, four posthumous chapters, and three ordinary-life details", () => {
     expect(parseAlternatePresent(JSON.stringify(endingFixture))).toMatchObject({
       worldName: "公议纪元",

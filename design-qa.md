@@ -1,5 +1,43 @@
 # Design QA
 
+## Compact Event Screen QA (2026-07-13)
+
+**Visual Truth**
+
+- Source screenshot: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-24c95768-a1c2-403a-a496-c7daf1f05bbc.png`.
+- Final implementation screenshot: `output/playwright/compact-event-continuation-390x844.png`.
+- Combined visual comparison: `output/playwright/compact-event-comparison.png`.
+- Viewport and state: 390 x 844 active continuation event with one prior choice, three AI actions, direct rewrite, and causal proof.
+
+**Comparison History**
+
+- Iteration 1 found a P2 vertical-rhythm issue after the action rows were reduced: the opening proof inherited 249px and left a large empty lower area. The scene track increased from 164px to 248px.
+- Iteration 2 still showed a P2 break between the rewrite command and proof because centering merely split the unused space. The final comfortable scene track is 320px and the dense continuation track is 292px, leaving 93px for opening evidence and 151px for denser continuation evidence.
+- Post-fix evidence: body and event `clientHeight` and `scrollHeight` are all 844px; continuation proof `clientHeight === scrollHeight === 150px`; the three dense action rows are 53px each and the opening rows are 57px each.
+
+**Findings**
+
+- No remaining P0, P1, or P2 issue. The source's square receipt, repeated row labels, tall option gaps, action metadata, exhausted rewrite state, modern location wording, and specialist deviation wording are absent in the implementation.
+- Fonts and typography: Song-style display type, sans-serif utility labels, zero negative tracking, complete wrapping, and 9px minimum progress status preserve the existing newspaper hierarchy without clipping.
+- Spacing and layout rhythm: scene, event copy, compact decisions, rewrite command, and bottom proof form one continuous 844px surface with an 8px safe edge and no page scroll.
+- Colors and tokens: coal, vermilion, teal, yellow, and off-white remain consistent; the bottom proof uses teal as evidence and yellow only for player authority.
+- Image quality: the selected historical artwork remains a local period-accurate asset, fills the 390px scene width, and is not replaced by CSS art or a placeholder.
+- Copy and content: `历史改变 3% · 变化刚刚发生`, `长安，王允旧宅内室`, and `历史已经改变` are understandable and era-appropriate; hidden action metadata remains present in the AI schema but is not repeated visually.
+- Focused-region comparison was not required after the full combined image: the source's red annotations and every corresponding implementation control remain legible at original comparison resolution.
+
+**Interactions And Console**
+
+- Clicked a real 190-year Dong Zhuo opening, all three generated action rows, the unlimited direct-rewrite sheet, an AI choice, the world response, and continuation into node 2.
+- DeepSeek returned both playable scenes with `DeepSeek 实时生成`; the continuation visibly preserved the selected warning and its changed-world consequence.
+- Direct rewrite sheet opens with `本局不限次数`; empty submission remains disabled.
+- Browser console: 0 errors and 0 warnings.
+
+**Follow-up Polish**
+
+- P3 only: future art curation can replace the current shared ink portrait with a more scene-specific interior image; it does not affect the layout or interaction gate.
+
+final result: passed
+
 ## Visual Grounding
 
 - Selected ImageGen direction: `design/visual-options/redaction-room.png`.
