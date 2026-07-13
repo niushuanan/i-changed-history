@@ -6,6 +6,7 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 import { buildTravelerProfile } from "../game/profile";
+import { rippleFallbackScene, rippleSceneMatches, selectRippleDirective } from "../game/rippleRouter";
 
 const messages = [{ role: "system" as const, content: "system" }, { role: "user" as const, content: "user" }];
 const scenario = { profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }), seed: HISTORY_SEEDS[0] };
@@ -74,42 +75,95 @@ describe("DeepSeek transport and structured generation", () => {
   });
 
   it("generates the requested continuation with authoritative previous echo", async () => {
-    const second = { ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho };
+    const expectedRipple = selectRippleDirective(scenario, [playedTurn], 2);
+    const scene = rippleFallbackScene(expectedRipple.lens);
+    const second = {
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "一日余波",
+      previousEcho: turnFixture.choices[0].instantEcho,
+      role: scene.role,
+      location: scene.location,
+      headline: scene.topic,
+      narrative: `上一选择已经进入${scene.location}，${scene.topic}。`,
+      causalBridge: `历史结果通过${expectedRipple.label}转入新的社会冲突`,
+      immediateObjective: `决定${scene.topic}时由谁承担代价`,
+    };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
-    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho });
+    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: expectedRipple.lens });
   });
 
-  it("returns a structured ruling for a free action", async () => {
+  it("rejects a relabeled but semantically unchanged continuation and uses routed fallback", async () => {
+    const unchanged = { ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(unchanged))));
+    vi.stubGlobal("fetch", fetcher);
+    const expectedRipple = selectRippleDirective(scenario, [playedTurn], 2);
+
+    const result = await generateNextTurn(scenario, [playedTurn], 2);
+
+    expect(result).toMatchObject({ generationSource: "fallback", rippleLens: expectedRipple.lens });
+    expect(rippleSceneMatches(expectedRipple.lens, result)).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns a player-canon result without feasibility adjudication", async () => {
     const ruling = {
-      normalizedAction: "先扣下军令，再请皇帝临朝",
-      ruling: "受限执行",
-      personalityLeverage: "INTP 因果侦探先推演守军指挥链",
-      constraintApplied: "只能调动身边宿卫",
-      deviationClass: "reform",
+      declaredOutcome: "我暗杀了皇帝且成功",
+      canonStatus: "玩家钦定",
+      personalityLens: "INTP 因果侦探优先看见制度连锁",
+      causalMechanism: "死讯通过禁军口令传入摄政会议",
+      deviationClass: "rupture",
       instantEcho: turnFixture.choices[1].instantEcho,
     };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(ruling)));
     vi.stubGlobal("fetch", fetcher);
-    await expect(adjudicateCustomAction(scenario, [], firstTurn, "调动全城军队"))
-      .resolves.toMatchObject(ruling);
+    const result = await adjudicateCustomAction(scenario, [], firstTurn, "我暗杀了皇帝且成功");
+    expect(result).toMatchObject({ declaredOutcome: "我暗杀了皇帝且成功", canonStatus: "玩家钦定", deviationClass: "rupture", instantEcho: { directResult: "我暗杀了皇帝且成功" } });
+    expect(result.personalityLens).toContain("INTP");
+    expect(result.causalMechanism).toContain("宫门口令");
   });
 
-  it("rejects a generic free-action leverage and falls back to the current personality", async () => {
+  it("rejects a model attempt to negate the declared result and falls back to canon", async () => {
     const genericRuling = {
-      normalizedAction: "先扣下军令，再请皇帝临朝",
-      ruling: "受限执行",
-      personalityLeverage: "使用现代经验判断现场风险",
-      constraintApplied: "只能调动身边宿卫",
-      deviationClass: "reform",
+      declaredOutcome: "我试图暗杀皇帝但失败",
+      canonStatus: "玩家钦定",
+      personalityLens: "使用现代经验判断现场风险",
+      causalMechanism: "消息没有传出宫门",
+      deviationClass: "nudge",
       instantEcho: turnFixture.choices[1].instantEcho,
     };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(genericRuling))));
     vi.stubGlobal("fetch", fetcher);
 
-    const result = await adjudicateCustomAction(scenario, [], firstTurn, "调动全城军队");
+    const result = await adjudicateCustomAction(scenario, [], firstTurn, "我暗杀了皇帝且成功");
 
-    expect(result.personalityLeverage).toContain("INTP");
+    expect(result.declaredOutcome).toBe("我暗杀了皇帝且成功");
+    expect(result.canonStatus).toBe("玩家钦定");
+    expect(result.personalityLens).toContain("INTP");
+    expect(JSON.stringify(result)).not.toContain("失败");
     expect(fetcher.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("rejects a hidden contradiction in the derived cost fields", async () => {
+    const contradictory = {
+      declaredOutcome: "我暗杀了皇帝且成功",
+      canonStatus: "玩家钦定",
+      personalityLens: "INTP 因果侦探优先看见制度连锁",
+      causalMechanism: "死讯通过禁军口令传入摄政会议",
+      deviationClass: "rupture",
+      instantEcho: {
+        ...turnFixture.choices[1].instantEcho,
+        unexpectedCost: "但皇帝其实未死，刺杀最终失败",
+      },
+    };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await adjudicateCustomAction(scenario, [], firstTurn, "我暗杀了皇帝且成功");
+
+    expect(result.instantEcho.directResult).toBe("我暗杀了皇帝且成功");
+    expect(JSON.stringify(result)).not.toMatch(/其实未死|最终失败/);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the eleven player choices authoritative in the ending", async () => {

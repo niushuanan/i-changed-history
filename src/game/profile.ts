@@ -17,6 +17,8 @@ export type PersonalityQuestion = {
   options: readonly [
     { value: DimensionValue; code: string; title: string; detail: string },
     { value: DimensionValue; code: string; title: string; detail: string },
+    { value: DimensionValue; code: string; title: string; detail: string },
+    { value: DimensionValue; code: string; title: string; detail: string },
   ];
 };
 
@@ -27,8 +29,10 @@ export const PERSONALITY_QUESTIONS: readonly PersonalityQuestion[] = [
     situation: "你截获了一封会改变王朝命运的密信。天亮前，你先做什么？",
     context: "没有正确答案。你选择的是这局历史里最自然的第一反应。",
     options: [
-      { value: "I", code: "I", title: "独自核实", detail: "隔绝干扰，先把每个细节推演到能自证" },
-      { value: "E", code: "E", title: "结成同盟", detail: "立即寻找关键人物，让情报开始在人群中生效" },
+      { value: "I", code: "A", title: "独自核实", detail: "隔绝干扰，把每个细节推演到能自证" },
+      { value: "I", code: "B", title: "暗中布网", detail: "不惊动任何人，先用秘密线索验证判断" },
+      { value: "E", code: "C", title: "结成同盟", detail: "找到三个关键人物，让情报在人群中生效" },
+      { value: "E", code: "D", title: "公开施压", detail: "把情报推到台前，迫使所有人立即表态" },
     ],
   },
   {
@@ -37,8 +41,10 @@ export const PERSONALITY_QUESTIONS: readonly PersonalityQuestion[] = [
     situation: "正史说城门从未打开，但你亲眼看见一队人消失在门后。",
     context: "你只有半个时辰决定该追哪条线索。",
     options: [
-      { value: "S", code: "S", title: "锁定现场证据", detail: "找守门人、车辙和名册，只相信能被核实的事实" },
-      { value: "N", code: "N", title: "追踪隐藏模式", detail: "把异常连起来，推断是谁在改写整件事的规则" },
+      { value: "S", code: "A", title: "锁定物证", detail: "查车辙、名册与守门记录，只认可核实结果" },
+      { value: "S", code: "B", title: "做小范围试验", detail: "设置一个现场测试，看异常能否再次出现" },
+      { value: "N", code: "C", title: "追踪隐藏模式", detail: "连接所有异常，寻找背后正在变化的规则" },
+      { value: "N", code: "D", title: "押注全新可能", detail: "假设正史本身有误，沿最反常的解释追下去" },
     ],
   },
   {
@@ -47,8 +53,10 @@ export const PERSONALITY_QUESTIONS: readonly PersonalityQuestion[] = [
     situation: "一项改革能让国家再稳定十年，却会让眼前一座城断粮。",
     context: "命令正在等你签字，任何选择都会留下受益者和承担者。",
     options: [
-      { value: "T", code: "T", title: "计算结构后果", detail: "比较长期秩序与总体代价，选择可持续的制度" },
-      { value: "F", code: "F", title: "先保住具体的人", detail: "拒绝把眼前的人变成数字，再承担制度震荡" },
+      { value: "T", code: "A", title: "计算总体后果", detail: "比较十年后的收益与代价，保住长期结构" },
+      { value: "T", code: "B", title: "坚持一致规则", detail: "不为任何身份破例，让制度承担同一标准" },
+      { value: "F", code: "C", title: "先保住具体的人", detail: "拒绝把眼前的人变成数字，再承担震荡" },
+      { value: "F", code: "D", title: "先建立共识", detail: "让承担代价的人进入决定，再共同修改方案" },
     ],
   },
   {
@@ -57,8 +65,10 @@ export const PERSONALITY_QUESTIONS: readonly PersonalityQuestion[] = [
     situation: "你准备了三个月的方案，在行动前一刻被一个意外彻底打乱。",
     context: "门外的脚步声越来越近，你必须立刻行动。",
     options: [
-      { value: "J", code: "J", title: "重建行动秩序", detail: "迅速排出先后次序，把失控局面重新纳入计划" },
-      { value: "P", code: "P", title: "临场变招", detail: "利用意外暴露的新机会，边行动边重写方案" },
+      { value: "J", code: "A", title: "锁定行动顺序", detail: "立刻重排先后，把失控重新纳入计划" },
+      { value: "J", code: "B", title: "设置阶段目标", detail: "只锁定下一步，每完成一步再确认后续" },
+      { value: "P", code: "C", title: "利用突发变量", detail: "把意外当成新入口，边行动边重写方案" },
+      { value: "P", code: "D", title: "保留多条退路", detail: "同时推进几个小动作，等局势自行暴露答案" },
     ],
   },
 ] as const;
@@ -135,7 +145,7 @@ export function getTravelerAbility(profile: TravelerProfile): TravelerAbility {
     action: `每幕三个行动中，有一个只按 ${profile.typeCode} 的本能生成`,
     preview,
     previewMode,
-    customAction: `三次自由改命中，可先${leverage}，再${method}，但 AI 仍会结算历史约束与隐藏代价`,
+    customAction: `三次直接改写中，可先${leverage}，再${method}；结果立即成为正史，AI 只推演传播与隐藏代价`,
     style: `${DIMENSION_LABELS[dimensions.energy]}，${DIMENSION_LABELS[dimensions.perception]}，${DIMENSION_LABELS[dimensions.judgment]}，${DIMENSION_LABELS[dimensions.tactics]}`,
     promptDirective: `${profile.typeCode}「${profile.name}」：专属行动必须体现${leverage}、${DIMENSION_LABELS[dimensions.perception]}、${DIMENSION_LABELS[dimensions.judgment]}与${method}；不得把人格写成超能力。`,
   };

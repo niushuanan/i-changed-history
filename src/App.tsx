@@ -47,7 +47,7 @@ export function App() {
         abilityTitle={ability?.title ?? "现代认知"}
         abilityCode={ability?.typeCode ?? "----"}
         abilityPreviewMode={ability?.previewMode ?? "system"}
-        abilityCustomAction={ability?.customAction ?? "AI 会按真实历史约束裁决自由行动"}
+        abilityCustomAction={ability?.customAction ?? "结果立即成为正史，AI 只推演传播与隐藏代价"}
         customActionsRemaining={Math.max(0, 3 - state.customActionsUsed)}
         onChoose={game.choose}
         onCustomAction={game.submitCustomAction}

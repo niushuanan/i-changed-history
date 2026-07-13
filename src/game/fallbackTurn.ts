@@ -3,6 +3,8 @@ import { getTravelerAbility } from "./profile";
 import type { PlayedTurn } from "./prompts";
 import { alternatePresentSchema, customActionResolutionSchema, timelineTurnSchema, type AlternatePresent, type CustomActionResolution, type TimelineTurn } from "./schema";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
+import { rippleFallbackScene, rippleLensLabel, selectRippleDirective } from "./rippleRouter";
+import { buildCanonicalCustomResolution } from "./customCanon";
 
 function previousEcho(playedTurns: readonly PlayedTurn[]): TimelineTurn["previousEcho"] {
   const previous = playedTurns.at(-1);
@@ -15,26 +17,15 @@ export function createFallbackCustomActionResolution(
   turn: TimelineTurn,
   action: string,
 ): CustomActionResolution {
-  const ability = getTravelerAbility(scenario.profile);
-  const normalizedAction = [...action.trim()].slice(0, 56).join("");
-  const deviationClass = /废除|杀|炸|焚|夺权|起兵|全部/.test(normalizedAction)
+  const declaredOutcome = [...action.trim()].slice(0, 80).join("");
+  const deviationClass = /废除|杀|炸|焚|夺权|起兵|成功|全部/.test(declaredOutcome)
     ? "rupture"
-    : /公开|谈判|组织|制度|规则|联合|请愿/.test(normalizedAction)
+    : /公开|谈判|组织|制度|规则|联合|请愿/.test(declaredOutcome)
       ? "reform"
       : "nudge";
-  return customActionResolutionSchema.parse({
-    normalizedAction,
-    ruling: "受限执行",
-    personalityLeverage: `${scenario.profile.typeCode}「${ability.title}」通过${ability.style}找到现场杠杆`,
-    constraintApplied: `你只能以${turn.role}的身份，动用此刻现场可接触的人与物`,
-    deviationClass,
-    instantEcho: {
-      directResult: "你的行动迫使现场秩序立即调整",
-      unexpectedCost: "仓促执行让风险转移给了弱势参与者",
-      beneficiary: "最先适应新安排的人",
-      payer: "无法及时离开现场的人",
-    },
-  });
+  return customActionResolutionSchema.parse(
+    buildCanonicalCustomResolution(scenario.profile, turn, declaredOutcome, deviationClass),
+  );
 }
 
 function visualTone(scenario: GameScenario, chapter: DecisionChapter): TimelineTurn["visualTone"] {
@@ -74,22 +65,30 @@ export function createFallbackTurn(
     ? scenario.seed.decision
     : `决定上一项选择形成的新秩序，下一步由谁执行、由谁承担代价`;
   const relay = RELAY_STAGES[Math.max(0, chapter - 2)];
+  const ripple = chapter === 1
+    ? { lens: "origin" as const, label: "历史原点" }
+    : selectRippleDirective(scenario, playedTurns, chapter as Exclude<DecisionChapter, 1>);
+  const routedScene = chapter === 1 ? null : rippleFallbackScene(ripple.lens as Exclude<typeof ripple.lens, "origin">);
 
   return timelineTurnSchema.parse({
     timelineName: `${scenario.seed.eventName}异史`,
     chapter,
     chapterName: node.chapterName,
     yearLabel,
-    location: chapter === 1 ? scenario.seed.location : relay.location,
-    role: chapter === 1 ? scenario.seed.role : relay.role,
+    location: chapter === 1 ? scenario.seed.location : routedScene!.location,
+    role: chapter === 1 ? scenario.seed.role : routedScene!.role,
     identityBridge: chapter === 1 ? "你的现代意识直接进入这一历史现场" : relay.bridge,
     profileAdvantage: `${scenario.profile.typeCode}「${ability.title}」能${ability.preview.replace("预判时", "")}`,
-    immediateObjective: objective,
+    rippleLens: ripple.lens,
+    causalBridge: chapter === 1
+      ? `你在${scenario.seed.eventName}作出的决定将成为整条时间线的源头`
+      : `${playedTurns.at(-1)?.selectedChoiceLabel ?? "上一选择"}通过${rippleLensLabel(ripple.lens)}转入新的社会冲突`,
+    immediateObjective: chapter === 1 ? objective : `决定${routedScene!.topic}时由谁受益、谁承担代价`,
     timePressure: chapter === 1 ? scenario.seed.urgency : `下一个时间窗口将在${node.jumpLabel}结束前关闭`,
-    headline: chapter === 1 ? scenario.seed.eventName : `${node.jumpLabel}：${relay.topic}`,
+    headline: chapter === 1 ? scenario.seed.eventName : `${node.jumpLabel}：${routedScene!.topic}`,
     narrative: chapter === 1
       ? `你已经抵达${scenario.seed.location}。${scenario.seed.urgency}，眼前的人都在等待你对“${scenario.seed.decision}”作出决定。`
-      : `上一项选择已经进入现实。你面前的命令、账册与人群都证明，新秩序带来了收益，也把代价转移给了另一批人。你必须决定下一步如何落地。`,
+      : `上一项选择已经进入${routedScene!.location}。${routedScene!.topic}，眼前的人群正争论谁受益、谁承担代价。`,
     baselineAnchor: scenario.seed.historicalOutcome,
     previousEcho: chapter === 1 ? null : echo,
     choices: [

@@ -5,6 +5,7 @@ import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
 import type { TravelerAbility } from "../game/profile";
+import { rippleLensLabel } from "../game/rippleRouter";
 
 export function TimelineEventScreen({
   turn,
@@ -36,8 +37,7 @@ export function TimelineEventScreen({
   const [customOpen, setCustomOpen] = useState(false);
   const [customAction, setCustomAction] = useState("");
   const actionLength = [...customAction.trim()].length;
-  const canSubmitCustom = actionLength >= 2 && actionLength <= 56 && customActionsRemaining > 0;
-  const debt = turn.causalLedger.at(-1)?.mustAffect ?? turn.previousEcho?.unexpectedCost;
+  const canSubmitCustom = actionLength >= 2 && actionLength <= 80 && customActionsRemaining > 0;
 
   useEffect(() => {
     setCustomOpen(false);
@@ -74,7 +74,7 @@ export function TimelineEventScreen({
             <ArrowRight size={14} weight="bold" />
             <span><small>世界变化</small><strong>{turn.previousEcho.directResult}</strong></span>
           </div>
-          <p className="history-debt">未结历史债 · {debt}</p>
+          <p className="butterfly-turn"><span>蝴蝶转向 · {rippleLensLabel(turn.rippleLens)}</span>{turn.causalBridge}</p>
         </section>
       ) : (
         <section className="change-proof is-opening" aria-label="真实历史切入口">
@@ -91,33 +91,33 @@ export function TimelineEventScreen({
           className="custom-action-command"
           type="button"
           disabled={customActionsRemaining === 0}
-          aria-label={customActionsRemaining === 0 ? "改命机会已用完" : `写下第四条路，剩余 ${customActionsRemaining} 次`}
+          aria-label={customActionsRemaining === 0 ? "改写机会已用完" : `直接改写结果，剩余 ${customActionsRemaining} 次`}
           onClick={() => setCustomOpen(true)}
         >
           <PencilSimpleLine size={16} weight="bold" />
-          <span>{customActionsRemaining === 0 ? "第四条路已经写尽" : "写下第四条路"}</span>
+          <span>{customActionsRemaining === 0 ? "结果改写已经用完" : "直接改写结果"}</span>
           <strong>{customActionsRemaining} 次</strong>
         </button>
       </section>
       </section>
       {customOpen && (
         <div className="custom-action-backdrop">
-          <section className="custom-action-sheet" role="dialog" aria-modal="true" aria-label="自由改命">
+          <section className="custom-action-sheet" role="dialog" aria-modal="true" aria-label="钦定历史结果">
             <header>
-              <div><span>穿越者权限</span><h2>写下第四条路</h2></div>
-              <button type="button" aria-label="关闭自由改命" onClick={() => setCustomOpen(false)}><X size={20} /></button>
+              <div><span>玩家拥有最终解释权</span><h2>直接改写结果</h2></div>
+              <button type="button" aria-label="关闭结果改写" onClick={() => setCustomOpen(false)}><X size={20} /></button>
             </header>
-            <p>{abilityCustomAction}。你仍只能使用这个身份此刻真正接触得到的人、物和信息。</p>
+            <p>你写下的结果将直接成为这条时间线的既成事实。AI 不判断成败，只推演它的后果。{abilityCustomAction}</p>
             <textarea
               autoFocus
-              aria-label="你的自由行动"
+              aria-label="你要写入的历史结果"
               value={customAction}
-              maxLength={56}
-              placeholder="例如：先扣下军令，再派两名可信宿卫请皇帝临朝"
+              maxLength={80}
+              placeholder="例如：我暗杀了皇帝且成功，摄政会议接受了我伪造的遗诏"
               onChange={(event) => setCustomAction(event.target.value)}
             />
-            <div className="custom-action-meta"><span>AI 将裁决可行性与隐藏代价</span><strong>{actionLength}/56</strong></div>
-            <button className="custom-action-submit" type="button" disabled={!canSubmitCustom} onClick={submitCustom}>提交改命 <ArrowRight size={18} weight="bold" /></button>
+            <div className="custom-action-meta"><span>AI 只推演传播、受益者与代价</span><strong>{actionLength}/80</strong></div>
+            <button className="custom-action-submit" type="button" disabled={!canSubmitCustom} onClick={submitCustom}>写入时间线 <ArrowRight size={18} weight="bold" /></button>
           </section>
         </div>
       )}

@@ -2,6 +2,7 @@ import type { GameScenario } from "./reducer";
 import { getTravelerAbility } from "./profile";
 import type { DeviationClass, TimelineTurn } from "./schema";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
+import { selectRippleDirective, type RippleLens } from "./rippleRouter";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -59,9 +60,9 @@ function scenarioPayload(scenario: GameScenario) {
   };
 }
 
-function turnContract(chapter: TimelineTurn["chapter"]) {
+function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens = "origin") {
   return {
-    requiredFields: ["timelineName", "chapter", "chapterName", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
+    requiredFields: ["timelineName", "chapter", "chapterName", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "rippleLens", "causalBridge", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
     rules: {
       totalLength: "总输出控制在 700 个汉字以内，宁可短句，不得省略字段",
       chapter,
@@ -72,6 +73,8 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
       identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何落地" : "36 字以内；解释上一代影响如何让这一时代的新人物接棒",
       profileAdvantage: "36 字以内；必须具体说明 traveler.gameplayRules.directive 如何帮助本代身份，不得泛称现代能力",
+      rippleLens: `必须为 ${rippleLens}，不得自行更换社会载体`,
+      causalBridge: chapter === 1 ? "54 字以内；说明玩家决定如何成为时间线源头" : "54 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
       immediateObjective: "28 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
@@ -88,6 +91,7 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       timelineName: "示例线名", chapter, chapterName: CHAPTER_NAMES[chapter], yearLabel: "具体年月日", location: "具体地点",
       role: "具体角色", immediateObjective: "当场目标", timePressure: "倒计时",
       identityBridge: "这一代为何由此人接棒", profileAdvantage: "现代画像在本代的具体用处",
+      rippleLens, causalBridge: "上一结果通过具体媒介进入本幕的新社会冲突",
       headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点",
       previousEcho: chapter === 1 ? null : { directResult: "上次直接结果", unexpectedCost: "上次意外代价", beneficiary: "受益者", payer: "承担者" },
       choices: [
@@ -116,6 +120,8 @@ function selectedHistory(playedTurns: readonly PlayedTurn[]) {
     headline: turn.headline,
     identityBridge: turn.identityBridge,
     causalLedger: turn.causalLedger,
+    rippleLens: turn.rippleLens,
+    causalBridge: turn.causalBridge,
     metrics: turn.metrics,
   }));
 }
@@ -129,12 +135,14 @@ export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
 }
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
+  const ripple = selectRippleDirective(scenario, playedTurns, chapter);
   return messages({
-    task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题，只能作为因果源简短提及。惊奇不等于远行：不强制跨国或跨洲，中国历史可以继续留在中国；只有贸易、战争、移民或技术传播等已有因果成立时才跨境。比较最近三幕的社会载体、核心矛盾、制度场景、主要受影响人群，本幕至少更换其中两项。优先回收因果账本中尚未兑现的一项，不要写上一幕最直接的续集。选择中国玩家熟悉的真实人物、制度、城市或生活经验作锚点，再推演反直觉但可解释的新冲突。`,
+    task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。${ripple.instruction} role、location、headline、narrative、causalBridge 和 immediateObjective 合计必须自然出现 authoritativeRipple.requiredEvidence 中至少两个不同词。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为因果源简短提及。惊奇不等于远行：不强制跨国或跨洲，中国历史可以继续留在中国。比较最近三幕的社会载体、核心矛盾、制度场景、主要受影响人群，本幕至少更换其中两项。不要写上一幕最直接的续集；必须用 causalBridge 解释上次结果如何经具体媒介转入本幕。选择中国玩家熟悉的真实人物、制度、城市或生活经验作锚点，再推演反直觉但可解释的新冲突。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
+    authoritativeRipple: ripple,
     playedHistory: selectedHistory(playedTurns),
-    outputContract: turnContract(chapter),
+    outputContract: turnContract(chapter, ripple.lens),
   });
 }
 
@@ -145,7 +153,7 @@ export function buildCustomActionMessages(
   action: string,
 ): ChatMessage[] {
   return messages({
-    task: "裁决玩家写下的第四条路。必须把行动放回当前身份、地点、时间压力和可支配资源中，并按 traveler.gameplayRules.freeAction 提供一种合理的人格杠杆；不得凭空增加身份、资源、技术或知情范围。能原样执行则 ruling 为按原意执行；否则保留玩家意图并降格为当场可执行的动作，ruling 为受限执行。无论哪种方式都必须给出真实收益、隐藏代价、受益者和承担者。",
+    task: "玩家正在直接写入一条新的历史结果。playerDeclaredOutcome 是已经发生的既成事实，不是行动申请。你无权判断可行性，不得改变它写明的成功或失败，不得把完成时改成尝试。必须逐字保留结果的成败关系，只推演它如何进入社会、产生什么意外代价、谁受益、谁承担。causalMechanism、unexpectedCost、beneficiary、payer 也不得暗示该结果其实失败、未遂、未发生或反向成功。人格只决定优先看见哪类后果，不能改变玩家钦定的事实。",
     ...scenarioPayload(scenario),
     playedHistory: selectedHistory(playedTurns),
     currentScene: {
@@ -158,15 +166,15 @@ export function buildCustomActionMessages(
       availableProfileAdvantage: turn.profileAdvantage,
       causalLedger: turn.causalLedger,
     },
-    playerAction: action,
+    playerDeclaredOutcome: action,
     outputContract: {
-      requiredFields: ["normalizedAction", "ruling", "personalityLeverage", "constraintApplied", "deviationClass", "instantEcho"],
-      normalizedAction: "2-56 个汉字，保留玩家原意并改写成当前角色能执行的具体动作",
-      ruling: "按原意执行/受限执行 二选一",
-      personalityLeverage: "56 个汉字以内，必须点名 traveler.typeCode，并具体说明人格如何让行动变得可执行",
-      constraintApplied: "56 个汉字以内，说明身份、资源、技术或时间上的真实限制",
+      requiredFields: ["declaredOutcome", "canonStatus", "personalityLens", "causalMechanism", "deviationClass", "instantEcho"],
+      declaredOutcome: "必须与 playerDeclaredOutcome 完全一致，2-80 个汉字，不得改写成败关系",
+      canonStatus: "固定为 玩家钦定",
+      personalityLens: "56 个汉字以内，必须点名 traveler.typeCode，只说明该人格优先看见哪类隐藏后果",
+      causalMechanism: "56 个汉字以内，说明既成结果通过命令、消息、法律、市场、迁徙或其他具体媒介进入社会",
       deviationClass: "nudge/reform/rupture 之一",
-      instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
+      instantEcho: "含 directResult、unexpectedCost、beneficiary、payer；directResult 必须逐字复制 playerDeclaredOutcome，可到 80 字，其余每项 24 字以内",
     },
   });
 }

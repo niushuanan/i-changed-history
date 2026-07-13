@@ -4,6 +4,10 @@ import { buildTravelerProfile, getTravelerAbility, PERSONALITY_QUESTIONS } from 
 describe("time traveler personality calibration", () => {
   it("uses four historical dilemmas to build a stable four-letter profile", () => {
     expect(PERSONALITY_QUESTIONS).toHaveLength(4);
+    for (const question of PERSONALITY_QUESTIONS) {
+      expect(question.options).toHaveLength(4);
+      expect(question.options.map((option) => option.code)).toEqual(["A", "B", "C", "D"]);
+    }
 
     const profile = buildTravelerProfile({
       energy: "I",
@@ -34,7 +38,8 @@ describe("time traveler personality calibration", () => {
       action: "每幕三个行动中，有一个只按 INTP 的本能生成",
       preview: "预判时优先看见长期连锁与制度代价",
     });
-    expect(ability.customAction).toContain("三次自由改命");
+    expect(ability.customAction).toContain("三次直接改写");
+    expect(ability.customAction).toContain("结果立即成为正史");
     expect(ability.promptDirective).toContain("INTP");
   });
 });

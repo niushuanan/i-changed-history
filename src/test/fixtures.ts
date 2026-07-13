@@ -10,6 +10,8 @@ export const turnFixture = {
   headline: "东南风还没有来",
   narrative: "黄盖已经登船，曹军的巡哨却比预期更近。你握着发船铜令，任何迟疑都可能让火攻提前暴露。",
   baselineAnchor: "孙刘联军最终借东风火攻曹操水军。",
+  rippleLens: "origin",
+  causalBridge: "你手中的发船铜令将决定火攻是否进入正史",
   previousEcho: null,
   choices: [
     {

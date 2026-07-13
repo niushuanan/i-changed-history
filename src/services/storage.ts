@@ -2,10 +2,11 @@ import { z } from "zod";
 import type { GameState } from "../game/reducer";
 import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
 import { migrateLegacyTravelerProfile } from "../game/profile";
+import { RIPPLE_LENSES } from "../game/rippleRouter";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v6";
-const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
-const STORAGE_VERSION = 6;
+export const GAME_STORAGE_KEY = "i-changed-history:session:v7";
+const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
+const STORAGE_VERSION = 7;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -47,13 +48,13 @@ const playedSchema = z.strictObject({
 const retrySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("opening") }),
   z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(11) }),
-  z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(56) }),
+  z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80) }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const requestSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("opening"), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(11), id: z.number().int().positive() }),
-  z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(56), id: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("ending"), id: z.number().int().positive() }),
 ]);
 const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retry: retrySchema });
@@ -97,7 +98,7 @@ function remove(storage: StorageLike, key = GAME_STORAGE_KEY) { try { storage.re
 
 function migrateLegacy(raw: string): unknown {
   const envelope = JSON.parse(raw) as { version?: unknown; state?: Record<string, unknown> };
-  if (![4, 5].includes(envelope.version as number) || !envelope.state) return envelope;
+  if (![4, 5, 6].includes(envelope.version as number) || !envelope.state) return envelope;
   const playedTurns = envelope.version === 4 && Array.isArray(envelope.state.playedTurns)
     ? envelope.state.playedTurns.map((value) => {
         if (typeof value !== "object" || value === null) return value;
@@ -114,6 +115,23 @@ function migrateLegacy(raw: string): unknown {
     if (typeof candidate.typeCode === "string" && candidate.dimensions) return candidate;
     return migrateLegacyTravelerProfile(candidate);
   };
+  const migrateTurn = (value: unknown) => {
+    if (typeof value !== "object" || value === null) return value;
+    const turn = value as Record<string, unknown>;
+    const chapter = typeof turn.chapter === "number" ? turn.chapter : 1;
+    return {
+      ...turn,
+      rippleLens: turn.rippleLens ?? (chapter === 1 ? "origin" : RIPPLE_LENSES[(chapter - 2) % RIPPLE_LENSES.length]),
+      causalBridge: turn.causalBridge ?? "旧时间线的选择已进入新的社会场景",
+    };
+  };
+  const migratedPlayedTurns = Array.isArray(playedTurns)
+    ? playedTurns.map((value) => {
+        if (typeof value !== "object" || value === null) return value;
+        const played = value as Record<string, unknown>;
+        return { ...played, turn: migrateTurn(played.turn) };
+      })
+    : playedTurns;
   const profile = migrateProfile(envelope.state.profile);
   const scenario = typeof envelope.state.scenario === "object" && envelope.state.scenario !== null
     ? { ...(envelope.state.scenario as Record<string, unknown>), profile: migrateProfile((envelope.state.scenario as Record<string, unknown>).profile) }
@@ -124,8 +142,9 @@ function migrateLegacy(raw: string): unknown {
       ...envelope.state,
       profile,
       scenario,
+      currentTurn: migrateTurn(envelope.state.currentTurn),
       customActionsUsed: envelope.version === 4 ? 0 : envelope.state.customActionsUsed,
-      playedTurns,
+      playedTurns: migratedPlayedTurns,
     },
   };
 }

@@ -5,6 +5,7 @@ import { parseTimelineTurn } from "./schema";
 import { buildTravelerProfile } from "./profile";
 import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
+import { selectRippleDirective } from "./rippleRouter";
 
 const scenario: GameScenario = {
   profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
@@ -20,7 +21,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain("strategy");
     expect(body).toContain("INTP");
     expect(body).toContain("因果侦探");
-    expect(body).toContain("三次自由改命");
+    expect(body).toContain("三次直接改写");
+    expect(body).toContain("结果立即成为正史");
     expect(body).toContain("role");
     expect(body).toContain("immediateObjective");
     expect(body).toContain("timePressure");
@@ -43,6 +45,7 @@ describe("modern traveler AI prompt contract", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+    const ripple = selectRippleDirective(scenario, played, 8);
 
     expect(continuation).toContain("不得把玩家写成长生不老");
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
@@ -51,6 +54,10 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("profileAdvantage");
     expect(continuation).toContain("usesTravelerStrength");
     expect(continuation).toContain("总输出控制在 700 个汉字以内");
+    expect(continuation).toContain(ripple.lens);
+    expect(continuation).toContain(ripple.label);
+    expect(continuation).toContain("rippleLens");
+    expect(continuation).toContain("causalBridge");
   });
 
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
@@ -72,15 +79,16 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain("每个 label 22 字以内");
   });
 
-  it("asks the model to adjudicate a free action against the current role and resources", () => {
+  it("makes a player-declared result canon instead of judging whether it succeeds", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const body = buildCustomActionMessages(scenario, [], parsedTurn, "调动全城军队包围皇宫").at(-1)!.content;
+    const body = buildCustomActionMessages(scenario, [], parsedTurn, "我暗杀了皇帝且成功").at(-1)!.content;
 
-    expect(body).toContain("调动全城军队包围皇宫");
+    expect(body).toContain("我暗杀了皇帝且成功");
     expect(body).toContain(parsedTurn.role);
-    expect(body).toContain("不得凭空增加身份、资源、技术或知情范围");
-    expect(body).toContain("constraintApplied");
-    expect(body).toContain("personalityLeverage");
-    expect(body).toContain("受限执行");
+    expect(body).toContain("既成事实");
+    expect(body).toContain("不得改变它写明的成功或失败");
+    expect(body).toContain("declaredOutcome");
+    expect(body).toContain("canonStatus");
+    expect(body).not.toContain("受限执行");
   });
 });

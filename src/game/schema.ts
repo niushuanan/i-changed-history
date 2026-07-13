@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHAPTER_NAMES, type DecisionChapter } from "./timelinePlan";
+import type { RippleLens } from "./rippleRouter";
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
@@ -21,19 +22,20 @@ const visualToneSchema = z.enum([
   "digital",
 ]);
 const generationSourceSchema = z.enum(["deepseek", "fallback"]);
+const rippleLensSchema = z.enum(["origin", "power", "livelihood", "knowledge", "technology", "culture", "trade", "migration", "ecology", "diplomacy"]);
 
 const echoSchema = z.object({
-  directResult: boundedString(32),
+  directResult: boundedString(80),
   unexpectedCost: boundedString(32),
   beneficiary: boundedString(24),
   payer: boundedString(24),
 });
 
 export const customActionResolutionSchema = z.object({
-  normalizedAction: z.string().trim().min(2).max(56),
-  ruling: z.enum(["按原意执行", "受限执行"]),
-  personalityLeverage: boundedString(56),
-  constraintApplied: boundedString(56),
+  declaredOutcome: z.string().trim().min(2).max(80),
+  canonStatus: z.literal("玩家钦定"),
+  personalityLens: boundedString(56),
+  causalMechanism: boundedString(56),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
 });
@@ -86,6 +88,8 @@ const strictTimelineTurnSchema = z
     role: boundedString(24),
     identityBridge: boundedString(54),
     profileAdvantage: boundedString(54),
+    rippleLens: rippleLensSchema,
+    causalBridge: boundedString(54),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
@@ -301,6 +305,7 @@ export type TimelineTurnParseOptions = {
   expectedChapter?: DecisionChapter;
   expectedYearLabel?: string;
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>;
+  expectedRippleLens?: RippleLens;
 };
 export type ExpectedHistoryTimelineItem = {
   yearLabel: string;
@@ -375,6 +380,7 @@ export function parseTimelineTurn(
     ...(options.expectedChapter ? { chapter: options.expectedChapter, chapterName: CHAPTER_NAMES[options.expectedChapter] } : {}),
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
     ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),
+    ...(options.expectedRippleLens ? { rippleLens: options.expectedRippleLens } : {}),
   });
 }
 

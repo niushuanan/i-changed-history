@@ -13,10 +13,10 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
   if (customAction) {
     return {
       image: "/assets/generating-opening.webp",
-      alt: "自由行动正在接受历史约束裁决",
-      title: "第四条路裁决中",
-      focus: "把你的意图放回当时的身份、资源与倒计时",
-      steps: ["核对现场可用资源", "判断行动如何落地", "计算受益者与隐藏代价"],
+      alt: "玩家钦定结果正在写入新正史",
+      title: "写入新正史",
+      focus: "锁定你的结果，只推演它如何改变世界",
+      steps: ["锁定玩家钦定结果", "寻找因果传播媒介", "计算受益者与隐藏代价"],
     };
   }
   if (ending) {
@@ -66,9 +66,9 @@ export function GeneratingScreen({ chapter, ending, customAction = false, onCanc
           <span key={position} className={`causal-pulse causal-pulse--${position}`} data-testid="causal-pulse" />
         ))}
       </div>
-      <div className="developing-stamp"><Aperture size={18} weight="bold" /><span>{customAction ? "自由改命裁决" : "历史显影室"}</span></div>
+      <div className="developing-stamp"><Aperture size={18} weight="bold" /><span>{customAction ? "玩家正史写入" : "历史显影室"}</span></div>
       <div className="developing-copy">
-        <span>{ending ? "第 12 节点 · 平行 2026" : customAction ? `第 ${chapter} 节点 · 第四条路` : `第 ${chapter} 节点 · 因果推演中`}</span>
+        <span>{ending ? "第 12 节点 · 平行 2026" : customAction ? `第 ${chapter} 节点 · 玩家钦定` : `第 ${chapter} 节点 · 因果推演中`}</span>
         <h1>{stage.title}</h1>
         <p>{stage.focus}</p>
       </div>

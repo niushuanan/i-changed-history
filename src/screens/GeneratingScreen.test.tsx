@@ -24,10 +24,12 @@ describe("history developing room", () => {
     expect(screen.getByText("汇入 2026")).toBeVisible();
   });
 
-  it("explains the historical constraint check during a free-action ruling", () => {
+  it("shows that a player-declared result is being written into canon", () => {
     render(<GeneratingScreen chapter={2} ending={false} customAction onCancel={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "第四条路裁决中" })).toBeVisible();
-    expect(screen.getByText("核对现场可用资源")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "写入新正史" })).toBeVisible();
+    expect(screen.getByText("锁定玩家钦定结果")).toBeVisible();
+    expect(screen.getByText("寻找因果传播媒介")).toBeVisible();
     expect(screen.getByText("计算受益者与隐藏代价")).toBeVisible();
+    expect(screen.queryByText("核对现场可用资源")).not.toBeInTheDocument();
   });
 });

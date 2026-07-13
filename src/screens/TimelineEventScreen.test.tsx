@@ -20,6 +20,8 @@ describe("clear change event screen", () => {
       chapter: 2,
       chapterName: "一日余波",
       previousEcho: turnFixture.choices[1].instantEcho,
+      rippleLens: "livelihood",
+      causalBridge: "摄政命令经粮仓账本改变了长安市民的米价",
     }));
     render(<TimelineEventScreen
       turn={turn}
@@ -44,8 +46,9 @@ describe("clear change event screen", () => {
     expect(screen.getByText("改制")).toBeVisible();
     expect(screen.getByText("断裂")).toBeVisible();
     expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
-    expect(screen.getByRole("button", { name: /写下第四条路/ })).toHaveTextContent("3 次");
-    expect(within(proof).getByText(/未结历史债/)).toBeVisible();
+    expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("3 次");
+    expect(within(proof).getByText(/蝴蝶转向/)).toBeVisible();
+    expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
   });
 
   it("validates free action length and disables the entry after three uses", async () => {
@@ -60,9 +63,10 @@ describe("clear change event screen", () => {
       onExit={vi.fn()}
     />);
 
-    fireEvent.click(screen.getByRole("button", { name: /写下第四条路/ }));
-    expect(screen.getByRole("dialog", { name: "自由改命" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "提交改命" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /直接改写结果/ }));
+    expect(screen.getByRole("dialog", { name: "钦定历史结果" })).toBeVisible();
+    expect(screen.getByText(/将直接成为这条时间线的既成事实/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "写入时间线" })).toBeDisabled();
 
     rerender(<TimelineEventScreen
       turn={openingTurn}
@@ -73,6 +77,6 @@ describe("clear change event screen", () => {
       onCustomAction={onCustomAction}
       onExit={vi.fn()}
     />);
-    expect(screen.getByRole("button", { name: /改命机会已用完/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /改写机会已用完/ })).toBeDisabled();
   });
 });

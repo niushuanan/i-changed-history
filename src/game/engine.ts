@@ -21,6 +21,8 @@ import {
 import { DeepSeekError, requestCompletion, type CompletionOptions } from "../services/deepseek";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution, createFallbackEnding, createFallbackTurn } from "./fallbackTurn";
+import { rippleSceneMatches, selectRippleDirective, type RippleLens } from "./rippleRouter";
+import { buildCanonicalCustomResolution } from "./customCanon";
 
 type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
 type Parser<T> = (raw: string) => T;
@@ -111,11 +113,15 @@ function parseRequestedTurn(
   expectedChapter: TimelineTurn["chapter"],
   expectedYearLabel: string,
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>,
+  expectedRippleLens: RippleLens = "origin",
 ): Parser<TimelineTurn> {
   return (raw) => {
-    const turn = parseTimelineTurn(raw, { expectedChapter, expectedYearLabel, expectedPreviousEcho });
+    const turn = parseTimelineTurn(raw, { expectedChapter, expectedYearLabel, expectedPreviousEcho, expectedRippleLens });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
+    }
+    if (!rippleSceneMatches(expectedRippleLens, turn)) {
+      throw new Error(`本幕正文没有真正进入指定社会载体 ${expectedRippleLens}`);
     }
     return turn;
   };
@@ -146,10 +152,10 @@ export async function adjudicateCustomAction(
   const messages = buildCustomActionMessages(scenario, playedTurns, turn, action);
   const parseForPersonality = (raw: string) => {
     const resolution = parseCustomActionResolution(raw);
-    if (!resolution.personalityLeverage.includes(scenario.profile.typeCode)) {
-      throw new Error(`personalityLeverage 必须明确包含 ${scenario.profile.typeCode}`);
+    if (resolution.declaredOutcome !== action.trim()) {
+      throw new Error("declaredOutcome 必须逐字保留玩家钦定结果");
     }
-    return resolution;
+    return buildCanonicalCustomResolution(scenario.profile, turn, action, resolution.deviationClass);
   };
   try {
     return await requestValidated(
@@ -202,9 +208,10 @@ export async function generateNextTurn(
   options: NextTurnGenerationOptions = {},
 ): Promise<TimelineTurn> {
   const messages = buildContinuationMessages(scenario, playedTurns, chapter);
+  const ripple = selectRippleDirective(scenario, playedTurns, chapter);
 
   try {
-    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns)), { expectedChapter: chapter });
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), ripple.lens), { expectedChapter: chapter });
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, playedTurns, chapter);
     throw error;

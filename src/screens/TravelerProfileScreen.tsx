@@ -95,7 +95,7 @@ export function TravelerProfileScreen({ onSubmit, onStartExperience }: {
           <div className="type-rules">
             <article><Sparkle size={21} weight="fill" /><div><strong>每幕专属行动</strong><span>{ability.action}</span></div></article>
             <article><Eye size={21} weight="bold" /><div><strong>因果预判</strong><span>{ability.preview}</span></div></article>
-            <article><Lightning size={21} weight="fill" /><div><strong>三次自由改命</strong><span>{ability.customAction}</span></div></article>
+            <article><Lightning size={21} weight="fill" /><div><strong>三次直接改写</strong><span>{ability.customAction}</span></div></article>
           </div>
           <button className="primary-command" type="button" onClick={() => onSubmit(profile)}>
             进入五十个历史瞬间 <ArrowRight size={21} weight="bold" />

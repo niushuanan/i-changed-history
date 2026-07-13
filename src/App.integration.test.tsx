@@ -70,10 +70,10 @@ describe("complete player journey", () => {
 
   async function completeProfile(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole("button", { name: /开始人格校准/ }));
-    await user.click(screen.getByRole("button", { name: /独自核实/ }));
+    await user.click(screen.getByRole("button", { name: /暗中布网/ }));
     await user.click(screen.getByRole("button", { name: /隐藏模式/ }));
-    await user.click(screen.getByRole("button", { name: /结构后果/ }));
-    await user.click(screen.getByRole("button", { name: /临场变招/ }));
+    await user.click(screen.getByRole("button", { name: /总体后果/ }));
+    await user.click(screen.getByRole("button", { name: /突发变量/ }));
     await user.click(screen.getByRole("button", { name: /进入五十个历史瞬间/ }));
   }
 
@@ -94,7 +94,7 @@ describe("complete player journey", () => {
       await user.click(screen.getByRole("button", { name: /公开完整遗诏/ }));
       expect(await screen.findByRole("heading", { name: "世界已回应" })).toBeVisible();
       expect(screen.getByText("继业者暂停争夺")).toBeVisible();
-      const continueButton = await screen.findByRole("button", { name: /进入下一年|查看平行世界/ });
+      const continueButton = await screen.findByRole("button", { name: /继续推演|查看平行世界/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);
     }
@@ -115,13 +115,13 @@ describe("complete player journey", () => {
     await waitFor(() => expect(score.start).toHaveBeenCalledTimes(1));
   });
 
-  it("keeps free text inside the three-use fourth-path action", async () => {
+  it("keeps free text inside the three-use player-canon result action", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await completeProfile(user);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByText(/写下第四条路/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
     await waitFor(() => expect(engine.generateOpening).toHaveBeenCalledWith(
       expect.objectContaining({ profile: expect.objectContaining({ name: "因果侦探", typeCode: "INTP" }), seed: expect.objectContaining({ year: expect.any(Number), eventName: expect.any(String) }) }),
@@ -129,7 +129,7 @@ describe("complete player journey", () => {
     ));
     expect(await screen.findByText(/周瑜帐下负责火船的军需官/)).toBeVisible();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /写下第四条路，剩余 3 次/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /直接改写结果，剩余 3 次/ })).toBeVisible();
   });
 
   it("always exposes one chronological fifty-moment filmstrip and exits an active run", async () => {

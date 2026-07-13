@@ -3,26 +3,37 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { extractFirstJsonObject, parseAlternatePresent, parseCustomActionResolution, parseTimelineTurn } from "./schema";
 
 describe("structured timeline parsing", () => {
-  it("parses a historically constrained custom action ruling", () => {
+  it("parses a player-authored result as canonical history", () => {
     const resolution = parseCustomActionResolution(JSON.stringify({
-      normalizedAction: "先封锁宫门，再派人请李渊临朝",
-      ruling: "受限执行",
-      personalityLeverage: "INTP 因果侦探先推演守军指挥链",
-      constraintApplied: "你只能调动本门禁军，无法号令全城",
-      deviationClass: "reform",
+      declaredOutcome: "我暗杀了皇帝且成功",
+      canonStatus: "玩家钦定",
+      personalityLens: "INTP 因果侦探优先看见制度连锁",
+      causalMechanism: "死讯通过禁军口令传入摄政会议",
+      deviationClass: "rupture",
       instantEcho: {
-        directResult: "李渊提前得知宫门兵变",
-        unexpectedCost: "两宫禁军开始各自扣押使者",
-        beneficiary: "仍忠于皇帝的宿卫",
-        payer: "玄武门内的低阶军士",
+        directResult: "皇位继承程序立即中断",
+        unexpectedCost: "禁军开始争夺遗诏真伪",
+        beneficiary: "掌握宫门的摄政派",
+        payer: "未获消息的地方军",
       },
     }));
 
-    expect(resolution).toMatchObject({ ruling: "受限执行", deviationClass: "reform" });
+    expect(resolution).toMatchObject({ declaredOutcome: "我暗杀了皇帝且成功", canonStatus: "玩家钦定", deviationClass: "rupture" });
     expect(() => parseCustomActionResolution(JSON.stringify({
       ...resolution,
-      normalizedAction: "改".repeat(57),
+      declaredOutcome: "改".repeat(81),
     }))).toThrow();
+  });
+
+  it("carries an eighty-character canonical result into the next turn", () => {
+    const declaredOutcome = "我已经成功完成改写".repeat(8).slice(0, 80);
+    const next = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "一日余波",
+      previousEcho: { ...turnFixture.choices[0].instantEcho, directResult: declaredOutcome },
+    }));
+    expect(next.previousEcho?.directResult).toBe(declaredOutcome);
   });
 
   it("extracts one JSON object through markdown noise and braces inside strings", () => {
@@ -42,6 +53,17 @@ describe("structured timeline parsing", () => {
       cost: 18,
     });
     expect(parseTimelineTurn(raw).generationSource).toBe("deepseek");
+  });
+
+  it("keeps the client-selected ripple carrier authoritative", () => {
+    const raw = JSON.stringify({
+      ...turnFixture,
+      rippleLens: "power",
+      causalBridge: "玩家公开遗诏，消息经驿站进入城市粮价",
+    });
+    const parsed = parseTimelineTurn(raw, { expectedRippleLens: "livelihood" });
+    expect(parsed.rippleLens).toBe("livelihood");
+    expect(parsed.causalBridge).toContain("驿站");
   });
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
