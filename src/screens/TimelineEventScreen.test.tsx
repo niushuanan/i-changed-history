@@ -135,6 +135,7 @@ describe("clear change event screen", () => {
 
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-history-mode", "opening");
+    expect(container.querySelector(".event-screen")).toHaveAttribute("data-layout", "image-overlay");
   });
 
   it("shows a complete thirty-two-character action instead of cutting it mid-sentence", () => {

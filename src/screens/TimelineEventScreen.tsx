@@ -56,6 +56,7 @@ export function TimelineEventScreen({
       className="event-screen"
       data-density={density}
       data-history-mode={turn.previousEcho ? "continuation" : "opening"}
+      data-layout="image-overlay"
     >
       <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
       <figure className="event-scene">

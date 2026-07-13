@@ -1,5 +1,17 @@
 # Design QA
 
+## Mobile Readability And Image Overlay QA (2026-07-13)
+
+- Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-c6f33b48-c66b-433b-8fc6-f130258c1e34.png`.
+- Verified captures: `output/playwright/readability-picker-390.png`, `readability-loading-390.png`, `readability-opening-real-390.png`, `readability-custom-390.png`, `readability-echo-390.png`, `readability-event-pressure-390.png`, `readability-result-biography-390.png`, and `readability-result-world-390.png`.
+- The active event surface starts 37-40% above the scene image bottom, uses a translucent coal gradient and 2px backdrop blur, and leaves the historical art visibly legible behind it.
+- The real DeepSeek opening used 14px narrative copy, 15px actions, 12-13px history copy, and fit without event-page scrolling. Picker, loading, custom rewrite, immediate result, biography, and 2026 report were clicked and visually inspected at 390 x 844.
+- Maximum-copy pressure used a 160-character narrative, three 32-character actions, and 36/48/36-character comparison rows. The event body remained `clientHeight === scrollHeight === 614px`; the deepest content ended at 833.85px, leaving the bottom safe edge intact.
+- The event page visible font minimum is 11px. Final reports remove line clamps and 7-9px prose, preserve complete generated text, and use the dedicated report reading region for overflow rather than shrinking copy.
+- The picker still reveals the next card on the right after its image height drops from 286px to 248px; the recovered space funds 14-15px role and decision copy.
+
+final result: passed
+
 ## Rich Three-Layer Event Context QA (2026-07-13)
 
 - Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-4088f082-fbfc-4662-a318-f2ed6c058613.png`.
