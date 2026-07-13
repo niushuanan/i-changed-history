@@ -96,4 +96,4 @@
 - [x] Run `npm test`, `npm run typecheck`, `npm run build`, `npm run check:portability`, and `git diff --check`.
 - [x] Open the app at 390 x 844, complete a real continuation and custom-result transition, and verify no console errors or layout regression.
 - [x] Record measured results and changed contracts in `AGENTS.md` and `PROJECT_CONTEXT.md`.
-- [ ] Secret-scan, commit, push `main`, and verify local HEAD equals `origin/main`.
+- [x] Secret-scan, commit, push `main`, and verify local HEAD equals `origin/main`.
