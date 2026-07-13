@@ -2,16 +2,17 @@ import { describe, expect, it } from "vitest";
 import { browseHistorySeeds, HISTORY_SEEDS, recommendHistorySeeds } from "./historySeeds";
 import type { TravelerProfile } from "../game/types";
 import { buildTravelerProfile } from "../game/profile";
+import { historyAssetForSeed } from "./visualAssets";
 
 const profile: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "F", tactics: "J" });
 
 describe("famous historical moment deck", () => {
-  it("contains fifty complete AD moments with a substantial Chinese-history set", () => {
+  it("contains exactly thirty Chinese and twenty world AD moments", () => {
     expect(HISTORY_SEEDS).toHaveLength(50);
     expect(new Set(HISTORY_SEEDS.map((seed) => seed.id)).size).toBe(50);
     expect(HISTORY_SEEDS.every((seed) => seed.year > 0)).toBe(true);
-    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china").length)
-      .toBeGreaterThanOrEqual(18);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china")).toHaveLength(30);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "world")).toHaveLength(20);
 
     for (const seed of HISTORY_SEEDS) {
       expect(seed.baselineFacts).toHaveLength(3);
@@ -22,6 +23,7 @@ describe("famous historical moment deck", () => {
       expect(seed.urgency.trim()).not.toBe("");
       expect(seed.historicalOutcome.trim()).not.toBe("");
       expect(seed.strengthTags.length).toBeGreaterThan(0);
+      expect(historyAssetForSeed(seed)).toBe(`/assets/history/${seed.id}.webp`);
     }
   });
 
@@ -30,11 +32,36 @@ describe("famous historical moment deck", () => {
       .toEqual([]);
     expect(HISTORY_SEEDS.map((seed) => seed.id)).toEqual(expect.arrayContaining([
       "red-cliffs-208",
+      "dong-zhuo-lu-bu-190",
+      "guandu-wuchao-200",
+      "jieting-228",
       "xuanwu-gate-626",
       "tumu-crisis-1449",
+      "newton-principia-1687",
       "sarajevo-1914",
+      "roosevelt-bank-holiday-1933",
       "cuban-missile-1962",
+      "apollo-11-1969",
       "berlin-wall-1989",
+    ]));
+  });
+
+  it("replaces specialist western entries with familiar public-history anchors", () => {
+    const ids = HISTORY_SEEDS.map((seed) => seed.id);
+
+    expect(ids).toEqual(expect.arrayContaining([
+      "lincoln-emancipation-1862",
+      "october-revolution-1917",
+      "hitler-poland-1939",
+      "stalin-moscow-1941",
+      "normandy-1944",
+    ]));
+    expect(ids).not.toEqual(expect.arrayContaining([
+      "teutoburg-9",
+      "clermont-1095",
+      "fourth-crusade-1204",
+      "sekigahara-1600",
+      "vienna-1683",
     ]));
   });
 

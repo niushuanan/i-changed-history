@@ -1,54 +1,54 @@
 # Historical Card Image Credits
 
-Event-specific images come from the exact English Wikipedia pages below. Cards marked local fallback use the project's generated period artwork because the article had no suitable page image.
+Event-specific images come from the exact English Wikipedia pages below. Cached cards retain a previously downloaded local image. Cards marked local fallback use the project's generated period artwork because the article had no suitable page image.
 
-- **赤壁火攻前夜**: [Battle of Red Cliffs](https://en.wikipedia.org/wiki/Battle_of_Red_Cliffs) - [image](https://upload.wikimedia.org/wikipedia/commons/5/51/Chibi.jpg)
-- **淝水之战临河退阵**: [Battle of Fei River](https://en.wikipedia.org/wiki/Battle_of_Fei_River) - [image](https://upload.wikimedia.org/wikipedia/commons/d/db/Battle_of_Fei_River.png)
-- **隋军渡江灭陈**: local fallback - `tone-ancient.webp`
-- **玄武门之变**: [Xuanwu Gate Incident](https://en.wikipedia.org/wiki/Xuanwu_Gate_Incident) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/TangTaizong.jpg/1280px-TangTaizong.jpg)
-- **安禄山叛军逼近潼关**: [An Lushan rebellion](https://en.wikipedia.org/wiki/An_Lushan_rebellion) - [image](https://upload.wikimedia.org/wikipedia/commons/7/7d/An_Lushan_Rebellion.png)
-- **陈桥兵变黄袍加身**: local fallback - `tone-ancient.webp`
-- **澧渊前线和议**: [Chanyuan Treaty](https://en.wikipedia.org/wiki/Chanyuan_Treaty) - [image](https://upload.wikimedia.org/wikipedia/commons/1/1e/Liao_and_Song_Dynasties.png)
-- **金军二围汴京**: local fallback - `tone-ancient.webp`
-- **郾城大捷后的十二道金牌**: [Yue Fei](https://en.wikipedia.org/wiki/Yue_Fei) - [image](https://upload.wikimedia.org/wikipedia/commons/7/70/%E6%98%8E%E4%BA%BA%E3%80%8A%E5%B2%B3%E9%A3%9E%E5%83%8F%E3%80%8B%E8%BD%B4.jpg)
-- **蒙哥汗死于钓鱼城下**: local fallback - `tone-ancient.webp`
-- **崖山海战最后一日**: [Battle of Yamen](https://en.wikipedia.org/wiki/Battle_of_Yamen) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Jingmen002.jpg/1280px-Jingmen002.jpg)
-- **鄱阳湖火攻陈友谅巨舰**: local fallback - `tone-ancient.webp`
-- **郑和宝船从刘家港启航**: local fallback - `tone-ancient.webp`
-- **土木堡之变后的北京守卫会议**: [Tumu Crisis](https://en.wikipedia.org/wiki/Tumu_Crisis) - [image](https://upload.wikimedia.org/wikipedia/commons/f/f1/Tumu_Crisis.jpg)
-- **山海关前的借兵决定**: [Battle of Shanhai Pass](https://en.wikipedia.org/wiki/Battle_of_Shanhai_Pass) - [image](https://upload.wikimedia.org/wikipedia/commons/9/9f/Battle_of_Shanhai_Pass.png)
-- **郑成功横渡台湾海峡**: [Siege of Fort Zeelandia](https://en.wikipedia.org/wiki/Siege_of_Fort_Zeelandia) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Audi%C3%ABntie_bij_een_Chinese_vorst%2C_RP-P-1878-A-483.jpg/1280px-Audi%C3%ABntie_bij_een_Chinese_vorst%2C_RP-P-1878-A-483.jpg)
-- **马嘎尔尼使团觐见乾隆**: [Macartney Embassy](https://en.wikipedia.org/wiki/Macartney_Embassy) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/LordMacartneyEmbassyToChina1793.jpg/1280px-LordMacartneyEmbassyToChina1793.jpg)
-- **虎门销烟前的外交通牒**: [Destruction of opium at Humen](https://en.wikipedia.org/wiki/Destruction_of_opium_at_Humen) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Model_of_Lin_Zexu_Destroying_Opium_at_Canton%2C_1839_%2842781660312%29.jpg/1280px-Model_of_Lin_Zexu_Destroying_Opium_at_Canton%2C_1839_%2842781660312%29.jpg)
-- **条顿堡森林伏击**: [Battle of the Teutoburg Forest](https://en.wikipedia.org/wiki/Battle_of_the_Teutoburg_Forest) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Epitaph_des_Marcus_Caelius.JPG/1280px-Epitaph_des_Marcus_Caelius.JPG)
-- **罗马大火开始蔓延**: [Great Fire of Rome](https://en.wikipedia.org/wiki/Great_Fire_of_Rome) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Robert%2C_Hubert_-_Incendie_%C3%A0_Rome_-.jpg/1280px-Robert%2C_Hubert_-_Incendie_%C3%A0_Rome_-.jpg)
-- **米兰敕令谈判**: [Edict of Milan](https://en.wikipedia.org/wiki/Edict_of_Milan) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Constantine_Chiaramonti_Inv1749.jpg/1280px-Constantine_Chiaramonti_Inv1749.jpg)
-- **西罗马最后一位皇帝退位**: local fallback - `tone-ancient.webp`
-- **普瓦提埃会战前夜**: [Battle of Tours](https://en.wikipedia.org/wiki/Battle_of_Tours) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Steuben_-_Bataille_de_Poitiers.png/1280px-Steuben_-_Bataille_de_Poitiers.png)
-- **查理曼在罗马加冕**: [Charlemagne](https://en.wikipedia.org/wiki/Charlemagne) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Charlemagne_denier_Mayence_812_814.jpg/1280px-Charlemagne_denier_Mayence_812_814.jpg)
-- **黑斯廷斯战场上的假退却**: [Battle of Hastings](https://en.wikipedia.org/wiki/Battle_of_Hastings) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Bayeux_Tapestry_scene57_Harold_death.jpg/1280px-Bayeux_Tapestry_scene57_Harold_death.jpg)
-- **克莱蒙宗教会议的十字军号召**: [Council of Clermont](https://en.wikipedia.org/wiki/Council_of_Clermont) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Passages_d%27outremer_Fr5594%2C_fol._19r%2C_Concile_de_Clermont.jpg/1280px-Passages_d%27outremer_Fr5594%2C_fol._19r%2C_Concile_de_Clermont.jpg)
-- **第四次十字军攻君士坦丁堡**: [Sack of Constantinople](https://en.wikipedia.org/wiki/Sack_of_Constantinople) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Frammenti_di_mosaico_pavimentale_del_1213%2C_09.JPG/1280px-Frammenti_di_mosaico_pavimentale_del_1213%2C_09.JPG)
-- **兰尼米德大宪章盖印**: [Magna Carta](https://en.wikipedia.org/wiki/Magna_Carta) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg/1280px-Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg)
-- **蒙古第一次东征博多湾**: [Mongol invasions of Japan](https://en.wikipedia.org/wiki/Mongol_invasions_of_Japan) - [image](https://upload.wikimedia.org/wikipedia/commons/a/a1/Mongol_invasions_of_Japan_1274%2C_1281.jpg)
-- **君士坦丁堡陷落前夜**: [Fall of Constantinople](https://en.wikipedia.org/wiki/Fall_of_Constantinople) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Siege_of_Constantinople_fresco%2C_Moldovi%C8%9Ba_monastery%2C_Vatra_Moldovi%C8%9Bei%2C_2017.jpg/1280px-Siege_of_Constantinople_fresco%2C_Moldovi%C8%9Ba_monastery%2C_Vatra_Moldovi%C8%9Bei%2C_2017.jpg)
-- **哥伦布船队看见陆地火光**: [Christopher Columbus](https://en.wikipedia.org/wiki/Christopher_Columbus) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Portrait_of_a_Man%2C_Said_to_be_Christopher_Columbus.jpg/1280px-Portrait_of_a_Man%2C_Said_to_be_Christopher_Columbus.jpg)
-- **路德公开九十五条论纲**: [Ninety-five Theses](https://en.wikipedia.org/wiki/Ninety-five_Theses) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Luther_95_Thesen.png/1280px-Luther_95_Thesen.png)
-- **特诺奇蒂特兰最后的突围会议**: [Fall of Tenochtitlan](https://en.wikipedia.org/wiki/Fall_of_Tenochtitlan) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Conquista-de-M%C3%A9xico-por-Cort%C3%A9s-Tenochtitlan-Painting.png/1280px-Conquista-de-M%C3%A9xico-por-Cort%C3%A9s-Tenochtitlan-Painting.png)
-- **格拉夫林海战前的火船**: [Spanish Armada](https://en.wikipedia.org/wiki/Spanish_Armada) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Armadaroute.jpg/1280px-Armadaroute.jpg)
-- **关原合战小早川秀秋按兵不动**: [Battle of Sekigahara](https://en.wikipedia.org/wiki/Battle_of_Sekigahara) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Sekigaharascreen.jpg/1280px-Sekigaharascreen.jpg)
-- **《星空使者》印刷前夜**: [Sidereus Nuncius](https://en.wikipedia.org/wiki/Sidereus_Nuncius) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Houghton_IC6.G1333.610sa_-_Sidereus_nuncius.jpg/1280px-Houghton_IC6.G1333.610sa_-_Sidereus_nuncius.jpg)
-- **维也纳解围决战**: [Battle of Vienna](https://en.wikipedia.org/wiki/Battle_of_Vienna) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Anonym_Entsatz_Wien_1683.jpg/1280px-Anonym_Entsatz_Wien_1683.jpg)
-- **波士顿倾茶之夜**: [Boston Tea Party](https://en.wikipedia.org/wiki/Boston_Tea_Party) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Boston_Tea_Party_w.jpg/1280px-Boston_Tea_Party_w.jpg)
-- **大陆会议表决独立**: [United States Declaration of Independence](https://en.wikipedia.org/wiki/United_States_Declaration_of_Independence) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/United_States_Declaration_of_Independence.jpg/1280px-United_States_Declaration_of_Independence.jpg)
-- **巴士底狱攻占前的火药争夺**: [Storming of the Bastille](https://en.wikipedia.org/wiki/Storming_of_the_Bastille) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Anonymous_-_Prise_de_la_Bastille.jpg/1280px-Anonymous_-_Prise_de_la_Bastille.jpg)
-- **特拉法加海战的两路穿插**: [Battle of Trafalgar](https://en.wikipedia.org/wiki/Battle_of_Trafalgar) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/The_Battle_of_Trafalgar_by_William_Clarkson_Stanfield.jpg/1280px-The_Battle_of_Trafalgar_by_William_Clarkson_Stanfield.jpg)
-- **滑铁卢黄昏前的近卫军**: [Battle of Waterloo](https://en.wikipedia.org/wiki/Battle_of_Waterloo) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Battle_of_Waterloo_1815.PNG/1280px-Battle_of_Waterloo_1815.PNG)
-- **《物种起源》首印发行**: [On the Origin of Species](https://en.wikipedia.org/wiki/On_the_Origin_of_Species) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Origin_of_Species_title_page.jpg/1280px-Origin_of_Species_title_page.jpg)
-- **葛底斯堡小圆顶高地**: [Battle of Gettysburg](https://en.wikipedia.org/wiki/Battle_of_Gettysburg) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Thure_de_Thulstrup_-_L._Prang_and_Co._-_Battle_of_Gettysburg_-_Restoration_by_Adam_Cuerden_%28cropped%29.jpg/1280px-Thure_de_Thulstrup_-_L._Prang_and_Co._-_Battle_of_Gettysburg_-_Restoration_by_Adam_Cuerden_%28cropped%29.jpg)
-- **王政复古大号令**: [Meiji Restoration](https://en.wikipedia.org/wiki/Meiji_Restoration) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Emperor_Meiji_by_Takahashi_Yuichi.jpg/1280px-Emperor_Meiji_by_Takahashi_Yuichi.jpg)
-- **萨拉热窝刺杀**: [Assassination of Archduke Franz Ferdinand](https://en.wikipedia.org/wiki/Assassination_of_Archduke_Franz_Ferdinand) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/DC-1914-27-d-Sarajevo-cropped.jpg/1280px-DC-1914-27-d-Sarajevo-cropped.jpg)
-- **华尔街黑色星期四**: [Wall Street crash of 1929](https://en.wikipedia.org/wiki/Wall_Street_crash_of_1929) - [image](https://upload.wikimedia.org/wikipedia/commons/e/e1/Crowd_outside_nyse.jpg)
-- **敦刻尔克发电召集民船**: [Dunkirk evacuation](https://en.wikipedia.org/wiki/Dunkirk_evacuation) - [image](https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Dunkirk_26-29_May_1940_NYP68075.jpg/1280px-Dunkirk_26-29_May_1940_NYP68075.jpg)
-- **古巴导弹危机黑色星期六**: [Cuban Missile Crisis](https://en.wikipedia.org/wiki/Cuban_Missile_Crisis) - [image](https://upload.wikimedia.org/wikipedia/commons/8/8a/PGM-19A_Jupiter_missile-02.jpg)
-- **柏林墙边检站第一次开闸**: [Fall of the Berlin Wall](https://en.wikipedia.org/wiki/Fall_of_the_Berlin_Wall) - [image](https://upload.wikimedia.org/wikipedia/commons/1/1c/West_and_East_Germans_at_the_Brandenburg_Gate_in_1989.jpg)
+- **董卓焚洛阳：吕布的生死**: cached local image - `dong-zhuo-lu-bu-190.webp`
+- **官渡决胜：曹操夜袭乌巢**: cached local image - `guandu-wuchao-200.webp`
+- **赤壁火攻前夜**: cached local image - `red-cliffs-208.webp`
+- **夷陵之战：刘备连营七百里**: cached local image - `yiling-222.webp`
+- **马谡失街亭前夜**: cached local image - `jieting-228.webp`
+- **高平陵之变：曹爽是否投降**: cached local image - `gaoping-tombs-249.webp`
+- **淝水之战临河退阵**: cached local image - `feishui-383.webp`
+- **隋军渡江灭陈**: cached local image - `sui-unification-589.webp`
+- **玄武门之变**: cached local image - `xuanwu-gate-626.webp`
+- **武则天称帝前的最后一道诏书**: cached local image - `wu-zetian-690.webp`
+- **安禄山叛军逼近潼关**: cached local image - `an-lushan-755.webp`
+- **马嵬驿兵变：玄宗的选择**: cached local image - `mawei-756.webp`
+- **陈桥兵变黄袍加身**: cached local image - `chen-bridge-960.webp`
+- **澶渊前线和议**: cached local image - `chanyuan-1004.webp`
+- **王安石变法：青苗法出京**: cached local image - `wang-anshi-1069.webp`
+- **金军二围汴京**: cached local image - `jingkang-1127.webp`
+- **郾城大捷后的十二道金牌**: cached local image - `yue-fei-1140.webp`
+- **蒙哥汗死于钓鱼城下**: cached local image - `diaoyu-1259.webp`
+- **襄阳城破前的最后补给船**: cached local image - `xiangyang-1273.webp`
+- **崖山海战最后一日**: cached local image - `yamen-1279.webp`
+- **鄱阳湖火攻陈友谅巨舰**: cached local image - `poyang-1363.webp`
+- **朱棣入南京：建文帝失踪**: cached local image - `jingnan-nanjing-1402.webp`
+- **郑和宝船从刘家港启航**: cached local image - `zheng-he-1405.webp`
+- **土木堡之变后的北京守卫会议**: cached local image - `tumu-crisis-1449.webp`
+- **袁崇焕宁远炮击努尔哈赤**: cached local image - `ningyuan-1626.webp`
+- **山海关前的借兵决定**: cached local image - `shanhai-pass-1644.webp`
+- **郑成功横渡台湾海峡**: cached local image - `koxinga-1661.webp`
+- **少年康熙擒鳌拜**: cached local image - `kangxi-aobai-1669.webp`
+- **马嘎尔尼使团觐见乾隆**: cached local image - `macartney-1793.webp`
+- **虎门销烟前的外交通牒**: cached local image - `humen-1839.webp`
+- **罗马大火开始蔓延**: cached local image - `great-fire-rome-64.webp`
+- **西罗马最后一位皇帝退位**: cached local image - `fall-rome-476.webp`
+- **君士坦丁堡陷落前夜**: cached local image - `constantinople-1453.webp`
+- **哥伦布船队看见陆地火光**: cached local image - `columbus-1492.webp`
+- **路德公开九十五条论纲**: cached local image - `luther-1517.webp`
+- **《星空使者》印刷前夜**: cached local image - `galileo-1610.webp`
+- **牛顿《自然哲学的数学原理》出版**: cached local image - `newton-principia-1687.webp`
+- **巴士底狱攻占前的火药争夺**: cached local image - `bastille-1789.webp`
+- **滑铁卢黄昏前的近卫军**: cached local image - `waterloo-1815.webp`
+- **《物种起源》首印发行**: cached local image - `origin-species-1859.webp`
+- **林肯公布《解放宣言》前夜**: cached local image - `lincoln-emancipation-1862.webp`
+- **萨拉热窝刺杀**: cached local image - `sarajevo-1914.webp`
+- **列宁发动十月革命**: cached local image - `october-revolution-1917.webp`
+- **罗斯福关闭全美银行**: cached local image - `roosevelt-bank-holiday-1933.webp`
+- **希特勒下令入侵波兰**: cached local image - `hitler-poland-1939.webp`
+- **斯大林决定留守莫斯科**: cached local image - `stalin-moscow-1941.webp`
+- **艾森豪威尔决定诺曼底登陆**: cached local image - `normandy-1944.webp`
+- **古巴导弹危机黑色星期六**: cached local image - `cuban-missile-1962.webp`
+- **阿波罗11号登月前的1202警报**: cached local image - `apollo-11-1969.webp`
+- **柏林墙边检站第一次开闸**: cached local image - `berlin-wall-1989.webp`

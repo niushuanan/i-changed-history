@@ -5,7 +5,7 @@ import { HistoryCard } from "../components/HistoryCard";
 import { browseHistorySeeds } from "../data/historySeeds";
 import { getTravelerAbility } from "../game/profile";
 
-const CARD_STEP = 344;
+const CARD_STEP = 312;
 
 function moveScroller(element: HTMLElement, left: number) {
   if (typeof element.scrollTo === "function") {
@@ -73,7 +73,11 @@ export function SeedPickerScreen({
 
       <section className="history-time" aria-label="历史时间轴">
         <div className="history-time__readout">
-          <span>公元</span><strong>{cards[activeIndex].year}</strong><small>{activeIndex + 1} / {cards.length}</small>
+          <span>公元</span><strong>{cards[activeIndex].year}</strong>
+          <div className="history-time__meta">
+            <span className="history-time__hint">（滑动可切换不同的历史瞬间）</span>
+            <small>{activeIndex + 1} / {cards.length}</small>
+          </div>
         </div>
         <nav className="history-time__track" ref={timelineRef} aria-label="五十个历史年份">
           <div className="history-time__line" aria-hidden="true" />
