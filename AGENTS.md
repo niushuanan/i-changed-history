@@ -29,6 +29,7 @@ When implementing from a selected generated mock, treat that image as the source
 - A refresh or development-server reconnect during generation must resume the saved AI request automatically; structural model drift must fall back locally and must not strand the player on an interruption screen.
 - DeepSeek turn and ending requests use an 8192-token output ceiling so transport truncation cannot strand normal JSON; concise output is controlled by the prompt and schema, not a small token cap.
 - Loading-room motion includes archival drift, causal-thread tracing, pulse nodes, exposure passes, and status cycling, with a `prefers-reduced-motion` static fallback.
+- Loading progress is monotonic and honest: the first two preparation stages complete once, the final writing stage remains visibly active until the model returns, and neither the steps nor the track may loop back or pretend to reach 100%. Use `新历史正在成形` rather than `因果推演` as the player-facing frame.
 - The event header must visibly distinguish `DeepSeek 实时生成` from `本地保底续写`; model provenance is part of the player's trust contract.
 - The traveler's profile grants one named lifetime ability. Once per node it can reveal the beneficiary and hidden cost of the single profile-tailored action before the player chooses.
 - All fifty moments live in the same chronological horizontal carousel. Do not reintroduce recommendations, expansion states, a modal, or a separate archive layout.

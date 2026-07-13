@@ -649,9 +649,11 @@
 .developing-copy > span { color: var(--red-dark); font-size: 10px; font-weight: 900; }
 .developing-copy h1 { margin: 5px 0 8px; font-family: var(--serif); font-size: 35px; line-height: 1.1; }
 .developing-copy p { max-width: 310px; margin: 0; color: #4f504d; font-family: var(--serif); font-size: 14px; line-height: 1.55; }
-.developing-line { width: 100%; height: 3px; margin: 30px 0 16px; overflow: hidden; background: rgba(24, 23, 22, .18); }
-.developing-line i { display: block; width: 42%; height: 100%; background: var(--red); animation: develop-scan 1.45s steps(7) infinite; }
-@keyframes develop-scan { 0% { transform: translateX(-105%); } 100% { transform: translateX(345%); } }
+.developing-line { width: 100%; height: 3px; margin: 30px 0 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.developing-line i { display: block; height: 100%; background: rgba(24, 23, 22, .18); transition: background-color .35s ease, opacity .35s ease; }
+.developing-line i.is-complete { background: var(--teal); }
+.developing-line i.is-active { background: var(--red); animation: developing-track-breathe 1.4s ease-in-out infinite alternate; }
+@keyframes developing-track-breathe { from { opacity: .48; } to { opacity: 1; } }
 .developing-steps { width: 100%; margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(24,23,22,.24); }
 .developing-steps li { height: 45px; display: grid; grid-template-columns: 20px 1fr; align-items: center; gap: 7px; border-bottom: 1px solid rgba(24,23,22,.18); color: #74746f; font-size: 12px; }
 .developing-steps li svg { color: #8c8d88; }

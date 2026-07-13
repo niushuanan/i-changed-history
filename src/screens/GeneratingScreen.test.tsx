@@ -1,13 +1,18 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeneratingScreen } from "./GeneratingScreen";
 
 describe("history developing room", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
   it("uses the opening archive art for early nodes", () => {
     render(<GeneratingScreen chapter={1} ending={false} onCancel={vi.fn()} />);
-    expect(screen.getByRole("img", { name: "历史现场正在显影" })).toHaveAttribute("src", "/assets/generating-opening.webp");
-    expect(screen.getByRole("heading", { name: "历史显影室" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "新的历史现场正在形成" })).toHaveAttribute("src", "/assets/generating-opening.webp");
+    expect(screen.getByRole("heading", { name: "历史正在发生" })).toBeVisible();
+    expect(screen.getByText("第 1 节点 · 新历史正在成形")).toBeVisible();
+    expect(screen.queryByText(/因果推演/)).not.toBeInTheDocument();
   });
 
   it("uses the single-life continuation art after the immediate aftermath", () => {
@@ -26,10 +31,27 @@ describe("history developing room", () => {
 
   it("shows that a player-declared result is being written into canon", () => {
     render(<GeneratingScreen chapter={2} ending={false} customAction onCancel={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "写入新正史" })).toBeVisible();
-    expect(screen.getByText("锁定玩家钦定结果")).toBeVisible();
-    expect(screen.getByText("寻找因果传播媒介")).toBeVisible();
-    expect(screen.getByText("计算受益者与隐藏代价")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "你的决定正在生效" })).toBeVisible();
+    expect(screen.getByText("你的结果已成为事实")).toBeVisible();
+    expect(screen.getByText("追踪改变如何扩散")).toBeVisible();
+    expect(screen.getByText("写出世界的下一次回应")).toBeVisible();
     expect(screen.queryByText("核对现场可用资源")).not.toBeInTheDocument();
+  });
+
+  it("advances once and never resets completed stages while the model is still working", () => {
+    vi.useFakeTimers();
+    render(<GeneratingScreen chapter={2} ending={false} onCancel={vi.fn()} />);
+
+    act(() => vi.advanceTimersByTime(3_000));
+    const stages = screen.getAllByRole("listitem");
+    expect(stages[0]).toHaveClass("is-complete");
+    expect(stages[1]).toHaveClass("is-complete");
+    expect(stages[2]).toHaveClass("is-active");
+
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(stages[0]).toHaveClass("is-complete");
+    expect(stages[1]).toHaveClass("is-complete");
+    expect(stages[2]).toHaveClass("is-active");
+    expect(screen.getAllByTestId("developing-track-segment")[2]).toHaveClass("is-active");
   });
 });
