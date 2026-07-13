@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
-import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
+import { buildBiographyMessages, buildContinuationMessages, buildCustomActionMessages, buildOpeningMessages, buildWorldReportMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
 
 const scenario: GameScenario = {
@@ -24,17 +24,39 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain("timePressure");
   });
 
-  it("serializes only generated choices in continuation and ending", () => {
+  it("serializes one compact narrative context instead of duplicated histories", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
-    const ending = buildEndingMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
-    expect(continuation).not.toContain("customIntervention");
-    expect(ending).not.toContain("customIntervention");
+    const biography = buildBiographyMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
+    const worldReport = buildWorldReportMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
+    expect(continuation).toContain('"narrativeContext"');
+    expect(continuation).toContain('"lifeIndex"');
+    expect(continuation).toContain('"activeConsequences"');
+    expect(continuation).toContain('"playerCanon"');
+    expect(continuation).not.toContain('"playedHistory"');
+    expect(continuation).not.toContain('"authoritativeWorldCanon"');
+    expect(biography).not.toContain("customIntervention");
+    expect(worldReport).not.toContain("customIntervention");
     expect(continuation).toContain(turnFixture.choices[0].label);
     expect(continuation).toContain("盛年危局");
     expect(continuation).toContain("1927");
-    expect(ending).toContain("十二次选择");
+    expect(biography).toContain("十二次选择");
+    expect(worldReport).toContain("2026");
+  });
+
+  it("gives the two concurrent ending writers disjoint output ownership", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = Array(12).fill({ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho });
+    const biography = buildBiographyMessages(scenario, played).at(-1)!.content;
+    const worldReport = buildWorldReportMessages(scenario, played).at(-1)!.content;
+
+    expect(biography).toContain("vernacularBiography");
+    expect(biography).toContain("historyTimeline");
+    expect(biography).not.toContain("ordinaryLife2026");
+    expect(worldReport).toContain("ordinaryLife2026");
+    expect(worldReport).toContain("posthumousChronicle");
+    expect(worldReport).not.toContain("vernacularBiography");
   });
 
   it("forces one aging protagonist through butterfly-effect topic changes", () => {
@@ -50,7 +72,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("identityBridge");
     expect(continuation).toContain("modernAdvantage");
     expect(continuation).toContain("usesModernKnowledge");
-    expect(continuation).toContain("完整 JSON 可到 1800 个汉字");
+    expect(continuation).toContain("完整 JSON 控制在 1200 个汉字左右");
     expect(continuation).not.toContain("authoritativePivotalBrief");
     expect(continuation).toContain("historicalAnchors");
     expect(continuation).toContain("actionSpec");
@@ -100,9 +122,11 @@ describe("modern traveler AI prompt contract", () => {
 
   it("keeps generated display copy concise without lowering transport headroom", () => {
     const body = buildOpeningMessages(scenario).at(-1)!.content;
-    expect(body).toContain("完整 JSON 可到 1800 个汉字");
-    expect(body).toContain("60 个汉字以内");
+    expect(body).toContain("完整 JSON 控制在 1200 个汉字左右");
+    expect(body).toContain("56 个汉字以内");
     expect(body).toContain("每个 label 22 字以内");
+    expect(body).toContain("clientOwnedFields");
+    expect(body).toContain("禁止输出");
   });
 
   it("makes a player-declared result canon instead of judging whether it succeeds", () => {

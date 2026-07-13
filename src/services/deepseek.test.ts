@@ -45,21 +45,20 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it("regenerates once after an invalid repair", async () => {
+  it("stops after one compact repair instead of regenerating the whole page a third time", async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(completion('{"bad":1}'))
-      .mockResolvedValueOnce(completion('{"still":"bad"}'))
-      .mockResolvedValueOnce(completion(JSON.stringify(turnFixture)));
+      .mockResolvedValueOnce(completion('{"still":"bad"}'));
     vi.stubGlobal("fetch", fetcher);
-    await expect(generateOpening(scenario)).resolves.toMatchObject({ chapter: 1, headline: turnFixture.headline });
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("surfaces a retryable structure error instead of inventing a generic local turn", async () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
     vi.stubGlobal("fetch", fetcher);
     await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("surfaces an empty model response instead of replacing history with a template", async () => {
@@ -134,7 +133,7 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
 
     await expect(generateNextTurn(scenario, [customPlayed], 2)).rejects.toBeInstanceOf(StructuredGenerationError);
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("returns a player-canon result without feasibility adjudication", async () => {
@@ -196,9 +195,50 @@ describe("DeepSeek transport and structured generation", () => {
 
   it("keeps all twelve player choices authoritative in the ending", async () => {
     const wrong = { ...endingFixture, historyTimeline: endingFixture.historyTimeline.map((item) => ({ ...item, playerChoice: "错误选择" })) };
-    const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(wrong))); vi.stubGlobal("fetch", fetcher);
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(wrong)))); vi.stubGlobal("fetch", fetcher);
     const ending = await generateEnding(scenario, endingPlayedTurns);
     expect(ending.historyTimeline.map((item) => item.playerChoice)).toEqual(endingPlayedTurns.map((item) => item.selectedChoiceLabel));
+  });
+
+  it("starts the biography and 2026 report requests concurrently before merging them", async () => {
+    const biography = {
+      vernacularBiography: endingFixture.vernacularBiography,
+      classicalBiography: endingFixture.classicalBiography,
+      protagonistName: endingFixture.protagonistName,
+      lifespanSummary: endingFixture.lifespanSummary,
+      deathScene: endingFixture.deathScene,
+      historyTimeline: endingFixture.historyTimeline,
+    };
+    const worldReport = {
+      worldName: endingFixture.worldName,
+      frontPageHeadline: endingFixture.frontPageHeadline,
+      causalChains: endingFixture.causalChains,
+      ordinaryLife2026: endingFixture.ordinaryLife2026,
+      posthumousChronicle: endingFixture.posthumousChronicle,
+      closingPassage: endingFixture.closingPassage,
+      greatestGain: endingFixture.greatestGain,
+      hiddenPrice: endingFixture.hiddenPrice,
+      strangestDetail: endingFixture.strangestDetail,
+      biggestBeneficiary: endingFixture.biggestBeneficiary,
+      biggestLoser: endingFixture.biggestLoser,
+      rewriteLevel: endingFixture.rewriteLevel,
+      plausibilityScore: endingFixture.plausibilityScore,
+      plausibilityReason: endingFixture.plausibilityReason,
+      shareLine: endingFixture.shareLine,
+    };
+    const resolvers: Array<(response: Response) => void> = [];
+    const fetcher = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => resolvers.push(resolve)));
+    vi.stubGlobal("fetch", fetcher);
+
+    const pending = generateEnding(scenario, endingPlayedTurns);
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    resolvers[0]?.(completion(JSON.stringify(biography)));
+    resolvers[1]?.(completion(JSON.stringify(worldReport)));
+
+    await expect(pending).resolves.toMatchObject({
+      protagonistName: endingFixture.protagonistName,
+      worldName: endingFixture.worldName,
+    });
   });
 
   it("rejects an ending consequence that negates player-authored canon", async () => {

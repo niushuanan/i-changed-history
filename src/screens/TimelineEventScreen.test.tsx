@@ -81,4 +81,31 @@ describe("clear change event screen", () => {
     />);
     expect(screen.getByRole("button", { name: /改写机会已用完/ })).toBeDisabled();
   });
+
+  it("switches to dense layout when a continuation contains the maximum useful copy", () => {
+    const denseTurn = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "三日余波",
+      lifeStage: "三日后",
+      previousEcho: turnFixture.choices[0].instantEcho,
+      narrative: "史".repeat(56),
+      causalBridge: "因".repeat(44),
+      turningPointStakes: "势".repeat(44),
+      worldStateChange: "变".repeat(44),
+      divergenceProof: "证".repeat(56),
+    }));
+    const { container } = render(<TimelineEventScreen
+      turn={denseTurn}
+      deviation={36}
+      lastChoiceLabel={"玩家上一项不可撤销的重大决定".repeat(2)}
+      {...abilityProps}
+      customActionsRemaining={3}
+      onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
+  });
 });

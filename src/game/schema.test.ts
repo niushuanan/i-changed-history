@@ -74,6 +74,41 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw).generationSource).toBe("deepseek");
   });
 
+  it("injects omitted client-owned turn fields without asking the model to repeat them", () => {
+    const { chapter: _chapter, chapterName: _chapterName, protagonistAge: _age,
+      lifeStage: _lifeStage, yearLabel: _yearLabel, previousEcho: _previousEcho,
+      metrics: _metrics, metricDeltas: _metricDeltas, callbackUsed: _callbackUsed,
+      ...modelOwned } = turnFixture;
+    const parsed = parseTimelineTurn(JSON.stringify(modelOwned), {
+      expectedChapter: 1,
+      expectedYearLabel: "208 年冬 · 24岁",
+      expectedProtagonistAge: 24,
+      expectedLifeStage: "命运当日",
+    });
+
+    expect(parsed).toMatchObject({
+      chapter: 1,
+      chapterName: "历史现场",
+      protagonistAge: 24,
+      yearLabel: "208 年冬 · 24岁",
+      previousEcho: null,
+      callbackUsed: null,
+      metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
+    });
+  });
+
+  it("locally completes omitted display headings instead of forcing a full AI retry", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      headline: undefined,
+      narrative: undefined,
+    }));
+
+    expect(parsed.headline).toBe(turnFixture.immediateObjective.slice(0, 22));
+    expect(parsed.narrative).toContain(turnFixture.location);
+    expect(parsed.narrative.length).toBeLessThanOrEqual(56);
+  });
+
   it("keeps the decisive turning point and visible divergence proof", () => {
     const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
 
@@ -94,9 +129,9 @@ describe("structured timeline parsing", () => {
       divergenceProof: "史".repeat(90),
     }));
 
-    expect(parsed.turningPointStakes).toHaveLength(54);
-    expect(parsed.worldStateChange).toHaveLength(72);
-    expect(parsed.divergenceProof).toHaveLength(72);
+    expect(parsed.turningPointStakes.length).toBeLessThanOrEqual(44);
+    expect(parsed.worldStateChange.length).toBeLessThanOrEqual(44);
+    expect(parsed.divergenceProof.length).toBeLessThanOrEqual(56);
   });
 
   it("trims an overlong causal bridge instead of discarding a strong generated scene", () => {
@@ -105,7 +140,7 @@ describe("structured timeline parsing", () => {
       causalBridge: "因".repeat(70),
     }));
 
-    expect(parsed.causalBridge).toHaveLength(54);
+    expect(parsed.causalBridge.length).toBeLessThanOrEqual(44);
   });
 
   it("trims overlong relay metadata and history anchors without discarding the scene", () => {
@@ -134,7 +169,7 @@ describe("structured timeline parsing", () => {
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
     const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(111) });
-    expect(parseTimelineTurn(raw).narrative).toHaveLength(72);
+    expect(parseTimelineTurn(raw).narrative).toHaveLength(56);
   });
 
   it("ends a trimmed narrative at a complete sentence when possible", () => {
@@ -156,12 +191,12 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw)).not.toHaveProperty("modelComment");
   });
 
-  it("rejects choices that are not exactly A, B, and C", () => {
+  it("restores choices to the authoritative A, B, and C positions", () => {
     const raw = JSON.stringify({
       ...turnFixture,
       choices: [turnFixture.choices[0], turnFixture.choices[1], turnFixture.choices[1]],
     });
-    expect(() => parseTimelineTurn(raw)).toThrow();
+    expect(parseTimelineTurn(raw).choices.map((choice) => choice.id)).toEqual(["A", "B", "C"]);
   });
 
   it("requires one nudge, one reform, and one rupture with complete instant echoes", () => {
@@ -176,7 +211,8 @@ describe("structured timeline parsing", () => {
         turnFixture.choices[2],
       ],
     });
-    expect(() => parseTimelineTurn(duplicateClass)).toThrow();
+    expect(parseTimelineTurn(duplicateClass).choices.map((choice) => choice.deviationClass))
+      .toEqual(["nudge", "reform", "rupture"]);
 
     const incompleteEcho = JSON.stringify({
       ...turnFixture,
@@ -202,7 +238,37 @@ describe("structured timeline parsing", () => {
       ...turnFixture,
       choices: turnFixture.choices.map((choice) => ({ ...choice, usesModernKnowledge: true })),
     };
-    expect(() => parseTimelineTurn(JSON.stringify(duplicate))).toThrow();
+    const normalized = parseTimelineTurn(JSON.stringify(duplicate));
+    expect(normalized.choices.filter((choice) => choice.usesModernKnowledge)).toHaveLength(1);
+    expect(normalized.choices[0].usesModernKnowledge).toBe(true);
+  });
+
+  it("normalizes positional choice authority and trims nested action copy", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice) => ({
+        ...choice,
+        id: "C",
+        deviationClass: "rupture",
+        label: "行".repeat(40),
+        intent: "因".repeat(50),
+        actionSpec: {
+          actor: "人".repeat(30),
+          action: "做".repeat(40),
+          target: "物".repeat(40),
+          deadline: "时".repeat(30),
+        },
+      })),
+    }));
+
+    expect(parsed.choices.map((choice) => [choice.id, choice.deviationClass])).toEqual([
+      ["A", "nudge"], ["B", "reform"], ["C", "rupture"],
+    ]);
+    expect(parsed.choices[0].label.length).toBeLessThanOrEqual(22);
+    expect(parsed.choices[0].intent.length).toBeLessThanOrEqual(24);
+    expect(parsed.choices[0].actionSpec).toMatchObject({
+      actor: "人".repeat(20), action: "做".repeat(28), target: "物".repeat(28), deadline: "时".repeat(20),
+    });
   });
 
   it("requires a null first-turn echo and accepts all twelve decision chapters", () => {
@@ -266,13 +332,13 @@ describe("structured timeline parsing", () => {
       .toEqual(turnFixture.choices.map((choice) => choice.intent));
   });
 
-  it("rejects copy that cannot fit the fixed iPhone event regions", () => {
-    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, headline: "过".repeat(23) })))
-      .toThrow();
-    expect(() => parseTimelineTurn(JSON.stringify({
+  it("trims copy to the fixed iPhone event budgets", () => {
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, headline: "过".repeat(23) })).headline)
+      .toHaveLength(22);
+    expect(parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: [{ ...turnFixture.choices[0], label: "选".repeat(37) }, turnFixture.choices[1], turnFixture.choices[2]],
-    }))).toThrow();
+    })).choices[0].label).toHaveLength(22);
   });
 
   it("uses the selected choice echo as the authoritative continuation callback", () => {

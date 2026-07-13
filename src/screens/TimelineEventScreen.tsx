@@ -28,6 +28,18 @@ export function TimelineEventScreen({
   const [customAction, setCustomAction] = useState("");
   const actionLength = [...customAction.trim()].length;
   const canSubmitCustom = actionLength >= 2 && actionLength <= 80 && customActionsRemaining > 0;
+  const visibleCopyLength = [
+    turn.headline,
+    turn.narrative,
+    turn.timePressure,
+    lastChoiceLabel,
+    turn.worldStateChange,
+    turn.turningPointStakes,
+    turn.causalBridge,
+    turn.divergenceProof,
+    ...turn.choices.flatMap((choice) => [choice.label, choice.intent]),
+  ].reduce((total, copy) => total + [...(copy ?? "")].length, 0);
+  const density = visibleCopyLength > 280 ? "dense" : "comfortable";
 
   useEffect(() => {
     setCustomOpen(false);
@@ -41,7 +53,7 @@ export function TimelineEventScreen({
   };
 
   return (
-    <main className="event-screen">
+    <main className="event-screen" data-density={density}>
       <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />

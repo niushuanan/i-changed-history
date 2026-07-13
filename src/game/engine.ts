@@ -2,9 +2,10 @@ import type { GameScenario } from "./reducer";
 import {
   buildContinuationMessages,
   buildCustomActionMessages,
-  buildEndingMessages,
+  buildBiographyMessages,
   buildContextualJsonRepairMessages,
   buildOpeningMessages,
+  buildWorldReportMessages,
   getPlayedTurnChoiceText,
   type ChatMessage,
   type JsonRepairDetails,
@@ -12,9 +13,12 @@ import {
 } from "./prompts";
 import {
   parseAlternatePresent,
+  parseBiographyReport,
   parseCustomActionResolution,
   parseTimelineTurn,
+  parseWorldReport,
   type AlternatePresent,
+  type BiographyReport,
   type CustomActionResolution,
   type TimelineTurn,
 } from "./schema";
@@ -26,7 +30,7 @@ import {
   endingConsequencePreservesCanon,
 } from "./worldCanon";
 
-type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
+type RepairTarget = "timeline_turn" | "biography_report" | "world_report" | "custom_action";
 type Parser<T> = (raw: string) => T;
 
 export type GenerationOptions = {
@@ -101,12 +105,7 @@ async function requestValidated<T>(
     try {
       return parse(repairedRaw);
     } catch (repairError) {
-      const regeneratedRaw = await complete(messages);
-      try {
-        return parse(regeneratedRaw);
-      } catch (error) {
-        throw new StructuredGenerationError(target, { validationError, repairError, error });
-      }
+      throw new StructuredGenerationError(target, { validationError, repairError });
     }
   }
 }
@@ -197,33 +196,33 @@ export async function adjudicateCustomAction(
   }
 }
 
-function parseExpectedEnding(
+function parseExpectedBiography(
   expectedHistoryTimeline: readonly { yearLabel: string; playerChoice: string; playerAuthored: boolean }[],
   protagonist: { name: string; deathYearLabel: string; deathAge: number },
-): Parser<AlternatePresent> {
+): Parser<BiographyReport> {
   return (raw) => {
-    const ending = parseAlternatePresent(raw, {
+    const biography = parseBiographyReport(raw, {
       expectedHistoryTimeline,
       expectedProtagonistName: protagonist.name,
       expectedDeathYearLabel: protagonist.deathYearLabel,
       expectedDeathAge: protagonist.deathAge,
     });
-    const choicesMatch = ending.historyTimeline.every(
+    const choicesMatch = biography.historyTimeline.every(
       (item, index) => item.playerChoice === expectedHistoryTimeline[index]?.playerChoice,
     );
-    if (!choicesMatch || ending.historyTimeline.length !== expectedHistoryTimeline.length) {
+    if (!choicesMatch || biography.historyTimeline.length !== expectedHistoryTimeline.length) {
       throw new Error("结局时间线没有按顺序保留玩家的十二次真实选择。");
     }
     const contradictedCanon = expectedHistoryTimeline.find((expected, index) =>
       expected.playerAuthored && !endingConsequencePreservesCanon(
         expected.playerChoice,
-        ending.historyTimeline[index]?.consequence ?? "",
+        biography.historyTimeline[index]?.consequence ?? "",
       ),
     );
     if (contradictedCanon) {
       throw new Error(`结局否定或遗漏玩家钦定正史「${contradictedCanon.playerChoice}」`);
     }
-    return ending;
+    return biography;
   };
 }
 
@@ -263,7 +262,27 @@ export async function generateEnding(
   const firstTurn = playedTurns[0]?.turn;
   const finalTurn = playedTurns.at(-1)?.turn;
   if (!firstTurn || !finalTurn || playedTurns.length !== 12) {
-    throw new StructuredGenerationError("alternate_present", new Error("结局需要完整的十二次决定"));
+    throw new StructuredGenerationError("biography_report", new Error("结局需要完整的十二次决定"));
   }
-  return requestValidated(buildEndingMessages(scenario, playedTurns), { phase: "ending", signal: options.signal }, "alternate_present", parseExpectedEnding(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }), {});
+  const biographyPromise = requestValidated(
+    buildBiographyMessages(scenario, playedTurns),
+    { phase: "ending", signal: options.signal },
+    "biography_report",
+    parseExpectedBiography(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }),
+    {},
+  );
+  const worldReportPromise = requestValidated(
+    buildWorldReportMessages(scenario, playedTurns),
+    { phase: "ending", signal: options.signal },
+    "world_report",
+    parseWorldReport,
+    {},
+  );
+  const [biography, worldReport] = await Promise.all([biographyPromise, worldReportPromise]);
+  return parseAlternatePresent(JSON.stringify({ ...biography, ...worldReport }), {
+    expectedHistoryTimeline,
+    expectedProtagonistName: firstTurn.protagonistName,
+    expectedDeathYearLabel: finalTurn.yearLabel,
+    expectedDeathAge: finalTurn.protagonistAge,
+  });
 }

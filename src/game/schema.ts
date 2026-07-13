@@ -102,14 +102,14 @@ const strictTimelineTurnSchema = z
     identityBridge: boundedString(54),
     modernAdvantage: boundedString(54),
     rippleLens: rippleLensSchema,
-    causalBridge: boundedString(54),
-    turningPointStakes: boundedString(54),
-    worldStateChange: boundedString(72),
-    divergenceProof: boundedString(72),
+    causalBridge: boundedString(44),
+    turningPointStakes: boundedString(44),
+    worldStateChange: boundedString(44),
+    divergenceProof: boundedString(56),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
-    narrative: requiredString.max(72),
+    narrative: requiredString.max(56),
     baselineAnchor: boundedString(54),
     historicalAnchors: z.array(boundedString(32)).min(2).max(4),
     previousEcho: echoSchema.nullable(),
@@ -211,9 +211,9 @@ function joinStringArray(value: unknown): unknown {
 function trimNarrative(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const characters = [...value];
-  if (characters.length <= 72) return value;
+  if (characters.length <= 56) return value;
 
-  const candidate = characters.slice(0, 72).join("");
+  const candidate = characters.slice(0, 56).join("");
   const sentenceEnd = Math.max(
     candidate.lastIndexOf("。"),
     candidate.lastIndexOf("！"),
@@ -224,6 +224,34 @@ function trimNarrative(value: unknown): unknown {
 
 function trimBounded(value: unknown, max: number): unknown {
   return typeof value === "string" ? [...value].slice(0, max).join("") : value;
+}
+
+function normalizeEcho(value: unknown): unknown {
+  const echo = asRecord(value);
+  if (!echo) return value;
+  return {
+    ...echo,
+    directResult: trimBounded(echo.directResult, 80),
+    unexpectedCost: trimBounded(echo.unexpectedCost, 32),
+    beneficiary: trimBounded(echo.beneficiary, 24),
+    payer: trimBounded(echo.payer, 24),
+  };
+}
+
+function normalizeActionSpec(value: unknown, label: unknown, intent: unknown): unknown {
+  const spec = asRecord(value) ?? {
+    actor: "你与当前同伴",
+    action: label,
+    target: intent,
+    deadline: "本幕时限结束前",
+  };
+  return {
+    ...spec,
+    actor: trimBounded(spec.actor, 20),
+    action: trimBounded(spec.action, 28),
+    target: trimBounded(spec.target, 28),
+    deadline: trimBounded(spec.deadline, 20),
+  };
 }
 
 function normalizeChoice(value: unknown, index: number): unknown {
@@ -244,17 +272,13 @@ function normalizeChoice(value: unknown, index: number): unknown {
 
   return {
     ...choice,
-    id: choice.id ?? expectedId,
-    label,
-    intent: intentWasClass ? label : intent,
-    deviationClass: choice.deviationClass ?? (intentWasClass ? choice.intent : undefined),
-    usesModernKnowledge: choice.usesModernKnowledge ?? index === 1,
-    actionSpec: choice.actionSpec ?? {
-      actor: "你与当前同伴",
-      action: trimBounded(label, 28),
-      target: trimBounded(intentWasClass ? label : intent, 28),
-      deadline: "本幕时限结束前",
-    },
+    id: expectedId,
+    label: trimBounded(label, 22),
+    intent: trimBounded(intentWasClass ? label : intent, 24),
+    deviationClass: DEVIATION_CLASSES[index],
+    usesModernKnowledge: choice.usesModernKnowledge,
+    actionSpec: normalizeActionSpec(choice.actionSpec, label, intentWasClass ? label : intent),
+    instantEcho: normalizeEcho(choice.instantEcho),
   };
 }
 
@@ -270,9 +294,18 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
       typeof tone === "string" && VISUAL_TONES.includes(tone as (typeof VISUAL_TONES)[number]),
   );
 
+  const normalizedChoices = Array.isArray(turn.choices)
+    ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
+    : turn.choices;
+  const firstModernChoice = Array.isArray(normalizedChoices)
+    ? normalizedChoices.findIndex((choice) => asRecord(choice)?.usesModernKnowledge === true)
+    : -1;
+  const authoritativeModernIndex = firstModernChoice >= 0 ? firstModernChoice : 1;
+
   return {
     ...turn,
     generationSource: "deepseek",
+    timelineName: trimBounded(turn.timelineName ?? "未命名新史", 24),
     protagonistName: turn.protagonistName ?? "无名穿越者",
     protagonistAge: turn.protagonistAge ?? 24,
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
@@ -282,26 +315,37 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
         : "你仍是同一个人，只是身份与责任已经改变"
     ), 54),
     modernAdvantage: trimBounded(turn.modernAdvantage ?? "现代知识与决策习惯仍可影响本代行动", 54),
-    narrative: trimNarrative(turn.narrative),
-    causalBridge: trimBounded(turn.causalBridge, 54),
-    turningPointStakes: trimBounded(turn.turningPointStakes, 54),
-    worldStateChange: trimBounded(turn.worldStateChange, 72),
-    divergenceProof: trimBounded(turn.divergenceProof, 72),
+    location: trimBounded(turn.location, 28),
+    role: trimBounded(turn.role, 24),
+    immediateObjective: trimBounded(turn.immediateObjective, 40),
+    timePressure: trimBounded(turn.timePressure, 36),
+    headline: trimBounded(turn.headline ?? turn.immediateObjective ?? "命运正在改写", 22),
+    narrative: trimNarrative(turn.narrative ?? `${turn.location ?? "历史现场"}，${turn.role ?? "你"}必须在${turn.timePressure ?? "窗口关闭"}前完成${turn.immediateObjective ?? "这次决定"}。`),
+    causalBridge: trimBounded(turn.causalBridge, 44),
+    turningPointStakes: trimBounded(turn.turningPointStakes, 44),
+    worldStateChange: trimBounded(turn.worldStateChange, 44),
+    divergenceProof: trimBounded(turn.divergenceProof, 56),
     baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
-    historicalAnchors: turn.historicalAnchors ?? [
-      trimBounded(turn.location ?? "当前历史地点", 32),
-      trimBounded(turn.role ?? "当前历史身份", 32),
-    ],
-    choices: Array.isArray(turn.choices)
-      ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
-      : turn.choices,
+    historicalAnchors: Array.isArray(turn.historicalAnchors)
+      ? turn.historicalAnchors.map((anchor) => trimBounded(anchor, 32))
+      : [trimBounded(turn.location ?? "当前历史地点", 32), trimBounded(turn.role ?? "当前历史身份", 32)],
+    previousEcho:
+      turn.previousEcho == null && Number(turn.chapter ?? 1) === 1
+        ? null
+        : normalizeEcho(turn.previousEcho),
+    choices: Array.isArray(normalizedChoices)
+      ? normalizedChoices.map((choice, index) => ({ ...asRecord(choice), usesModernKnowledge: index === authoritativeModernIndex }))
+      : normalizedChoices,
     memorySummary: joinStringArray(turn.memorySummary),
+    metrics: turn.metrics ?? { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
+    metricDeltas: turn.metricDeltas ?? { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
+    causalLedger: turn.causalLedger ?? [],
     callbackUsed:
       turn.callbackUsed === false
         ? null
         : turn.callbackUsed === true
           ? "已回收上一幕选择"
-          : turn.callbackUsed,
+          : turn.callbackUsed ?? null,
     visualTone: visualTone ?? turn.visualTone,
   };
 }
@@ -324,10 +368,7 @@ const causalChainSchema = z.object({
   payoff: requiredString,
 });
 
-export const alternatePresentSchema = z
-  .object({
-    worldName: requiredString,
-    frontPageHeadline: requiredString,
+const biographyFields = {
     vernacularBiography: requiredString.max(720),
     classicalBiography: requiredString.max(520),
     protagonistName: boundedString(16),
@@ -340,6 +381,11 @@ export const alternatePresentSchema = z
       lastingLegacy: requiredString.max(120),
     }),
     historyTimeline: z.array(historyTimelineItemSchema).length(12),
+} as const;
+
+const worldReportFields = {
+    worldName: requiredString,
+    frontPageHeadline: requiredString,
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
     ordinaryLife2026: z.tuple([boundedString(36), boundedString(36), boundedString(36)]),
     posthumousChronicle: z.tuple([
@@ -358,7 +404,13 @@ export const alternatePresentSchema = z
     plausibilityScore: z.number().finite().min(0).max(100),
     plausibilityReason: requiredString,
     shareLine: requiredString,
-  })
+} as const;
+
+export const biographyReportSchema = z.object(biographyFields);
+export const worldReportSchema = z.object(worldReportFields);
+
+export const alternatePresentSchema = z
+  .object({ ...biographyFields, ...worldReportFields })
   .superRefine((ending, context) => {
     ending.historyTimeline.forEach((item, index) => {
       if (item.chapter !== index + 1) {
@@ -373,6 +425,8 @@ export const alternatePresentSchema = z
 
 export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
 export type AlternatePresent = z.infer<typeof alternatePresentSchema>;
+export type BiographyReport = z.infer<typeof biographyReportSchema>;
+export type WorldReport = z.infer<typeof worldReportSchema>;
 export type DeviationClass = z.infer<typeof deviationClassSchema>;
 export type CustomActionResolution = z.infer<typeof customActionResolutionSchema>;
 export type TimelineTurnParseOptions = {
@@ -469,6 +523,47 @@ export function parseTimelineTurn(
 
 export function parseCustomActionResolution(raw: string): CustomActionResolution {
   return customActionResolutionSchema.parse(parseJsonObject(raw));
+}
+
+export function parseBiographyReport(
+  raw: string,
+  options: AlternatePresentParseOptions = {},
+): BiographyReport {
+  const parsed = parseJsonObject(raw);
+  const candidate = asRecord(parsed);
+  if (!candidate) return biographyReportSchema.parse(parsed);
+  const expected = options.expectedHistoryTimeline;
+  const deathScene = asRecord(candidate.deathScene);
+  const historyTimeline = expected && Array.isArray(candidate.historyTimeline)
+    ? candidate.historyTimeline.map((item, index) => {
+        const authoritative = expected[index];
+        if (!authoritative) return item;
+        const record = asRecord(item);
+        return {
+          ...(record ?? { consequence: typeof item === "string" ? item : "该决定继续改变后世" }),
+          chapter: index + 1,
+          yearLabel: authoritative.yearLabel,
+          playerChoice: authoritative.playerChoice,
+        };
+      })
+    : candidate.historyTimeline;
+
+  return biographyReportSchema.parse({
+    ...candidate,
+    ...(options.expectedProtagonistName ? { protagonistName: options.expectedProtagonistName } : {}),
+    ...(deathScene ? {
+      deathScene: {
+        ...deathScene,
+        ...(options.expectedDeathYearLabel ? { yearLabel: options.expectedDeathYearLabel } : {}),
+        ...(options.expectedDeathAge !== undefined ? { age: options.expectedDeathAge } : {}),
+      },
+    } : {}),
+    historyTimeline,
+  });
+}
+
+export function parseWorldReport(raw: string): WorldReport {
+  return worldReportSchema.parse(parseJsonObject(raw));
 }
 
 export function parseAlternatePresent(

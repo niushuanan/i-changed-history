@@ -1,7 +1,8 @@
 import type { GameScenario } from "./reducer";
 import type { DeviationClass, TimelineTurn } from "./schema";
-import { CHAPTER_NAMES, JUMP_LABELS, getTimelineNode, type DecisionChapter } from "./timelinePlan";
+import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { buildWorldCanon } from "./worldCanon";
+import { buildNarrativeContext } from "./narrativeContext";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -15,7 +16,7 @@ export type PlayedTurn = {
   causalMechanism?: string;
 };
 type ContinuationChapter = Exclude<DecisionChapter, 1>;
-type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
+type RepairTarget = "timeline_turn" | "biography_report" | "world_report" | "custom_action";
 export type JsonRepairDetails = { expectedChapter?: TimelineTurn["chapter"]; validationErrors?: readonly string[] };
 
 export const TIMELINE_SYSTEM_PROMPT = [
@@ -57,40 +58,34 @@ function scenarioPayload(scenario: GameScenario) {
 
 function turnContract(chapter: TimelineTurn["chapter"]) {
   return {
-    requiredFields: ["timelineName", "chapter", "chapterName", "protagonistName", "protagonistAge", "lifeStage", "yearLabel", "location", "role", "identityBridge", "modernAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "historicalAnchors", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
+    clientOwnedFields: ["chapter", "chapterName", "protagonistAge", "lifeStage", "yearLabel", "previousEcho", "metrics", "metricDeltas", "callbackUsed"],
+    requiredFields: ["timelineName", "protagonistName", "location", "role", "identityBridge", "modernAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "historicalAnchors", "choices", "memorySummary", "causalLedger", "visualTone"],
     rules: {
-      totalLength: "完整 JSON 可到 1800 个汉字，不得为了短而省略字段；玩家可见的 headline、narrative、choice.label 必须保持短句",
-      chapter,
-      chapterName: CHAPTER_NAMES[chapter],
+      totalLength: "只返回 requiredFields，完整 JSON 控制在 1200 个汉字左右；玩家可见文案必须是短句",
+      clientOwnedFields: "这些字段由客户端注入，禁止输出，避免重复与冲突",
       protagonistName: chapter === 1 ? "2-16 个汉字；给主角一个符合时代与地域的固定姓名" : "必须逐字等于 authoritativeProtagonist.name",
-      protagonistAge: "必须等于 authoritativeTimelineNode.protagonistAge",
-      lifeStage: "必须等于 authoritativeTimelineNode.lifeStage",
-      narrative: "60 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
+      narrative: "56 个汉字以内；第二人称现在时；出现至少一个真实人物和一个可见物件",
       headline: "22 个汉字以内",
       location: "28 个汉字以内",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
       identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何进入主角此后唯一的一生" : "36 字以内；说明同一主角如何从上一职位走到当前职位，禁止接棒或换人",
       modernAdvantage: "36 字以内；说明现代常识或信息差在当前身份的具体用处，不得套用人格、职业或超能力",
       rippleLens: "根据本幕真正受影响的社会载体自行选择，不得按固定轮次或模板选择",
-      causalBridge: chapter === 1 ? "54 字以内；说明玩家决定如何成为时间线源头" : "54 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
-      turningPointStakes: "54 字以内；说明本幕将不可逆地决定哪种政权、战争、制度、技术或文明秩序，以及主要受影响者",
-      worldStateChange: chapter === 1 ? "72 字以内；指出玩家一旦介入将首先改变的事实" : "72 字以内；把上一项玩家选择写成已经落地的具体世界事实，不得只复述行动",
-      divergenceProof: "72 字以内；用“真实历史如何、当前时间线如何”的可核验对照证明历史已经不同",
+      causalBridge: chapter === 1 ? "44 字以内；说明玩家决定如何成为时间线源头" : "44 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
+      turningPointStakes: "44 字以内；说明本幕将不可逆地决定的重大秩序与主要受影响者",
+      worldStateChange: chapter === 1 ? "44 字以内；指出玩家介入首先改变的事实" : "44 字以内；把上一项选择写成已经落地的世界事实",
+      divergenceProof: "56 字以内；用真实历史与当前时间线的可核验对照证明已经不同",
       immediateObjective: "28 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
       historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念",
       choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesModernKnowledge、actionSpec；actionSpec 必须含 actor、action、target、deadline，四项合起来构成历史人物此刻真的能下达或执行的动作；usesModernKnowledge 只表示是否使用现代常识，不得与性格相关",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
-      previousEcho: chapter === 1 ? "必须为 null" : "完整承接上一选择即时回响",
-      metrics: "stability、prosperity、freedom、cost，均为 0-100 数值",
-      metricDeltas: "与 metrics 相同四键的数值变化",
       causalLedger: "最多三项，只保留后续仍会生效的因果；每项含 fact、causedByChapter、mustAffect。普通 fact 与 mustAffect 控制在 28 字以内；玩家钦定章节的 fact 必须逐字复制 sourceText，可到 80 字，绝不缩写",
-      callbackUsed: "null 或字符串",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
     },
     exactShapeExample: {
-      timelineName: "示例线名", chapter, chapterName: CHAPTER_NAMES[chapter], protagonistName: "沈砚", protagonistAge: 24, lifeStage: JUMP_LABELS[chapter - 1], yearLabel: "具体年月日 · 24岁", location: "具体地点",
+      timelineName: "示例线名", protagonistName: "沈砚", location: "具体地点",
       role: "具体角色", immediateObjective: "当场目标", timePressure: "倒计时",
       identityBridge: "同一主角如何走到当前身份", modernAdvantage: "现代常识在当前身份的具体用处",
       rippleLens: "power", causalBridge: "上一结果通过具体媒介进入本幕的新社会冲突",
@@ -98,15 +93,13 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       worldStateChange: "上一选择已经造成的具体世界事实",
       divergenceProof: "真实历史与当前时间线的明确差异",
       headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点", historicalAnchors: ["真实人物", "真实机构", "时代器物"],
-      previousEcho: chapter === 1 ? null : { directResult: "上次直接结果", unexpectedCost: "上次意外代价", beneficiary: "受益者", payer: "承担者" },
       choices: [
         { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
         { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", usesModernKnowledge: true, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
         { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
-      memorySummary: "本幕摘要", metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
-      metricDeltas: { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
-      causalLedger: [{ fact: "因果事实", causedByChapter: 0, mustAffect: "后续对象" }], callbackUsed: null, visualTone: "war",
+      memorySummary: "本幕摘要",
+      causalLedger: [{ fact: "因果事实", causedByChapter: 0, mustAffect: "后续对象" }], visualTone: "war",
     },
   };
 }
@@ -149,22 +142,21 @@ export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
 }
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
-  const worldCanon = buildWorldCanon(playedTurns);
+  const narrativeContext = buildNarrativeContext(playedTurns);
   const protagonist = playedTurns[0]?.turn;
   return messages({
-    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 authoritativeWorldCanon 的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。authoritativeWorldCanon 是不可撤销正史：逐项承认，不得否认、降级、反转或假设玩家失败。对 activeCustomCanon 的每项玩家正史：causalLedger 对应 causedByChapter 的 fact 必须逐字等于 sourceText；可见场景必须继续呈现其具体后果。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors；若平行历史已使真实人物退场，则使用当时真实制度与地理锚点，并明确差异。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。`,
+    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。对 narrativeContext.playerCanon 的每项玩家正史：causalLedger 对应 causedByChapter 的 fact 必须逐字等于 sourceText；可见场景必须继续呈现其具体后果。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     authoritativeProtagonist: { name: protagonist?.protagonistName, sameBodyThroughAllTwelveNodes: true, previousAge: playedTurns.at(-1)?.turn.protagonistAge, previousRole: playedTurns.at(-1)?.turn.role },
-    authoritativeWorldCanon: { status: "不可撤销正史", ...worldCanon },
+    narrativeContext,
     openInferenceRules: {
       modelOwnsNextConflict: true,
       noPresetCategories: true,
       mustRemainCausallyDownstream: true,
       requiredHistoricalAnchors: 2,
-      recentScenesToAvoidRepeating: playedTurns.slice(-3).map(({ turn }) => ({ headline: turn.headline, location: turn.location, role: turn.role, anchors: turn.historicalAnchors })),
+      recentScenesToAvoidRepeating: narrativeContext.recentScenes,
     },
-    playedHistory: selectedHistory(playedTurns),
     outputContract: turnContract(chapter),
   });
 }
@@ -201,17 +193,50 @@ export function buildCustomActionMessages(
   });
 }
 
-export function buildEndingMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
+function endingLifeRecord(playedTurns: readonly PlayedTurn[]) {
+  return playedTurns.map((played) => ({
+    chapter: played.turn.chapter,
+    yearLabel: played.turn.yearLabel,
+    age: played.turn.protagonistAge,
+    name: played.turn.protagonistName,
+    role: played.turn.role,
+    location: played.turn.location,
+    decision: played.selectedChoiceLabel,
+    directResult: played.resolvedEcho.directResult,
+    unexpectedCost: played.resolvedEcho.unexpectedCost,
+    beneficiary: played.resolvedEcho.beneficiary,
+    payer: played.resolvedEcho.payer,
+    playerAuthored: played.playerAuthored === true || played.selectedChoiceId === "custom",
+  }));
+}
+
+export function buildBiographyMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
   return messages({
-    task: "十二次选择已经结束。输出同一条玩家正史的两份互补文本。第一份仿《史记》为穿越者立传，白话文和文言文都必须贯穿十二个节点，不是节点摘要拼接。第二份把他死后到 2026 的蝴蝶效应写成一页可读完的小说后续：遗产被继承、误读、争夺并制度化，最后落到普通人的具体生活。authoritativeWorldCanon 是不可撤销正史，玩家钦定结果必须进入两份文本。不得加入任何性格、人格或测试结论，不得把 2026 写成第十三个玩家节点，不得让主角活到 2026。",
-    ...scenarioPayload(scenario), authoritativeWorldCanon: { status: "不可撤销正史", ...buildWorldCanon(playedTurns) }, playedHistory: selectedHistory(playedTurns),
+    task: "十二次选择已经结束。只为同一个穿越者写一份完整人物列传：白话文与文言文各一版，都要贯穿十二次选择、身份变化、所得、代价与死亡，不得写成十二条摘要的拼接。lifeRecord 是不可撤销正史，必须保留每次玩家选择；playerAuthored 为 true 的选择必须逐字进入对应 historyTimeline.consequence。不得加入性格、人格或测试结论，不得让主角活到 2026。只输出人物报告字段，不要输出世界报告字段。",
+    historyMoment: scenarioPayload(scenario).historyMoment,
+    lifeRecord: endingLifeRecord(playedTurns),
     outputContract: {
-      requiredFields: ["worldName", "frontPageHeadline", "vernacularBiography", "classicalBiography", "protagonistName", "lifespanSummary", "deathScene", "historyTimeline", "posthumousChronicle", "causalChains", "ordinaryLife2026", "closingPassage", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
+      requiredFields: ["vernacularBiography", "classicalBiography", "protagonistName", "lifespanSummary", "deathScene", "historyTimeline"],
       vernacularBiography: "720 字以内的完整白话人物列传，必须串起十二次决定、身份变化、所得与代价，并以主角死亡收束",
       classicalBiography: "520 字以内的文言人物列传，体例接近史传，有名、事、论，必须覆盖其一生关键转折",
       protagonistName: `必须逐字等于 ${playedTurns[0]?.turn.protagonistName ?? "第一幕主角姓名"}`,
       deathScene: "含 yearLabel、age、place、finalMoment、lastingLegacy；年龄和年份承接第十二幕，明确主角自然或因其人生代价而死亡",
       historyTimeline: "恰好十二项，每项含 chapter、yearLabel、playerChoice、consequence；玩家钦定项的 consequence 必须逐字包含对应 playerChoice",
+    },
+  });
+}
+
+export function buildWorldReportMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
+  return messages({
+    task: "十二次选择已经结束。只推演主角死后到 2026 年的平行世界：他的决定被继承、误读、争夺和制度化，最终落到普通人的具体生活。worldCanon 与 lifeIndex 是不可撤销正史；所有玩家钦定结果都必须继续成立。写成一页可读完的小说后续，不得把 2026 写成第十三个玩家节点，不得让主角活到 2026，不得加入性格或人格结论。只输出世界报告字段，不要输出人物列传字段。",
+    historyMoment: scenarioPayload(scenario).historyMoment,
+    endingContext: {
+      lifeIndex: buildNarrativeContext(playedTurns).lifeIndex,
+      playerCanon: buildNarrativeContext(playedTurns).playerCanon,
+      worldCanon: { status: "不可撤销正史", ...buildWorldCanon(playedTurns) },
+    },
+    outputContract: {
+      requiredFields: ["worldName", "frontPageHeadline", "posthumousChronicle", "causalChains", "ordinaryLife2026", "closingPassage", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
       posthumousChronicle: "恰好四项，每项含 period、title、narrative、inheritedChange；每个字段都用短句，从主角死后到 2026 逐步拉长时间，展示遗产如何变形",
       causalChains: "恰好三项，每项含 origin、transformation、payoff",
       ordinaryLife2026: "恰好三个具体生活细节，每项 36 字以内",
@@ -228,5 +253,32 @@ export function buildJsonRepairMessages(raw: string, target: RepairTarget, detai
 }
 
 export function buildContextualJsonRepairMessages(original: readonly ChatMessage[], raw: string, target: RepairTarget, details: JsonRepairDetails = {}): ChatMessage[] {
-  return [...original, { role: "user", content: JSON.stringify({ task: "上一输出校验失败。请按原 outputContract 修复并只返回 JSON。", target, details, invalidOutput: raw }) }];
+  const originalPayload = [...original].reverse().find((message) => message.role === "user");
+  let payload: Record<string, unknown> = {};
+  try {
+    const parsed = originalPayload ? JSON.parse(originalPayload.content) : {};
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) payload = parsed;
+  } catch {
+    payload = {};
+  }
+  const narrativeContext = typeof payload.narrativeContext === "object" && payload.narrativeContext !== null
+    ? payload.narrativeContext as Record<string, unknown>
+    : null;
+
+  return messages({
+    task: "上一输出校验失败。只修正列出的结构问题，保留原有历史事实与玩家决定，只返回 JSON。",
+    target,
+    details,
+    authoritative: {
+      historyMoment: payload.historyMoment,
+      authoritativeTimelineNode: payload.authoritativeTimelineNode,
+      authoritativeProtagonist: payload.authoritativeProtagonist,
+      playerCanon: narrativeContext?.playerCanon,
+      playerDeclaredOutcome: payload.playerDeclaredOutcome,
+      lifeRecord: payload.lifeRecord,
+      endingContext: payload.endingContext,
+    },
+    outputContract: payload.outputContract,
+    invalidOutput: raw,
+  });
 }
