@@ -10,7 +10,7 @@ import { buildTravelerProfile } from "../game/profile";
 const profile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v7 resumable twelve-node storage", () => {
+describe("v8 resumable pivotal-history storage", () => {
   it("persists a traveler profile and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
@@ -85,7 +85,7 @@ describe("v7 resumable twelve-node storage", () => {
       customActionsUsed: 2,
       request: { kind: "custom-action", action: "先扣下军令，再请皇帝临朝", id: adjudicating.request!.id },
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":7');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":8');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -99,7 +99,7 @@ describe("v7 resumable twelve-node storage", () => {
       request: { kind: "opening", id: generating.request?.id },
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":7');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":8');
   });
 
   it("automatically resumes the 2026 ending without losing eleven decisions", () => {
@@ -198,7 +198,63 @@ describe("v7 resumable twelve-node storage", () => {
         turn: expect.objectContaining({ rippleLens: "origin", causalBridge: expect.stringContaining("旧时间线") }),
       })],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":7');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":8');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
+  });
+
+  it("round-trips player-authored canon metadata without weakening the declared result", () => {
+    const storage = memoryStorage();
+    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const event = gameReducer(generating, {
+      type: "OPENING_RESOLVED",
+      requestId: generating.request!.id,
+      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
+    });
+    const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "我成为新皇帝" });
+    const resolved = gameReducer(adjudicating, {
+      type: "CUSTOM_ACTION_RESOLVED",
+      requestId: adjudicating.request!.id,
+      resolution: {
+        declaredOutcome: "我成为新皇帝",
+        canonStatus: "玩家钦定",
+        personalityLens: "INTP 优先看见制度连锁",
+        causalMechanism: "登基诏书进入官署执行",
+        deviationClass: "rupture",
+        instantEcho: { directResult: "我成为新皇帝", unexpectedCost: "旧贵族反对", beneficiary: "新朝军民", payer: "旧宗室" },
+      },
+    });
+
+    expect(saveGameSnapshot(resolved, storage)).toBe(true);
+    expect(loadGameSnapshot(storage)?.playedTurns[0]).toMatchObject({
+      selectedChoiceLabel: "我成为新皇帝",
+      playerAuthored: true,
+      canonStatus: "玩家钦定",
+      causalMechanism: expect.stringContaining("宫门口令"),
+    });
+  });
+
+  it("migrates a v7 active turn by supplying pivotal evidence fields", () => {
+    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const event = gameReducer(generating, {
+      type: "OPENING_RESOLVED",
+      requestId: generating.request!.id,
+      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
+    });
+    const current = memoryStorage();
+    saveGameSnapshot(event, current);
+    const envelope = JSON.parse(current.getItem(GAME_STORAGE_KEY)!);
+    envelope.version = 7;
+    delete envelope.state.currentTurn.turningPointStakes;
+    delete envelope.state.currentTurn.worldStateChange;
+    delete envelope.state.currentTurn.divergenceProof;
+    const legacy = memoryStorage({ "i-changed-history:session:v7": JSON.stringify(envelope) });
+
+    expect(loadGameSnapshot(legacy)?.currentTurn).toMatchObject({
+      turningPointStakes: expect.stringContaining("重大"),
+      worldStateChange: expect.stringContaining("旧时间线"),
+      divergenceProof: expect.stringContaining("真实历史"),
+    });
   });
 });

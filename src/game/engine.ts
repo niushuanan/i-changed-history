@@ -21,8 +21,15 @@ import {
 import { DeepSeekError, requestCompletion, type CompletionOptions } from "../services/deepseek";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution, createFallbackEnding, createFallbackTurn } from "./fallbackTurn";
-import { rippleSceneMatches, selectRippleDirective, type RippleLens } from "./rippleRouter";
+import type { RippleLens } from "./rippleRouter";
 import { buildCanonicalCustomResolution } from "./customCanon";
+import {
+  buildPivotalBrief,
+  endingConsequencePreservesCanon,
+  pivotalSceneMatches,
+  pivotalScenePreservesCanon,
+  type PivotalBrief,
+} from "./worldCanon";
 
 type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
 type Parser<T> = (raw: string) => T;
@@ -114,14 +121,25 @@ function parseRequestedTurn(
   expectedYearLabel: string,
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>,
   expectedRippleLens: RippleLens = "origin",
+  pivotalBrief?: PivotalBrief,
 ): Parser<TimelineTurn> {
   return (raw) => {
     const turn = parseTimelineTurn(raw, { expectedChapter, expectedYearLabel, expectedPreviousEcho, expectedRippleLens });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
     }
-    if (!rippleSceneMatches(expectedRippleLens, turn)) {
-      throw new Error(`本幕正文没有真正进入指定社会载体 ${expectedRippleLens}`);
+    if (pivotalBrief && !pivotalSceneMatches(pivotalBrief, turn)) {
+      throw new Error(`本幕没有真正进入指定重大冲突 ${pivotalBrief.pivotKind}`);
+    }
+    if (pivotalBrief && !pivotalScenePreservesCanon(pivotalBrief, turn, turn.causalLedger)) {
+      throw new Error("本幕否定、隐藏或改写了仍在生效的玩家钦定正史");
+    }
+    if (pivotalBrief) {
+      const ledgerChapters = new Set(turn.causalLedger.map((entry) => entry.causedByChapter));
+      const missingChapter = pivotalBrief.requiredCausalChapters.find((chapter) => !ledgerChapters.has(chapter));
+      if (missingChapter !== undefined) {
+        throw new Error(`本幕因果账本遗漏不可撤销正史第 ${missingChapter} 节点`);
+      }
     }
     return turn;
   };
@@ -173,7 +191,7 @@ export async function adjudicateCustomAction(
 }
 
 function parseExpectedEnding(
-  expectedHistoryTimeline: readonly { yearLabel: string; playerChoice: string }[],
+  expectedHistoryTimeline: readonly { yearLabel: string; playerChoice: string; playerAuthored: boolean }[],
 ): Parser<AlternatePresent> {
   return (raw) => {
     const ending = parseAlternatePresent(raw, { expectedHistoryTimeline });
@@ -182,6 +200,15 @@ function parseExpectedEnding(
     );
     if (!choicesMatch || ending.historyTimeline.length !== expectedHistoryTimeline.length) {
       throw new Error("结局时间线没有按顺序保留玩家的十一次真实选择。");
+    }
+    const contradictedCanon = expectedHistoryTimeline.find((expected, index) =>
+      expected.playerAuthored && !endingConsequencePreservesCanon(
+        expected.playerChoice,
+        ending.historyTimeline[index]?.consequence ?? "",
+      ),
+    );
+    if (contradictedCanon) {
+      throw new Error(`结局否定或遗漏玩家钦定正史「${contradictedCanon.playerChoice}」`);
     }
     return ending;
   };
@@ -208,10 +235,10 @@ export async function generateNextTurn(
   options: NextTurnGenerationOptions = {},
 ): Promise<TimelineTurn> {
   const messages = buildContinuationMessages(scenario, playedTurns, chapter);
-  const ripple = selectRippleDirective(scenario, playedTurns, chapter);
+  const pivotalBrief = buildPivotalBrief(scenario, playedTurns, chapter);
 
   try {
-    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), ripple.lens), { expectedChapter: chapter });
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), pivotalBrief.rippleLens, pivotalBrief), { expectedChapter: chapter });
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, playedTurns, chapter);
     throw error;
@@ -226,6 +253,7 @@ export async function generateEnding(
   const expectedHistoryTimeline = playedTurns.map((playedTurn) => ({
     yearLabel: playedTurn.turn.yearLabel,
     playerChoice: getPlayedTurnChoiceText(playedTurn),
+    playerAuthored: playedTurn.playerAuthored === true || playedTurn.selectedChoiceId === "custom",
   }));
   try {
     return await requestValidated(buildEndingMessages(scenario, playedTurns), { phase: "ending", signal: options.signal }, "alternate_present", parseExpectedEnding(expectedHistoryTimeline), {});

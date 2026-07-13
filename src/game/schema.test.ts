@@ -55,6 +55,53 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw).generationSource).toBe("deepseek");
   });
 
+  it("keeps the decisive turning point and visible divergence proof", () => {
+    const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
+
+    expect(parsed.turningPointStakes).toBe(turnFixture.turningPointStakes);
+    expect(parsed.worldStateChange).toBe(turnFixture.worldStateChange);
+    expect(parsed.divergenceProof).toBe(turnFixture.divergenceProof);
+    expect(() => parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      turningPointStakes: undefined,
+    }))).toThrow();
+  });
+
+  it("trims overlong pivotal proof fields instead of discarding an otherwise valid turn", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      turningPointStakes: "重".repeat(80),
+      worldStateChange: "变".repeat(90),
+      divergenceProof: "史".repeat(90),
+    }));
+
+    expect(parsed.turningPointStakes).toHaveLength(54);
+    expect(parsed.worldStateChange).toHaveLength(72);
+    expect(parsed.divergenceProof).toHaveLength(72);
+  });
+
+  it("trims an overlong causal bridge instead of discarding a strong generated scene", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      causalBridge: "因".repeat(70),
+    }));
+
+    expect(parsed.causalBridge).toHaveLength(54);
+  });
+
+  it("trims overlong relay metadata and history anchors without discarding the scene", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      identityBridge: "代".repeat(70),
+      profileAdvantage: "能".repeat(70),
+      baselineAnchor: "史".repeat(70),
+    }));
+
+    expect(parsed.identityBridge).toHaveLength(54);
+    expect(parsed.profileAdvantage).toHaveLength(54);
+    expect(parsed.baselineAnchor).toHaveLength(54);
+  });
+
   it("keeps the client-selected ripple carrier authoritative", () => {
     const raw = JSON.stringify({
       ...turnFixture,

@@ -157,6 +157,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         selectedChoiceLabel: canonicalOutcome,
         selectedDeviationClass: action.resolution.deviationClass,
         resolvedEcho: canonicalEcho,
+        playerAuthored: true,
+        canonStatus: canonicalResolution.canonStatus,
+        causalMechanism: canonicalResolution.causalMechanism,
       };
       return {
         ...state,

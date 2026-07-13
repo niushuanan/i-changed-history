@@ -2,7 +2,8 @@ import type { GameScenario } from "./reducer";
 import { getTravelerAbility } from "./profile";
 import type { DeviationClass, TimelineTurn } from "./schema";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
-import { selectRippleDirective, type RippleLens } from "./rippleRouter";
+import type { RippleLens } from "./rippleRouter";
+import { buildPivotalBrief, buildWorldCanon } from "./worldCanon";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -11,6 +12,9 @@ export type PlayedTurn = {
   selectedChoiceLabel: string;
   selectedDeviationClass: DeviationClass;
   resolvedEcho: NonNullable<TimelineTurn["previousEcho"]>;
+  playerAuthored?: boolean;
+  canonStatus?: "玩家钦定";
+  causalMechanism?: string;
 };
 type ContinuationChapter = Exclude<DecisionChapter, 1>;
 type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
@@ -20,6 +24,8 @@ export const TIMELINE_SYSTEM_PROMPT = [
   "你是《I！我改变了历史》的结构化即兴历史推演引擎。",
   "玩家是带着现代经验穿越到真实历史瞬间的中国人。使用第二人称、现在时，让玩家看到真实人物、地点、物件和迫近的时间限制。",
   "所有后果必须由历史事实或玩家真实选择推导；每幕同时呈现收益、代价、受益者与承担者。",
+  "十一幕都必须是这条平行时间线中的重大转折点：决定政权、战争、制度、技术、贸易、知识或文明秩序，不得用普通工作与日常记录填充节点。",
+  "玩家已经完成的选择组成不可撤销正史。尤其是玩家钦定结果：不得否认、降级、反转或假设失败，必须在其后三幕持续兑现为具体世界事实。",
   "三个选项必须是当场能执行的具体动作，恰好覆盖 nudge、reform、rupture，至少一个要能使用穿越者画像中的能力。",
   "玩家传递的是现代意识，不是长生不老的肉身。时间明显推进后必须进入符合时代的新人物，并解释接棒关系。",
   "蝴蝶效应的惊奇来自事件线、矛盾线和社会载体的变化，不来自机械地跨国或跨洲；地域可以连续，原始事件不能垄断后续历史。",
@@ -62,7 +68,7 @@ function scenarioPayload(scenario: GameScenario) {
 
 function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens = "origin") {
   return {
-    requiredFields: ["timelineName", "chapter", "chapterName", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "rippleLens", "causalBridge", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
+    requiredFields: ["timelineName", "chapter", "chapterName", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
     rules: {
       totalLength: "总输出控制在 700 个汉字以内，宁可短句，不得省略字段",
       chapter,
@@ -75,6 +81,9 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
       profileAdvantage: "36 字以内；必须具体说明 traveler.gameplayRules.directive 如何帮助本代身份，不得泛称现代能力",
       rippleLens: `必须为 ${rippleLens}，不得自行更换社会载体`,
       causalBridge: chapter === 1 ? "54 字以内；说明玩家决定如何成为时间线源头" : "54 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
+      turningPointStakes: "54 字以内；说明本幕将不可逆地决定哪种政权、战争、制度、技术或文明秩序，以及主要受影响者",
+      worldStateChange: chapter === 1 ? "72 字以内；指出玩家一旦介入将首先改变的事实" : "72 字以内；把上一项玩家选择写成已经落地的具体世界事实，不得只复述行动",
+      divergenceProof: "72 字以内；用“真实历史如何、当前时间线如何”的可核验对照证明历史已经不同",
       immediateObjective: "28 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
@@ -83,7 +92,7 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
       previousEcho: chapter === 1 ? "必须为 null" : "完整承接上一选择即时回响",
       metrics: "stability、prosperity、freedom、cost，均为 0-100 数值",
       metricDeltas: "与 metrics 相同四键的数值变化",
-      causalLedger: "最多三项，只保留后续仍会生效的因果；每项含 fact、causedByChapter、mustAffect，字符串各 28 字以内",
+      causalLedger: "最多三项，只保留后续仍会生效的因果；每项含 fact、causedByChapter、mustAffect。普通 fact 与 mustAffect 控制在 28 字以内；玩家钦定章节的 fact 必须逐字复制 sourceText，可到 80 字，绝不缩写",
       callbackUsed: "null 或字符串",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
     },
@@ -92,6 +101,9 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
       role: "具体角色", immediateObjective: "当场目标", timePressure: "倒计时",
       identityBridge: "这一代为何由此人接棒", profileAdvantage: "现代画像在本代的具体用处",
       rippleLens, causalBridge: "上一结果通过具体媒介进入本幕的新社会冲突",
+      turningPointStakes: "本幕将决定的重大秩序与受影响者",
+      worldStateChange: "上一选择已经造成的具体世界事实",
+      divergenceProof: "真实历史与当前时间线的明确差异",
       headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点",
       previousEcho: chapter === 1 ? null : { directResult: "上次直接结果", unexpectedCost: "上次意外代价", beneficiary: "受益者", payer: "承担者" },
       choices: [
@@ -107,7 +119,7 @@ function turnContract(chapter: TimelineTurn["chapter"], rippleLens: RippleLens =
 }
 
 function selectedHistory(playedTurns: readonly PlayedTurn[]) {
-  return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass, resolvedEcho }) => ({
+  return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass, resolvedEcho, playerAuthored, canonStatus, causalMechanism }) => ({
     chapter: turn.chapter,
     yearLabel: turn.yearLabel,
     selectedChoiceId,
@@ -122,6 +134,12 @@ function selectedHistory(playedTurns: readonly PlayedTurn[]) {
     causalLedger: turn.causalLedger,
     rippleLens: turn.rippleLens,
     causalBridge: turn.causalBridge,
+    turningPointStakes: turn.turningPointStakes,
+    worldStateChange: turn.worldStateChange,
+    divergenceProof: turn.divergenceProof,
+    playerAuthored,
+    canonStatus,
+    causalMechanism,
     metrics: turn.metrics,
   }));
 }
@@ -131,18 +149,20 @@ function messages(payload: unknown): ChatMessage[] {
 }
 
 export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
-  return messages({ task: "生成第一节点。玩家刚穿越落地，必须立即理解自己是谁、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。", ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(1, scenario.seed.year), outputContract: turnContract(1) });
+  return messages({ task: "生成第一节点。玩家刚穿越落地，必须立即理解自己是谁、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。第一节点必须是决定真实历史走向的重大转折点。", ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(1, scenario.seed.year), outputContract: turnContract(1) });
 }
 
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
-  const ripple = selectRippleDirective(scenario, playedTurns, chapter);
+  const worldCanon = buildWorldCanon(playedTurns);
+  const pivotalBrief = buildPivotalBrief(scenario, playedTurns, chapter);
   return messages({
-    task: `生成第 ${chapter} 节点，只承接已发生的玩家选择，不得替换玩家行为。${ripple.instruction} role、location、headline、narrative、causalBridge 和 immediateObjective 合计必须自然出现 authoritativeRipple.requiredEvidence 中至少两个不同词。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为因果源简短提及。惊奇不等于远行：不强制跨国或跨洲，中国历史可以继续留在中国。比较最近三幕的社会载体、核心矛盾、制度场景、主要受影响人群，本幕至少更换其中两项。不要写上一幕最直接的续集；必须用 causalBridge 解释上次结果如何经具体媒介转入本幕。选择中国玩家熟悉的真实人物、制度、城市或生活经验作锚点，再推演反直觉但可解释的新冲突。`,
+    task: `生成第 ${chapter} 节点。它必须是当前平行世界的重大转折点，而不是普通人的日常工作或上一事件的机械续集。authoritativeWorldCanon 是不可撤销正史：逐项承认，不得否认、降级、反转或假设玩家失败。严格执行 authoritativePivotalBrief：本幕必须立刻兑现 mustPayOffNow，继续兑现 continuityMandate，并让 role、location、headline、narrative、causalBridge、turningPointStakes、worldStateChange、divergenceProof 和 immediateObjective 合计自然出现 requiredEvidence 中至少两个不同词。对 activeCustomCanon 的每项玩家正史：causalLedger 对应 causedByChapter 的 fact 必须逐字等于 sourceText；可见场景必须继续呈现每组 claimGroups 中至少一个事实词，禁止写成计划失败、并未发生或后来才发现没成功。causalLedger 必须含 requiredCausalChapters 中每个章节。worldStateChange 必须写玩家选择已经改变了什么具体制度、权力、战争、生产或社会事实；divergenceProof 必须对照真实历史和当前线。yearLabel 必须匹配权威目标年份和时间尺度。不得把玩家写成长生不老：第 4 节点起必须更换具体身份，相邻节点不得复用身份。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为因果源简短提及；可以切换历史矛盾与关键人物，但只能沿不可撤销正史的制度后果推进，不能随机换题。比较最近三幕的社会载体、核心矛盾、制度场景、主要受影响人群，本幕至少更换其中两项，但变化必须由正史账本直接导致。惊奇不等于远行：不强制跨国或跨洲，中国历史可以继续留在中国。优先选择中国玩家熟悉的真实人物、制度、城市、战争、发明或典故作锚点。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
-    authoritativeRipple: ripple,
+    authoritativeWorldCanon: { status: "不可撤销正史", ...worldCanon },
+    authoritativePivotalBrief: pivotalBrief,
     playedHistory: selectedHistory(playedTurns),
-    outputContract: turnContract(chapter, ripple.lens),
+    outputContract: turnContract(chapter, pivotalBrief.rippleLens),
   });
 }
 
@@ -181,11 +201,11 @@ export function buildCustomActionMessages(
 
 export function buildEndingMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
   return messages({
-    task: "根据十一项真实选择生成第十二节点：平行世界 2026 年头版总结。不得加入此前没有因果来源的决定性发明、战争或人物。",
-    ...scenarioPayload(scenario), playedHistory: selectedHistory(playedTurns),
+    task: "根据十一项真实选择生成第十二节点：平行世界 2026 年头版总结。authoritativeWorldCanon 是不可撤销正史，玩家钦定结果及其长期 mandate 必须进入总结。不得加入此前没有因果来源的决定性发明、战争或人物。",
+    ...scenarioPayload(scenario), authoritativeWorldCanon: { status: "不可撤销正史", ...buildWorldCanon(playedTurns) }, playedHistory: selectedHistory(playedTurns),
     outputContract: {
       requiredFields: ["worldName", "frontPageHeadline", "historyTimeline", "causalChains", "ordinaryLife2026", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
-      historyTimeline: "恰好十一项，每项含 chapter、yearLabel、playerChoice、consequence",
+      historyTimeline: "恰好十一项，每项含 chapter、yearLabel、playerChoice、consequence；玩家钦定项的 consequence 必须逐字包含对应 playerChoice，并明确它持续生效，禁止改写为失败、未发生或只是尝试",
       causalChains: "恰好三项，每项含 origin、transformation、payoff",
       ordinaryLife2026: "恰好三个具体生活细节",
       plausibilityScore: "0-100 数值",

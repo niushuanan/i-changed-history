@@ -122,6 +122,9 @@ describe("profile-first choice-only game reducer", () => {
     expect(resolved.playedTurns[0]).toMatchObject({
       selectedChoiceId: "custom",
       selectedChoiceLabel: "我暗杀了皇帝且成功",
+      playerAuthored: true,
+      canonStatus: "玩家钦定",
+      causalMechanism: expect.stringContaining("宫门口令"),
       resolvedEcho: expect.objectContaining({ directResult: "我暗杀了皇帝且成功" }),
     });
     expect(resolved.echo).toMatchObject({ source: "custom_action", choiceLabel: "我暗杀了皇帝且成功", directResult: "我暗杀了皇帝且成功", canonStatus: "玩家钦定" });

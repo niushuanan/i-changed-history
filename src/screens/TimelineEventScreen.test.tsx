@@ -37,7 +37,12 @@ describe("clear change event screen", () => {
     expect(screen.getByText("因果回执")).toBeVisible();
     const proof = screen.getByRole("region", { name: "历史改变证据" });
     expect(within(proof).getByText(/扶植年幼继承人/)).toBeVisible();
-    expect(within(proof).getByText(/摄政制度被正式确立/)).toBeVisible();
+    expect(within(proof).getByText("你的决定")).toBeVisible();
+    expect(within(proof).getByText("已经改变")).toBeVisible();
+    expect(within(proof).getByText("重大节点")).toBeVisible();
+    expect(within(proof).getByText(turn.worldStateChange)).toBeVisible();
+    expect(within(proof).getByText(turn.turningPointStakes)).toBeVisible();
+    expect(within(proof).getByText(turn.divergenceProof)).toBeVisible();
     expect(screen.getByText("DeepSeek 实时生成")).toBeVisible();
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
@@ -47,7 +52,6 @@ describe("clear change event screen", () => {
     expect(screen.getByText("断裂")).toBeVisible();
     expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
     expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("3 次");
-    expect(within(proof).getByText(/蝴蝶转向/)).toBeVisible();
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
   });
 

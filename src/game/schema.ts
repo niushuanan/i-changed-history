@@ -90,6 +90,9 @@ const strictTimelineTurnSchema = z
     profileAdvantage: boundedString(54),
     rippleLens: rippleLensSchema,
     causalBridge: boundedString(54),
+    turningPointStakes: boundedString(54),
+    worldStateChange: boundedString(72),
+    divergenceProof: boundedString(72),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
@@ -187,6 +190,10 @@ function trimNarrative(value: unknown): unknown {
   return sentenceEnd >= 20 ? candidate.slice(0, sentenceEnd + 1) : candidate;
 }
 
+function trimBounded(value: unknown, max: number): unknown {
+  return typeof value === "string" ? [...value].slice(0, max).join("") : value;
+}
+
 function normalizeChoice(value: unknown, index: number): unknown {
   const choice = asRecord(value);
   const expectedId = CHOICE_IDS[index];
@@ -228,14 +235,18 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
   return {
     ...turn,
     generationSource: turn.generationSource ?? "deepseek",
-    identityBridge: turn.identityBridge ?? (
+    identityBridge: trimBounded(turn.identityBridge ?? (
       turn.chapter === 1
         ? "你的现代意识在这一刻进入历史现场"
         : "上一代的选择留下线索，你在这个时代的新身份中接棒"
-    ),
-    profileAdvantage: turn.profileAdvantage ?? "现代知识与决策习惯仍可影响本代行动",
+    ), 54),
+    profileAdvantage: trimBounded(turn.profileAdvantage ?? "现代知识与决策习惯仍可影响本代行动", 54),
     narrative: trimNarrative(turn.narrative),
-    baselineAnchor: joinStringArray(turn.baselineAnchor),
+    causalBridge: trimBounded(turn.causalBridge, 54),
+    turningPointStakes: trimBounded(turn.turningPointStakes, 54),
+    worldStateChange: trimBounded(turn.worldStateChange, 72),
+    divergenceProof: trimBounded(turn.divergenceProof, 72),
+    baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
     choices: Array.isArray(turn.choices)
       ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
       : turn.choices,

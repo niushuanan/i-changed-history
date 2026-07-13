@@ -5,7 +5,6 @@ import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
 import type { TravelerAbility } from "../game/profile";
-import { rippleLensLabel } from "../game/rippleRouter";
 
 export function TimelineEventScreen({
   turn,
@@ -70,11 +69,15 @@ export function TimelineEventScreen({
         <section className="change-proof" aria-label="历史改变证据">
           <span className="change-proof__kicker">因果回执</span>
           <div className="change-chain">
-            <span><small>你的选择</small><strong>{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}</strong></span>
-            <ArrowRight size={14} weight="bold" />
-            <span><small>世界变化</small><strong>{turn.previousEcho.directResult}</strong></span>
+            <span><small>你的决定</small><strong>{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}</strong></span>
+            <span className="is-result"><small>已经改变</small><strong>{turn.worldStateChange}</strong></span>
+            <span className="is-pivot"><small>重大节点</small><strong>{turn.turningPointStakes}</strong></span>
           </div>
-          <p className="butterfly-turn"><span>蝴蝶转向 · {rippleLensLabel(turn.rippleLens)}</span>{turn.causalBridge}</p>
+          <p className="butterfly-turn">
+            <span className="butterfly-turn__label">为何来到这里</span>
+            <span className="butterfly-turn__copy">{turn.causalBridge}</span>
+            <span className="butterfly-turn__proof">{turn.divergenceProof}</span>
+          </p>
         </section>
       ) : (
         <section className="change-proof is-opening" aria-label="真实历史切入口">

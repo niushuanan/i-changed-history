@@ -3,11 +3,14 @@ import type { TravelerProfile } from "./types";
 import type { CustomActionResolution, TimelineTurn } from "./schema";
 
 function causalMechanism(outcome: string, turn: TimelineTurn): string {
-  if (/杀|死|皇帝|君主|政变|继承/.test(outcome)) return "结果经由宫门口令、死讯与继承命令进入社会";
-  if (/法律|法令|制度|废除|改革/.test(outcome)) return "结果经由法令、公文与地方执行记录进入社会";
-  if (/贸易|价格|货币|税|市场/.test(outcome)) return "结果经由契约、价格与商路账簿进入社会";
-  if (/公开|宣布|演讲|出版|传播/.test(outcome)) return "结果经由公开声明、抄本与口述网络进入社会";
-  return `结果经由${turn.role}现场的命令、消息与记录进入社会`;
+  const channels: string[] = [];
+  if (/杀|死|皇帝|君主|政变|继承|登基/.test(outcome)) channels.push("宫门口令与继承命令");
+  if (/科技|科学|科学院|工业|机器|工坊|教育/.test(outcome)) channels.push("科学院预算与工坊命令");
+  if (/法律|法令|制度|废除|改革/.test(outcome)) channels.push("法令与地方执行记录");
+  if (/贸易|价格|货币|税|市场/.test(outcome)) channels.push("契约、价格与商路账簿");
+  if (/公开|宣布|演讲|出版|传播/.test(outcome)) channels.push("公开声明与抄本网络");
+  if (channels.length === 0) channels.push(`${turn.role}现场的命令与记录`);
+  return [...`结果经由${channels.join("、")}进入社会`].slice(0, 56).join("");
 }
 
 const CONSEQUENCES: Record<CustomActionResolution["deviationClass"], Pick<CustomActionResolution["instantEcho"], "unexpectedCost" | "beneficiary" | "payer">> = {

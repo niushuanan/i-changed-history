@@ -6,7 +6,7 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 import { buildTravelerProfile } from "../game/profile";
-import { rippleFallbackScene, rippleSceneMatches, selectRippleDirective } from "../game/rippleRouter";
+import { buildPivotalBrief, pivotalSceneMatches } from "../game/worldCanon";
 
 const messages = [{ role: "system" as const, content: "system" }, { role: "user" as const, content: "user" }];
 const scenario = { profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }), seed: HISTORY_SEEDS[0] };
@@ -75,35 +75,78 @@ describe("DeepSeek transport and structured generation", () => {
   });
 
   it("generates the requested continuation with authoritative previous echo", async () => {
-    const expectedRipple = selectRippleDirective(scenario, [playedTurn], 2);
-    const scene = rippleFallbackScene(expectedRipple.lens);
+    const brief = buildPivotalBrief(scenario, [playedTurn], 2);
     const second = {
       ...turnFixture,
       chapter: 2,
       chapterName: "一日余波",
       previousEcho: turnFixture.choices[0].instantEcho,
-      role: scene.role,
-      location: scene.location,
-      headline: scene.topic,
-      narrative: `上一选择已经进入${scene.location}，${scene.topic}。`,
-      causalBridge: `历史结果通过${expectedRipple.label}转入新的社会冲突`,
-      immediateObjective: `决定${scene.topic}时由谁承担代价`,
+      rippleLens: brief.rippleLens,
+      role: "全国粮政使",
+      location: "土地与粮食分配大会",
+      headline: "粮食法决定民生",
+      narrative: "公开遗诏改变继承，土地与粮食法成为新政权第一次全国决断。",
+      causalBridge: "公开遗诏经新政权命令进入土地与粮食分配",
+      turningPointStakes: "这项土地法将决定粮食、劳动与人口的长期分配",
+      worldStateChange: "公开完整遗诏已成正史，新政权被迫公开全国粮食账册",
+      divergenceProof: "真实历史没有公开粮食议政，当前线由遗诏催生全国土地大会",
+      immediateObjective: "决定土地与粮食优先保障谁",
+      causalLedger: [{ fact: "公开完整遗诏", causedByChapter: 1, mustAffect: "土地与粮食分配" }],
     };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
-    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: expectedRipple.lens });
+    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: brief.rippleLens, worldStateChange: expect.stringContaining("公开完整遗诏") });
   });
 
   it("rejects a relabeled but semantically unchanged continuation and uses routed fallback", async () => {
     const unchanged = { ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(unchanged))));
     vi.stubGlobal("fetch", fetcher);
-    const expectedRipple = selectRippleDirective(scenario, [playedTurn], 2);
+    const brief = buildPivotalBrief(scenario, [playedTurn], 2);
 
     const result = await generateNextTurn(scenario, [playedTurn], 2);
 
-    expect(result).toMatchObject({ generationSource: "fallback", rippleLens: expectedRipple.lens });
-    expect(rippleSceneMatches(expectedRipple.lens, result)).toBe(true);
+    expect(result).toMatchObject({ generationSource: "fallback", rippleLens: brief.rippleLens });
+    expect(pivotalSceneMatches(brief, result)).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects a continuation that negates an active player-authored fact", async () => {
+    const customPlayed = {
+      ...playedTurn,
+      selectedChoiceId: "custom" as const,
+      selectedChoiceLabel: "我成为新皇帝",
+      selectedDeviationClass: "rupture" as const,
+      resolvedEcho: { ...playedTurn.resolvedEcho, directResult: "我成为新皇帝" },
+      playerAuthored: true,
+      canonStatus: "玩家钦定" as const,
+      causalMechanism: "登基诏书进入官署执行",
+    };
+    const brief = buildPivotalBrief(scenario, [customPlayed], 2);
+    const contradictory = {
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "一日余波",
+      previousEcho: customPlayed.resolvedEcho,
+      rippleLens: brief.rippleLens,
+      role: "新朝册立使",
+      location: "继承诏书宣读现场",
+      headline: "新政权第一次册立",
+      narrative: "宫门已经封闭，但称帝计划最终失败。",
+      causalBridge: "继承命令抵达政权核心",
+      turningPointStakes: "这次册立决定新政权是否合法",
+      worldStateChange: "你并未成为皇帝，旧君仍在位",
+      divergenceProof: "当前线称帝失败",
+      immediateObjective: "决定继承诏书由谁宣读",
+      causalLedger: [{ fact: "我成为新皇帝", causedByChapter: 1, mustAffect: "继承与政权" }],
+    };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await generateNextTurn(scenario, [customPlayed], 2);
+
+    expect(result.generationSource).toBe("fallback");
+    expect(result.worldStateChange).toContain("我成为新皇帝");
+    expect(JSON.stringify(result)).not.toMatch(/并未成为皇帝|称帝失败/);
   });
 
   it("returns a player-canon result without feasibility adjudication", async () => {
@@ -171,6 +214,34 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(wrong))); vi.stubGlobal("fetch", fetcher);
     const ending = await generateEnding(scenario, endingPlayedTurns);
     expect(ending.historyTimeline.map((item) => item.playerChoice)).toEqual(endingPlayedTurns.map((item) => item.selectedChoiceLabel));
+  });
+
+  it("rejects an ending consequence that negates player-authored canon", async () => {
+    const customPlayedTurns = endingPlayedTurns.map((played, index) => index === 0 ? {
+      ...played,
+      selectedChoiceId: "custom" as const,
+      selectedChoiceLabel: "我成为新皇帝",
+      selectedDeviationClass: "rupture" as const,
+      resolvedEcho: { ...played.resolvedEcho, directResult: "我成为新皇帝" },
+      playerAuthored: true,
+      canonStatus: "玩家钦定" as const,
+      causalMechanism: "登基诏书进入官署执行",
+    } : played);
+    const contradictory = {
+      ...endingFixture,
+      historyTimeline: endingFixture.historyTimeline.map((item, index) => ({
+        ...item,
+        consequence: index === 0 ? "称帝计划最终失败，旧君继续统治" : item.consequence,
+      })),
+    };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
+    vi.stubGlobal("fetch", fetcher);
+
+    const ending = await generateEnding(scenario, customPlayedTurns);
+
+    expect(ending.historyTimeline[0].consequence).toContain("我成为新皇帝");
+    expect(ending.historyTimeline[0].consequence).not.toContain("称帝计划最终失败");
+    expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
   it("falls back to a complete 2026 summary after invalid ending structures", async () => {

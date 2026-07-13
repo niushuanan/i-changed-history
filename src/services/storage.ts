@@ -4,9 +4,9 @@ import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
 import { migrateLegacyTravelerProfile } from "../game/profile";
 import { RIPPLE_LENSES } from "../game/rippleRouter";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v7";
-const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
-const STORAGE_VERSION = 7;
+export const GAME_STORAGE_KEY = "i-changed-history:session:v8";
+const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
+const STORAGE_VERSION = 8;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -38,8 +38,14 @@ const resolvedEchoSchema = z.strictObject({
 });
 const playedSchema = z.strictObject({
   turn: timelineTurnSchema, selectedChoiceId: z.enum(["A", "B", "C", "custom"]), selectedChoiceLabel: z.string(), selectedDeviationClass: deviationClass, resolvedEcho: resolvedEchoSchema,
+  playerAuthored: z.boolean().optional(), canonStatus: z.literal("玩家钦定").optional(), causalMechanism: z.string().optional(),
 }).superRefine((played, context) => {
-  if (played.selectedChoiceId === "custom") return;
+  if (played.selectedChoiceId === "custom") {
+    if (played.playerAuthored !== true || played.canonStatus !== "玩家钦定" || !played.causalMechanism) {
+      context.addIssue({ code: "custom", message: "玩家钦定结果缺少不可撤销正史元数据" });
+    }
+    return;
+  }
   const choice = played.turn.choices.find((candidate) => candidate.id === played.selectedChoiceId);
   if (!choice || choice.label !== played.selectedChoiceLabel || choice.deviationClass !== played.selectedDeviationClass || JSON.stringify(choice.instantEcho) !== JSON.stringify(played.resolvedEcho)) {
     context.addIssue({ code: "custom", message: "选择与幕次不一致" });
@@ -98,7 +104,7 @@ function remove(storage: StorageLike, key = GAME_STORAGE_KEY) { try { storage.re
 
 function migrateLegacy(raw: string): unknown {
   const envelope = JSON.parse(raw) as { version?: unknown; state?: Record<string, unknown> };
-  if (![4, 5, 6].includes(envelope.version as number) || !envelope.state) return envelope;
+  if (![4, 5, 6, 7].includes(envelope.version as number) || !envelope.state) return envelope;
   const playedTurns = envelope.version === 4 && Array.isArray(envelope.state.playedTurns)
     ? envelope.state.playedTurns.map((value) => {
         if (typeof value !== "object" || value === null) return value;
@@ -123,13 +129,25 @@ function migrateLegacy(raw: string): unknown {
       ...turn,
       rippleLens: turn.rippleLens ?? (chapter === 1 ? "origin" : RIPPLE_LENSES[(chapter - 2) % RIPPLE_LENSES.length]),
       causalBridge: turn.causalBridge ?? "旧时间线的选择已进入新的社会场景",
+      turningPointStakes: turn.turningPointStakes ?? "这一重大历史节点将决定新秩序能否成立",
+      worldStateChange: turn.worldStateChange ?? "旧时间线的玩家选择已经成为当前世界事实",
+      divergenceProof: turn.divergenceProof ?? "真实历史与当前时间线已经在此明确分岔",
     };
   };
   const migratedPlayedTurns = Array.isArray(playedTurns)
     ? playedTurns.map((value) => {
         if (typeof value !== "object" || value === null) return value;
         const played = value as Record<string, unknown>;
-        return { ...played, turn: migrateTurn(played.turn) };
+        const custom = played.selectedChoiceId === "custom";
+        return {
+          ...played,
+          turn: migrateTurn(played.turn),
+          ...(custom ? {
+            playerAuthored: true,
+            canonStatus: "玩家钦定",
+            causalMechanism: played.causalMechanism ?? "玩家钦定结果经由命令、消息与执行记录进入社会",
+          } : {}),
+        };
       })
     : playedTurns;
   const profile = migrateProfile(envelope.state.profile);

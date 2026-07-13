@@ -20,4 +20,16 @@ describe("player-authored canonical history", () => {
     expect(result.canonStatus).toBe("玩家钦定");
     expect(result.personalityLens).toContain("INTP");
   });
+
+  it("keeps every major consequence channel in a compound declaration", () => {
+    const result = buildCanonicalCustomResolution(
+      profile,
+      turn,
+      "我成为新皇帝，并设立国家科学院大力发展科技",
+      "rupture",
+    );
+
+    expect(result.causalMechanism).toMatch(/登基|继承|宫门/);
+    expect(result.causalMechanism).toMatch(/科学院|工坊|预算|技术/);
+  });
 });

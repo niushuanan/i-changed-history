@@ -3,8 +3,8 @@ import { getTravelerAbility } from "./profile";
 import type { PlayedTurn } from "./prompts";
 import { alternatePresentSchema, customActionResolutionSchema, timelineTurnSchema, type AlternatePresent, type CustomActionResolution, type TimelineTurn } from "./schema";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
-import { rippleFallbackScene, rippleLensLabel, selectRippleDirective } from "./rippleRouter";
 import { buildCanonicalCustomResolution } from "./customCanon";
+import { buildPivotalBrief, type PivotKind } from "./worldCanon";
 
 function previousEcho(playedTurns: readonly PlayedTurn[]): TimelineTurn["previousEcho"] {
   const previous = playedTurns.at(-1);
@@ -36,18 +36,41 @@ function visualTone(scenario: GameScenario, chapter: DecisionChapter): TimelineT
   return "digital";
 }
 
-const RELAY_STAGES: ReadonlyArray<{ role: string; location: string; topic: string; bridge: string }> = [
-  { role: "现场善后记录员", location: "事发地的临时议事厅", topic: "消息如何被记录", bridge: "你的第一项选择改变了现场留下的证词，记录员接过这条线索" },
-  { role: "跨城驿站译报员", location: "邻近交通枢纽", topic: "消息如何被传播", bridge: "一份被改写的记录沿交通线扩散，你在译报员身上接棒" },
-  { role: "新一代地方账房", location: "区域商贸集市", topic: "资源开始重新流动", bridge: "一年后的贸易账目首次显出偏差，新一代账房接棒" },
-  { role: "城市学堂教习", location: "远方城市学堂", topic: "观念进入下一代", bridge: "三年后制度余波进入教材，城市教习接棒" },
-  { role: "工坊联合会书记", location: "新兴制造业城镇", topic: "技术与劳动重新组合", bridge: "十年后旧决定改变了订单与迁徙，工坊书记接棒" },
-  { role: "水陆商路调查员", location: "区域水陆商港", topic: "影响进入日常贸易", bridge: "三十年形成的新商路改变民生日用，商港调查员接棒" },
-  { role: "公共卫生统计员", location: "跨区域行政中心", topic: "普通人的寿命与城市", bridge: "百年后人口流动改变城市风险，统计员从异常数字中接棒" },
-  { role: "大众广播编辑", location: "国际新闻编辑部", topic: "世界如何理解这段历史", bridge: "新的社会常识进入大众传播，广播编辑在争议稿件前接棒" },
-  { role: "城市系统规划师", location: "平行世界核心城市", topic: "制度进入日常基础设施", bridge: "历代选择沉入城市规则，规划师在旧档案被重启时接棒" },
-  { role: "青年历史档案员", location: "2026年前夕的公共档案馆", topic: "人类如何记住分岔", bridge: "所有余波汇入公共记忆，档案员成为抵达2026前的最后接棒者" },
+const RELAY_BRIDGES = [
+  "你的第一项选择成为正式命令，本代决策者在危机中接棒",
+  "被改写的命令沿权力网络扩散，你以新的关键身份接棒",
+  "一年后的制度冲突首次公开爆发，新一代决策者接棒",
+  "三年后的政权与联盟开始重排，本代关键人物接棒",
+  "十年后的国家秩序迎来第一次总决断，本代指挥者接棒",
+  "三十年的制度后果汇成全国危机，本代改革者接棒",
+  "百年后的文明路径出现决战，本代关键参与者接棒",
+  "新的世界秩序进入公开对决，本代决策者接棒",
+  "历代选择沉入国家机器，本代核心人物接棒",
+  "所有余波抵达2026前夕，最后一代决策者接棒",
 ];
+
+const PIVOT_SCENES: Record<PivotKind, { role: string; location: string; headline: string; stakes: string; objective: string }> = {
+  power: { role: "新朝册立使", location: "继承诏书宣读大殿", headline: "新政权第一次册立", stakes: "这次册立将决定新政权的继承与合法性", objective: "决定继承诏书由谁公开并获得军队承认" },
+  technology: { role: "国家工坊总监", location: "科学院与军械工坊联席会", headline: "第一座国家科学院", stakes: "这项决议将决定技术、人才与生产能否成为国力", objective: "决定工坊、学校与生产预算由谁掌握" },
+  institution: { role: "新法起草官", location: "全国法令颁布会议", headline: "新制度第一次表决", stakes: "这次表决将决定法令、官署与执行权的归属", objective: "决定新法如何进入官署并约束掌权者" },
+  war: { role: "决战联军统帅", location: "决定国运的会战中军帐", headline: "国运会战前一刻", stakes: "这场会战将决定军队、边境与联盟的存亡", objective: "决定主力军与盟军是否立刻投入决战" },
+  trade: { role: "全国财政使", location: "货币与税制紧急议政厅", headline: "新货币能否通行", stakes: "这项税制将决定货币、市场与全国财政秩序", objective: "决定新税与货币由哪些市场率先执行" },
+  knowledge: { role: "国立学府总教习", location: "全国学校与出版议会", headline: "知识第一次向全民开放", stakes: "这项决议将决定学校、出版与思想传播权", objective: "决定学校与出版网络是否向普通人开放" },
+  livelihood: { role: "全国粮政使", location: "土地与粮食分配大会", headline: "土地法决定千万生计", stakes: "这项土地法将决定粮食、劳动与人口的长期分配", objective: "决定土地与粮食优先保障谁的生存" },
+};
+
+function compact(value: string, max: number): string {
+  return [...value].slice(0, max).join("");
+}
+
+function summarizeCustomCanon(
+  facts: readonly { sourceText: string }[],
+  max = 42,
+): string {
+  if (facts.length === 0) return "";
+  const perFact = Math.max(10, Math.floor((max - facts.length + 1) / facts.length));
+  return facts.map((fact) => compact(fact.sourceText, perFact)).join("；");
+}
 
 export function createFallbackTurn(
   scenario: GameScenario,
@@ -64,31 +87,58 @@ export function createFallbackTurn(
   const objective = chapter === 1
     ? scenario.seed.decision
     : `决定上一项选择形成的新秩序，下一步由谁执行、由谁承担代价`;
-  const relay = RELAY_STAGES[Math.max(0, chapter - 2)];
-  const ripple = chapter === 1
-    ? { lens: "origin" as const, label: "历史原点" }
-    : selectRippleDirective(scenario, playedTurns, chapter as Exclude<DecisionChapter, 1>);
-  const routedScene = chapter === 1 ? null : rippleFallbackScene(ripple.lens as Exclude<typeof ripple.lens, "origin">);
+  const relayBridge = RELAY_BRIDGES[Math.max(0, chapter - 2)];
+  const brief = chapter === 1
+    ? null
+    : buildPivotalBrief(scenario, playedTurns, chapter as Exclude<DecisionChapter, 1>);
+  const pivotalScene = brief ? PIVOT_SCENES[brief.pivotKind] : null;
+  const activeCustomCanon = brief?.activeCustomCanon ?? [];
+  const activeCanonSummary = summarizeCustomCanon(activeCustomCanon);
+  const latestChoice = playedTurns.at(-1)?.selectedChoiceLabel ?? scenario.seed.decision;
+  const latestEcho = playedTurns.at(-1)?.resolvedEcho;
+  const requiredLedger = brief?.requiredCausalChapters.map((requiredChapter) => {
+    const source = playedTurns.find((played) => played.turn.chapter === requiredChapter);
+    return {
+      fact: source?.selectedChoiceLabel ?? `第${requiredChapter}节点已经生效`,
+      causedByChapter: requiredChapter,
+      mustAffect: compact(PIVOT_SCENES[brief.pivotKind].stakes, 28),
+    };
+  }) ?? [{ fact: compact(scenario.seed.decision, 28), causedByChapter: 0, mustAffect: "第一项玩家选择" }];
 
   return timelineTurnSchema.parse({
     timelineName: `${scenario.seed.eventName}异史`,
     chapter,
     chapterName: node.chapterName,
     yearLabel,
-    location: chapter === 1 ? scenario.seed.location : routedScene!.location,
-    role: chapter === 1 ? scenario.seed.role : routedScene!.role,
-    identityBridge: chapter === 1 ? "你的现代意识直接进入这一历史现场" : relay.bridge,
+    location: chapter === 1 ? scenario.seed.location : pivotalScene!.location,
+    role: chapter === 1 ? scenario.seed.role : pivotalScene!.role,
+    identityBridge: chapter === 1 ? "你的现代意识直接进入这一历史现场" : relayBridge,
     profileAdvantage: `${scenario.profile.typeCode}「${ability.title}」能${ability.preview.replace("预判时", "")}`,
-    rippleLens: ripple.lens,
+    rippleLens: chapter === 1 ? "origin" : brief!.rippleLens,
     causalBridge: chapter === 1
       ? `你在${scenario.seed.eventName}作出的决定将成为整条时间线的源头`
-      : `${playedTurns.at(-1)?.selectedChoiceLabel ?? "上一选择"}通过${rippleLensLabel(ripple.lens)}转入新的社会冲突`,
-    immediateObjective: chapter === 1 ? objective : `决定${routedScene!.topic}时由谁受益、谁承担代价`,
+      : compact(activeCustomCanon.length > 0
+        ? `玩家钦定「${activeCanonSummary}」仍生效，并让「${latestChoice}」引爆本次决断`
+        : `「${latestChoice}」通过${playedTurns.at(-1)?.causalMechanism ?? "命令与执行网络"}引爆本次决断`, 54),
+    turningPointStakes: chapter === 1
+      ? compact(`这一决定将改变${scenario.seed.eventName}及其后的真实历史秩序`, 54)
+      : pivotalScene!.stakes,
+    worldStateChange: chapter === 1
+      ? compact(`历史尚未改写；你的第一项选择将首先改变：${scenario.seed.decision}`, 72)
+      : compact(activeCustomCanon.length > 0
+        ? `玩家钦定「${activeCanonSummary}」持续生效；「${latestChoice}」已改变当前秩序`
+        : `「${latestChoice}」已成正史；${latestEcho?.directResult ?? "新命令已经执行"}`, 72),
+    divergenceProof: chapter === 1
+      ? compact(`真实历史中${scenario.seed.historicalOutcome}；当前线正等待你的决定`, 72)
+      : compact(activeCustomCanon.length > 0
+        ? `真实历史中没有「${activeCanonSummary}」；当前线这些正史已催生${pivotalScene!.headline}`
+        : `真实历史中没有「${latestChoice}」；当前线已因此出现${pivotalScene!.headline}`, 72),
+    immediateObjective: chapter === 1 ? objective : pivotalScene!.objective,
     timePressure: chapter === 1 ? scenario.seed.urgency : `下一个时间窗口将在${node.jumpLabel}结束前关闭`,
-    headline: chapter === 1 ? scenario.seed.eventName : `${node.jumpLabel}：${routedScene!.topic}`,
+    headline: chapter === 1 ? scenario.seed.eventName : pivotalScene!.headline,
     narrative: chapter === 1
       ? `你已经抵达${scenario.seed.location}。${scenario.seed.urgency}，眼前的人都在等待你对“${scenario.seed.decision}”作出决定。`
-      : `上一项选择已经进入${routedScene!.location}。${routedScene!.topic}，眼前的人群正争论谁受益、谁承担代价。`,
+      : compact(`你抵达${pivotalScene!.location}。${pivotalScene!.headline}将在今天决定，所有关键人物都在等待你的命令。`, 72),
     baselineAnchor: scenario.seed.historicalOutcome,
     previousEcho: chapter === 1 ? null : echo,
     choices: [
@@ -96,13 +146,12 @@ export function createFallbackTurn(
       { id: "B", label: `用${ability.title}的本能重写规则`, intent: ability.style, deviationClass: "reform", usesTravelerStrength: true, instantEcho: { directResult: "新的协商机制开始运转", unexpectedCost: "既得利益者组织起明确反对", beneficiary: "能进入新规则的人", payer: "失去特权的旧管理者" } },
       { id: "C", label: "废除旧约束，把决定权交给新的联盟", intent: "用不可逆的断裂换取全新路径", deviationClass: "rupture", usesTravelerStrength: false, instantEcho: { directResult: "旧命令体系立即失效", unexpectedCost: "秩序真空引发争夺与恐慌", beneficiary: "长期被排除的行动者", payer: "依赖旧体系生存的人" } },
     ],
-    memorySummary: `第${chapter}节点沿着“${playedTurns.at(-1)?.selectedChoiceLabel ?? scenario.seed.decision}”继续分化。`,
+    memorySummary: activeCustomCanon.length > 0
+      ? `第${chapter}节点继续兑现玩家钦定“${activeCanonSummary}”，并吸收“${latestChoice}”的后果。`
+      : `第${chapter}节点沿着“${playedTurns.at(-1)?.selectedChoiceLabel ?? scenario.seed.decision}”继续分化。`,
     metrics: previous?.metrics ?? { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
     metricDeltas: { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
-    causalLedger: [
-      ...(previous?.causalLedger.slice(-3) ?? []),
-      { fact: `时间线抵达${node.jumpLabel}`, causedByChapter: chapter, mustAffect: "下一节点的权力与普通生活" },
-    ],
+    causalLedger: requiredLedger,
     callbackUsed: playedTurns.at(-1)?.selectedChoiceLabel ?? null,
     visualTone: visualTone(scenario, chapter),
     generationSource: "fallback",

@@ -5,7 +5,7 @@ import { parseTimelineTurn } from "./schema";
 import { buildTravelerProfile } from "./profile";
 import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
-import { selectRippleDirective } from "./rippleRouter";
+import { buildPivotalBrief } from "./worldCanon";
 
 const scenario: GameScenario = {
   profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
@@ -45,7 +45,7 @@ describe("modern traveler AI prompt contract", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
-    const ripple = selectRippleDirective(scenario, played, 8);
+    const brief = buildPivotalBrief(scenario, played, 8);
 
     expect(continuation).toContain("不得把玩家写成长生不老");
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
@@ -54,10 +54,39 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("profileAdvantage");
     expect(continuation).toContain("usesTravelerStrength");
     expect(continuation).toContain("总输出控制在 700 个汉字以内");
-    expect(continuation).toContain(ripple.lens);
-    expect(continuation).toContain(ripple.label);
+    expect(continuation).toContain(brief.rippleLens);
+    expect(continuation).toContain(brief.significanceRequirement);
     expect(continuation).toContain("rippleLens");
     expect(continuation).toContain("causalBridge");
+  });
+
+  it("treats every continuation as a major turning point with a visible alternate-world payoff", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{
+      turn: parsedTurn,
+      selectedChoiceId: "custom" as const,
+      selectedChoiceLabel: "我成为新皇帝，并设立国家科学院大力发展科技",
+      selectedDeviationClass: "rupture" as const,
+      resolvedEcho: {
+        directResult: "我成为新皇帝，并设立国家科学院大力发展科技",
+        unexpectedCost: "旧贵族联合抵制新税",
+        beneficiary: "进入科学院的工匠",
+        payer: "失去垄断的世袭贵族",
+      },
+      playerAuthored: true,
+      canonStatus: "玩家钦定" as const,
+      causalMechanism: "登基诏书和科学院预算进入官署执行",
+    }];
+    const continuation = buildContinuationMessages(scenario, played, 2).at(-1)!.content;
+
+    expect(continuation).toContain("不可撤销正史");
+    expect(continuation).toContain("我成为新皇帝，并设立国家科学院大力发展科技");
+    expect(continuation).toContain("重大转折点");
+    expect(continuation).toContain("turningPointStakes");
+    expect(continuation).toContain("worldStateChange");
+    expect(continuation).toContain("divergenceProof");
+    expect(continuation).toContain("权力与继承");
+    expect(continuation).toContain("技术与生产");
   });
 
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
