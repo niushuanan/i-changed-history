@@ -52,4 +52,4 @@
 - [x] Run all tests, typecheck, build, portability check, and `git diff --check`.
 - [x] Capture and inspect matching event states at 390 x 844 and desktop scale; verify controls and console.
 - [x] Record `final result: passed` only after no P0/P1/P2 layout issues remain.
-- [ ] Commit, push `main`, and verify local/remote SHA plus GitHub Actions.
+- [x] Commit, push `main`, and verify local/remote SHA plus GitHub Actions.
