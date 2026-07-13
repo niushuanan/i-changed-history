@@ -30,9 +30,10 @@ export function ButterflyEchoScreen({
       {sceneImage && <img className="echo-screen__art" src={sceneImage} alt="" />}
       <button className="echo-screen__exit" type="button" onClick={onExit} aria-label="退出本次推演"><SignOut size={17} weight="bold" /></button>
       <section className="echo-verdict">
-        <span>世界裁决 · 偏离 +{echo.stepImpact}</span>
+        <span>世界裁决 · {echo.source === "custom_action" ? "自由改命 · " : ""}偏离 +{echo.stepImpact}</span>
         <h1>世界已回应</h1>
         <p className="echo-screen__choice">你选择：{echo.choiceLabel}</p>
+        {echo.ruling && <p className="echo-screen__ruling">{echo.ruling} · {echo.constraintApplied}</p>}
         <strong>{echo.directResult}</strong>
         <p className="echo-screen__cost">但 {echo.unexpectedCost}</p>
         <dl className="echo-people">

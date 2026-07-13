@@ -1,6 +1,7 @@
 import type { GameScenario } from "./reducer";
 import {
   buildContinuationMessages,
+  buildCustomActionMessages,
   buildEndingMessages,
   buildContextualJsonRepairMessages,
   buildOpeningMessages,
@@ -11,15 +12,17 @@ import {
 } from "./prompts";
 import {
   parseAlternatePresent,
+  parseCustomActionResolution,
   parseTimelineTurn,
   type AlternatePresent,
+  type CustomActionResolution,
   type TimelineTurn,
 } from "./schema";
 import { DeepSeekError, requestCompletion, type CompletionOptions } from "../services/deepseek";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
-import { createFallbackEnding, createFallbackTurn } from "./fallbackTurn";
+import { createFallbackCustomActionResolution, createFallbackEnding, createFallbackTurn } from "./fallbackTurn";
 
-type RepairTarget = "timeline_turn" | "alternate_present";
+type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
 type Parser<T> = (raw: string) => T;
 
 export type GenerationOptions = {
@@ -36,7 +39,9 @@ export class StructuredGenerationError extends Error {
     super(
       target === "timeline_turn"
         ? "AI 返回的幕次结构仍不完整，请重新推演这一幕。"
-        : "AI 返回的结局结构仍不完整，请重新生成结局。",
+        : target === "custom_action"
+          ? "AI 没有完成这次自由改命裁决，请重试。"
+          : "AI 返回的结局结构仍不完整，请重新生成结局。",
       { cause },
     );
   }
@@ -128,8 +133,30 @@ function expectedPreviousEcho(
 ): NonNullable<TimelineTurn["previousEcho"]> | undefined {
   const previous = playedTurns.at(-1);
   if (!previous) return undefined;
-  return previous.turn.choices.find((choice) => choice.id === previous.selectedChoiceId)
-    ?.instantEcho;
+  return previous.resolvedEcho;
+}
+
+export async function adjudicateCustomAction(
+  scenario: GameScenario,
+  playedTurns: readonly PlayedTurn[],
+  turn: TimelineTurn,
+  action: string,
+  options: GenerationOptions = {},
+): Promise<CustomActionResolution> {
+  const messages = buildCustomActionMessages(scenario, playedTurns, turn, action);
+  try {
+    return await requestValidated(
+      messages,
+      { phase: "turn", signal: options.signal },
+      "custom_action",
+      parseCustomActionResolution,
+    );
+  } catch (error) {
+    if (error instanceof StructuredGenerationError) {
+      return createFallbackCustomActionResolution(turn, action);
+    }
+    throw error;
+  }
 }
 
 function parseExpectedEnding(

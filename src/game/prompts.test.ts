@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
-import { buildContinuationMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
+import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
 
 const scenario: GameScenario = {
@@ -24,7 +24,7 @@ describe("modern traveler AI prompt contract", () => {
 
   it("serializes only generated choices in continuation and ending", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const }];
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
     const ending = buildEndingMessages(scenario, Array(11).fill(played[0])).at(-1)!.content;
     expect(continuation).not.toContain("customIntervention");
@@ -37,7 +37,7 @@ describe("modern traveler AI prompt contract", () => {
 
   it("forces generational identity relay and butterfly-effect topic jumps", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const }];
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
 
     expect(continuation).toContain("不得把玩家写成长生不老");
@@ -51,7 +51,7 @@ describe("modern traveler AI prompt contract", () => {
 
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const }];
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
 
     expect(continuation).toContain("不强制跨国或跨洲");
@@ -66,5 +66,16 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain("总输出控制在 700 个汉字以内");
     expect(body).toContain("60 个汉字以内");
     expect(body).toContain("每个 label 22 字以内");
+  });
+
+  it("asks the model to adjudicate a free action against the current role and resources", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const body = buildCustomActionMessages(scenario, [], parsedTurn, "调动全城军队包围皇宫").at(-1)!.content;
+
+    expect(body).toContain("调动全城军队包围皇宫");
+    expect(body).toContain(parsedTurn.role);
+    expect(body).toContain("不得凭空增加身份、资源、技术或知情范围");
+    expect(body).toContain("constraintApplied");
+    expect(body).toContain("受限执行");
   });
 });

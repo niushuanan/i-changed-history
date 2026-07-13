@@ -1,12 +1,36 @@
 import type { GameScenario } from "./reducer";
 import type { PlayedTurn } from "./prompts";
-import { alternatePresentSchema, timelineTurnSchema, type AlternatePresent, type TimelineTurn } from "./schema";
+import { alternatePresentSchema, customActionResolutionSchema, timelineTurnSchema, type AlternatePresent, type CustomActionResolution, type TimelineTurn } from "./schema";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 
 function previousEcho(playedTurns: readonly PlayedTurn[]): TimelineTurn["previousEcho"] {
   const previous = playedTurns.at(-1);
   if (!previous) return null;
-  return previous.turn.choices.find((choice) => choice.id === previous.selectedChoiceId)?.instantEcho ?? null;
+  return previous.resolvedEcho;
+}
+
+export function createFallbackCustomActionResolution(
+  turn: TimelineTurn,
+  action: string,
+): CustomActionResolution {
+  const normalizedAction = [...action.trim()].slice(0, 56).join("");
+  const deviationClass = /废除|杀|炸|焚|夺权|起兵|全部/.test(normalizedAction)
+    ? "rupture"
+    : /公开|谈判|组织|制度|规则|联合|请愿/.test(normalizedAction)
+      ? "reform"
+      : "nudge";
+  return customActionResolutionSchema.parse({
+    normalizedAction,
+    ruling: "受限执行",
+    constraintApplied: `你只能以${turn.role}的身份，动用此刻现场可接触的人与物`,
+    deviationClass,
+    instantEcho: {
+      directResult: "你的行动迫使现场秩序立即调整",
+      unexpectedCost: "仓促执行让风险转移给了弱势参与者",
+      beneficiary: "最先适应新安排的人",
+      payer: "无法及时离开现场的人",
+    },
+  });
 }
 
 function visualTone(scenario: GameScenario, chapter: DecisionChapter): TimelineTurn["visualTone"] {
@@ -82,7 +106,7 @@ export function createFallbackTurn(
 }
 
 export function createFallbackEnding(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): AlternatePresent {
-  const chosenEcho = (played: PlayedTurn) => played.turn.choices.find((choice) => choice.id === played.selectedChoiceId)?.instantEcho;
+  const chosenEcho = (played: PlayedTurn) => played.resolvedEcho;
   const first = playedTurns[0];
   const middle = playedTurns[Math.floor(playedTurns.length / 2)];
   const last = playedTurns.at(-1);

@@ -23,10 +23,18 @@ const visualToneSchema = z.enum([
 const generationSourceSchema = z.enum(["deepseek", "fallback"]);
 
 const echoSchema = z.object({
-  directResult: requiredString,
-  unexpectedCost: requiredString,
-  beneficiary: requiredString,
-  payer: requiredString,
+  directResult: boundedString(32),
+  unexpectedCost: boundedString(32),
+  beneficiary: boundedString(24),
+  payer: boundedString(24),
+});
+
+export const customActionResolutionSchema = z.object({
+  normalizedAction: z.string().trim().min(2).max(56),
+  ruling: z.enum(["按原意执行", "受限执行"]),
+  constraintApplied: boundedString(56),
+  deviationClass: deviationClassSchema,
+  instantEcho: echoSchema,
 });
 
 const choiceFields = {
@@ -80,7 +88,7 @@ const strictTimelineTurnSchema = z
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
-    narrative: requiredString.max(100),
+    narrative: requiredString.max(72),
     baselineAnchor: boundedString(54),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
@@ -163,9 +171,9 @@ function joinStringArray(value: unknown): unknown {
 function trimNarrative(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const characters = [...value];
-  if (characters.length <= 100) return value;
+  if (characters.length <= 72) return value;
 
-  const candidate = characters.slice(0, 100).join("");
+  const candidate = characters.slice(0, 72).join("");
   const sentenceEnd = Math.max(
     candidate.lastIndexOf("。"),
     candidate.lastIndexOf("！"),
@@ -287,6 +295,7 @@ export const alternatePresentSchema = z
 export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
 export type AlternatePresent = z.infer<typeof alternatePresentSchema>;
 export type DeviationClass = z.infer<typeof deviationClassSchema>;
+export type CustomActionResolution = z.infer<typeof customActionResolutionSchema>;
 export type TimelineTurnParseOptions = {
   expectedChapter?: DecisionChapter;
   expectedYearLabel?: string;
@@ -366,6 +375,10 @@ export function parseTimelineTurn(
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
     ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),
   });
+}
+
+export function parseCustomActionResolution(raw: string): CustomActionResolution {
+  return customActionResolutionSchema.parse(parseJsonObject(raw));
 }
 
 export function parseAlternatePresent(

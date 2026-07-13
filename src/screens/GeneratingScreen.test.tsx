@@ -23,4 +23,11 @@ describe("history developing room", () => {
     expect(screen.getByRole("img", { name: "平行世界正在汇入 2026" })).toHaveAttribute("src", "/assets/generating-2026.webp");
     expect(screen.getByText("汇入 2026")).toBeVisible();
   });
+
+  it("explains the historical constraint check during a free-action ruling", () => {
+    render(<GeneratingScreen chapter={2} ending={false} customAction onCancel={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "第四条路裁决中" })).toBeVisible();
+    expect(screen.getByText("核对现场可用资源")).toBeVisible();
+    expect(screen.getByText("计算受益者与隐藏代价")).toBeVisible();
+  });
 });

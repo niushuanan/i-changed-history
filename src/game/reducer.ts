@@ -1,16 +1,20 @@
 import { calculateDeviation } from "./deviation";
 import type { PlayedTurn } from "./prompts";
-import type { AlternatePresent, TimelineTurn } from "./schema";
+import type { AlternatePresent, CustomActionResolution, TimelineTurn } from "./schema";
 import type { HistorySeed, TravelerProfile } from "./types";
 import type { DecisionChapter } from "./timelinePlan";
 
-export type GamePhase = "profiling" | "selecting" | "generating" | "event" | "echo" | "ending" | "result" | "error";
+export type GamePhase = "profiling" | "selecting" | "generating" | "adjudicating" | "event" | "echo" | "ending" | "result" | "error";
 export type GameScenario = { profile: TravelerProfile; seed: HistorySeed };
-export type RetryIntent = { kind: "opening" } | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> } | { kind: "ending" };
+export type RetryIntent =
+  | { kind: "opening" }
+  | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> }
+  | { kind: "custom-action"; action: string }
+  | { kind: "ending" };
 export type RequestIntent = RetryIntent & { id: number };
 
 export type EchoState = {
-  source: "ai_choice";
+  source: "ai_choice" | "custom_action";
   choiceLabel: string;
   directResult: string;
   unexpectedCost: string;
@@ -18,6 +22,8 @@ export type EchoState = {
   payer: string;
   stepImpact: number;
   nextDeviation: number;
+  ruling?: CustomActionResolution["ruling"];
+  constraintApplied?: string;
 };
 
 export type GameErrorState = { code: string; message: string; retry: RetryIntent };
@@ -30,6 +36,7 @@ export type GameState = {
   playedTurns: PlayedTurn[];
   deviation: number;
   lastImpact: number;
+  customActionsUsed: number;
   echo: EchoState | null;
   request: RequestIntent | null;
   pendingTurn: TimelineTurn | null;
@@ -45,6 +52,8 @@ export type GameAction =
   | { type: "START_SCENARIO"; seed: HistorySeed }
   | { type: "OPENING_RESOLVED"; requestId: number; turn: TimelineTurn }
   | { type: "COMMIT_AI_CHOICE"; choiceId: "A" | "B" | "C" }
+  | { type: "SUBMIT_CUSTOM_ACTION"; action: string }
+  | { type: "CUSTOM_ACTION_RESOLVED"; requestId: number; resolution: CustomActionResolution }
   | { type: "TURN_RESOLVED"; requestId: number; turn: TimelineTurn }
   | { type: "ENDING_RESOLVED"; requestId: number; ending: AlternatePresent }
   | { type: "CONTINUE_TIMELINE" }
@@ -55,7 +64,7 @@ export type GameAction =
 export function createInitialGameState(nextRequestId = 1): GameState {
   return {
     phase: "profiling", profile: null, scenario: null, currentTurn: null, playedTurns: [],
-    deviation: 0, lastImpact: 0, echo: null, request: null, pendingTurn: null,
+    deviation: 0, lastImpact: 0, customActionsUsed: 0, echo: null, request: null, pendingTurn: null,
     pendingEnding: null, result: null, error: null, nextRequestId,
   };
 }
@@ -108,6 +117,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         selectedChoiceId: choice.id,
         selectedChoiceLabel: choice.label,
         selectedDeviationClass: choice.deviationClass,
+        resolvedEcho: choice.instantEcho,
       };
       return {
         ...state,
@@ -116,6 +126,48 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         deviation: impact.nextDeviation,
         lastImpact: impact.stepImpact,
         echo: { source: "ai_choice", choiceLabel: choice.label, ...choice.instantEcho, ...impact },
+        ...requestAfterChoice(state),
+        pendingTurn: null,
+        pendingEnding: null,
+        error: null,
+      };
+    }
+    case "SUBMIT_CUSTOM_ACTION": {
+      const customAction = action.action.trim();
+      if (state.phase !== "event" || !state.currentTurn || state.customActionsUsed >= 3) return state;
+      if ([...customAction].length < 2 || [...customAction].length > 56) return state;
+      return {
+        ...state,
+        phase: "adjudicating",
+        ...withRequest(state, { kind: "custom-action", action: customAction }),
+        error: null,
+      };
+    }
+    case "CUSTOM_ACTION_RESOLVED": {
+      if (state.request?.id !== action.requestId || state.request.kind !== "custom-action" || !state.currentTurn) return state;
+      const impact = calculateDeviation(state.deviation, action.resolution.deviationClass, state.currentTurn.chapter);
+      const playedTurn: PlayedTurn = {
+        turn: state.currentTurn,
+        selectedChoiceId: "custom",
+        selectedChoiceLabel: action.resolution.normalizedAction,
+        selectedDeviationClass: action.resolution.deviationClass,
+        resolvedEcho: action.resolution.instantEcho,
+      };
+      return {
+        ...state,
+        phase: "echo",
+        playedTurns: [...state.playedTurns, playedTurn],
+        deviation: impact.nextDeviation,
+        lastImpact: impact.stepImpact,
+        customActionsUsed: Math.min(3, state.customActionsUsed + 1),
+        echo: {
+          source: "custom_action",
+          choiceLabel: action.resolution.normalizedAction,
+          ruling: action.resolution.ruling,
+          constraintApplied: action.resolution.constraintApplied,
+          ...action.resolution.instantEcho,
+          ...impact,
+        },
         ...requestAfterChoice(state),
         pendingTurn: null,
         pendingEnding: null,
@@ -141,10 +193,32 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, phase: "generating", echo: null };
     case "REQUEST_FAILED":
       if (state.request?.id !== action.requestId) return state;
-      return { ...state, error: { code: action.code, message: action.message, retry: state.request.kind === "next-turn" ? { kind: "next-turn", targetChapter: state.request.targetChapter } : { kind: state.request.kind } }, request: null, phase: state.phase === "echo" ? "echo" : "error" };
+      return {
+        ...state,
+        error: {
+          code: action.code,
+          message: action.message,
+          retry: state.request.kind === "next-turn"
+            ? { kind: "next-turn", targetChapter: state.request.targetChapter }
+            : state.request.kind === "custom-action"
+              ? { kind: "custom-action", action: state.request.action }
+              : { kind: state.request.kind },
+        },
+        request: null,
+        phase: state.phase === "echo" ? "echo" : "error",
+      };
     case "RETRY":
       if (state.phase !== "error" || !state.error) return state;
-      return { ...state, phase: state.error.retry.kind === "ending" ? "ending" : "generating", ...withRequest(state, state.error.retry), error: null };
+      return {
+        ...state,
+        phase: state.error.retry.kind === "ending"
+          ? "ending"
+          : state.error.retry.kind === "custom-action"
+            ? "adjudicating"
+            : "generating",
+        ...withRequest(state, state.error.retry),
+        error: null,
+      };
     case "RESTART":
       return cleanSession(state);
     default:

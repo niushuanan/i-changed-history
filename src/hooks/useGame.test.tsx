@@ -9,7 +9,7 @@ import { useGame, type UseGameDependencies } from "./useGame";
 const profile = { name: "林舟", occupation: "product", strengths: ["negotiation", "strategy"], riskStyle: "balanced" } as const;
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
-  generateOpening: vi.fn().mockResolvedValue(turn), generateNextTurn: vi.fn(), generateEnding: vi.fn(),
+  generateOpening: vi.fn().mockResolvedValue(turn), generateNextTurn: vi.fn(), adjudicateCustomAction: vi.fn(), generateEnding: vi.fn(),
   loadSnapshot: vi.fn(() => null), saveSnapshot: vi.fn(() => true),
   audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
 });
@@ -39,6 +39,7 @@ describe("useGame profile orchestration", () => {
         selectedChoiceId: "A",
         selectedChoiceLabel: turn.choices[0].label,
         selectedDeviationClass: "nudge",
+        resolvedEcho: turn.choices[0].instantEcho,
       }],
       request: { kind: "ending", id: 8 },
     };
@@ -53,6 +54,34 @@ describe("useGame profile orchestration", () => {
       restored.scenario,
       restored.playedTurns,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("adjudicates a free action and spends one chance only after success", async () => {
+    const dependencies = deps();
+    vi.mocked(dependencies.adjudicateCustomAction).mockResolvedValue({
+      normalizedAction: "先扣下军令，再请皇帝临朝",
+      ruling: "受限执行",
+      constraintApplied: "只能调动身边宿卫",
+      deviationClass: "reform",
+      instantEcho: {
+        directResult: "皇帝提前收到宫变消息",
+        unexpectedCost: "两宫禁军开始互扣使者",
+        beneficiary: "忠于皇帝的宿卫",
+        payer: "玄武门低阶军士",
+      },
+    });
+    const { result } = renderHook(() => useGame(dependencies));
+    act(() => result.current.setProfile(profile));
+    act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
+    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+
+    act(() => result.current.submitCustomAction("先扣下军令，再请皇帝临朝"));
+    expect(result.current.state.customActionsUsed).toBe(0);
+    await waitFor(() => expect(result.current.state.phase).toBe("echo"));
+    expect(result.current.state.customActionsUsed).toBe(1);
+    expect(dependencies.adjudicateCustomAction).toHaveBeenCalledWith(
+      expect.any(Object), [], turn, "先扣下军令，再请皇帝临朝", expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 });

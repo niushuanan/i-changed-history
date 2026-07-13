@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTimelineTurn } from "../game/schema";
 import { turnFixture } from "../test/fixtures";
@@ -6,6 +6,7 @@ import { TimelineEventScreen } from "./TimelineEventScreen";
 
 describe("clear change event screen", () => {
   afterEach(() => cleanup());
+  const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 
   it("shows proof of change and removes dashboard noise", () => {
     const turn = parseTimelineTurn(JSON.stringify({
@@ -19,7 +20,9 @@ describe("clear change event screen", () => {
       deviation={18}
       lastChoiceLabel="扶植年幼继承人"
       abilityTitle="系统拆解"
+      customActionsRemaining={3}
       onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
       onExit={vi.fn()}
     />);
 
@@ -35,5 +38,35 @@ describe("clear change event screen", () => {
     expect(screen.getByText("改制")).toBeVisible();
     expect(screen.getByText("断裂")).toBeVisible();
     expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: /写下第四条路/ })).toHaveTextContent("3 次");
+    expect(within(proof).getByText(/未结历史债/)).toBeVisible();
+  });
+
+  it("validates free action length and disables the entry after three uses", async () => {
+    const onCustomAction = vi.fn();
+    const { rerender } = render(<TimelineEventScreen
+      turn={openingTurn}
+      deviation={0}
+      abilityTitle="系统拆解"
+      customActionsRemaining={3}
+      onChoose={vi.fn()}
+      onCustomAction={onCustomAction}
+      onExit={vi.fn()}
+    />);
+
+    fireEvent.click(screen.getByRole("button", { name: /写下第四条路/ }));
+    expect(screen.getByRole("dialog", { name: "自由改命" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "提交改命" })).toBeDisabled();
+
+    rerender(<TimelineEventScreen
+      turn={openingTurn}
+      deviation={0}
+      abilityTitle="系统拆解"
+      customActionsRemaining={0}
+      onChoose={vi.fn()}
+      onCustomAction={onCustomAction}
+      onExit={vi.fn()}
+    />);
+    expect(screen.getByRole("button", { name: /改命机会已用完/ })).toBeDisabled();
   });
 });

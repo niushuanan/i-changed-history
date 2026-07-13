@@ -1,8 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { endingFixture, turnFixture } from "../test/fixtures";
-import { extractFirstJsonObject, parseAlternatePresent, parseTimelineTurn } from "./schema";
+import { extractFirstJsonObject, parseAlternatePresent, parseCustomActionResolution, parseTimelineTurn } from "./schema";
 
 describe("structured timeline parsing", () => {
+  it("parses a historically constrained custom action ruling", () => {
+    const resolution = parseCustomActionResolution(JSON.stringify({
+      normalizedAction: "先封锁宫门，再派人请李渊临朝",
+      ruling: "受限执行",
+      constraintApplied: "你只能调动本门禁军，无法号令全城",
+      deviationClass: "reform",
+      instantEcho: {
+        directResult: "李渊提前得知宫门兵变",
+        unexpectedCost: "两宫禁军开始各自扣押使者",
+        beneficiary: "仍忠于皇帝的宿卫",
+        payer: "玄武门内的低阶军士",
+      },
+    }));
+
+    expect(resolution).toMatchObject({ ruling: "受限执行", deviationClass: "reform" });
+    expect(() => parseCustomActionResolution(JSON.stringify({
+      ...resolution,
+      normalizedAction: "改".repeat(57),
+    }))).toThrow();
+  });
+
   it("extracts one JSON object through markdown noise and braces inside strings", () => {
     const raw = `答复如下\n\`\`\`json\n${JSON.stringify(turnFixture)}\n\`\`\`\n结束`;
     expect(JSON.parse(extractFirstJsonObject(raw))).toEqual(turnFixture);
@@ -24,7 +45,7 @@ describe("structured timeline parsing", () => {
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
     const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(111) });
-    expect(parseTimelineTurn(raw).narrative).toHaveLength(100);
+    expect(parseTimelineTurn(raw).narrative).toHaveLength(72);
   });
 
   it("ends a trimmed narrative at a complete sentence when possible", () => {

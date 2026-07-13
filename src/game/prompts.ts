@@ -5,12 +5,13 @@ import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timeline
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
   turn: TimelineTurn;
-  selectedChoiceId: "A" | "B" | "C";
+  selectedChoiceId: "A" | "B" | "C" | "custom";
   selectedChoiceLabel: string;
   selectedDeviationClass: DeviationClass;
+  resolvedEcho: NonNullable<TimelineTurn["previousEcho"]>;
 };
 type ContinuationChapter = Exclude<DecisionChapter, 1>;
-type RepairTarget = "timeline_turn" | "alternate_present";
+type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
 export type JsonRepairDetails = { expectedChapter?: TimelineTurn["chapter"]; validationErrors?: readonly string[] };
 
 export const TIMELINE_SYSTEM_PROMPT = [
@@ -91,13 +92,13 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
 }
 
 function selectedHistory(playedTurns: readonly PlayedTurn[]) {
-  return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass }) => ({
+  return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass, resolvedEcho }) => ({
     chapter: turn.chapter,
     yearLabel: turn.yearLabel,
     selectedChoiceId,
     selectedChoiceLabel,
     selectedDeviationClass,
-    instantEcho: turn.choices.find((choice) => choice.id === selectedChoiceId)?.instantEcho,
+    instantEcho: resolvedEcho,
     memorySummary: turn.memorySummary,
     role: turn.role,
     location: turn.location,
@@ -123,6 +124,38 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     playedHistory: selectedHistory(playedTurns),
     outputContract: turnContract(chapter),
+  });
+}
+
+export function buildCustomActionMessages(
+  scenario: GameScenario,
+  playedTurns: readonly PlayedTurn[],
+  turn: TimelineTurn,
+  action: string,
+): ChatMessage[] {
+  return messages({
+    task: "裁决玩家写下的第四条路。必须把行动放回当前身份、地点、时间压力和可支配资源中；不得凭空增加身份、资源、技术或知情范围。能原样执行则 ruling 为按原意执行；否则保留玩家意图并降格为当场可执行的动作，ruling 为受限执行。无论哪种方式都必须给出真实收益、隐藏代价、受益者和承担者。",
+    ...scenarioPayload(scenario),
+    playedHistory: selectedHistory(playedTurns),
+    currentScene: {
+      chapter: turn.chapter,
+      yearLabel: turn.yearLabel,
+      location: turn.location,
+      role: turn.role,
+      immediateObjective: turn.immediateObjective,
+      timePressure: turn.timePressure,
+      availableProfileAdvantage: turn.profileAdvantage,
+      causalLedger: turn.causalLedger,
+    },
+    playerAction: action,
+    outputContract: {
+      requiredFields: ["normalizedAction", "ruling", "constraintApplied", "deviationClass", "instantEcho"],
+      normalizedAction: "2-56 个汉字，保留玩家原意并改写成当前角色能执行的具体动作",
+      ruling: "按原意执行/受限执行 二选一",
+      constraintApplied: "56 个汉字以内，说明身份、资源、技术或时间上的真实限制",
+      deviationClass: "nudge/reform/rupture 之一",
+      instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
+    },
   });
 }
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
-import { generateEnding, generateNextTurn, generateOpening } from "../game/engine";
+import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpening } from "../game/engine";
 import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
@@ -9,10 +9,10 @@ import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 const messages = [{ role: "system" as const, content: "system" }, { role: "user" as const, content: "user" }];
 const scenario = { profile: { name: "林舟", occupation: "product" as const, strengths: ["negotiation", "strategy"] as const, riskStyle: "balanced" as const }, seed: HISTORY_SEEDS[0] };
 const firstTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-const playedTurn = { turn: firstTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: firstTurn.choices[0].label, selectedDeviationClass: "nudge" as const };
+const playedTurn = { turn: firstTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: firstTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: firstTurn.choices[0].instantEcho };
 const endingPlayedTurns = endingFixture.historyTimeline.map((item, index) => ({
   turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
-  selectedChoiceId: "A" as const, selectedChoiceLabel: item.playerChoice, selectedDeviationClass: "nudge" as const,
+  selectedChoiceId: "A" as const, selectedChoiceLabel: item.playerChoice, selectedDeviationClass: "nudge" as const, resolvedEcho: turnFixture.choices[0].instantEcho,
 }));
 
 function completion(content = '{"ok":true}') {
@@ -76,6 +76,20 @@ describe("DeepSeek transport and structured generation", () => {
     const second = { ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
     await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho });
+  });
+
+  it("returns a structured ruling for a free action", async () => {
+    const ruling = {
+      normalizedAction: "先扣下军令，再请皇帝临朝",
+      ruling: "受限执行",
+      constraintApplied: "只能调动身边宿卫",
+      deviationClass: "reform",
+      instantEcho: turnFixture.choices[1].instantEcho,
+    };
+    const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(ruling)));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(adjudicateCustomAction(scenario, [], firstTurn, "调动全城军队"))
+      .resolves.toMatchObject(ruling);
   });
 
   it("keeps the eleven player choices authoritative in the ending", async () => {

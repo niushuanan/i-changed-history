@@ -45,7 +45,9 @@ export function App() {
         deviation={state.deviation}
         lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
         abilityTitle={ability?.title ?? "现代认知"}
+        customActionsRemaining={Math.max(0, 3 - state.customActionsUsed)}
         onChoose={game.choose}
+        onCustomAction={game.submitCustomAction}
         onExit={game.restart}
         sceneImage={state.currentTurn.chapter === 1 && state.scenario
           ? historyAssetForSeed(state.scenario.seed)
@@ -85,6 +87,7 @@ export function App() {
       <GeneratingScreen
         chapter={targetChapter}
         ending={state.phase === "ending" || state.request?.kind === "ending"}
+        customAction={state.phase === "adjudicating" || state.request?.kind === "custom-action"}
         onCancel={game.restart}
       />
     );

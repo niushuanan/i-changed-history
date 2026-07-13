@@ -9,7 +9,16 @@ type DevelopingStage = {
   steps: readonly [string, string, string];
 };
 
-function stageFor(chapter: number, ending: boolean): DevelopingStage {
+function stageFor(chapter: number, ending: boolean, customAction: boolean): DevelopingStage {
+  if (customAction) {
+    return {
+      image: "/assets/generating-opening.webp",
+      alt: "自由行动正在接受历史约束裁决",
+      title: "第四条路裁决中",
+      focus: "把你的意图放回当时的身份、资源与倒计时",
+      steps: ["核对现场可用资源", "判断行动如何落地", "计算受益者与隐藏代价"],
+    };
+  }
   if (ending) {
     return {
       image: "/assets/generating-2026.webp",
@@ -37,8 +46,8 @@ function stageFor(chapter: number, ending: boolean): DevelopingStage {
   };
 }
 
-export function GeneratingScreen({ chapter, ending, onCancel }: { chapter: number; ending: boolean; onCancel: () => void }) {
-  const stage = stageFor(chapter, ending);
+export function GeneratingScreen({ chapter, ending, customAction = false, onCancel }: { chapter: number; ending: boolean; customAction?: boolean; onCancel: () => void }) {
+  const stage = stageFor(chapter, ending, customAction);
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
@@ -57,9 +66,9 @@ export function GeneratingScreen({ chapter, ending, onCancel }: { chapter: numbe
           <span key={position} className={`causal-pulse causal-pulse--${position}`} data-testid="causal-pulse" />
         ))}
       </div>
-      <div className="developing-stamp"><Aperture size={18} weight="bold" /><span>历史显影室</span></div>
+      <div className="developing-stamp"><Aperture size={18} weight="bold" /><span>{customAction ? "自由改命裁决" : "历史显影室"}</span></div>
       <div className="developing-copy">
-        <span>{ending ? "第 12 节点 · 平行 2026" : `第 ${chapter} 节点 · 因果推演中`}</span>
+        <span>{ending ? "第 12 节点 · 平行 2026" : customAction ? `第 ${chapter} 节点 · 第四条路` : `第 ${chapter} 节点 · 因果推演中`}</span>
         <h1>{stage.title}</h1>
         <p>{stage.focus}</p>
       </div>

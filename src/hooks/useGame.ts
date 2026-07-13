@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { generateEnding, generateNextTurn, generateOpening } from "../game/engine";
+import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpening } from "../game/engine";
 import {
   createInitialGameState,
   gameReducer,
@@ -13,6 +13,7 @@ import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 export type UseGameDependencies = {
   generateOpening: typeof generateOpening;
   generateNextTurn: typeof generateNextTurn;
+  adjudicateCustomAction: typeof adjudicateCustomAction;
   generateEnding: typeof generateEnding;
   loadSnapshot: () => GameState | null;
   saveSnapshot: (state: GameState) => boolean;
@@ -23,6 +24,7 @@ function resolveDependencies(overrides: Partial<UseGameDependencies>): UseGameDe
   return {
     generateOpening,
     generateNextTurn,
+    adjudicateCustomAction,
     generateEnding,
     loadSnapshot: () => loadGameSnapshot(),
     saveSnapshot: (state) => saveGameSnapshot(state),
@@ -98,6 +100,19 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
           return;
         }
 
+        if (request.kind === "custom-action") {
+          if (!state.currentTurn) throw new Error("当前历史幕次不存在，无法裁决自由行动。");
+          const resolution = await dependencies.adjudicateCustomAction(
+            scenario,
+            state.playedTurns,
+            state.currentTurn,
+            request.action,
+            { signal: controller.signal },
+          );
+          if (active) dispatch({ type: "CUSTOM_ACTION_RESOLVED", requestId: request.id, resolution });
+          return;
+        }
+
         const ending = await dependencies.generateEnding(scenario, state.playedTurns, {
           signal: controller.signal,
         });
@@ -132,6 +147,9 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const choose = useCallback((choiceId: "A" | "B" | "C") => {
     dispatch({ type: "COMMIT_AI_CHOICE", choiceId });
   }, []);
+  const submitCustomAction = useCallback((action: string) => {
+    dispatch({ type: "SUBMIT_CUSTOM_ACTION", action });
+  }, []);
 
   const continueTimeline = useCallback(() => dispatch({ type: "CONTINUE_TIMELINE" }), []);
   const retry = useCallback(() => dispatch({ type: "RETRY" }), []);
@@ -154,6 +172,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     changeProfile,
     selectSeed,
     choose,
+    submitCustomAction,
     continueTimeline,
     retry,
     restart,

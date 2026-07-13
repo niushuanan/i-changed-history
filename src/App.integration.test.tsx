@@ -8,6 +8,7 @@ import { CHAPTER_NAMES, type DecisionChapter } from "./game/timelinePlan";
 const engine = vi.hoisted(() => ({
   generateOpening: vi.fn(),
   generateNextTurn: vi.fn(),
+  adjudicateCustomAction: vi.fn(),
   generateEnding: vi.fn(),
 }));
 
@@ -104,13 +105,13 @@ describe("complete player journey", () => {
     expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
   });
 
-  it("matches cards from the traveler profile and exposes no free-text route", async () => {
+  it("keeps free text inside the three-use fourth-path action", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await completeProfile(user);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByText(/自己写|自由干预/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/写下第四条路/)).not.toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
     await waitFor(() => expect(engine.generateOpening).toHaveBeenCalledWith(
       expect.objectContaining({ profile: expect.objectContaining({ name: "林舟", occupation: "product" }), seed: expect.objectContaining({ year: expect.any(Number), eventName: expect.any(String) }) }),
@@ -118,6 +119,7 @@ describe("complete player journey", () => {
     ));
     expect(await screen.findByText(/周瑜帐下负责火船的军需官/)).toBeVisible();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /写下第四条路，剩余 3 次/ })).toBeVisible();
   });
 
   it("always exposes one chronological fifty-moment filmstrip and exits an active run", async () => {
