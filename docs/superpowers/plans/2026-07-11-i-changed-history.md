@@ -202,7 +202,7 @@ git commit -m "design: add alternate-history screen and scene art"
 Run the bundled script into ignored `tmp/prototype-bootstrap`, then copy the generated starter files into the worktree root without overwriting `docs`, `design`, `public/assets`, or `.gitignore`:
 
 ```bash
-node /Users/zhuanghongkai/.codex/plugins/cache/openai-curated-remote/product-design/0.1.50/scripts/bootstrap-prototype.mjs --dest "$PWD/tmp/prototype-bootstrap"
+node <product-design-plugin>/scripts/bootstrap-prototype.mjs --dest "$PWD/tmp/prototype-bootstrap"
 rsync -a --exclude public/assets "$PWD/tmp/prototype-bootstrap/" "$PWD/"
 npm install
 ```

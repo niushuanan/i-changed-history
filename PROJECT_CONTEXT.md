@@ -37,6 +37,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-07-13 21:45 - 修复公开仓库的跨用户、跨平台安装
+
+- 本次任务：解决朋友从公开 GitHub 仓库拉取后，npm 仍尝试创建作者电脑路径并在 Windows 报 `EPERM`，同时建立防止类似绝对路径再次上传的自动门禁。
+- 改了哪些文件：`.npmrc`、`package.json`、`package-lock.json`、`scripts/check-portability.mjs`、`.github/workflows/portable-build.yml`、`README.md`、`docs/superpowers/plans/2026-07-11-i-changed-history.md`、`AGENTS.md` 与 `PROJECT_CONTEXT.md`。
+- 改了什么：删除 `.npmrc` 中指向原作者个人目录的 `.npm-cache` 绝对路径，保留与机器无关的 npm 设置；新增运行时文件绝对用户路径扫描和 Node 版本约束；新增 Windows、Linux 双平台的 GitHub Actions 安装、测试、类型检查与构建；补充 macOS/Linux 和 Windows PowerShell 的完整克隆、配置 Key 与启动说明；清除旧开发文档中的作者插件绝对路径。
+- 为什么这样改：Windows 会把仓库中的 Unix 用户根路径映射到当前盘符，继而尝试操作不存在或无权限的原作者用户目录。缓存应归属运行者自己的 npm 用户目录，而不是项目作者；仅修当前一行仍会复发，因此需要本地扫描与真实 Windows CI 双重门禁。
+- 影响了哪些模块：公开仓库克隆、npm 安装缓存、Windows/macOS/Linux 本地启动、GitHub 提交验证、运行环境文档；不改变游戏逻辑、界面或 DeepSeek 推演行为。
+- 验证：修复前 `npm run check:portability` 精确失败在 `.npmrc:1`；修复后扫描 70 个运行时文件通过。将工作区复制到带中文和空格的全新目录，并把 `HOME` 改为陌生用户目录后，npm 缓存落在该用户自己的 `home/.npm`，随后从零 `npm ci` 安装 158 个包，24 个 Vitest 文件共 151 项测试、TypeScript 与生产构建全部通过。
+
 ### 2026-07-13 20:40 - 流式真实进度、缓存前缀与 AI 字段级修复
 
 - 本次任务：在不牺牲游玩连续性和生成质量的前提下，加快等待反馈、证明剧情由 AI 实时驱动，并降低结构漂移导致的整幕重写和失败率。
