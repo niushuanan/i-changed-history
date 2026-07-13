@@ -1,5 +1,21 @@
 # Design QA
 
+## Plain Decision Result QA (2026-07-13)
+
+- Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-57f880b5-7010-4ed4-a05c-3a8f251bd611.png`.
+- Implementation screenshot: `.playwright-cli/page-2026-07-13T14-19-08-510Z.png`.
+- Viewport/state: 390 x 844, AI action selected on the Dong Zhuo continuation, before moving to the next node.
+- P1 source finding: system jargon (`因果回响`, `世界已回应`, `偏离 +3`) displaced the actual result and made the page feel theatrical rather than causal. Fixed by using the concrete result as the only H1.
+- P1 source finding: several 8-10px gray labels sat directly over detailed artwork. Fixed with a 92% coal result surface, 11-15px semantic labels, off-white choice copy, teal beneficiary, and vermilion cost/payer.
+- P2 source finding: the generic heading and repeated labels created excess vertical hierarchy. Fixed by reducing the page to status, result, selected action, cost, affected people, and one next-step command.
+- Typography: result H1 is 28px Song-style type with 1.25 line height; all supporting copy is at least 11px and uses higher optical weight.
+- Spacing/layout: the 364px result surface ends at y=832; the 48px primary command ends at y=818; body client and scroll heights both equal 844.
+- Colors/assets: the historical image remains visible above the result, while all text uses the existing coal, off-white, vermilion, teal, and yellow tokens. No placeholder or CSS illustration was introduced.
+- Copy: no `因果回响`, `世界已回应`, `偏离`, `获益`, `付出`, or `继续推演` remains in the rendered result screen.
+- Interactions: clicked a real AI choice and verified the updated result, exit, and next-node button. Focused comparison was unnecessary because the annotated source and implementation expose the same full-screen state at readable scale.
+
+final result: passed
+
 ## Compact Event Screen QA (2026-07-13)
 
 **Visual Truth**

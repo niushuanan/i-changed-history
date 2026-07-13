@@ -969,23 +969,23 @@
 .custom-action-submit:disabled { opacity: .45; cursor: default; }
 
 .echo-screen { position: relative; min-height: 100%; padding: 0; overflow: hidden; background: #0b0b0a; }
-.echo-screen::after { content: ""; position: absolute; inset: 0; background: rgba(8,8,8,.68); pointer-events: none; }
+.echo-screen::after { content: ""; position: absolute; inset: 0; background: rgba(8,8,8,.42); pointer-events: none; }
 .echo-screen__art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: grayscale(.45) contrast(1.1); }
 .echo-screen__exit { position: absolute; z-index: 3; top: max(14px, env(safe-area-inset-top)); left: 14px; width: 34px; height: 34px; margin: 0; display: grid; place-items: center; padding: 0; border: 0; background: rgba(8,8,8,.62); color: var(--white); cursor: pointer; }
-.echo-verdict { position: absolute; z-index: 2; left: 22px; right: 22px; bottom: 28px; }
-.echo-verdict > span { color: #df6f66; font-size: 9px; font-weight: 900; }
-.echo-verdict h1 { margin: 7px 0 20px; font-family: var(--serif); font-size: 39px; }
-.echo-screen__choice { display: -webkit-box; overflow: hidden; margin: 0 0 8px; color: #999a95; font-size: 10px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.echo-screen__ruling { margin: -2px 0 10px; color: #d7b564; font-size: 10px; line-height: 1.4; }
-.echo-verdict > strong { display: block; font-family: var(--serif); font-size: 21px; line-height: 1.35; }
-.echo-screen__cost { margin: 8px 0 20px; color: #df7a72; font-family: var(--serif); font-size: 13px; }
+.echo-verdict { position: absolute; z-index: 2; left: 12px; right: 12px; bottom: 12px; padding: 17px 16px 14px; border-top: 3px solid var(--red); background: rgba(9,9,8,.92); }
+.echo-screen__status { margin: 0; color: #f08a81; font-size: 11px; font-weight: 900; }
+.echo-verdict h1 { margin: 7px 0 12px; font-family: var(--serif); font-size: 28px; line-height: 1.25; }
+.echo-screen__choice { margin: 0 0 9px; color: #f0ede6; font-family: sans-serif; font-size: 13px; line-height: 1.4; }
+.echo-screen__ruling { margin: 0 0 9px; color: #e7d26f; font-size: 12px; line-height: 1.4; }
+.echo-screen__cost { margin: 0 0 15px; color: #f08a81; font-family: var(--serif); font-size: 15px; line-height: 1.4; }
 .echo-screen__parallel { margin: -10px 0 16px; color: #77aaa6; font-size: 9px; }
-.echo-people { margin: 0 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid rgba(247,244,237,.2); border-bottom: 1px solid rgba(247,244,237,.2); }
-.echo-people > div { padding: 9px 0; border: 0; }
+.echo-people { margin: 0 0 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid rgba(247,244,237,.24); border-bottom: 1px solid rgba(247,244,237,.24); }
+.echo-people > div { padding: 10px 0; border: 0; }
 .echo-people > div + div { padding-left: 12px; border-left: 1px solid rgba(247,244,237,.2); }
-.echo-people dt { margin: 0 0 3px; color: #777873; font-size: 8px; }
-.echo-people dd { margin: 0; font-family: var(--serif); font-size: 12px; }
-.echo-continue { width: 100%; height: 50px; padding: 0; display: flex; align-items: center; justify-content: space-between; border: 0; border-top: 1px solid var(--red); background: transparent; color: var(--white); font-size: 13px; cursor: pointer; }
+.echo-people dt { margin: 0 0 4px; color: #77b6b1; font-size: 11px; font-weight: 900; }
+.echo-people > div + div dt { color: #f08a81; }
+.echo-people dd { margin: 0; color: var(--white); font-family: var(--serif); font-size: 14px; line-height: 1.35; }
+.echo-continue { width: 100%; height: 48px; padding: 0; display: flex; align-items: center; justify-content: space-between; border: 0; border-top: 1px solid var(--red); background: transparent; color: var(--white); font-size: 14px; font-weight: 800; cursor: pointer; }
 .echo-continue:disabled { opacity: .45; }
 
 .parallel-report-tabs { position: sticky; z-index: 8; top: 0; display: grid; grid-template-columns: 1fr 1fr; padding: 8px; gap: 5px; background: rgba(12,12,11,.96); border-bottom: 1px solid rgba(247,244,237,.16); }

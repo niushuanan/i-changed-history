@@ -85,9 +85,9 @@ describe("complete player journey", () => {
       expect(await screen.findByRole("heading", { name: `第${chapter}幕局势` })).toBeVisible();
       expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
       await user.click(screen.getByRole("button", { name: /立刻放出第一批火船/ }));
-      expect(await screen.findByRole("heading", { name: "世界已回应" })).toBeVisible();
-      expect(screen.getByText("曹军左翼提前起火")).toBeVisible();
-      const continueButton = await screen.findByRole("button", { name: /继续推演|打开身后历史/ });
+      expect(await screen.findByRole("heading", { name: "曹军左翼提前起火" })).toBeVisible();
+      expect(screen.getByText("这件事已经发生")).toBeVisible();
+      const continueButton = await screen.findByRole("button", { name: /看看接下来发生什么|查看最终历史/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);
     }
