@@ -85,7 +85,7 @@ function cleanSession(state: GameState): GameState {
 
 function requestAfterChoice(state: GameState) {
   const chapter = state.currentTurn?.chapter;
-  if (chapter === 11) return withRequest(state, { kind: "ending" });
+  if (chapter === 12) return withRequest(state, { kind: "ending" });
   if (!chapter) return { request: null, nextRequestId: state.nextRequestId };
   return withRequest(state, { kind: "next-turn", targetChapter: (chapter + 1) as Exclude<DecisionChapter, 1> });
 }

@@ -61,7 +61,7 @@ export function App() {
     screen = (
       <ButterflyEchoScreen
         echo={state.echo}
-        isFinal={state.currentTurn?.chapter === 11}
+        isFinal={state.currentTurn?.chapter === 12}
         onContinue={game.continueTimeline}
         onExit={game.restart}
         sceneImage={state.currentTurn
@@ -85,7 +85,7 @@ export function App() {
   } else {
     const targetChapter = state.request?.kind === "next-turn"
       ? state.request.targetChapter
-      : Math.min(11, (state.currentTurn?.chapter ?? 0) + 1);
+      : Math.min(12, (state.currentTurn?.chapter ?? 0) + 1);
     screen = (
       <GeneratingScreen
         chapter={targetChapter}

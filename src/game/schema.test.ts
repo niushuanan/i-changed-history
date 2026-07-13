@@ -3,6 +3,25 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { extractFirstJsonObject, parseAlternatePresent, parseCustomActionResolution, parseTimelineTurn } from "./schema";
 
 describe("structured timeline parsing", () => {
+  it("keeps the same protagonist while enforcing the authoritative age", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      chapter: 6,
+      chapterName: "执掌一方",
+      protagonistName: "模型擅自换成另一个人",
+      protagonistAge: 99,
+      lifeStage: "执掌一方",
+      previousEcho: turnFixture.choices[0].instantEcho,
+    }), {
+      expectedChapter: 6,
+      expectedProtagonistName: "沈砚",
+      expectedProtagonistAge: 29,
+      expectedLifeStage: "执掌一方",
+    });
+
+    expect(parsed).toMatchObject({ protagonistName: "沈砚", protagonistAge: 29, lifeStage: "执掌一方" });
+  });
+
   it("parses a player-authored result as canonical history", () => {
     const resolution = parseCustomActionResolution(JSON.stringify({
       declaredOutcome: "我暗杀了皇帝且成功",
@@ -30,7 +49,8 @@ describe("structured timeline parsing", () => {
     const next = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
-      chapterName: "一日余波",
+      chapterName: "三日余波",
+      lifeStage: "三日后",
       previousEcho: { ...turnFixture.choices[0].instantEcho, directResult: declaredOutcome },
     }));
     expect(next.previousEcho?.directResult).toBe(declaredOutcome);
@@ -173,7 +193,7 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(incompleteEcho)).toThrow();
   });
 
-  it("normalizes identity relay metadata and marks exactly one profile-powered action", () => {
+  it("normalizes protagonist continuity metadata and marks exactly one profile-powered action", () => {
     const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
     expect(parsed.identityBridge).toBeTruthy();
     expect(parsed.profileAdvantage).toBeTruthy();
@@ -186,7 +206,7 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(JSON.stringify(duplicate))).toThrow();
   });
 
-  it("requires a null first-turn echo and accepts decision chapters one through eleven", () => {
+  it("requires a null first-turn echo and accepts all twelve decision chapters", () => {
     expect(() =>
       parseTimelineTurn(
         JSON.stringify({
@@ -197,11 +217,11 @@ describe("structured timeline parsing", () => {
     ).toThrow();
 
     expect(() =>
-      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 11, chapterName: "终局前夜", previousEcho: turnFixture.choices[0].instantEcho })),
+      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 12, chapterName: "生命终章", lifeStage: "生命终章", protagonistAge: 70, previousEcho: turnFixture.choices[0].instantEcho })),
     ).not.toThrow();
 
     expect(() =>
-      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 12, chapterName: "平行 2026" })),
+      parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: 13, chapterName: "平行 2026" })),
     ).toThrow();
   });
 
@@ -261,7 +281,8 @@ describe("structured timeline parsing", () => {
     const raw = JSON.stringify({
       ...turnFixture,
       chapter: 2,
-      chapterName: "一日余波",
+      chapterName: "三日余波",
+      lifeStage: "三日后",
       previousEcho: {
         directResult: "模型改写了直接结果",
         unexpectedCost: "模型遗漏了受益者和承担者",
@@ -274,9 +295,9 @@ describe("structured timeline parsing", () => {
   });
 
   it("uses the client timeline node as authoritative when the model returns an old chapter label", () => {
-    const raw = JSON.stringify({ ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho });
+    const raw = JSON.stringify({ ...turnFixture, chapter: 2, chapterName: "三日余波", previousEcho: turnFixture.choices[0].instantEcho });
     const parsed = parseTimelineTurn(raw, { expectedChapter: 8, expectedPreviousEcho: turnFixture.choices[0].instantEcho });
-    expect(parsed).toMatchObject({ chapter: 8, chapterName: "百年分野" });
+    expect(parsed).toMatchObject({ chapter: 8, chapterName: "盛年危局" });
   });
 
   it("uses the client target date when the model repeats an old year", () => {
@@ -284,7 +305,7 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw, { expectedYearLabel: "1700年" }).yearLabel).toBe("1700年");
   });
 
-  it("requires eleven decision entries, three causal chains, and three ordinary-life details", () => {
+  it("requires twelve decisions, a death scene, four posthumous chapters, and three ordinary-life details", () => {
     expect(parseAlternatePresent(JSON.stringify(endingFixture))).toMatchObject({
       worldName: "公议纪元",
       plausibilityScore: 78,
@@ -294,7 +315,7 @@ describe("structured timeline parsing", () => {
     ).toThrow();
     expect(() =>
       parseAlternatePresent(
-        JSON.stringify({ ...endingFixture, historyTimeline: endingFixture.historyTimeline.slice(0, 10) }),
+        JSON.stringify({ ...endingFixture, historyTimeline: endingFixture.historyTimeline.slice(0, 11) }),
       ),
     ).toThrow();
     expect(() =>

@@ -10,7 +10,7 @@ import { buildTravelerProfile } from "../game/profile";
 const profile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v8 resumable pivotal-history storage", () => {
+describe("v9 resumable single-life history storage", () => {
   it("persists a traveler profile and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
@@ -85,7 +85,7 @@ describe("v8 resumable pivotal-history storage", () => {
       customActionsUsed: 2,
       request: { kind: "custom-action", action: "先扣下军令，再请皇帝临朝", id: adjudicating.request!.id },
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":8');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -99,11 +99,11 @@ describe("v8 resumable pivotal-history storage", () => {
       request: { kind: "opening", id: generating.request?.id },
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":8');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
   });
 
-  it("automatically resumes the 2026 ending without losing eleven decisions", () => {
-    const playedTurns = Array.from({ length: 11 }, (_, index) => ({
+  it("automatically resumes the posthumous report without losing twelve decisions", () => {
+    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
       selectedChoiceId: "A" as const,
       selectedChoiceLabel: turnFixture.choices[0].label,
@@ -116,7 +116,7 @@ describe("v8 resumable pivotal-history storage", () => {
       phase: "ending" as const,
       profile,
       scenario: { profile, seed: HISTORY_SEEDS[0] },
-      currentTurn: playedTurns[10].turn,
+      currentTurn: playedTurns[11].turn,
       playedTurns,
       request: { kind: "ending" as const, id: 11 },
     };
@@ -127,11 +127,11 @@ describe("v8 resumable pivotal-history storage", () => {
       playedTurns: expect.arrayContaining([expect.objectContaining({ selectedChoiceId: "A" })]),
       request: { kind: "ending", id: 11 },
     });
-    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(11);
+    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
 
-  it("round-trips eleven completed decisions", () => {
-    const playedTurns = Array.from({ length: 11 }, (_, index) => ({
+  it("round-trips twelve completed decisions", () => {
+    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
       selectedChoiceId: "A" as const,
       selectedChoiceLabel: turnFixture.choices[0].label,
@@ -139,9 +139,9 @@ describe("v8 resumable pivotal-history storage", () => {
       resolvedEcho: turnFixture.choices[0].instantEcho,
     }));
     const storage = memoryStorage();
-    const state = { ...createInitialGameState(), phase: "event" as const, profile, scenario: { profile, seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[10].turn, playedTurns };
+    const state = { ...createInitialGameState(), phase: "event" as const, profile, scenario: { profile, seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[11].turn, playedTurns };
     expect(saveGameSnapshot(state as never, storage)).toBe(true);
-    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(11);
+    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
 
   it("resumes a custom-action ruling without spending the chance early", () => {
@@ -198,7 +198,7 @@ describe("v8 resumable pivotal-history storage", () => {
         turn: expect.objectContaining({ rippleLens: "origin", causalBridge: expect.stringContaining("旧时间线") }),
       })],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":8');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
@@ -256,5 +256,25 @@ describe("v8 resumable pivotal-history storage", () => {
       worldStateChange: expect.stringContaining("旧时间线"),
       divergenceProof: expect.stringContaining("真实历史"),
     });
+  });
+
+  it("returns an incompatible v8 cross-generation run to selection while preserving the profile", () => {
+    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const current = memoryStorage();
+    saveGameSnapshot(generating, current);
+    const envelope = JSON.parse(current.getItem(GAME_STORAGE_KEY)!);
+    envelope.version = 8;
+    const legacy = memoryStorage({ "i-changed-history:session:v8": JSON.stringify(envelope) });
+
+    expect(loadGameSnapshot(legacy)).toMatchObject({
+      phase: "selecting",
+      profile: { typeCode: profile.typeCode },
+      scenario: null,
+      playedTurns: [],
+      request: null,
+    });
+    expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":9');
   });
 });

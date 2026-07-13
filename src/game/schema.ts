@@ -1,15 +1,16 @@
 import { z } from "zod";
-import { CHAPTER_NAMES, type DecisionChapter } from "./timelinePlan";
+import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from "./timelinePlan";
 import type { RippleLens } from "./rippleRouter";
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
-const chapterSchema = z.number().int().min(1).max(11).transform((value) => value as DecisionChapter);
-const causalChapterSchema = z.number().int().min(0).max(11);
+const chapterSchema = z.number().int().min(1).max(12).transform((value) => value as DecisionChapter);
+const causalChapterSchema = z.number().int().min(0).max(12);
 const chapterNameSchema = z.enum([
-  "历史现场", "一日余波", "月度震荡", "年轮初成", "三年变局", "十年改写",
-  "三十年秩序", "百年分野", "跨时代", "新世界", "终局前夜",
+  "历史现场", "三日余波", "六周震荡", "立足之年", "声名渐起", "执掌一方",
+  "生涯转折", "盛年危局", "守成之争", "暮年抉择", "最后布局", "生命终章",
 ]);
+const lifeStageSchema = z.enum(JUMP_LABELS);
 const deviationClassSchema = z.enum(["nudge", "reform", "rupture"]);
 const visualToneSchema = z.enum([
   "ancient",
@@ -83,6 +84,9 @@ const strictTimelineTurnSchema = z
     timelineName: requiredString,
     chapter: chapterSchema,
     chapterName: chapterNameSchema,
+    protagonistName: boundedString(16),
+    protagonistAge: z.number().int().min(14).max(90),
+    lifeStage: lifeStageSchema,
     yearLabel: requiredString,
     location: boundedString(28),
     role: boundedString(24),
@@ -235,10 +239,13 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
   return {
     ...turn,
     generationSource: turn.generationSource ?? "deepseek",
+    protagonistName: turn.protagonistName ?? "无名穿越者",
+    protagonistAge: turn.protagonistAge ?? 24,
+    lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
     identityBridge: trimBounded(turn.identityBridge ?? (
       turn.chapter === 1
-        ? "你的现代意识在这一刻进入历史现场"
-        : "上一代的选择留下线索，你在这个时代的新身份中接棒"
+        ? "你的现代意识在这一刻进入这个人的一生"
+        : "你仍是同一个人，只是身份与责任已经改变"
     ), 54),
     profileAdvantage: trimBounded(turn.profileAdvantage ?? "现代知识与决策习惯仍可影响本代行动", 54),
     narrative: trimNarrative(turn.narrative),
@@ -283,9 +290,25 @@ export const alternatePresentSchema = z
   .object({
     worldName: requiredString,
     frontPageHeadline: requiredString,
-    historyTimeline: z.array(historyTimelineItemSchema).length(11),
+    protagonistName: boundedString(16),
+    lifespanSummary: requiredString.max(180),
+    deathScene: z.object({
+      yearLabel: requiredString,
+      age: z.number().int().min(14).max(100),
+      place: boundedString(32),
+      finalMoment: requiredString.max(120),
+      lastingLegacy: requiredString.max(120),
+    }),
+    historyTimeline: z.array(historyTimelineItemSchema).length(12),
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
     ordinaryLife2026: z.tuple([requiredString, requiredString, requiredString]),
+    posthumousChronicle: z.tuple([
+      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
+      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
+      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
+      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
+    ]),
+    closingPassage: requiredString.max(260),
     greatestGain: requiredString,
     hiddenPrice: requiredString,
     strangestDetail: requiredString,
@@ -302,7 +325,7 @@ export const alternatePresentSchema = z
         context.addIssue({
           code: "custom",
           path: ["historyTimeline", index, "chapter"],
-          message: "结局时间线必须按第一节点到第十一节点排列",
+          message: "结局时间线必须按第一节点到第十二节点排列",
         });
       }
     });
@@ -317,6 +340,9 @@ export type TimelineTurnParseOptions = {
   expectedYearLabel?: string;
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>;
   expectedRippleLens?: RippleLens;
+  expectedProtagonistName?: string;
+  expectedProtagonistAge?: number;
+  expectedLifeStage?: LifeStage;
 };
 export type ExpectedHistoryTimelineItem = {
   yearLabel: string;
@@ -324,6 +350,9 @@ export type ExpectedHistoryTimelineItem = {
 };
 export type AlternatePresentParseOptions = {
   expectedHistoryTimeline?: readonly ExpectedHistoryTimelineItem[];
+  expectedProtagonistName?: string;
+  expectedDeathYearLabel?: string;
+  expectedDeathAge?: number;
 };
 
 function scanBalancedObject(raw: string, start: number): string | null {
@@ -392,6 +421,9 @@ export function parseTimelineTurn(
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
     ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),
     ...(options.expectedRippleLens ? { rippleLens: options.expectedRippleLens } : {}),
+    ...(options.expectedProtagonistName ? { protagonistName: options.expectedProtagonistName } : {}),
+    ...(options.expectedProtagonistAge !== undefined ? { protagonistAge: options.expectedProtagonistAge } : {}),
+    ...(options.expectedLifeStage ? { lifeStage: options.expectedLifeStage } : {}),
   });
 }
 
@@ -406,12 +438,24 @@ export function parseAlternatePresent(
   const parsed = parseJsonObject(raw);
   const candidate = asRecord(parsed);
   const expected = options.expectedHistoryTimeline;
+  const deathScene = candidate ? asRecord(candidate.deathScene) : null;
+  const authoritativeCandidate: Record<string, unknown> | null = candidate ? {
+    ...candidate,
+    ...(options.expectedProtagonistName ? { protagonistName: options.expectedProtagonistName } : {}),
+    ...(deathScene && (options.expectedDeathYearLabel || options.expectedDeathAge !== undefined) ? {
+      deathScene: {
+        ...deathScene,
+        ...(options.expectedDeathYearLabel ? { yearLabel: options.expectedDeathYearLabel } : {}),
+        ...(options.expectedDeathAge !== undefined ? { age: options.expectedDeathAge } : {}),
+      },
+    } : {}),
+  } : null;
 
-  if (!candidate || !expected || !Array.isArray(candidate.historyTimeline)) {
-    return alternatePresentSchema.parse(parsed);
+  if (!authoritativeCandidate || !expected || !Array.isArray(authoritativeCandidate.historyTimeline)) {
+    return alternatePresentSchema.parse(authoritativeCandidate ?? parsed);
   }
 
-  const historyTimeline = candidate.historyTimeline.map((item, index) => {
+  const historyTimeline = (authoritativeCandidate.historyTimeline as unknown[]).map((item, index) => {
     const authoritative = expected[index];
     if (!authoritative) return item;
     const chapter = index + 1;
@@ -436,5 +480,5 @@ export function parseAlternatePresent(
       : item;
   });
 
-  return alternatePresentSchema.parse({ ...candidate, historyTimeline });
+  return alternatePresentSchema.parse({ ...authoritativeCandidate, historyTimeline });
 }

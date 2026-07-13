@@ -33,12 +33,12 @@ export function AlternatePresentScreen({
   };
 
   const saveLabel = saveState === "saving"
-    ? "正在制版"
+    ? "正在生成报告"
     : saveState === "saved"
-      ? "头版已保存"
+      ? "报告已保存"
       : saveState === "error"
-        ? "重新保存头版"
-        : "保存这张头版";
+        ? "重新保存报告"
+        : "保存历史报告";
 
   return (
     <main className="result-screen">
@@ -60,7 +60,7 @@ export function AlternatePresentScreen({
           {saveLabel}
         </button>
         {saveState === "error" && (
-          <p className="result-actions__status" role="status">制版失败，请重试</p>
+          <p className="result-actions__status" role="status">报告生成失败，请重试</p>
         )}
         <button className="secondary-command" type="button" onClick={onRestart}>
           <ArrowCounterClockwise size={20} />再改一次历史

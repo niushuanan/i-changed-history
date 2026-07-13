@@ -24,11 +24,12 @@ describe("deterministic fallback turn", () => {
     const previous = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: previous, selectedChoiceId: "B" as const, selectedChoiceLabel: previous.choices[1].label, selectedDeviationClass: "reform" as const, resolvedEcho: previous.choices[1].instantEcho }];
     const turn = createFallbackTurn(scenario, played, 8);
-    expect(turn).toMatchObject({ chapter: 8, chapterName: "百年分野", previousEcho: previous.choices[1].instantEcho });
-    expect(turn.yearLabel).toContain("308");
+    expect(turn).toMatchObject({ chapter: 8, chapterName: "盛年危局", protagonistName: previous.protagonistName, previousEcho: previous.choices[1].instantEcho });
+    expect(turn.protagonistAge).toBeGreaterThan(previous.protagonistAge);
     expect(turn.role).not.toContain(scenario.profile.name);
     expect(turn.location).not.toContain(scenario.seed.location);
-    expect(turn.identityBridge).toContain("接棒");
+    expect(turn.identityBridge).toContain("你");
+    expect(turn.identityBridge).not.toContain("接棒");
     expect(turn.profileAdvantage).toContain("INTP");
     expect(turn.profileAdvantage).toContain("制度代价");
     expect(turn.turningPointStakes).toBeTruthy();
@@ -37,12 +38,14 @@ describe("deterministic fallback turn", () => {
     expect(turn.choices.filter((choice) => choice.usesTravelerStrength)).toHaveLength(1);
   });
 
-  it("keeps fallback relay labels aligned with the authoritative jump", () => {
+  it("keeps fallback life transitions inside the same protagonist", () => {
     const previous = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: previous, selectedChoiceId: "B" as const, selectedChoiceLabel: previous.choices[1].label, selectedDeviationClass: "reform" as const, resolvedEcho: previous.choices[1].instantEcho }];
-    expect(createFallbackTurn(scenario, played, 4).identityBridge).toContain("一年后");
-    expect(createFallbackTurn(scenario, played, 6).identityBridge).toContain("十年后");
-    expect(createFallbackTurn(scenario, played, 8).identityBridge).toContain("百年");
+    for (const chapter of [4, 6, 8, 12] as const) {
+      const turn = createFallbackTurn(scenario, played, chapter);
+      expect(turn.protagonistName).toBe(previous.protagonistName);
+      expect(turn.identityBridge).not.toMatch(/接棒|下一代|转生/);
+    }
   });
 
   it("preserves a declared successful result even when the model falls back", () => {
@@ -100,7 +103,7 @@ describe("deterministic fallback turn", () => {
       causalMechanism: "国家工坊与学校开始执行",
     };
     const ordinary = {
-      turn: { ...previous, chapter: 2 as const, chapterName: "一日余波" as const, previousEcho: custom.resolvedEcho },
+      turn: { ...previous, chapter: 2 as const, chapterName: "三日余波" as const, lifeStage: "三日后" as const, previousEcho: custom.resolvedEcho },
       selectedChoiceId: "A" as const,
       selectedChoiceLabel: "先核对地方粮册",
       selectedDeviationClass: "nudge" as const,
@@ -130,7 +133,7 @@ describe("deterministic fallback turn", () => {
       causalMechanism: "建院诏书进入官署",
     };
     const second = {
-      turn: { ...previous, chapter: 2 as const, chapterName: "一日余波" as const, previousEcho: first.resolvedEcho },
+      turn: { ...previous, chapter: 2 as const, chapterName: "三日余波" as const, lifeStage: "三日后" as const, previousEcho: first.resolvedEcho },
       selectedChoiceId: "custom" as const,
       selectedChoiceLabel: "我发行全国通用纸币",
       selectedDeviationClass: "rupture" as const,

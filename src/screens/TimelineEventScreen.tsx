@@ -59,7 +59,7 @@ export function TimelineEventScreen({
       </figure>
       <section className="event-body">
         <article className="event-copy">
-        <span className="chapter-kicker">{turn.chapterName} · {turn.role}</span>
+        <span className="chapter-kicker">{turn.protagonistName} · {turn.protagonistAge}岁 · {turn.role}</span>
         <h1>{turn.headline}</h1>
         <p>{turn.narrative}</p>
         <small><Clock size={12} weight="bold" /> {turn.timePressure}</small>

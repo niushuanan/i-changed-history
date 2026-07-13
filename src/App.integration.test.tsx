@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { endingFixture, turnFixture } from "./test/fixtures";
 import { parseAlternatePresent, parseTimelineTurn } from "./game/schema";
-import { CHAPTER_NAMES, type DecisionChapter } from "./game/timelinePlan";
+import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./game/timelinePlan";
 
 const engine = vi.hoisted(() => ({
   generateOpening: vi.fn(),
@@ -35,11 +35,14 @@ vi.mock("./services/storage", async (importOriginal) => {
 import { App } from "./App";
 
 function turnFor(chapter: DecisionChapter) {
+  const node = getTimelineNode(chapter, 208);
   return parseTimelineTurn(JSON.stringify({
     ...turnFixture,
     timelineName: "无王航线",
     chapter,
     chapterName: CHAPTER_NAMES[chapter],
+    protagonistAge: node.protagonistAge,
+    lifeStage: node.lifeStage,
     yearLabel: `第${chapter}幕纪年`,
     headline: `第${chapter}幕局势`,
     previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
@@ -77,7 +80,7 @@ describe("complete player journey", () => {
     await user.click(screen.getByRole("button", { name: /进入五十个历史瞬间/ }));
   }
 
-  it("plays eleven AI choices from a real card into an alternate 2026", async () => {
+  it("plays one protagonist through twelve decisions, death, and a 2026 legacy report", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -88,7 +91,7 @@ describe("complete player journey", () => {
     expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
 
-    for (let chapter = 1; chapter <= 11; chapter += 1) {
+    for (let chapter = 1; chapter <= 12; chapter += 1) {
       expect(await screen.findByRole("heading", { name: `第${chapter}幕局势` })).toBeVisible();
       expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
       await user.click(screen.getByRole("button", { name: /公开完整遗诏/ }));
@@ -100,10 +103,12 @@ describe("complete player journey", () => {
     }
 
     expect(await screen.findByRole("heading", { name: "公议纪元" })).toBeVisible();
-    expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(11);
+    expect(screen.getByRole("heading", { name: "沈砚，70 岁" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "他死以后" })).toBeVisible();
+    expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(12);
     for (const detail of endingFixture.ordinaryLife2026) expect(screen.getByText(detail)).toBeVisible();
     expect(screen.getByText(/历史偏离度/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "保存这张头版" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "保存历史报告" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
   });
 

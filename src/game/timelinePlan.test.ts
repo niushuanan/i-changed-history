@@ -1,35 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { DECISION_NODE_COUNT, TOTAL_NODE_COUNT, getTimelinePlan } from "./timelinePlan";
 
-describe("authoritative twelve-node timeline", () => {
-  it("contains eleven decisions followed by the 2026 summary", () => {
+describe("authoritative single-life twelve-node timeline", () => {
+  it("contains twelve decisions and keeps 2026 outside the playable timeline", () => {
     const plan = getTimelinePlan(208);
     expect(TOTAL_NODE_COUNT).toBe(12);
-    expect(DECISION_NODE_COUNT).toBe(11);
+    expect(DECISION_NODE_COUNT).toBe(12);
     expect(plan).toHaveLength(12);
-    expect(plan.slice(0, 11).every((node) => node.kind === "decision")).toBe(true);
-    expect(plan[11]).toMatchObject({ kind: "summary", targetYear: 2026, chapterName: "平行 2026" });
+    expect(plan.every((node) => node.kind === "decision")).toBe(true);
+    expect(plan.at(-1)).toMatchObject({ chapter: 12, chapterName: "生命终章", lifeStage: "生命终章" });
+    expect(plan.at(-1)?.targetYear).toBeLessThan(2026);
   });
 
-  it("uses the requested expanding time scale", () => {
+  it("starts with tight feedback and ages one protagonist through a complete life", () => {
     const plan = getTimelinePlan(1600);
-    expect(plan.map((node) => node.jumpLabel)).toEqual([
-      "历史现场", "一天后", "一个月后", "一年后", "三年后", "十年后",
-      "三十年后", "一百年后", "跨时代", "新世界", "2026 前夕", "2026",
-    ]);
-    expect(plan.slice(3).map((node) => node.targetYear)).toEqual(expect.arrayContaining([1601, 1603, 1610, 1630, 1700, 2026]));
+    expect(plan.slice(0, 3).map((node) => node.jumpLabel)).toEqual(["命运当日", "三日后", "六周后"]);
+    expect(plan.slice(0, 3).map((node) => node.targetYear)).toEqual([1600, 1600, 1600]);
+    expect(plan[0].protagonistAge).toBe(24);
+    expect(plan.at(-1)?.protagonistAge).toBe(70);
+    expect(plan.every((node, index) => index === 0 || node.protagonistAge >= plan[index - 1].protagonistAge)).toBe(true);
     expect(plan.every((node, index) => index === 0 || node.targetYear >= plan[index - 1].targetYear)).toBe(true);
   });
 
-  it("compresses modern timelines without passing 2026", () => {
-    for (const startYear of [1914, 1962, 1989]) {
-      const plan = getTimelinePlan(startYear);
-      expect(plan.at(-1)?.targetYear).toBe(2026);
-      expect(plan.every((node) => node.targetYear <= 2026)).toBe(true);
-      expect(plan.every((node, index) => index === 0 || node.targetYear >= plan[index - 1].targetYear)).toBe(true);
-      expect(plan[10].targetYear).toBeLessThan(2026);
-    }
-    expect(getTimelinePlan(1962)[7].targetYear).toBe(1988);
-    expect(getTimelinePlan(1989)[7].targetYear).toBe(2004);
+  it("compresses a modern life so death still precedes the 2026 report", () => {
+    const plan = getTimelinePlan(1989);
+    expect(plan[0].protagonistAge).toBe(34);
+    expect(plan.at(-1)).toMatchObject({ targetYear: 2025, protagonistAge: 70 });
+    expect(plan.every((node) => node.targetYear <= 2025)).toBe(true);
   });
 });

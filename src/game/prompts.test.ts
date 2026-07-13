@@ -32,22 +32,23 @@ describe("modern traveler AI prompt contract", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
-    const ending = buildEndingMessages(scenario, Array(11).fill(played[0])).at(-1)!.content;
+    const ending = buildEndingMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
     expect(continuation).not.toContain("customIntervention");
     expect(ending).not.toContain("customIntervention");
     expect(continuation).toContain(turnFixture.choices[0].label);
-    expect(continuation).toContain("百年分野");
-    expect(continuation).toContain("1959");
-    expect(ending).toContain("十一项");
+    expect(continuation).toContain("盛年危局");
+    expect(continuation).toContain("1927");
+    expect(ending).toContain("十二次选择");
   });
 
-  it("forces generational identity relay and butterfly-effect topic jumps", () => {
+  it("forces one aging protagonist through butterfly-effect topic changes", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
     const brief = buildPivotalBrief(scenario, played, 8);
 
-    expect(continuation).toContain("不得把玩家写成长生不老");
+    expect(continuation).toContain("authoritativeProtagonist.name 本人");
+    expect(continuation).toContain("禁止换身体、转生、意识接力");
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
     expect(continuation).toContain("社会载体、核心矛盾、制度场景、主要受影响人群");
     expect(continuation).toContain("identityBridge");

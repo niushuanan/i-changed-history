@@ -10,18 +10,18 @@ describe("history developing room", () => {
     expect(screen.getByRole("heading", { name: "历史显影室" })).toBeVisible();
   });
 
-  it("uses the social relay art after the immediate aftermath", () => {
+  it("uses the single-life continuation art after the immediate aftermath", () => {
     render(<GeneratingScreen chapter={6} ending={false} onCancel={vi.fn()} />);
-    expect(screen.getByRole("img", { name: "历史因果正在接力" })).toHaveAttribute("src", "/assets/generating-relay.webp");
-    expect(screen.getByText("寻找意外落点")).toBeVisible();
+    expect(screen.getByRole("img", { name: "同一个人的历史人生正在展开" })).toHaveAttribute("src", "/assets/generating-relay.webp");
+    expect(screen.getByText("人生进入下一幕")).toBeVisible();
     expect(screen.getByTestId("developing-motion")).toBeInTheDocument();
     expect(screen.getAllByTestId("causal-pulse")).toHaveLength(4);
   });
 
   it("uses the 2026 convergence art for the ending", () => {
-    render(<GeneratingScreen chapter={11} ending onCancel={vi.fn()} />);
-    expect(screen.getByRole("img", { name: "平行世界正在汇入 2026" })).toHaveAttribute("src", "/assets/generating-2026.webp");
-    expect(screen.getByText("汇入 2026")).toBeVisible();
+    render(<GeneratingScreen chapter={12} ending onCancel={vi.fn()} />);
+    expect(screen.getByRole("img", { name: "主角死后的历史正在延伸到 2026" })).toHaveAttribute("src", "/assets/generating-2026.webp");
+    expect(screen.getByText("书写身后历史")).toBeVisible();
   });
 
   it("shows that a player-declared result is being written into canon", () => {

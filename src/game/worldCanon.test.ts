@@ -3,6 +3,7 @@ import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { buildTravelerProfile } from "./profile";
 import type { PlayedTurn } from "./prompts";
+import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter } from "./timelinePlan";
 import {
   buildPivotalBrief,
   buildWorldCanon,
@@ -24,7 +25,8 @@ function playedCustom(
   const turn = {
     ...turnFixture,
     chapter,
-    chapterName: chapter === 1 ? "历史现场" : "一日余波",
+    chapterName: CHAPTER_NAMES[chapter as DecisionChapter],
+    lifeStage: JUMP_LABELS[chapter - 1],
     previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
   } as unknown as PlayedTurn["turn"];
 

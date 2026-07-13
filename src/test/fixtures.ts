@@ -2,6 +2,9 @@ export const turnFixture = {
   timelineName: "无王航线",
   chapter: 1,
   chapterName: "历史现场",
+  protagonistName: "沈砚",
+  protagonistAge: 24,
+  lifeStage: "命运当日",
   yearLabel: "208 年冬",
   location: "长江赤壁水域",
   role: "周瑜帐下负责火船的军需官",
@@ -67,7 +70,16 @@ export const turnFixture = {
 export const endingFixture = {
   worldName: "公议纪元",
   frontPageHeadline: "跨洲公议院通过第两千份城市自治章程",
-  historyTimeline: Array.from({ length: 11 }, (_, index) => ({
+  protagonistName: "沈砚",
+  lifespanSummary: "沈砚从赤壁军需官走到公议制度的奠基者，一生十二次把个人选择写进公共秩序。",
+  deathScene: {
+    yearLabel: "254 年冬",
+    age: 70,
+    place: "江夏公议院旧址",
+    finalMoment: "沈砚听完最后一项表决结果，在晨钟响起时闭上眼睛。",
+    lastingLegacy: "他留下的不是王位，而是一套任何城市都能质询权力的议事规则。",
+  },
+  historyTimeline: Array.from({ length: 12 }, (_, index) => ({
     chapter: index + 1,
     yearLabel: `${index + 1}纪元`,
     playerChoice: `选择${index + 1}`,
@@ -79,6 +91,13 @@ export const endingFixture = {
     { origin: "承认地方语言", transformation: "多语教育", payoff: "翻译网络" },
   ],
   ordinaryLife2026: ["通勤者使用公共驿路", "家庭持有多语身份证", "学校教授城市议事"],
+  posthumousChronicle: [
+    { period: "他死后十年", title: "继承者争夺解释权", narrative: "旧部把他的手稿拆成互相冲突的制度版本。", inheritedChange: "公开质询仍成为所有派系都不敢废除的底线。" },
+    { period: "他死后一百年", title: "城市把规则写进石碑", narrative: "商路沿线开始复制公议程序。", inheritedChange: "地方税与战争动员必须公开表决。" },
+    { period: "工业时代", title: "机器进入公议院", narrative: "新工业放大财富，也迫使劳动者要求席位。", inheritedChange: "技术许可与工人代表成为同一套制度。" },
+    { period: "2026 年", title: "陌生人仍在使用他的遗产", narrative: "没有人能完整复述沈砚的一生，但每个人都活在他的选择之后。", inheritedChange: "权力必须留下可供普通人追问的记录。" },
+  ],
+  closingPassage: "沈砚没有看见 2026 年。那一年，人们仍在争论他的制度，却已无法想象一个决定不必留下回执的世界。",
   greatestGain: "地方自治成为默认制度",
   hiddenPrice: "跨洲协调极其缓慢",
   strangestDetail: "婚礼要交换城市通行章",

@@ -18,7 +18,8 @@ describe("clear change event screen", () => {
     const turn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
-      chapterName: "一日余波",
+      chapterName: "三日余波",
+      lifeStage: "三日后",
       previousEcho: turnFixture.choices[1].instantEcho,
       rippleLens: "livelihood",
       causalBridge: "摄政命令经粮仓账本改变了长安市民的米价",

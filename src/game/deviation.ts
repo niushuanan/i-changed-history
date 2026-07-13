@@ -18,6 +18,7 @@ export const CHAPTER_MULTIPLIER = Object.freeze([
   2.08,
   2.2,
   2.35,
+  2.5,
 ] as const);
 
 export type DeviationStage = {

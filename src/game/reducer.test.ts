@@ -8,10 +8,12 @@ import { buildTravelerProfile } from "./profile";
 
 const profile: TravelerProfile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
-const eleventhTurn = parseTimelineTurn(JSON.stringify({
+const twelfthTurn = parseTimelineTurn(JSON.stringify({
   ...turnFixture,
-  chapter: 11,
-  chapterName: "终局前夜",
+  chapter: 12,
+  chapterName: "生命终章",
+  protagonistAge: 70,
+  lifeStage: "生命终章",
   previousEcho: turnFixture.choices[0].instantEcho,
 }));
 
@@ -70,14 +72,14 @@ describe("profile-first choice-only game reducer", () => {
     expect(changed.profile).toBeNull();
   });
 
-  it("requests the 2026 ending only after the eleventh player decision", () => {
+  it("requests the posthumous 2026 report only after the twelfth player decision", () => {
     const state = {
       ...createInitialGameState(),
       phase: "event" as const,
       profile,
       scenario: { profile, seed: HISTORY_SEEDS[0] },
-      currentTurn: eleventhTurn,
-      playedTurns: Array.from({ length: 10 }, () => ({
+      currentTurn: twelfthTurn,
+      playedTurns: Array.from({ length: 11 }, () => ({
         turn,
         selectedChoiceId: "A" as const,
         selectedChoiceLabel: turn.choices[0].label,
@@ -87,7 +89,7 @@ describe("profile-first choice-only game reducer", () => {
     };
 
     const chosen = gameReducer(state, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
-    expect(chosen.playedTurns).toHaveLength(11);
+    expect(chosen.playedTurns).toHaveLength(12);
     expect(chosen.request).toMatchObject({ kind: "ending" });
   });
 

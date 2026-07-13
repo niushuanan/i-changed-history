@@ -24,11 +24,11 @@ describe("alternate present export", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "保存这张头版" }));
-    expect(screen.getByRole("button", { name: "正在制版" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "保存历史报告" }));
+    expect(screen.getByRole("button", { name: "正在生成报告" })).toBeDisabled();
 
     finish?.("downloaded");
-    expect(await screen.findByRole("button", { name: "头版已保存" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "报告已保存" })).toBeEnabled();
   });
 
   it("keeps the export action retryable after a render failure", async () => {
@@ -42,8 +42,8 @@ describe("alternate present export", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "保存这张头版" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("制版失败，请重试");
-    expect(screen.getByRole("button", { name: "重新保存头版" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "保存历史报告" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("报告生成失败，请重试");
+    expect(screen.getByRole("button", { name: "重新保存报告" })).toBeEnabled();
   });
 });

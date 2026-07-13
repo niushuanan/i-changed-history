@@ -4,9 +4,9 @@ import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
 import { migrateLegacyTravelerProfile } from "../game/profile";
 import { RIPPLE_LENSES } from "../game/rippleRouter";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v8";
-const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
-const STORAGE_VERSION = 8;
+export const GAME_STORAGE_KEY = "i-changed-history:session:v9";
+const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v8", "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
+const STORAGE_VERSION = 9;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -53,13 +53,13 @@ const playedSchema = z.strictObject({
 });
 const retrySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("opening") }),
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(11) }),
+  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12) }),
   z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80) }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const requestSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("opening"), id: z.number().int().positive() }),
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(11), id: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("ending"), id: z.number().int().positive() }),
 ]);
@@ -67,7 +67,7 @@ const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retr
 const stateSchema = z.strictObject({
   phase: z.enum(["profiling", "selecting", "generating", "adjudicating", "event", "ending", "result", "error"]),
   profile: profileSchema.nullable(), scenario: scenarioSchema.nullable(), currentTurn: timelineTurnSchema.nullable(),
-  playedTurns: z.array(playedSchema).max(11), deviation: z.number().int().min(0).max(100), lastImpact: z.number().int().min(0).max(100), customActionsUsed: z.number().int().min(0).max(3),
+  playedTurns: z.array(playedSchema).max(12), deviation: z.number().int().min(0).max(100), lastImpact: z.number().int().min(0).max(100), customActionsUsed: z.number().int().min(0).max(3),
   request: requestSchema.nullable(), result: alternatePresentSchema.nullable(), error: errorSchema.nullable(), nextRequestId: z.number().int().positive(),
 }).superRefine((state, context) => {
   if (state.phase === "profiling" && state.profile !== null) context.addIssue({ code: "custom", message: "档案阶段不应已有档案" });
@@ -104,7 +104,7 @@ function remove(storage: StorageLike, key = GAME_STORAGE_KEY) { try { storage.re
 
 function migrateLegacy(raw: string): unknown {
   const envelope = JSON.parse(raw) as { version?: unknown; state?: Record<string, unknown> };
-  if (![4, 5, 6, 7].includes(envelope.version as number) || !envelope.state) return envelope;
+  if (![4, 5, 6, 7, 8].includes(envelope.version as number) || !envelope.state) return envelope;
   const playedTurns = envelope.version === 4 && Array.isArray(envelope.state.playedTurns)
     ? envelope.state.playedTurns.map((value) => {
         if (typeof value !== "object" || value === null) return value;
@@ -121,6 +121,26 @@ function migrateLegacy(raw: string): unknown {
     if (typeof candidate.typeCode === "string" && candidate.dimensions) return candidate;
     return migrateLegacyTravelerProfile(candidate);
   };
+  if (envelope.version === 8) {
+    const profile = migrateProfile(envelope.state.profile);
+    return {
+      version: STORAGE_VERSION,
+      state: {
+        phase: profile ? "selecting" : "profiling",
+        profile: profile ?? null,
+        scenario: null,
+        currentTurn: null,
+        playedTurns: [],
+        deviation: 0,
+        lastImpact: 0,
+        customActionsUsed: 0,
+        request: null,
+        result: null,
+        error: null,
+        nextRequestId: typeof envelope.state.nextRequestId === "number" ? envelope.state.nextRequestId : 1,
+      },
+    };
+  }
   const migrateTurn = (value: unknown) => {
     if (typeof value !== "object" || value === null) return value;
     const turn = value as Record<string, unknown>;

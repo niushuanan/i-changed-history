@@ -22,19 +22,19 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
   if (ending) {
     return {
       image: "/assets/generating-2026.webp",
-      alt: "平行世界正在汇入 2026",
-      title: "汇入 2026",
-      focus: "把十一次选择落到普通人的今天",
-      steps: ["核对十一项选择", "折算长期收益与代价", "印刷平行世界头版"],
+      alt: "主角死后的历史正在延伸到 2026",
+      title: "书写身后历史",
+      focus: "让十二次人生决定脱离本人，继续改变后来者",
+      steps: ["写下主角生命终点", "推演遗产如何变形", "抵达 2026 年世界"],
     };
   }
   if (chapter >= 4) {
     return {
       image: "/assets/generating-relay.webp",
-      alt: "历史因果正在接力",
-      title: "寻找意外落点",
-      focus: "换一批人，换一个问题，保留同一条因果",
-      steps: ["回收未兑现的余波", "寻找熟悉的历史锚点", "检验新身份与代价"],
+      alt: "同一个人的历史人生正在展开",
+      title: "人生进入下一幕",
+      focus: "同一个人，新的身份与重大冲突，保留全部因果",
+      steps: ["核对姓名与年龄", "寻找新的重大矛盾", "兑现旧选择与新代价"],
     };
   }
   return {
@@ -68,7 +68,7 @@ export function GeneratingScreen({ chapter, ending, customAction = false, onCanc
       </div>
       <div className="developing-stamp"><Aperture size={18} weight="bold" /><span>{customAction ? "玩家正史写入" : "历史显影室"}</span></div>
       <div className="developing-copy">
-        <span>{ending ? "第 12 节点 · 平行 2026" : customAction ? `第 ${chapter} 节点 · 玩家钦定` : `第 ${chapter} 节点 · 因果推演中`}</span>
+        <span>{ending ? "十二次决定已结束 · 身后历史" : customAction ? `第 ${chapter} 节点 · 玩家钦定` : `第 ${chapter} 节点 · 因果推演中`}</span>
         <h1>{stage.title}</h1>
         <p>{stage.focus}</p>
       </div>

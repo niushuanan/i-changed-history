@@ -29,25 +29,36 @@ export function createFallbackCustomActionResolution(
 }
 
 function visualTone(scenario: GameScenario, chapter: DecisionChapter): TimelineTurn["visualTone"] {
-  if (chapter <= 3) return scenario.seed.visualTone;
-  if (chapter <= 5) return "revolution";
-  if (chapter <= 7) return "industry";
-  if (chapter <= 9) return "exchange";
+  const year = getTimelineNode(chapter, scenario.seed.year).targetYear;
+  if (year < 1400) return scenario.seed.visualTone === "digital" ? "ancient" : scenario.seed.visualTone;
+  if (year < 1800) return chapter % 2 === 0 ? "exchange" : "print";
+  if (year < 1920) return "industry";
+  if (year < 1980) return chapter % 2 === 0 ? "war" : "industry";
   return "digital";
 }
 
-const RELAY_BRIDGES = [
-  "你的第一项选择成为正式命令，本代决策者在危机中接棒",
-  "被改写的命令沿权力网络扩散，你以新的关键身份接棒",
-  "一年后的制度冲突首次公开爆发，新一代决策者接棒",
-  "三年后的政权与联盟开始重排，本代关键人物接棒",
-  "十年后的国家秩序迎来第一次总决断，本代指挥者接棒",
-  "三十年的制度后果汇成全国危机，本代改革者接棒",
-  "百年后的文明路径出现决战，本代关键参与者接棒",
-  "新的世界秩序进入公开对决，本代决策者接棒",
-  "历代选择沉入国家机器，本代核心人物接棒",
-  "所有余波抵达2026前夕，最后一代决策者接棒",
+const LIFE_BRIDGES = [
+  "三天里你没有离开现场，第一道命令开始反噬",
+  "六周里你仍是同一个人，却已被推到风暴中心",
+  "你靠前次选择站稳脚跟，也第一次拥有正式权力",
+  "你的名字随新规则传开，旧敌开始把你当成威胁",
+  "你从执行者走到决策者，必须亲手处理自己造成的秩序",
+  "一次生涯转折把你带入更大的制度冲突",
+  "你已进入盛年，盟友与敌人都要求你为旧选择付账",
+  "你试图守住亲手建立的秩序，新的危机却从内部出现",
+  "年岁增长，你必须决定哪部分理想可以被现实保留",
+  "你开始安排身后秩序，却发现继承者已有自己的答案",
+  "你走到生命晚年，最后一项决定将脱离你继续活下去",
 ];
+
+const CHINESE_NAMES = ["沈砚", "顾川", "陆衡", "程野", "苏岚"] as const;
+const WORLD_NAMES = ["阿德里安", "伊莱亚斯", "米拉", "莱昂", "索菲娅"] as const;
+
+function fallbackProtagonistName(scenario: GameScenario): string {
+  const names = scenario.seed.perspective === "china" ? CHINESE_NAMES : WORLD_NAMES;
+  const index = [...scenario.seed.id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % names.length;
+  return names[index];
+}
 
 const PIVOT_SCENES: Record<PivotKind, { role: string; location: string; headline: string; stakes: string; objective: string }> = {
   power: { role: "新朝册立使", location: "继承诏书宣读大殿", headline: "新政权第一次册立", stakes: "这次册立将决定新政权的继承与合法性", objective: "决定继承诏书由谁公开并获得军队承认" },
@@ -82,12 +93,13 @@ export function createFallbackTurn(
   const previous = playedTurns.at(-1)?.turn;
   const echo = previousEcho(playedTurns);
   const yearLabel = chapter <= 3
-    ? `${scenario.seed.dateLabel} · ${node.jumpLabel}`
-    : `${node.targetYear}年 · ${node.jumpLabel}`;
+    ? `${scenario.seed.dateLabel} · ${node.jumpLabel} · ${node.protagonistAge}岁`
+    : `${node.targetYear}年 · ${node.protagonistAge}岁`;
   const objective = chapter === 1
     ? scenario.seed.decision
     : `决定上一项选择形成的新秩序，下一步由谁执行、由谁承担代价`;
-  const relayBridge = RELAY_BRIDGES[Math.max(0, chapter - 2)];
+  const lifeBridge = LIFE_BRIDGES[Math.max(0, chapter - 2)];
+  const protagonistName = playedTurns[0]?.turn.protagonistName ?? fallbackProtagonistName(scenario);
   const brief = chapter === 1
     ? null
     : buildPivotalBrief(scenario, playedTurns, chapter as Exclude<DecisionChapter, 1>);
@@ -109,10 +121,13 @@ export function createFallbackTurn(
     timelineName: `${scenario.seed.eventName}异史`,
     chapter,
     chapterName: node.chapterName,
+    protagonistName,
+    protagonistAge: node.protagonistAge,
+    lifeStage: node.lifeStage,
     yearLabel,
     location: chapter === 1 ? scenario.seed.location : pivotalScene!.location,
     role: chapter === 1 ? scenario.seed.role : pivotalScene!.role,
-    identityBridge: chapter === 1 ? "你的现代意识直接进入这一历史现场" : relayBridge,
+    identityBridge: chapter === 1 ? `你的现代意识进入${protagonistName}此后唯一的一生` : lifeBridge,
     profileAdvantage: `${scenario.profile.typeCode}「${ability.title}」能${ability.preview.replace("预判时", "")}`,
     rippleLens: chapter === 1 ? "origin" : brief!.rippleLens,
     causalBridge: chapter === 1
@@ -163,12 +178,31 @@ export function createFallbackEnding(scenario: GameScenario, playedTurns: readon
   const first = playedTurns[0];
   const middle = playedTurns[Math.floor(playedTurns.length / 2)];
   const last = playedTurns.at(-1);
+  const protagonistName = first?.turn.protagonistName ?? fallbackProtagonistName(scenario);
+  const deathYearLabel = last?.turn.yearLabel ?? `${getTimelineNode(12, scenario.seed.year).targetYear}年`;
+  const deathAge = last?.turn.protagonistAge ?? getTimelineNode(12, scenario.seed.year).protagonistAge;
   return alternatePresentSchema.parse({
     worldName: `${scenario.seed.eventName}之后的世界`,
-    frontPageHeadline: `${scenario.profile.name}改变的时间线抵达 2026`,
+    frontPageHeadline: `${protagonistName}死后，时间线继续抵达 2026`,
+    protagonistName,
+    lifespanSummary: `${protagonistName}从${scenario.seed.role}走到一生最后的重大决断，十二次选择都成为后来者无法绕开的世界事实。`,
+    deathScene: {
+      yearLabel: deathYearLabel,
+      age: deathAge,
+      place: last?.turn.location ?? scenario.seed.location,
+      finalMoment: `${protagonistName}确认最后一道命令已经送出，在陪伴他一生的争论声中闭上眼睛。`,
+      lastingLegacy: last?.resolvedEcho.directResult ?? "他留下的规则开始脱离本人，被敌友共同使用。",
+    },
     historyTimeline: playedTurns.map((played) => ({ chapter: played.turn.chapter, yearLabel: played.turn.yearLabel, playerChoice: played.selectedChoiceLabel, consequence: chosenEcho(played)?.directResult ?? played.turn.memorySummary })),
     causalChains: [first, middle, last].map((played) => ({ origin: played?.selectedChoiceLabel ?? scenario.seed.decision, transformation: played?.turn.memorySummary ?? scenario.seed.historicalOutcome, payoff: played ? (chosenEcho(played)?.unexpectedCost ?? "代价进入普通生活") : "历史仍保留原有惯性" })),
     ordinaryLife2026: ["学校会把这条分岔时间线列为基础历史课", "通勤与城市规则保留了早期选择形成的制度痕迹", "家庭新闻终端每天显示历史偏离度与公共代价"],
+    posthumousChronicle: [
+      { period: "他死后十年", title: "旧部争夺遗产", narrative: `追随者开始争论${protagonistName}最后命令的真正含义。`, inheritedChange: last?.resolvedEcho.directResult ?? "最后一项选择成为政治底线。" },
+      { period: "他死后一百年", title: "规则进入制度", narrative: "个人记忆逐渐淡去，命令被抄进学校、法令与组织章程。", inheritedChange: middle?.resolvedEcho.directResult ?? "中年建立的规则被后来者改造成公共制度。" },
+      { period: "近现代", title: "旧遗产遭遇新技术", narrative: "生产与传播方式改变，早期选择被放大到国家和普通人的生活。", inheritedChange: first?.resolvedEcho.directResult ?? "第一项选择仍是所有变化的因果源。" },
+      { period: "2026 年", title: "世界已经不再认识原来的历史", narrative: `大多数人不知道${protagonistName}经历过什么，却把他的后果当成常识。`, inheritedChange: "制度、生活与代价共同证明这条时间线仍在生效。" },
+    ],
+    closingPassage: `${protagonistName}没有看见 2026 年。他死后，名字渐渐退出课本正文，但十二次决定留下的习惯、法律与恐惧仍在每个普通人的一天里继续发生。`,
     greatestGain: chosenEcho(last ?? first)?.beneficiary ?? "进入新规则的普通人",
     hiddenPrice: chosenEcho(last ?? first)?.unexpectedCost ?? "制度改变留下长期协调成本",
     strangestDetail: "每个人的身份证都记录其家族第一次进入新时间线的年份",
@@ -176,7 +210,7 @@ export function createFallbackEnding(scenario: GameScenario, playedTurns: readon
     biggestLoser: chosenEcho(middle ?? first)?.payer ?? "旧秩序维护者",
     rewriteLevel: "跨时代改写",
     plausibilityScore: 68,
-    plausibilityReason: "总结严格沿用十一项玩家选择和即时后果，没有添加新的决定性事件。",
-    shareLine: `我从${scenario.seed.eventName}开始，用十一项选择抵达了另一个 2026。`,
+    plausibilityReason: "报告严格沿用十二项玩家选择和即时后果，只在主角死亡后延伸其可解释的制度遗产。",
+    shareLine: `我让${protagonistName}用一生改写十二次历史，死后的世界抵达了另一个 2026。`,
   });
 }

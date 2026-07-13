@@ -122,11 +122,30 @@ function parseRequestedTurn(
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>,
   expectedRippleLens: RippleLens = "origin",
   pivotalBrief?: PivotalBrief,
+  expectedProtagonist?: { name?: string; age: number; lifeStage: TimelineTurn["lifeStage"] },
+  openingContext?: { eventName: string; role: string },
 ): Parser<TimelineTurn> {
   return (raw) => {
-    const turn = parseTimelineTurn(raw, { expectedChapter, expectedYearLabel, expectedPreviousEcho, expectedRippleLens });
+    const turn = parseTimelineTurn(raw, {
+      expectedChapter,
+      expectedYearLabel,
+      expectedPreviousEcho,
+      expectedRippleLens,
+      expectedProtagonistName: expectedProtagonist?.name,
+      expectedProtagonistAge: expectedProtagonist?.age,
+      expectedLifeStage: expectedProtagonist?.lifeStage,
+    });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
+    }
+    if (expectedChapter >= 4 && openingContext) {
+      const currentPlot = `${turn.headline}；${turn.immediateObjective}；${turn.narrative}`;
+      if (turn.role === openingContext.role || currentPlot.includes(openingContext.eventName)) {
+        throw new Error("第四幕以后不能继续把开场事件或开场职位当作当前主线");
+      }
+    }
+    if (expectedChapter === 12 && /已经死|闭上眼|咽气|去世|生命结束/.test(turn.narrative)) {
+      throw new Error("第十二幕必须先让玩家完成最后一次选择，不能提前写死主角");
     }
     if (pivotalBrief && !pivotalSceneMatches(pivotalBrief, turn)) {
       throw new Error(`本幕没有真正进入指定重大冲突 ${pivotalBrief.pivotKind}`);
@@ -146,10 +165,11 @@ function parseRequestedTurn(
 }
 
 function expectedYearLabel(scenario: GameScenario, chapter: DecisionChapter): string {
-  if (chapter === 1) return scenario.seed.dateLabel;
-  if (chapter === 2) return `${scenario.seed.year}年 · 一天后`;
-  if (chapter === 3) return `${scenario.seed.year}年 · 一个月后`;
-  return `${getTimelineNode(chapter, scenario.seed.year).targetYear}年`;
+  const node = getTimelineNode(chapter, scenario.seed.year);
+  if (chapter === 1) return `${scenario.seed.dateLabel} · ${node.protagonistAge}岁`;
+  if (chapter === 2) return `${scenario.seed.year}年 · 三日后 · ${node.protagonistAge}岁`;
+  if (chapter === 3) return `${scenario.seed.year}年 · 六周后 · ${node.protagonistAge}岁`;
+  return `${node.targetYear}年 · ${node.protagonistAge}岁`;
 }
 
 function expectedPreviousEcho(
@@ -192,14 +212,20 @@ export async function adjudicateCustomAction(
 
 function parseExpectedEnding(
   expectedHistoryTimeline: readonly { yearLabel: string; playerChoice: string; playerAuthored: boolean }[],
+  protagonist: { name: string; deathYearLabel: string; deathAge: number },
 ): Parser<AlternatePresent> {
   return (raw) => {
-    const ending = parseAlternatePresent(raw, { expectedHistoryTimeline });
+    const ending = parseAlternatePresent(raw, {
+      expectedHistoryTimeline,
+      expectedProtagonistName: protagonist.name,
+      expectedDeathYearLabel: protagonist.deathYearLabel,
+      expectedDeathAge: protagonist.deathAge,
+    });
     const choicesMatch = ending.historyTimeline.every(
       (item, index) => item.playerChoice === expectedHistoryTimeline[index]?.playerChoice,
     );
     if (!choicesMatch || ending.historyTimeline.length !== expectedHistoryTimeline.length) {
-      throw new Error("结局时间线没有按顺序保留玩家的十一次真实选择。");
+      throw new Error("结局时间线没有按顺序保留玩家的十二次真实选择。");
     }
     const contradictedCanon = expectedHistoryTimeline.find((expected, index) =>
       expected.playerAuthored && !endingConsequencePreservesCanon(
@@ -221,7 +247,8 @@ export async function generateOpening(
   const messages = buildOpeningMessages(scenario);
 
   try {
-    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(1, expectedYearLabel(scenario, 1)), { expectedChapter: 1 });
+    const node = getTimelineNode(1, scenario.seed.year);
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(1, expectedYearLabel(scenario, 1), undefined, "origin", undefined, { age: node.protagonistAge, lifeStage: node.lifeStage }), { expectedChapter: 1 });
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, [], 1);
     throw error;
@@ -236,9 +263,11 @@ export async function generateNextTurn(
 ): Promise<TimelineTurn> {
   const messages = buildContinuationMessages(scenario, playedTurns, chapter);
   const pivotalBrief = buildPivotalBrief(scenario, playedTurns, chapter);
+  const node = getTimelineNode(chapter, scenario.seed.year);
+  const protagonistName = playedTurns[0]?.turn.protagonistName;
 
   try {
-    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), pivotalBrief.rippleLens, pivotalBrief), { expectedChapter: chapter });
+    return await requestValidated(messages, { phase: "turn", signal: options.signal }, "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), pivotalBrief.rippleLens, pivotalBrief, { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }), { expectedChapter: chapter });
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackTurn(scenario, playedTurns, chapter);
     throw error;
@@ -255,8 +284,13 @@ export async function generateEnding(
     playerChoice: getPlayedTurnChoiceText(playedTurn),
     playerAuthored: playedTurn.playerAuthored === true || playedTurn.selectedChoiceId === "custom",
   }));
+  const firstTurn = playedTurns[0]?.turn;
+  const finalTurn = playedTurns.at(-1)?.turn;
+  if (!firstTurn || !finalTurn || playedTurns.length !== 12) {
+    return createFallbackEnding(scenario, playedTurns);
+  }
   try {
-    return await requestValidated(buildEndingMessages(scenario, playedTurns), { phase: "ending", signal: options.signal }, "alternate_present", parseExpectedEnding(expectedHistoryTimeline), {});
+    return await requestValidated(buildEndingMessages(scenario, playedTurns), { phase: "ending", signal: options.signal }, "alternate_present", parseExpectedEnding(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }), {});
   } catch (error) {
     if (error instanceof StructuredGenerationError) return createFallbackEnding(scenario, playedTurns);
     throw error;

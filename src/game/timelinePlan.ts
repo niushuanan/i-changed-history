@@ -1,74 +1,65 @@
-export const DECISION_NODE_COUNT = 11;
+export const DECISION_NODE_COUNT = 12;
 export const TOTAL_NODE_COUNT = 12;
-export const FINAL_YEAR = 2026;
+export const FINAL_REPORT_YEAR = 2026;
+export const LAST_PLAYABLE_YEAR = FINAL_REPORT_YEAR - 1;
 
-export const DECISION_CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+export const DECISION_CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 export type DecisionChapter = (typeof DECISION_CHAPTERS)[number];
-export type TimelineChapter = DecisionChapter | 12;
+export type TimelineChapter = DecisionChapter;
 
 export const CHAPTER_NAMES = {
   1: "历史现场",
-  2: "一日余波",
-  3: "月度震荡",
-  4: "年轮初成",
-  5: "三年变局",
-  6: "十年改写",
-  7: "三十年秩序",
-  8: "百年分野",
-  9: "跨时代",
-  10: "新世界",
-  11: "终局前夜",
-  12: "平行 2026",
+  2: "三日余波",
+  3: "六周震荡",
+  4: "立足之年",
+  5: "声名渐起",
+  6: "执掌一方",
+  7: "生涯转折",
+  8: "盛年危局",
+  9: "守成之争",
+  10: "暮年抉择",
+  11: "最后布局",
+  12: "生命终章",
 } as const;
 
 export const JUMP_LABELS = [
-  "历史现场", "一天后", "一个月后", "一年后", "三年后", "十年后",
-  "三十年后", "一百年后", "跨时代", "新世界", "2026 前夕", "2026",
+  "命运当日", "三日后", "六周后", "立足之年", "声名渐起", "执掌一方",
+  "生涯转折", "盛年危局", "守成之争", "暮年抉择", "最后布局", "生命终章",
 ] as const;
+
+export type LifeStage = (typeof JUMP_LABELS)[number];
 
 export type TimelineNode = {
   chapter: TimelineChapter;
   chapterName: (typeof CHAPTER_NAMES)[TimelineChapter];
-  jumpLabel: (typeof JUMP_LABELS)[number];
+  jumpLabel: LifeStage;
+  lifeStage: LifeStage;
   targetYear: number;
-  kind: "decision" | "summary";
+  protagonistAge: number;
+  kind: "decision";
   eraShift: boolean;
 };
 
-function yearBetween(from: number, ratio: number): number {
-  return Math.min(FINAL_YEAR - 1, Math.max(from, Math.round(from + (FINAL_YEAR - from) * ratio)));
-}
+const LIFE_PROGRESS = [0, 0, 0, 0.02, 0.05, 0.11, 0.18, 0.28, 0.41, 0.57, 0.76, 1] as const;
 
 export function getTimelinePlan(startYear: number): readonly TimelineNode[] {
-  const start = Math.min(startYear, FINAL_YEAR - 1);
-  const scaledYear = (offset: number, ratio: number) =>
-    Math.min(start + offset, yearBetween(start, ratio));
-  const hundredYear = scaledYear(100, 0.4);
-  const remaining = FINAL_YEAR - hundredYear;
-  const targetYears = [
-    start,
-    start,
-    start,
-    scaledYear(1, 0.05),
-    scaledYear(3, 0.1),
-    scaledYear(10, 0.2),
-    scaledYear(30, 0.3),
-    hundredYear,
-    Math.min(FINAL_YEAR - 1, Math.round(hundredYear + remaining * 0.25)),
-    Math.min(FINAL_YEAR - 1, Math.round(hundredYear + remaining * 0.5)),
-    Math.min(FINAL_YEAR - 1, Math.round(hundredYear + remaining * 0.8)),
-    FINAL_YEAR,
-  ];
+  const start = Math.min(startYear, LAST_PLAYABLE_YEAR);
+  const playableYears = Math.max(0, LAST_PLAYABLE_YEAR - start);
+  const lifespanYears = Math.min(46, playableYears);
+  const initialAge = 70 - lifespanYears;
 
-  return targetYears.map((targetYear, index) => {
+  return LIFE_PROGRESS.map((progress, index) => {
     const chapter = (index + 1) as TimelineChapter;
+    const elapsedYears = index < 3 ? 0 : Math.round(lifespanYears * progress);
     return {
       chapter,
       chapterName: CHAPTER_NAMES[chapter],
       jumpLabel: JUMP_LABELS[index],
-      targetYear,
-      kind: chapter === 12 ? "summary" : "decision",
-      eraShift: chapter >= 8,
+      lifeStage: JUMP_LABELS[index],
+      targetYear: start + elapsedYears,
+      protagonistAge: initialAge + elapsedYears,
+      kind: "decision",
+      eraShift: chapter >= 4,
     };
   });
 }

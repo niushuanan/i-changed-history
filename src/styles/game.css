@@ -685,6 +685,12 @@
 .front-page__scene { position: relative; height: 138px; margin: 0; overflow: hidden; border-bottom: 2px solid var(--ink); background: #242320; }
 .front-page__scene img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.82) contrast(1.04); }
 .front-page__scene figcaption { position: absolute; right: 8px; bottom: 7px; padding: 4px 6px; background: var(--paper); color: var(--red-dark); font-size: 9px; font-weight: 900; }
+.legacy-report__death { padding: 16px 0; border-bottom: 3px double var(--ink); }
+.legacy-report__death > span { color: var(--red); font-size: 9px; font-weight: 900; }
+.legacy-report__death h2 { margin: 5px 0 2px; font-size: 24px; }
+.legacy-report__death small { color: #68625a; font-size: 9px; }
+.legacy-report__death p { margin: 10px 0 0; font-family: var(--serif); font-size: 13px; line-height: 1.65; }
+.legacy-report__death blockquote { margin-top: 10px; transform: none; }
 .front-page__scores { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 2px solid var(--ink); }
 .front-page__scores > div { padding: 11px 9px; display: grid; grid-template-columns: 1fr 44px; align-items: center; border-right: 1px solid var(--ink); }
 .front-page__scores > div:last-child { border-right: 0; }
@@ -700,6 +706,14 @@
 .front-page__timeline time { grid-row: 1 / span 2; color: var(--red); font-size: 10px; font-weight: 900; }
 .front-page__timeline strong { font-family: var(--serif); font-size: 12px; }
 .front-page__timeline p { margin: 2px 0 0; font-size: 10px; line-height: 1.45; }
+.legacy-report__summary { margin: 0 0 12px !important; color: #514c45; font-family: var(--serif); font-size: 12px !important; line-height: 1.6 !important; }
+.legacy-report__afterlife { padding: 14px 0; border-bottom: 1px solid var(--ink); }
+.legacy-report__afterlife > article { display: grid; grid-template-columns: 76px 1fr; gap: 2px 8px; padding: 10px 0; border-top: 1px solid #b8b1a5; }
+.legacy-report__afterlife time { grid-row: 1 / span 3; color: var(--red); font-size: 9px; font-weight: 900; }
+.legacy-report__afterlife h3 { margin: 0; font-family: var(--serif); font-size: 13px; }
+.legacy-report__afterlife p { margin: 3px 0; font-size: 10px; line-height: 1.5; }
+.legacy-report__afterlife strong { color: var(--teal); font-size: 10px; line-height: 1.45; }
+.legacy-report__closing { margin-top: 13px; color: var(--ink); font-family: var(--serif); font-size: 14px !important; font-weight: 800; line-height: 1.7 !important; }
 .front-page__ordinary ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .front-page__ordinary li { padding-left: 11px; border-left: 4px solid var(--teal); font-family: var(--serif); font-size: 12px; line-height: 1.45; }
 .front-page__causes p { margin: 6px 0; font-size: 10px; line-height: 1.5; }

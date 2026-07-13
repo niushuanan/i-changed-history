@@ -4,7 +4,7 @@ import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpeni
 import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
-import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
+import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "../game/timelinePlan";
 import { buildTravelerProfile } from "../game/profile";
 import { buildPivotalBrief, pivotalSceneMatches } from "../game/worldCanon";
 
@@ -13,7 +13,7 @@ const scenario = { profile: buildTravelerProfile({ energy: "I", perception: "N",
 const firstTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 const playedTurn = { turn: firstTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: firstTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: firstTurn.choices[0].instantEcho };
 const endingPlayedTurns = endingFixture.historyTimeline.map((item, index) => ({
-  turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
+  turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], protagonistAge: getTimelineNode((index + 1) as DecisionChapter, scenario.seed.year).protagonistAge, lifeStage: getTimelineNode((index + 1) as DecisionChapter, scenario.seed.year).lifeStage, previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
   selectedChoiceId: "A" as const, selectedChoiceLabel: item.playerChoice, selectedDeviationClass: "nudge" as const, resolvedEcho: turnFixture.choices[0].instantEcho,
 }));
 
@@ -79,7 +79,8 @@ describe("DeepSeek transport and structured generation", () => {
     const second = {
       ...turnFixture,
       chapter: 2,
-      chapterName: "一日余波",
+      chapterName: "三日余波",
+      lifeStage: "三日后",
       previousEcho: turnFixture.choices[0].instantEcho,
       rippleLens: brief.rippleLens,
       role: "全国粮政使",
@@ -94,11 +95,11 @@ describe("DeepSeek transport and structured generation", () => {
       causalLedger: [{ fact: "公开完整遗诏", causedByChapter: 1, mustAffect: "土地与粮食分配" }],
     };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
-    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 一天后`, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: brief.rippleLens, worldStateChange: expect.stringContaining("公开完整遗诏") });
+    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 三日后 · 24岁`, protagonistName: firstTurn.protagonistName, previousEcho: turnFixture.choices[0].instantEcho, rippleLens: brief.rippleLens, worldStateChange: expect.stringContaining("公开完整遗诏") });
   });
 
   it("rejects a relabeled but semantically unchanged continuation and uses routed fallback", async () => {
-    const unchanged = { ...turnFixture, chapter: 2, chapterName: "一日余波", previousEcho: turnFixture.choices[0].instantEcho };
+    const unchanged = { ...turnFixture, chapter: 2, chapterName: "三日余波", lifeStage: "三日后", previousEcho: turnFixture.choices[0].instantEcho };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(unchanged))));
     vi.stubGlobal("fetch", fetcher);
     const brief = buildPivotalBrief(scenario, [playedTurn], 2);
@@ -125,7 +126,8 @@ describe("DeepSeek transport and structured generation", () => {
     const contradictory = {
       ...turnFixture,
       chapter: 2,
-      chapterName: "一日余波",
+      chapterName: "三日余波",
+      lifeStage: "三日后",
       previousEcho: customPlayed.resolvedEcho,
       rippleLens: brief.rippleLens,
       role: "新朝册立使",
@@ -209,7 +211,7 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the eleven player choices authoritative in the ending", async () => {
+  it("keeps all twelve player choices authoritative in the ending", async () => {
     const wrong = { ...endingFixture, historyTimeline: endingFixture.historyTimeline.map((item) => ({ ...item, playerChoice: "错误选择" })) };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(wrong))); vi.stubGlobal("fetch", fetcher);
     const ending = await generateEnding(scenario, endingPlayedTurns);
@@ -248,7 +250,7 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
     vi.stubGlobal("fetch", fetcher);
     const ending = await generateEnding(scenario, endingPlayedTurns);
-    expect(ending.historyTimeline).toHaveLength(11);
+    expect(ending.historyTimeline).toHaveLength(12);
     expect(ending.frontPageHeadline).toContain("2026");
   });
 });
