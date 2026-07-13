@@ -15,6 +15,7 @@
 - `src/screens/` 和 `src/components/`：从历史档案选择、同一主角一生决策到死亡与 2026 身后历史报告的完整界面。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
+- `src/soak/`：显式运行的真实 DeepSeek 十二节点长局压力测试；十个不同开局、每局四到五次唯一直接改写，结果只写入被忽略的 `tmp/soak/`。
 - `design/`：三套 ImageGen 首屏方向、选定的 `redaction-room.png` 和真实浏览器截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、CC0 史诗配乐及授权记录。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
@@ -32,11 +33,21 @@
 - `src/game/worldCanon.ts`：把玩家决定固化为世界正史，并生成下一幕的重大节点编排约束。
 - `src/data/historySeeds.ts`：历史卡牌数据入口。
 - `vite.config.mjs`：开发服务器和 Vitest jsdom 配置。
-- `package.json`：`npm run dev`、`npm test`、`npm run typecheck`、`npm run build` 命令入口。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 命令入口。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-14 02:43 - 修复节点七中断并完成十局真实长程压测
+
+- 本次任务：定位多次直接改写后节点七附近反复生成失败的问题，持续调整正史上下文、提示词注入、字段恢复和测试条件，并实际跑十个不同历史开局；每局十二个节点、四到五次不同直接改写，目标至少九局到达双报告结局。
+- 改了哪些文件：`src/game/{worldCanon,narrativeContext,prompts,schema,engine}.ts` 及测试、`src/services/deepseek.test.ts`、新增 `src/soak/{soakCases,longRunSoak.soak}.ts`、`vitest.soak.config.mjs`、`package.json`、`package-lock.json`、`docs/superpowers/{specs,plans}/2026-07-14-long-run-stability*`、`AGENTS.md` 与 `PROJECT_CONTEXT.md`。
+- 改了什么：消除“账本最多三项、却要求所有历史改写永久逐字占位”的不可满足合同；全部决定继续永久保存在 `lifeIndex/playerCanon`，只有最近三幕的玩家改写进入 `activePlayerCanon`，并由客户端权威注入当前因果账本；续幕首答失败后先只补无效根字段，补丁仍失败时允许一次带精确证据的完整恢复，三轮都无效才保留存档并显式重试；玩家原文、主角、年龄、年份和账本继续由客户端保护；无害的解释字段超长与内部枚举近义词在本地规范化，缺失可见历史文案仍必须由 AI 修复；提示词增加必填字段提交前检查；新增真实生产链路 soak 工具和脱敏诊断。
+- 为什么这样改：原合同在第四条自定义正史出现后数学上无法同时满足，盲目重试只会在节点越深时越来越慢。分层正史既保住玩家全部选择，又把当前模型负担限制在稳定窗口；有限且可观测的恢复能提高成功率而不允许本地伪造可玩场景或 2026 报告。
+- 影响了哪些模块：十二节点连续性、直接改写正史、DeepSeek 续幕与结局、Zod 解析、字段修复、错误恢复、生成诊断、长局验收和公开仓库开发命令。
+- 实测结果：`deepseek-v4-flash` 十个不同开局全部成功，成功率 10/10；共完成 120 个可玩节点、45/45 条全局唯一直接改写和 20 份结局子报告；人工式整步重试 1 次，本地可玩场景/结局兜底 0 次；平均每局 8.36 分钟，单局 7.24-10.08 分钟。普通测试 26 个文件共 176 项通过，TypeScript 通过。390 x 844 真实浏览器实际完成罗马大火开局、无限直接改写、动态等待、第 2 节点 DeepSeek 生成和退出返回时间轴；三张页面截图均无重叠，控制台 0 错误。
+- 后续性能证据：十局虽全部通关，仍发生 45 次首答字段修复，主要是内部 `rippleLens` 近义词、漏写现场目标/倒计时和世界报告字数超限；这些没有破坏正史或导致中断，但仍是下一轮降低等待时长的明确对象。
 
 ### 2026-07-14 00:36 - 删除自定义改写的固定分析与模型播报
 
