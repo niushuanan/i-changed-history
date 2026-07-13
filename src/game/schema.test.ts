@@ -142,8 +142,8 @@ describe("structured timeline parsing", () => {
     }));
 
     expect(parsed.turningPointStakes.length).toBeLessThanOrEqual(44);
-    expect(parsed.worldStateChange.length).toBeLessThanOrEqual(56);
-    expect(parsed.divergenceProof.length).toBeLessThanOrEqual(72);
+    expect(parsed.worldStateChange.length).toBeLessThanOrEqual(36);
+    expect(parsed.divergenceProof.length).toBeLessThanOrEqual(48);
   });
 
   it("trims an overlong causal bridge instead of discarding a strong generated scene", () => {
@@ -152,7 +152,7 @@ describe("structured timeline parsing", () => {
       causalBridge: "因".repeat(70),
     }));
 
-    expect(parsed.causalBridge.length).toBeLessThanOrEqual(56);
+    expect(parsed.causalBridge.length).toBeLessThanOrEqual(36);
   });
 
   it("trims overlong relay metadata and history anchors without discarding the scene", () => {

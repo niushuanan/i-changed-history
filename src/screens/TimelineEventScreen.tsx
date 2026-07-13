@@ -8,7 +8,6 @@ import { ChoiceList } from "../components/ChoiceList";
 export function TimelineEventScreen({
   turn,
   deviation,
-  lastChoiceLabel,
   onChoose,
   onCustomAction,
   onExit,
@@ -16,7 +15,6 @@ export function TimelineEventScreen({
 }: {
   turn: TimelineTurn;
   deviation: number;
-  lastChoiceLabel?: string;
   onChoose: (id: "A" | "B" | "C") => void;
   onCustomAction: (action: string) => void;
   onExit: () => void;
@@ -30,15 +28,12 @@ export function TimelineEventScreen({
     turn.headline,
     turn.narrative,
     turn.timePressure,
-    lastChoiceLabel ?? turn.callbackUsed,
-    turn.worldStateChange,
-    turn.causalBridge,
-    turn.divergenceProof,
-    turn.previousEcho ? "" : turn.baselineAnchor,
-    turn.previousEcho ? "" : turn.immediateObjective,
+    ...(turn.previousEcho
+      ? [turn.worldStateChange, turn.causalBridge, turn.divergenceProof]
+      : [turn.baselineAnchor, turn.immediateObjective]),
     ...turn.choices.map((choice) => choice.label),
   ].reduce((total, copy) => total + [...(copy ?? "")].length, 0);
-  const density = visibleCopyLength > 400
+  const density = visibleCopyLength > 320
     ? "dense"
     : visibleCopyLength > 280 || turn.previousEcho
       ? "compact"
@@ -90,17 +85,17 @@ export function TimelineEventScreen({
         <section className="change-proof" aria-label="历史对照">
           <span className="change-proof__kicker">历史对照</span>
           <div className="change-proof__row is-alternate">
-            <span>被你改变后</span>
+            <span>你的时间线</span>
             <strong>{turn.worldStateChange}</strong>
           </div>
           <div className="change-proof__row is-real">
-            <span>真实历史中</span>
+            <span>正史原本</span>
             <p>{turn.divergenceProof}</p>
           </div>
-          <p className="change-proof__cause">
-            <span>变化来自</span>
-            <span>你选择“{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}”，{turn.causalBridge}</span>
-          </p>
+          <div className="change-proof__cause">
+            <span>为何改变</span>
+            <span>{turn.causalBridge}</span>
+          </div>
         </section>
       ) : (
         <section className="change-proof is-opening" aria-label="真实历史切入口">

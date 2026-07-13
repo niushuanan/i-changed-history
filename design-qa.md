@@ -128,6 +128,13 @@ Final result: passed.
 - Runtime layout measurements are exact: document and event page are 390 x 844, event body client and scroll height are both 504px, comparison bottom is 836px, and the bottom safe area is 8px.
 - Browser inspection found zero ellipsis characters, zero clipped event/choice/comparison prose nodes, and zero console errors.
 
+# Scan-Length History Comparison QA (2026-07-13)
+
+- The bottom comparison now uses three full-width rows: `你的时间线`, `正史原本`, and `为何改变`; it never repeats the complete prior choice.
+- The DeepSeek contract and Zod normalization cap the three visible conclusions at 36, 48, and 36 Chinese characters.
+- A maximum-copy 390 x 844 browser run used an 88-character prehistory, three 32-character actions, and all three comparison fields at their limits. Each comparison body stayed within two lines.
+- At maximum legal copy, document and event page remained exactly 844px high, the event body client and scroll height were both 544px, the comparison bottom stayed at 836px, and browser inspection found no clipped prose, ellipsis, errors, or warnings.
+
 # Familiar Surprise Loading QA (2026-07-14)
 
 - Added three generated 9:16 WebP backgrounds for opening reveal, social relay, and 2026 convergence.

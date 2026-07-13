@@ -1090,8 +1090,10 @@
 .change-proof__kicker { margin: 0 0 1px; color: #65aaa5; font-size: 9px; font-weight: 900; }
 .change-proof__row,
 .change-proof__cause {
+  grid-column: 1 / -1;
+  width: 100%;
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: start;
   gap: 7px;
 }
@@ -1103,6 +1105,7 @@
 }
 .change-proof__row strong,
 .change-proof__row p {
+  grid-column: auto;
   margin: 0;
   font-family: var(--serif);
   font-size: 11px;

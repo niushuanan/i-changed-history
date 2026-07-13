@@ -151,7 +151,10 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("88 个汉字以内");
     expect(protocol).toContain("恰好两句");
     expect(protocol).toContain("上一项决定如何造成当前局面");
-    expect(protocol).toContain("只写真实历史实际发生的结果和直接后果");
+    expect(protocol).toContain("只写真实历史的对应结果");
+    expect(protocol).toContain('"causalBridge":"36 字以内');
+    expect(protocol).toContain('"worldStateChange":"36 字以内');
+    expect(protocol).toContain('"divergenceProof":"48 字以内');
     expect(protocol).toContain("每个 label 32 字以内");
     expect(protocol).toContain("clientOwnedFields");
     expect(protocol).toContain("禁止输出");

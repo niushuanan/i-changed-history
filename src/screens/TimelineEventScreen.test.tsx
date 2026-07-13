@@ -21,7 +21,6 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={turn}
       deviation={18}
-      lastChoiceLabel="扶植年幼继承人"
       onChoose={vi.fn()}
       onCustomAction={vi.fn()}
       onExit={vi.fn()}
@@ -29,14 +28,14 @@ describe("clear change event screen", () => {
 
     expect(screen.queryByText("因果回执")).not.toBeInTheDocument();
     const proof = screen.getByRole("region", { name: "历史对照" });
-    expect(within(proof).getByText(/扶植年幼继承人/)).toBeVisible();
+    expect(within(proof).queryByText(/扶植年幼继承人/)).not.toBeInTheDocument();
     expect(within(proof).queryByText("你的决定")).not.toBeInTheDocument();
     expect(within(proof).queryByText("重大节点")).not.toBeInTheDocument();
     expect(within(proof).getByText(turn.worldStateChange)).toBeVisible();
     expect(within(proof).getByText(turn.divergenceProof)).toBeVisible();
-    expect(within(proof).getByText("被你改变后")).toBeVisible();
-    expect(within(proof).getByText("真实历史中")).toBeVisible();
-    expect(within(proof).getByText("变化来自")).toBeVisible();
+    expect(within(proof).getByText("你的时间线")).toBeVisible();
+    expect(within(proof).getByText("正史原本")).toBeVisible();
+    expect(within(proof).getByText("为何改变")).toBeVisible();
     expect(screen.getByText("DeepSeek 实时生成")).toBeVisible();
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
@@ -71,9 +70,9 @@ describe("clear change event screen", () => {
 
   it("switches to dense layout when a continuation contains the maximum useful copy", () => {
     const fullNarrative = "前".repeat(44) + "。" + "情".repeat(42) + "。";
-    const fullCausalBridge = "因".repeat(56);
-    const fullWorldChange = "变".repeat(56);
-    const fullRealHistory = "史".repeat(72);
+    const fullCausalBridge = "因".repeat(36);
+    const fullWorldChange = "变".repeat(36);
+    const fullRealHistory = "史".repeat(48);
     const denseTurn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
@@ -93,7 +92,6 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={denseTurn}
       deviation={36}
-      lastChoiceLabel={"玩家上一项不可撤销的重大决定".repeat(2)}
       onChoose={vi.fn()}
       onCustomAction={vi.fn()}
       onExit={vi.fn()}

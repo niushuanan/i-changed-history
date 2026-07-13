@@ -110,10 +110,10 @@ const strictTimelineTurnSchema = z
     identityBridge: boundedString(54),
     modernAdvantage: boundedString(54),
     rippleLens: rippleLensSchema,
-    causalBridge: boundedString(56),
+    causalBridge: boundedString(36),
     turningPointStakes: boundedString(44),
-    worldStateChange: boundedString(56),
-    divergenceProof: boundedString(72),
+    worldStateChange: boundedString(36),
+    divergenceProof: boundedString(48),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
@@ -253,7 +253,7 @@ function trimBounded(value: unknown, max: number): unknown {
 
 function normalizeDivergenceProof(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  return trimBounded(value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, ""), 72);
+  return trimBounded(value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, ""), 48);
 }
 
 function normalizeEcho(value: unknown): unknown {
@@ -343,9 +343,9 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     timePressure: trimBounded(turn.timePressure, 36),
     headline: trimBounded(turn.headline, 22),
     narrative: trimNarrative(turn.narrative),
-    causalBridge: trimBounded(turn.causalBridge, 56),
+    causalBridge: trimBounded(turn.causalBridge, 36),
     turningPointStakes: trimBounded(turn.turningPointStakes, 44),
-    worldStateChange: trimBounded(turn.worldStateChange, 56),
+    worldStateChange: trimBounded(turn.worldStateChange, 36),
     divergenceProof: normalizeDivergenceProof(turn.divergenceProof),
     baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
     historicalAnchors: Array.isArray(turn.historicalAnchors)

@@ -31,7 +31,6 @@ export function App() {
       <TimelineEventScreen
         turn={state.currentTurn}
         deviation={state.deviation}
-        lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
         onChoose={game.choose}
         onCustomAction={game.submitCustomAction}
         onExit={game.restart}
