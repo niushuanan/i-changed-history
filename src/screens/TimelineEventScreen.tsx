@@ -30,14 +30,19 @@ export function TimelineEventScreen({
     turn.headline,
     turn.narrative,
     turn.timePressure,
-    lastChoiceLabel,
+    lastChoiceLabel ?? turn.callbackUsed,
     turn.worldStateChange,
-    turn.turningPointStakes,
     turn.causalBridge,
     turn.divergenceProof,
-    ...turn.choices.flatMap((choice) => [choice.label, choice.intent]),
+    turn.previousEcho ? "" : turn.baselineAnchor,
+    turn.previousEcho ? "" : turn.immediateObjective,
+    ...turn.choices.map((choice) => choice.label),
   ].reduce((total, copy) => total + [...(copy ?? "")].length, 0);
-  const density = visibleCopyLength > 280 ? "dense" : "comfortable";
+  const density = visibleCopyLength > 400
+    ? "dense"
+    : visibleCopyLength > 280 || turn.previousEcho
+      ? "compact"
+      : "comfortable";
 
   useEffect(() => {
     setCustomOpen(false);
@@ -82,13 +87,20 @@ export function TimelineEventScreen({
       </section>
 
       {turn.previousEcho ? (
-        <section className="change-proof" aria-label="历史已经改变">
-          <span className="change-proof__kicker">历史已经改变</span>
-          <strong className="change-proof__result">{turn.worldStateChange}</strong>
+        <section className="change-proof" aria-label="历史对照">
+          <span className="change-proof__kicker">历史对照</span>
+          <div className="change-proof__row is-alternate">
+            <span>被你改变后</span>
+            <strong>{turn.worldStateChange}</strong>
+          </div>
+          <div className="change-proof__row is-real">
+            <span>真实历史中</span>
+            <p>{turn.divergenceProof}</p>
+          </div>
           <p className="change-proof__cause">
-            因为你选择“{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}”，{turn.causalBridge}
+            <span>变化来自</span>
+            <span>你选择“{lastChoiceLabel ?? turn.callbackUsed ?? "上一项行动"}”，{turn.causalBridge}</span>
           </p>
-          <small className="change-proof__proof">{turn.divergenceProof}</small>
         </section>
       ) : (
         <section className="change-proof is-opening" aria-label="真实历史切入口">

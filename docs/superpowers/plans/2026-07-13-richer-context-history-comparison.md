@@ -10,9 +10,9 @@
 
 ## Tasks
 
-- [ ] Add failing tests for the richer narrative contract, explicit history comparison labels, and complete legal-length copy.
-- [ ] Expand the validated turn contract without adding a request or response field.
-- [ ] Rebuild the bottom proof as changed history, real history, and causal source rows.
-- [ ] Remove all event-copy truncation and tune the adaptive 390 x 844 layout.
-- [ ] Update project decisions and context documentation.
-- [ ] Run focused and full tests, type checking, build, real browser interaction, screenshot review, commit, push, and remote CI verification.
+- [x] Add failing tests for the richer narrative contract, explicit history comparison labels, and complete legal-length copy.
+- [x] Expand the validated turn contract without adding a request or response field.
+- [x] Rebuild the bottom proof as changed history, real history, and causal source rows.
+- [x] Remove all event-copy truncation and tune the adaptive 390 x 844 layout.
+- [x] Update project decisions and context documentation.
+- [x] Run focused and full tests, type checking, build, real browser interaction, screenshot review, commit, push, and remote CI verification.

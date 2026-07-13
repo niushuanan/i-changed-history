@@ -143,11 +143,11 @@ describe("DeepSeek transport and structured generation", () => {
       role: "全国粮政使",
       location: "土地与粮食分配大会",
       headline: "粮食法决定民生",
-      narrative: "公开遗诏改变继承，土地与粮食法成为新政权第一次全国决断。",
+      narrative: "公开遗诏已经改变继承秩序。土地与粮食法成为新政权第一次全国决断。",
       causalBridge: "公开遗诏经新政权命令进入土地与粮食分配",
       turningPointStakes: "这项土地法将决定粮食、劳动与人口的长期分配",
       worldStateChange: "立刻放出第一批火船已成正史，曹军左翼火势提前扩散",
-      divergenceProof: "真实历史没有公开粮食议政，当前线由遗诏催生全国土地大会",
+      divergenceProof: "真实历史没有公开的全国粮食议政，土地与粮食仍由既有军政体系分配",
       immediateObjective: "决定土地与粮食优先保障谁",
       causalLedger: [{ fact: "立刻放出第一批火船", causedByChapter: 1, mustAffect: "曹军水寨与粮道" }],
     };

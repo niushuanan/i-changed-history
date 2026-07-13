@@ -15,7 +15,7 @@ function played(chapter: DecisionChapter, custom = false): PlayedTurn {
     lifeStage: node.lifeStage,
     yearLabel: `${node.targetYear}年 · ${node.protagonistAge}岁`,
     headline: `第${chapter}幕重大冲突`,
-    narrative: `这是第${chapter}幕不应进入下轮上下文的现场正文。`,
+    narrative: `这是第${chapter}幕不应进入下轮上下文的现场正文。人物正面对本幕冲突。`,
     previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
     causalLedger: [{ fact: `第${chapter}幕仍生效的事实`, causedByChapter: chapter, mustAffect: `第${chapter + 1}幕` }],
   }));

@@ -8,7 +8,7 @@ describe("clear change event screen", () => {
   afterEach(() => cleanup());
   const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 
-  it("moves compact change proof below the decisions and removes repeated labels", () => {
+  it("places an explicit changed-versus-real history comparison below the decisions", () => {
     const turn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
@@ -18,7 +18,7 @@ describe("clear change event screen", () => {
       rippleLens: "livelihood",
       causalBridge: "摄政命令经粮仓账本改变了长安市民的米价",
     }));
-    render(<TimelineEventScreen
+    const { container } = render(<TimelineEventScreen
       turn={turn}
       deviation={18}
       lastChoiceLabel="扶植年幼继承人"
@@ -28,12 +28,15 @@ describe("clear change event screen", () => {
     />);
 
     expect(screen.queryByText("因果回执")).not.toBeInTheDocument();
-    const proof = screen.getByRole("region", { name: "历史已经改变" });
+    const proof = screen.getByRole("region", { name: "历史对照" });
     expect(within(proof).getByText(/扶植年幼继承人/)).toBeVisible();
     expect(within(proof).queryByText("你的决定")).not.toBeInTheDocument();
     expect(within(proof).queryByText("重大节点")).not.toBeInTheDocument();
     expect(within(proof).getByText(turn.worldStateChange)).toBeVisible();
     expect(within(proof).getByText(turn.divergenceProof)).toBeVisible();
+    expect(within(proof).getByText("被你改变后")).toBeVisible();
+    expect(within(proof).getByText("真实历史中")).toBeVisible();
+    expect(within(proof).getByText("变化来自")).toBeVisible();
     expect(screen.getByText("DeepSeek 实时生成")).toBeVisible();
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
@@ -44,6 +47,7 @@ describe("clear change event screen", () => {
     expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
     expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("不限次数");
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
+    expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "compact");
     const decisions = screen.getByRole("group", { name: "本幕决定" });
     expect(decisions.compareDocumentPosition(proof) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -66,17 +70,25 @@ describe("clear change event screen", () => {
   });
 
   it("switches to dense layout when a continuation contains the maximum useful copy", () => {
+    const fullNarrative = "前".repeat(44) + "。" + "情".repeat(42) + "。";
+    const fullCausalBridge = "因".repeat(56);
+    const fullWorldChange = "变".repeat(56);
+    const fullRealHistory = "史".repeat(72);
     const denseTurn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
       chapterName: "三日余波",
       lifeStage: "三日后",
       previousEcho: turnFixture.choices[0].instantEcho,
-      narrative: "史".repeat(56),
-      causalBridge: "因".repeat(44),
+      narrative: fullNarrative,
+      causalBridge: fullCausalBridge,
       turningPointStakes: "势".repeat(44),
-      worldStateChange: "变".repeat(44),
-      divergenceProof: "证".repeat(56),
+      worldStateChange: fullWorldChange,
+      divergenceProof: fullRealHistory,
+      choices: turnFixture.choices.map((choice, index) => ({
+        ...choice,
+        label: `${["调", "封", "截"][index]}`.repeat(32),
+      })),
     }));
     const { container } = render(<TimelineEventScreen
       turn={denseTurn}
@@ -88,5 +100,27 @@ describe("clear change event screen", () => {
     />);
 
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
+    expect(screen.getByText(fullNarrative)).toBeVisible();
+    expect(screen.getByText(fullCausalBridge, { exact: false })).toBeVisible();
+    expect(screen.getByText(fullWorldChange)).toBeVisible();
+    expect(screen.getByText(fullRealHistory)).toBeVisible();
+  });
+
+  it("shows a complete thirty-two-character action instead of cutting it mid-sentence", () => {
+    const fullAction = "趁董卓车队入城前调弓弩手封锁宣阳门并扣住吕布亲兵";
+    const turn = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => index === 0 ? { ...choice, label: fullAction } : choice),
+    }));
+
+    render(<TimelineEventScreen
+      turn={turn}
+      deviation={0}
+      onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    expect(screen.getByRole("button", { name: `A${fullAction}` })).toBeVisible();
   });
 });

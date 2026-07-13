@@ -20,7 +20,7 @@ export const turnFixture = {
   causalBridge: "你手中的发船铜令将决定火攻是否进入正史",
   turningPointStakes: "这道军令将决定孙刘联盟能否保住长江防线",
   worldStateChange: "火船启航规则已经被你改写",
-  divergenceProof: "真实历史等待东风，当前线改由你的铜令决定火攻时机",
+  divergenceProof: "孙刘联军借东风火攻曹操水军，曹军由乌林败退。",
   previousEcho: null,
   choices: [
     {

@@ -33,6 +33,7 @@ const echoSchema = z.object({
 });
 
 const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
+const ALTERNATE_TIMELINE_IN_BASELINE_PATTERN = /当前(?:时间)?线|本线|架空线|改变后|玩家(?:的)?选择|你(?:的)?决定/;
 const PRE_MODERN_LOCATION_PATTERN = /议事厅|会议室|办公室|指挥中心|新闻中心|发布厅|报告厅|展览厅|作战室|控制室|调度室/;
 const preModernLocationSchema = z.object({
   location: z.string().refine(
@@ -109,14 +110,14 @@ const strictTimelineTurnSchema = z
     identityBridge: boundedString(54),
     modernAdvantage: boundedString(54),
     rippleLens: rippleLensSchema,
-    causalBridge: boundedString(44),
+    causalBridge: boundedString(56),
     turningPointStakes: boundedString(44),
-    worldStateChange: boundedString(44),
-    divergenceProof: boundedString(56),
+    worldStateChange: boundedString(56),
+    divergenceProof: boundedString(72),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
-    narrative: requiredString.max(56),
+    narrative: requiredString.max(88),
     baselineAnchor: boundedString(54),
     historicalAnchors: z.array(boundedString(32)).min(2).max(4),
     previousEcho: echoSchema.nullable(),
@@ -171,6 +172,23 @@ const strictTimelineTurnSchema = z
       });
     }
 
+    if (ALTERNATE_TIMELINE_IN_BASELINE_PATTERN.test(turn.divergenceProof)) {
+      context.addIssue({
+        code: "custom",
+        path: ["divergenceProof"],
+        message: "真实历史对照不能混入当前架空时间线",
+      });
+    }
+
+    const narrativeSentences = turn.narrative.match(/[。！？!?]/g)?.length ?? 0;
+    if (narrativeSentences < 2 || narrativeSentences > 3) {
+      context.addIssue({
+        code: "custom",
+        path: ["narrative"],
+        message: "现场前情必须用两句完整叙事交代来路与冲突",
+      });
+    }
+
     turn.choices.forEach((choice, index) => {
       if (GENERIC_ACTION_PATTERN.test(`${choice.label} ${choice.intent} ${choice.actionSpec.action}`)) {
         context.addIssue({
@@ -218,9 +236,9 @@ function joinStringArray(value: unknown): unknown {
 function trimNarrative(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const characters = [...value];
-  if (characters.length <= 56) return value;
+  if (characters.length <= 88) return value;
 
-  const candidate = characters.slice(0, 56).join("");
+  const candidate = characters.slice(0, 88).join("");
   const sentenceEnd = Math.max(
     candidate.lastIndexOf("。"),
     candidate.lastIndexOf("！"),
@@ -231,6 +249,11 @@ function trimNarrative(value: unknown): unknown {
 
 function trimBounded(value: unknown, max: number): unknown {
   return typeof value === "string" ? [...value].slice(0, max).join("") : value;
+}
+
+function normalizeDivergenceProof(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  return trimBounded(value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, ""), 72);
 }
 
 function normalizeEcho(value: unknown): unknown {
@@ -276,7 +299,7 @@ function normalizeChoice(value: unknown, index: number): unknown {
   return {
     ...choice,
     id: expectedId,
-    label: trimBounded(label, 22),
+    label: trimBounded(label, 32),
     intent: trimBounded(intentWasClass ? label : intent, 24),
     deviationClass: DEVIATION_CLASSES[index],
     usesModernKnowledge: choice.usesModernKnowledge,
@@ -320,10 +343,10 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     timePressure: trimBounded(turn.timePressure, 36),
     headline: trimBounded(turn.headline, 22),
     narrative: trimNarrative(turn.narrative),
-    causalBridge: trimBounded(turn.causalBridge, 44),
+    causalBridge: trimBounded(turn.causalBridge, 56),
     turningPointStakes: trimBounded(turn.turningPointStakes, 44),
-    worldStateChange: trimBounded(turn.worldStateChange, 44),
-    divergenceProof: trimBounded(turn.divergenceProof, 56),
+    worldStateChange: trimBounded(turn.worldStateChange, 56),
+    divergenceProof: normalizeDivergenceProof(turn.divergenceProof),
     baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
     historicalAnchors: Array.isArray(turn.historicalAnchors)
       ? turn.historicalAnchors.map((anchor) => trimBounded(anchor, 32))

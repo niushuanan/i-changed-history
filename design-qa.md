@@ -120,6 +120,14 @@ Final result: passed.
 - Real path observed distinct roles and topics: engineering centurion → records clerk → courier translator → local accountant → school teacher → mint deputy supervisor.
 - Active run exit control is visible at 14px,14px and covered by integration tests.
 
+# Rich Context and History Comparison QA (2026-07-13)
+
+- A real DeepSeek opening produced two complete sentences: one established the burning Luoyang gate and evacuation, and one placed the player as Wang Yun's gate officer with an immediate ambush decision.
+- At 390 x 844, a continuation renders the full two-sentence prehistory, all three generated actions, unlimited direct rewrite entry, and the complete bottom comparison without page scrolling.
+- The comparison is one vertical column with explicit `被你改变后`, `真实历史中`, and `变化来自` rows; the alternate and real timelines are never merged into one paragraph.
+- Runtime layout measurements are exact: document and event page are 390 x 844, event body client and scroll height are both 504px, comparison bottom is 836px, and the bottom safe area is 8px.
+- Browser inspection found zero ellipsis characters, zero clipped event/choice/comparison prose nodes, and zero console errors.
+
 # Familiar Surprise Loading QA (2026-07-14)
 
 - Added three generated 9:16 WebP backgrounds for opening reveal, social relay, and 2026 convergence.

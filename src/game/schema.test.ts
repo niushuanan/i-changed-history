@@ -117,6 +117,22 @@ describe("structured timeline parsing", () => {
     }))).toThrow();
   });
 
+  it("removes a repeated real-history label from the comparison copy", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      divergenceProof: "真实历史中，孙刘联军借东风火攻曹操水军，曹军由乌林败退。",
+    }));
+
+    expect(parsed.divergenceProof).toBe("孙刘联军借东风火攻曹操水军，曹军由乌林败退。");
+  });
+
+  it("rejects a real-history baseline that mixes the alternate timeline back in", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      divergenceProof: "真实历史中吕布仍受董卓信任；本线吕布已经开始独立调查王允。",
+    }))).toThrow(/真实历史/);
+  });
+
   it("trims overlong pivotal proof fields instead of discarding an otherwise valid turn", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
@@ -126,8 +142,8 @@ describe("structured timeline parsing", () => {
     }));
 
     expect(parsed.turningPointStakes.length).toBeLessThanOrEqual(44);
-    expect(parsed.worldStateChange.length).toBeLessThanOrEqual(44);
-    expect(parsed.divergenceProof.length).toBeLessThanOrEqual(56);
+    expect(parsed.worldStateChange.length).toBeLessThanOrEqual(56);
+    expect(parsed.divergenceProof.length).toBeLessThanOrEqual(72);
   });
 
   it("trims an overlong causal bridge instead of discarding a strong generated scene", () => {
@@ -136,7 +152,7 @@ describe("structured timeline parsing", () => {
       causalBridge: "因".repeat(70),
     }));
 
-    expect(parsed.causalBridge.length).toBeLessThanOrEqual(44);
+    expect(parsed.causalBridge.length).toBeLessThanOrEqual(56);
   });
 
   it("trims overlong relay metadata and history anchors without discarding the scene", () => {
@@ -164,8 +180,23 @@ describe("structured timeline parsing", () => {
   });
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
-    const raw = JSON.stringify({ ...turnFixture, narrative: "史".repeat(111) });
-    expect(parseTimelineTurn(raw).narrative).toHaveLength(56);
+    const raw = JSON.stringify({
+      ...turnFixture,
+      narrative: `${"史".repeat(43)}。${"记".repeat(43)}。${"余波".repeat(20)}`,
+    });
+    expect(parseTimelineTurn(raw).narrative).toHaveLength(88);
+  });
+
+  it("keeps a complete two-sentence prehistory at the new visible limit", () => {
+    const narrative = `${"前".repeat(43)}。${"情".repeat(43)}。`;
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
+  });
+
+  it("rejects a scene prehistory that collapses into one sentence", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      narrative: "你站在宣阳门城楼箭垛后，俯视着押送百官的吕布。",
+    }))).toThrow(/两句/);
   });
 
   it("ends a trimmed narrative at a complete sentence when possible", () => {
@@ -193,6 +224,16 @@ describe("structured timeline parsing", () => {
       choices: [turnFixture.choices[0], turnFixture.choices[1], turnFixture.choices[1]],
     });
     expect(parseTimelineTurn(raw).choices.map((choice) => choice.id)).toEqual(["A", "B", "C"]);
+  });
+
+  it("keeps a complete concrete action label up to thirty-two characters", () => {
+    const label = "趁董卓车队入城前调弓弩手封锁宣阳门并扣住吕布亲兵";
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => index === 0 ? { ...choice, label } : choice),
+    }));
+
+    expect(parsed.choices[0].label).toBe(label);
   });
 
   it("requires one nudge, one reform, and one rupture with complete instant echoes", () => {
@@ -260,7 +301,7 @@ describe("structured timeline parsing", () => {
     expect(parsed.choices.map((choice) => [choice.id, choice.deviationClass])).toEqual([
       ["A", "nudge"], ["B", "reform"], ["C", "rupture"],
     ]);
-    expect(parsed.choices[0].label.length).toBeLessThanOrEqual(22);
+    expect(parsed.choices[0].label.length).toBeLessThanOrEqual(32);
     expect(parsed.choices[0].intent.length).toBeLessThanOrEqual(24);
     expect(parsed.choices[0].actionSpec).toMatchObject({
       actor: "人".repeat(20), action: "做".repeat(28), target: "物".repeat(28), deadline: "时".repeat(20),
@@ -336,7 +377,7 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: [{ ...turnFixture.choices[0], label: "选".repeat(37) }, turnFixture.choices[1], turnFixture.choices[2]],
-    })).choices[0].label).toHaveLength(22);
+    })).choices[0].label).toHaveLength(32);
   });
 
   it("uses the selected choice echo as the authoritative continuation callback", () => {
