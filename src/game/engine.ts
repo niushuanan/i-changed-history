@@ -4,7 +4,6 @@ import {
   buildCustomActionMessages,
   buildBiographyMessages,
   buildContextualJsonRepairMessages,
-  buildOpeningMessages,
   buildWorldReportMessages,
   getPlayedTurnChoiceText,
   type ChatMessage,
@@ -281,16 +280,6 @@ function parseExpectedBiography(
     }
     return biography;
   };
-}
-
-export async function generateOpening(
-  scenario: GameScenario,
-  options: GenerationOptions = {},
-): Promise<TimelineTurn> {
-  const messages = buildOpeningMessages(scenario);
-
-  const node = getTimelineNode(1, scenario.seed.year);
-  return requestValidated(messages, completionOptions("turn", options), "timeline_turn", parseRequestedTurn(1, expectedYearLabel(scenario, 1), undefined, { age: node.protagonistAge, lifeStage: node.lifeStage }), { expectedChapter: 1 });
 }
 
 export async function generateNextTurn(

@@ -4,11 +4,11 @@ import type { AlternatePresent, CustomActionResolution, TimelineTurn } from "./s
 import type { HistorySeed } from "./types";
 import type { DecisionChapter } from "./timelinePlan";
 import { buildCanonicalCustomResolution } from "./customCanon";
+import { getFixedOpening } from "../data/fixedOpenings";
 
 export type GamePhase = "selecting" | "generating" | "adjudicating" | "event" | "echo" | "ending" | "result" | "error";
 export type GameScenario = { seed: HistorySeed };
 export type RetryIntent =
-  | { kind: "opening" }
   | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> }
   | { kind: "custom-action"; action: string }
   | { kind: "ending" };
@@ -48,7 +48,6 @@ export type GameState = {
 
 export type GameAction =
   | { type: "START_SCENARIO"; seed: HistorySeed }
-  | { type: "OPENING_RESOLVED"; requestId: number; turn: TimelineTurn }
   | { type: "COMMIT_AI_CHOICE"; choiceId: "A" | "B" | "C" }
   | { type: "SUBMIT_CUSTOM_ACTION"; action: string }
   | { type: "CUSTOM_ACTION_RESOLVED"; requestId: number; resolution: CustomActionResolution }
@@ -88,14 +87,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== "selecting") return state;
       return {
         ...state,
-        phase: "generating",
+        phase: "event",
         scenario: { seed: action.seed },
-        ...withRequest(state, { kind: "opening" }),
+        currentTurn: getFixedOpening(action.seed),
+        request: null,
         error: null,
       };
-    case "OPENING_RESOLVED":
-      if (state.request?.id !== action.requestId || state.request.kind !== "opening") return state;
-      return { ...state, phase: "event", currentTurn: action.turn, request: null, error: null };
     case "COMMIT_AI_CHOICE": {
       if (state.phase !== "event" || !state.currentTurn) return state;
       const choice = state.currentTurn.choices.find((candidate) => candidate.id === action.choiceId);

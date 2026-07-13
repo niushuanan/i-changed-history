@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
-import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpening, StructuredGenerationError } from "../game/engine";
+import { adjudicateCustomAction, generateEnding, generateNextTurn, StructuredGenerationError } from "../game/engine";
 import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
@@ -77,84 +77,6 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockResolvedValue(completion()); vi.stubGlobal("fetch", fetcher);
     await requestCompletion(messages, { phase: "ending" });
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ thinking: { type: "enabled" }, reasoning_effort: "high", max_tokens: 8192 });
-  });
-
-  it("repairs one invalid opening and validates the concrete traveler fields", async () => {
-    const fetcher = vi.fn().mockResolvedValueOnce(completion('{"timelineName":"缺字段"}')).mockResolvedValueOnce(completion(JSON.stringify(turnFixture)));
-    vi.stubGlobal("fetch", fetcher);
-    await expect(generateOpening(scenario)).resolves.toMatchObject({ chapter: 1, role: turnFixture.role, timePressure: turnFixture.timePressure });
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
-
-  it("asks DeepSeek to repair only an invalid root field and merges it into the original scene", async () => {
-    const incomplete = { ...turnFixture, headline: undefined };
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(completion(JSON.stringify(incomplete)))
-      .mockResolvedValueOnce(completion(JSON.stringify({ headline: "铜令决定东风之前" })));
-    vi.stubGlobal("fetch", fetcher);
-
-    const stages: string[] = [];
-    await expect(generateOpening(scenario, { onProgress: (stage) => stages.push(stage) })).resolves.toMatchObject({
-      headline: "铜令决定东风之前",
-      narrative: turnFixture.narrative,
-      choices: turnFixture.choices,
-    });
-
-    const repairBody = JSON.parse(fetcher.mock.calls[1][1].body);
-    const repairPayload = JSON.parse(repairBody.messages.at(-1).content);
-    expect(repairPayload.details).toMatchObject({
-      patchOnly: true,
-      repairFields: ["headline"],
-    });
-    expect(repairPayload.task).toContain("仅含 repairFields");
-    expect(stages).toEqual(["connected", "writing", "validating", "repairing"]);
-  });
-
-  it("repairs missing fields and an overlong prehistory in the same compact patch", async () => {
-    const incomplete = {
-      ...turnFixture,
-      immediateObjective: undefined,
-      narrative: `${"前".repeat(60)}。${"因".repeat(60)}。${"尚未收束的第三句".repeat(8)}`,
-    };
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(completion(JSON.stringify(incomplete)))
-      .mockResolvedValueOnce(completion(JSON.stringify({
-        immediateObjective: turnFixture.immediateObjective,
-        narrative: turnFixture.narrative,
-      })));
-    vi.stubGlobal("fetch", fetcher);
-
-    await expect(generateOpening(scenario)).resolves.toMatchObject({
-      immediateObjective: turnFixture.immediateObjective,
-      narrative: turnFixture.narrative,
-    });
-
-    const repairBody = JSON.parse(fetcher.mock.calls[1][1].body);
-    const repairPayload = JSON.parse(repairBody.messages.at(-1).content);
-    expect(repairPayload.details.repairFields).toEqual(expect.arrayContaining(["immediateObjective", "narrative"]));
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
-
-  it("stops after one compact repair instead of regenerating the whole page a third time", async () => {
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(completion('{"bad":1}'))
-      .mockResolvedValueOnce(completion('{"still":"bad"}'));
-    vi.stubGlobal("fetch", fetcher);
-    await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
-
-  it("surfaces a retryable structure error instead of inventing a generic local turn", async () => {
-    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
-    vi.stubGlobal("fetch", fetcher);
-    await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
-
-  it("surfaces an empty model response instead of replacing history with a template", async () => {
-    const fetcher = vi.fn().mockResolvedValue(completion(""));
-    vi.stubGlobal("fetch", fetcher);
-    await expect(generateOpening(scenario)).rejects.toBeInstanceOf(StructuredGenerationError);
   });
 
   it("generates the requested continuation with authoritative previous echo", async () => {

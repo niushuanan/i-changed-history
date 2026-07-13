@@ -61,7 +61,9 @@ export function TimelineEventScreen({
       <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />
-        <span className="generation-source is-deepseek"><i />DeepSeek 实时生成</span>
+        <span className={`generation-source ${turn.generationSource === "fixed" ? "is-fixed" : "is-deepseek"}`}>
+          <i />{turn.generationSource === "fixed" ? "固定历史开场" : "DeepSeek 实时生成"}
+        </span>
         <figcaption className="event-scene__caption">
           <span className="event-scene__time">{turn.yearLabel}</span>
           <strong className="event-scene__location">{turn.location}</strong>

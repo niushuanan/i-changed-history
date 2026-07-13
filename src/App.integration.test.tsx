@@ -6,7 +6,6 @@ import { parseAlternatePresent, parseTimelineTurn } from "./game/schema";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./game/timelinePlan";
 
 const engine = vi.hoisted(() => ({
-  generateOpening: vi.fn(),
   generateNextTurn: vi.fn(),
   adjudicateCustomAction: vi.fn(),
   generateEnding: vi.fn(),
@@ -62,7 +61,6 @@ function completedEnding() {
 describe("complete player journey", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    engine.generateOpening.mockResolvedValue(turnFor(1));
     engine.generateNextTurn.mockImplementation(
       (_scenario, _playedTurns, chapter: Exclude<DecisionChapter, 1>) => Promise.resolve(turnFor(chapter)),
     );
@@ -82,10 +80,12 @@ describe("complete player journey", () => {
     expect(score.start).toHaveBeenCalledTimes(1);
 
     for (let chapter = 1; chapter <= 12; chapter += 1) {
-      expect(await screen.findByRole("heading", { name: `第${chapter}幕局势` })).toBeVisible();
+      expect(await screen.findByRole("heading", { name: chapter === 1 ? "罗马大火开始蔓延" : `第${chapter}幕局势` })).toBeVisible();
       expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
-      await user.click(screen.getByRole("button", { name: /立刻放出第一批火船/ }));
-      expect(await screen.findByRole("heading", { name: "曹军左翼提前起火" })).toBeVisible();
+      const decisionGroup = screen.getByRole("group", { name: "本幕决定" });
+      const firstChoice = decisionGroup.querySelector<HTMLButtonElement>("button.choice-action");
+      expect(firstChoice).not.toBeNull();
+      await user.click(firstChoice!);
       expect(screen.getByText("这件事已经发生")).toBeVisible();
       const continueButton = await screen.findByRole("button", { name: /看看接下来发生什么|查看最终历史/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
@@ -118,11 +118,8 @@ describe("complete player journey", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
-    await waitFor(() => expect(engine.generateOpening).toHaveBeenCalledWith(
-      expect.objectContaining({ seed: expect.objectContaining({ year: expect.any(Number), eventName: expect.any(String) }) }),
-      expect.any(Object),
-    ));
-    expect(await screen.findByText(/周瑜帐下负责火船的军需官/)).toBeVisible();
+    expect(await screen.findByText("固定历史开场")).toBeVisible();
+    expect(screen.getAllByText(/城市水道和消防队的值夜主管/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /直接改写结果，不限次数/ })).toBeVisible();
   });
@@ -141,7 +138,7 @@ describe("complete player journey", () => {
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
 
     expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
-    expect(await screen.findByText("DeepSeek 实时生成")).toBeVisible();
+    expect(await screen.findByText("固定历史开场")).toBeVisible();
     expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
   });
 });

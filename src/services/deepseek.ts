@@ -3,7 +3,7 @@
 import type { ChatMessage } from "../game/prompts";
 
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
-const DEEPSEEK_MODEL = "deepseek-v4-flash";
+const DEEPSEEK_MODEL = import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || "deepseek-v4-flash";
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_DELAY_MS = 650;
 const MAX_ATTEMPTS = 2;

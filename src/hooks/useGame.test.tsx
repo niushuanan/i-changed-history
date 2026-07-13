@@ -7,7 +7,7 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { useGame, type UseGameDependencies } from "./useGame";
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
-  generateOpening: vi.fn().mockResolvedValue(turn), generateNextTurn: vi.fn(), adjudicateCustomAction: vi.fn(), generateEnding: vi.fn(),
+  generateNextTurn: vi.fn(), adjudicateCustomAction: vi.fn(), generateEnding: vi.fn(),
   loadSnapshot: vi.fn(() => null), saveSnapshot: vi.fn(() => true),
   audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
 });
@@ -35,17 +35,21 @@ describe("useGame single-life orchestration", () => {
     expect(dependencies.audio.stop).not.toHaveBeenCalled();
   });
 
-  it("starts directly from a historical moment", async () => {
+  it("starts directly from a fixed historical moment without calling DeepSeek", async () => {
     const dependencies = deps();
     const { result } = renderHook(() => useGame(dependencies));
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
-    expect(dependencies.generateOpening).toHaveBeenCalledWith(expect.objectContaining({ seed: HISTORY_SEEDS[0] }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(result.current.state.currentTurn).toMatchObject({
+      chapter: 1,
+      generationSource: "fixed",
+      location: HISTORY_SEEDS[0].location,
+    });
   });
 
   it("exposes real DeepSeek progress stages while a request is running", async () => {
     const dependencies = deps();
-    vi.mocked(dependencies.generateOpening).mockImplementation(async (_scenario, options) => {
+    vi.mocked(dependencies.generateNextTurn).mockImplementation(async (_scenario, _played, _chapter, options) => {
       options?.onProgress?.("reasoning");
       options?.onProgress?.("writing");
       return turn;
@@ -53,13 +57,14 @@ describe("useGame single-life orchestration", () => {
     const { result } = renderHook(() => useGame(dependencies));
 
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
+    act(() => result.current.choose("A"));
     await waitFor(() => expect(result.current.generationStage).toBe("writing"));
-    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+    await waitFor(() => expect(result.current.state.pendingTurn).not.toBeNull());
   });
 
   it("never lets concurrent or retried progress move backward", async () => {
     const dependencies = deps();
-    vi.mocked(dependencies.generateOpening).mockImplementation(async (_scenario, options) => {
+    vi.mocked(dependencies.generateNextTurn).mockImplementation(async (_scenario, _played, _chapter, options) => {
       options?.onProgress?.("writing");
       options?.onProgress?.("reasoning");
       return turn;
@@ -67,7 +72,8 @@ describe("useGame single-life orchestration", () => {
     const { result } = renderHook(() => useGame(dependencies));
 
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
-    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+    act(() => result.current.choose("A"));
+    await waitFor(() => expect(result.current.state.pendingTurn).not.toBeNull());
 
     expect(result.current.generationStage).toBe("writing");
   });
@@ -125,7 +131,7 @@ describe("useGame single-life orchestration", () => {
     await waitFor(() => expect(result.current.state.phase).toBe("echo"));
     expect(result.current.state.customActionsUsed).toBe(1);
     expect(dependencies.adjudicateCustomAction).toHaveBeenCalledWith(
-      expect.any(Object), [], turn, "我暗杀了皇帝且成功", expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.any(Object), [], expect.objectContaining({ generationSource: "fixed" }), "我暗杀了皇帝且成功", expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 });

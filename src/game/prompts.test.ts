@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
-import { buildBiographyMessages, buildContinuationMessages, buildCustomActionMessages, buildOpeningMessages, buildWorldReportMessages } from "./prompts";
+import { buildBiographyMessages, buildContinuationMessages, buildCustomActionMessages, buildWorldReportMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
 
 const scenario: GameScenario = {
@@ -10,10 +10,12 @@ const scenario: GameScenario = {
 };
 
 describe("modern traveler AI prompt contract", () => {
-  it("grounds the opening without a personality profile", () => {
-    const opening = buildOpeningMessages(scenario);
-    const body = opening.at(-1)!.content;
-    const protocol = opening[1].content;
+  it("grounds the continuation in the selected fixed opening without a personality profile", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
+    const continuation = buildContinuationMessages(scenario, played, 2);
+    const body = continuation.at(-1)!.content;
+    const protocol = continuation[1].content;
     expect(body).toContain("萨拉热窝刺杀");
     expect(body).toContain("塞尔维亚总理大臣帕希奇的特别联络员");
     expect(body).toContain("距离车队再次经过拉丁桥约 8 分钟");
@@ -29,15 +31,14 @@ describe("modern traveler AI prompt contract", () => {
   it("keeps one identical turn protocol prefix for DeepSeek context caching", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
-    const opening = buildOpeningMessages(scenario);
     const continuation = buildContinuationMessages(scenario, played, 2);
+    const laterContinuation = buildContinuationMessages(scenario, played, 3);
 
-    expect(opening).toHaveLength(3);
     expect(continuation).toHaveLength(3);
-    expect(opening[0]).toEqual(continuation[0]);
-    expect(opening[1]).toEqual(continuation[1]);
-    expect(opening[1].content).toContain("requiredFields");
-    expect(opening[2].content).not.toContain("exactShapeExample");
+    expect(laterContinuation).toHaveLength(3);
+    expect(continuation[0]).toEqual(laterContinuation[0]);
+    expect(continuation[1]).toEqual(laterContinuation[1]);
+    expect(continuation[1].content).toContain("requiredFields");
     expect(continuation[2].content).not.toContain("exactShapeExample");
   });
 
@@ -146,7 +147,9 @@ describe("modern traveler AI prompt contract", () => {
   });
 
   it("keeps generated display copy concise without lowering transport headroom", () => {
-    const protocol = buildOpeningMessages(scenario)[1].content;
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
+    const protocol = buildContinuationMessages(scenario, played, 2)[1].content;
     expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
     expect(protocol).toContain("96-160 个汉字");
     expect(protocol).toContain("恰好三句");

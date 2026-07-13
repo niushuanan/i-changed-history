@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { adjudicateCustomAction, generateEnding, generateNextTurn, generateOpening } from "../game/engine";
+import { adjudicateCustomAction, generateEnding, generateNextTurn } from "../game/engine";
 import {
   createInitialGameState,
   gameReducer,
@@ -12,7 +12,6 @@ import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 import type { DeepSeekProgressStage } from "../services/deepseek";
 
 export type UseGameDependencies = {
-  generateOpening: typeof generateOpening;
   generateNextTurn: typeof generateNextTurn;
   adjudicateCustomAction: typeof adjudicateCustomAction;
   generateEnding: typeof generateEnding;
@@ -31,7 +30,6 @@ const PROGRESS_RANK: Record<DeepSeekProgressStage, number> = {
 
 function resolveDependencies(overrides: Partial<UseGameDependencies>): UseGameDependencies {
   return {
-    generateOpening,
     generateNextTurn,
     adjudicateCustomAction,
     generateEnding,
@@ -100,12 +98,6 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
 
     const run = async () => {
       try {
-        if (request.kind === "opening") {
-          const turn = await dependencies.generateOpening(scenario, { signal: controller.signal, onProgress });
-          if (active) dispatch({ type: "OPENING_RESOLVED", requestId: request.id, turn });
-          return;
-        }
-
         if (request.kind === "next-turn") {
           const turn = await dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, { signal: controller.signal, onProgress });
           if (active) dispatch({ type: "TURN_RESOLVED", requestId: request.id, turn });

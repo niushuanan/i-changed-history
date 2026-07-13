@@ -22,7 +22,7 @@ const visualToneSchema = z.enum([
   "space",
   "digital",
 ]);
-const generationSourceSchema = z.literal("deepseek");
+const generationSourceSchema = z.enum(["fixed", "deepseek"]);
 const rippleLensSchema = z.enum(["origin", "power", "livelihood", "knowledge", "technology", "culture", "trade", "migration", "ecology", "diplomacy"]);
 
 const echoSchema = z.object({
@@ -352,7 +352,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
-    generationSource: "deepseek",
+    generationSource: turn.generationSource === "fixed" ? "fixed" : "deepseek",
     timelineName: trimBounded(turn.timelineName, 24),
     protagonistName: turn.protagonistName,
     protagonistAge: turn.protagonistAge ?? 24,
@@ -486,6 +486,7 @@ export type TimelineTurnParseOptions = {
   expectedProtagonistName?: string;
   expectedProtagonistAge?: number;
   expectedLifeStage?: LifeStage;
+  expectedGenerationSource?: TimelineTurn["generationSource"];
 };
 export type ExpectedHistoryTimelineItem = {
   yearLabel: string;
@@ -559,6 +560,7 @@ export function parseTimelineTurn(
   const candidate = asRecord(parsed);
   const turn = timelineTurnSchema.parse(candidate ? {
     ...candidate,
+    generationSource: options.expectedGenerationSource ?? "deepseek",
     ...(options.expectedChapter ? { chapter: options.expectedChapter, chapterName: CHAPTER_NAMES[options.expectedChapter] } : {}),
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
     ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),

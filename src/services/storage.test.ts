@@ -7,7 +7,7 @@ import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v11 resumable single-history storage", () => {
+describe("v12 fixed-opening single-history storage", () => {
   it("persists the historical picker and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
@@ -48,12 +48,7 @@ describe("v11 resumable single-history storage", () => {
   it("returns an incompatible v5 run to selection instead of mixing engines", () => {
     const current = memoryStorage();
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(generating, {
-      type: "OPENING_RESOLVED",
-      requestId: generating.request!.id,
-      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
-    });
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const adjudicating = gameReducer({ ...event, customActionsUsed: 2 }, {
       type: "SUBMIT_CUSTOM_ACTION",
       action: "先扣下军令，再请皇帝临朝",
@@ -80,21 +75,22 @@ describe("v11 resumable single-history storage", () => {
       customActionsUsed: 0,
       request: null,
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
-  it("automatically resumes an opening request interrupted by a refresh", () => {
+  it("persists the fixed opening without an interrupted model request", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    saveGameSnapshot(generating, storage);
+    const opening = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    saveGameSnapshot(opening, storage);
     expect(loadGameSnapshot(storage)).toMatchObject({
-      phase: "generating",
-      request: { kind: "opening", id: generating.request?.id },
+      phase: "event",
+      currentTurn: { chapter: 1, generationSource: "fixed" },
+      request: null,
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
   });
 
   it("automatically resumes the posthumous report without losing twelve decisions", () => {
@@ -138,15 +134,10 @@ describe("v11 resumable single-history storage", () => {
     expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
 
-  it("preserves an active v11 run whose AI narrative predates the richer three-sentence contract", () => {
+  it("preserves a current run whose narrative predates the richer three-sentence contract", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(generating, {
-      type: "OPENING_RESOLVED",
-      requestId: generating.request!.id,
-      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
-    });
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     saveGameSnapshot(event, storage);
 
     const envelope = JSON.parse(storage.getItem(GAME_STORAGE_KEY)!);
@@ -171,12 +162,7 @@ describe("v11 resumable single-history storage", () => {
   it("resumes a custom-action ruling without spending the chance early", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(generating, {
-      type: "OPENING_RESOLVED",
-      requestId: generating.request!.id,
-      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
-    });
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令，再请皇帝临朝" });
 
     expect(saveGameSnapshot(adjudicating, storage)).toBe(true);
@@ -190,12 +176,7 @@ describe("v11 resumable single-history storage", () => {
   it("returns an incompatible v6 run to selection", () => {
     const current = memoryStorage();
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(generating, {
-      type: "OPENING_RESOLVED",
-      requestId: generating.request!.id,
-      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
-    });
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     saveGameSnapshot(event, current);
     const legacyEnvelope = JSON.parse(current.getItem(GAME_STORAGE_KEY)!);
     legacyEnvelope.version = 6;
@@ -217,19 +198,14 @@ describe("v11 resumable single-history storage", () => {
       currentTurn: null,
       playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
   it("round-trips player-authored canon metadata without weakening the declared result", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(generating, {
-      type: "OPENING_RESOLVED",
-      requestId: generating.request!.id,
-      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
-    });
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "我成为新皇帝" });
     const resolved = gameReducer(adjudicating, {
       type: "CUSTOM_ACTION_RESOLVED",
@@ -254,12 +230,7 @@ describe("v11 resumable single-history storage", () => {
 
   it("returns an incompatible v7 run to selection", () => {
     const selecting = createInitialGameState();
-    const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(generating, {
-      type: "OPENING_RESOLVED",
-      requestId: generating.request!.id,
-      turn: parseTimelineTurn(JSON.stringify(turnFixture)),
-    });
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const current = memoryStorage();
     saveGameSnapshot(event, current);
     const envelope = JSON.parse(current.getItem(GAME_STORAGE_KEY)!);
@@ -288,6 +259,6 @@ describe("v11 resumable single-history storage", () => {
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
   });
 });

@@ -155,10 +155,6 @@ function turnMessages(payload: unknown): ChatMessage[] {
   return [SYSTEM, TURN_PROTOCOL, { role: "user", content: JSON.stringify(payload) }];
 }
 
-export function buildOpeningMessages(scenario: GameScenario): ChatMessage[] {
-  return turnMessages({ task: "生成第一节点。玩家刚穿越落地，必须立即理解主角姓名、年龄、身份、身处哪个著名历史瞬间、这一分钟要阻止或促成什么。这个姓名和身体将持续整整十二幕，第一节点必须是决定真实历史走向的重大转折点。", ...scenarioPayload(scenario), authoritativeTimelineNode: getTimelineNode(1, scenario.seed.year) });
-}
-
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
   const narrativeContext = buildNarrativeContext(playedTurns);
   const protagonist = playedTurns[0]?.turn;

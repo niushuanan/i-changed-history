@@ -27,23 +27,25 @@ describe("single-life choice-only game reducer", () => {
     },
   };
 
-  it("starts directly at the historical filmstrip", () => {
+  it("opens the fixed first turn immediately without requesting DeepSeek", () => {
     const initial = createInitialGameState();
     expect(initial.phase).toBe("selecting");
     const started = gameReducer(initial, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     expect(started.scenario?.seed).toEqual(HISTORY_SEEDS[0]);
-    expect(started.request?.kind).toBe("opening");
+    expect(started.phase).toBe("event");
+    expect(started.currentTurn).toMatchObject({
+      chapter: 1,
+      generationSource: "fixed",
+      location: HISTORY_SEEDS[0].location,
+      role: HISTORY_SEEDS[0].role,
+    });
+    expect(started.request).toBeNull();
   });
 
   it("records only the player's chosen history", () => {
     const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(started, {
-      type: "OPENING_RESOLVED",
-      requestId: started.request!.id,
-      turn,
-    });
-    const chosen = gameReducer(event, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
+    const chosen = gameReducer(started, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
     expect(chosen.playedTurns).toHaveLength(1);
     expect(chosen.playedTurns[0].selectedChoiceId).toBe("A");
     expect(chosen).not.toHaveProperty("instinctPlayedTurns");
@@ -81,8 +83,7 @@ describe("single-life choice-only game reducer", () => {
   it("writes one of three player-declared outcomes into canonical history", () => {
     const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(started, { type: "OPENING_RESOLVED", requestId: started.request!.id, turn });
-    const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "我暗杀了皇帝且成功" });
+    const adjudicating = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "我暗杀了皇帝且成功" });
 
     expect(adjudicating).toMatchObject({
       phase: "adjudicating",
@@ -137,8 +138,7 @@ describe("single-life choice-only game reducer", () => {
   it("does not spend a custom rewrite when adjudication fails and retries", () => {
     const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const event = gameReducer(started, { type: "OPENING_RESOLVED", requestId: started.request!.id, turn });
-    const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令" });
+    const adjudicating = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令" });
     const failed = gameReducer(adjudicating, {
       type: "REQUEST_FAILED",
       requestId: adjudicating.request!.id,

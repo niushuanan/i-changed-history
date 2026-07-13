@@ -3,13 +3,13 @@ import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
 import { alternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v11";
+export const GAME_STORAGE_KEY = "i-changed-history:session:v12";
 const LEGACY_GAME_STORAGE_KEYS = [
-  "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
+  "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
   "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5",
   "i-changed-history:session:v4",
 ] as const;
-const STORAGE_VERSION = 11;
+const STORAGE_VERSION = 12;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -40,13 +40,11 @@ const playedSchema = z.strictObject({
   causalMechanism: z.string().optional(),
 });
 const retrySchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("opening") }),
   z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12) }),
   z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80) }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const requestSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("opening"), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("ending"), id: z.number().int().positive() }),
