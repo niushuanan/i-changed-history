@@ -224,7 +224,7 @@ describe("v12 fixed-opening single-history storage", () => {
       selectedChoiceLabel: "我成为新皇帝",
       playerAuthored: true,
       canonStatus: "玩家钦定",
-      causalMechanism: expect.stringContaining("宫门口令"),
+      causalMechanism: "登基诏书进入官署执行",
     });
   });
 

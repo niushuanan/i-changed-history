@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EchoState } from "../game/reducer";
 import { ButterflyEchoScreen } from "./ButterflyEchoScreen";
 
@@ -15,6 +15,8 @@ const echo: EchoState = {
 };
 
 describe("decision result screen", () => {
+  afterEach(() => cleanup());
+
   it("leads with the concrete result and uses plain readable language", () => {
     render(
       <ButterflyEchoScreen
@@ -36,7 +38,7 @@ describe("decision result screen", () => {
     expect(screen.queryByText(/因果回响|世界已回应|偏离|获益|付出|继续推演/)).not.toBeInTheDocument();
   });
 
-  it("explains a player-authored result without system jargon", () => {
+  it("keeps a legacy player-authored confirmation free of invented analysis", () => {
     render(
       <ButterflyEchoScreen
         echo={{ ...echo, source: "custom_action", canonStatus: "玩家钦定", causalMechanism: "密令通过驿骑传遍各郡" }}
@@ -47,8 +49,8 @@ describe("decision result screen", () => {
     );
 
     expect(screen.getByText("你写下的结果已经发生")).toBeVisible();
-    expect(screen.getByText("它会这样传开：密令通过驿骑传遍各郡")).toBeVisible();
+    expect(screen.getByRole("heading", { name: echo.directResult })).toBeVisible();
     expect(screen.getByRole("button", { name: "查看最终历史" })).toBeEnabled();
-    expect(screen.queryByText(/玩家钦定|因果|偏离/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/你刚才选择了|它会这样传开|代价是|受益者|承担者|玩家钦定|因果|偏离/)).not.toBeInTheDocument();
   });
 });

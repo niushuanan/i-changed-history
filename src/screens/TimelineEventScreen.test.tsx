@@ -63,8 +63,8 @@ describe("clear change event screen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /直接改写结果/ }));
     expect(screen.getByRole("dialog", { name: "钦定历史结果" })).toBeVisible();
-    expect(screen.getByText(/本局不限次数/)).toBeVisible();
-    expect(screen.getByText(/将直接成为这条时间线的既成事实/)).toBeVisible();
+    expect(screen.getByText("请写下已经发生的结果。提交后，这句话不会被推翻。")).toBeVisible();
+    expect(screen.queryByText(/AI|传播|受益者|隐藏代价/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "写入时间线" })).toBeDisabled();
   });
 

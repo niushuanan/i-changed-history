@@ -116,20 +116,26 @@ describe("useGame single-life orchestration", () => {
       causalMechanism: "死讯通过禁军口令传入摄政会议",
       deviationClass: "rupture",
       instantEcho: {
-        directResult: "皇帝提前收到宫变消息",
+        directResult: "我暗杀了皇帝且成功",
         unexpectedCost: "两宫禁军开始互扣使者",
         beneficiary: "忠于皇帝的宿卫",
         payer: "玄武门低阶军士",
       },
     });
+    vi.mocked(dependencies.generateNextTurn).mockResolvedValue(turn);
     const { result } = renderHook(() => useGame(dependencies));
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
 
     act(() => result.current.submitCustomAction("我暗杀了皇帝且成功"));
     expect(result.current.state.customActionsUsed).toBe(0);
-    await waitFor(() => expect(result.current.state.phase).toBe("echo"));
+    await waitFor(() => expect(result.current.state.phase).toBe("event"));
     expect(result.current.state.customActionsUsed).toBe(1);
+    expect(result.current.state.echo).toBeNull();
+    expect(result.current.state.playedTurns[0]).toMatchObject({
+      selectedChoiceLabel: "我暗杀了皇帝且成功",
+      causalMechanism: "死讯通过禁军口令传入摄政会议",
+    });
     expect(dependencies.adjudicateCustomAction).toHaveBeenCalledWith(
       expect.any(Object), [], expect.objectContaining({ generationSource: "fixed" }), "我暗杀了皇帝且成功", expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );

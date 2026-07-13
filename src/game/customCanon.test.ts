@@ -29,4 +29,25 @@ describe("player-authored canonical history", () => {
     expect(result.causalMechanism).toMatch(/登基|继承|宫门/);
     expect(result.causalMechanism).toMatch(/科学院|工坊|预算|技术/);
   });
+
+  it("keeps concrete model consequences when they do not contradict the player's result", () => {
+    const outcome = "我成为新皇帝";
+    const modelResolution = {
+      declaredOutcome: outcome,
+      canonStatus: "玩家钦定" as const,
+      causalMechanism: "登基诏书由尚书台发往各州郡",
+      deviationClass: "rupture" as const,
+      instantEcho: {
+        directResult: outcome,
+        unexpectedCost: "边镇将领开始争夺新朝封赏",
+        beneficiary: "支持新帝的禁军",
+        payer: "失去封地的旧宗室",
+      },
+    };
+
+    const result = buildCanonicalCustomResolution(turn, outcome, "rupture", modelResolution);
+
+    expect(result.causalMechanism).toBe(modelResolution.causalMechanism);
+    expect(result.instantEcho).toEqual(modelResolution.instantEcho);
+  });
 });

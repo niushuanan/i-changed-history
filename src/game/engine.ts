@@ -235,7 +235,7 @@ export async function adjudicateCustomAction(
     if (resolution.declaredOutcome !== action.trim()) {
       throw new Error("declaredOutcome 必须逐字保留玩家钦定结果");
     }
-    return buildCanonicalCustomResolution(turn, action, resolution.deviationClass);
+    return buildCanonicalCustomResolution(turn, action, resolution.deviationClass, resolution);
   };
   try {
     return await requestValidated(

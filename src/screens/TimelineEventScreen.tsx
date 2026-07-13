@@ -123,7 +123,7 @@ export function TimelineEventScreen({
               <div><span>玩家拥有最终解释权</span><h2>直接改写结果</h2></div>
               <button type="button" aria-label="关闭结果改写" onClick={() => setCustomOpen(false)}><X size={20} /></button>
             </header>
-            <p>本局不限次数。你写下的结果将直接成为这条时间线的既成事实。AI 不判断成败，只推演它的传播、受益者与隐藏代价。</p>
+            <p>请写下已经发生的结果。提交后，这句话不会被推翻。</p>
             <textarea
               autoFocus
               aria-label="你要写入的历史结果"
@@ -132,7 +132,7 @@ export function TimelineEventScreen({
               placeholder="例如：我暗杀了皇帝且成功，摄政会议接受了我伪造的遗诏"
               onChange={(event) => setCustomAction(event.target.value)}
             />
-            <div className="custom-action-meta"><span>AI 只推演传播、受益者与代价</span><strong>{actionLength}/80</strong></div>
+            <div className="custom-action-meta"><strong>{actionLength}/80</strong></div>
             <button className="custom-action-submit" type="button" disabled={!canSubmitCustom} onClick={submitCustom}>写入时间线 <ArrowRight size={18} weight="bold" /></button>
           </section>
         </div>

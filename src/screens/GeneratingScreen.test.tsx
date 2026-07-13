@@ -31,11 +31,18 @@ describe("history developing room", () => {
 
   it("shows that a player-declared result is being written into canon", () => {
     render(<GeneratingScreen chapter={2} ending={false} customAction onCancel={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "你的决定正在生效" })).toBeVisible();
-    expect(screen.getByText("你的结果已成为事实")).toBeVisible();
-    expect(screen.getByText("追踪改变如何扩散")).toBeVisible();
-    expect(screen.getByText("写出世界的下一次回应")).toBeVisible();
-    expect(screen.queryByText("核对现场可用资源")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "下一幕正在展开" })).toBeVisible();
+    expect(screen.getByText("结果已经写入")).toBeVisible();
+    expect(screen.getByText("新的局面正在形成")).toBeVisible();
+    expect(screen.getByText("下一次抉择即将出现")).toBeVisible();
+    expect(screen.getByText("下一幕即将开始")).toBeVisible();
+    expect(screen.queryByText(/DeepSeek|传播|受益者|代价|世界正在回应/)).not.toBeInTheDocument();
+  });
+
+  it("uses player-facing waiting copy without naming the model", () => {
+    render(<GeneratingScreen chapter={3} ending={false} progressStage="writing" onCancel={vi.fn()} />);
+    expect(screen.getByText("新的历史现场即将出现")).toBeVisible();
+    expect(screen.queryByText(/DeepSeek|完成后直接进入现场/)).not.toBeInTheDocument();
   });
 
   it("advances from actual model progress instead of a timer", () => {
@@ -52,7 +59,7 @@ describe("history developing room", () => {
 
   it("shows a truthful repair state without returning to the first stage", () => {
     render(<GeneratingScreen chapter={2} ending={false} progressStage="repairing" onCancel={vi.fn()} />);
-    expect(screen.getByText("校正返回格式，不改写已经完成的剧情")).toBeVisible();
+    expect(screen.getByText("正在整理这一页，已经发生的历史不会改变")).toBeVisible();
     expect(screen.getAllByRole("listitem")[2]).toHaveClass("is-active");
   });
 });

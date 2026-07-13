@@ -13,10 +13,10 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
   if (customAction) {
     return {
       image: "/assets/generating-opening.webp",
-      alt: "玩家决定正在改变新的历史",
-      title: "你的决定正在生效",
-      focus: "这句话已经成为事实，世界只能从这里继续",
-      steps: ["你的结果已成为事实", "追踪改变如何扩散", "写出世界的下一次回应"],
+      alt: "新的历史局面正在展开",
+      title: "下一幕正在展开",
+      focus: "你写下的结果已经落定",
+      steps: ["结果已经写入", "新的局面正在形成", "下一次抉择即将出现"],
     };
   }
   if (ending) {
@@ -50,13 +50,13 @@ export function GeneratingScreen({ chapter, ending, customAction = false, progre
   const stage = stageFor(chapter, ending, customAction);
   const activeStep = progressStage === "connected" ? 0 : progressStage === "reasoning" ? 1 : 2;
 
-  const stamp = customAction ? "决定生效中" : ending ? "身后历史书写中" : "历史正在发生";
-  const kicker = ending ? "十二次决定已结束 · 身后历史" : customAction ? `第 ${chapter} 节点 · 你的决定已写入` : `第 ${chapter} 节点 · 新历史正在成形`;
+  const stamp = customAction ? "下一幕" : ending ? "身后历史书写中" : "历史正在发生";
+  const kicker = ending ? "十二次决定已结束 · 身后历史" : customAction ? `第 ${chapter} 节点 · 结果已经写入` : `第 ${chapter} 节点 · 新历史正在成形`;
   const note = progressStage === "repairing"
-    ? "校正返回格式，不改写已经完成的剧情"
+    ? "正在整理这一页，已经发生的历史不会改变"
     : progressStage === "validating"
-      ? "内容已经返回，正在核对历史连续性"
-      : ending ? "DeepSeek 正在写身后历史，完成后打开 2026 报告" : customAction ? "世界正在回应你的决定，完成后进入下一幕" : "DeepSeek 正在写这一幕，完成后直接进入现场";
+      ? "下一幕即将开始"
+      : ending ? "十二次选择正在汇成最后两份历史" : customAction ? "下一幕即将开始" : "新的历史现场即将出现";
 
   return (
     <main className="generating-screen" aria-live="polite">

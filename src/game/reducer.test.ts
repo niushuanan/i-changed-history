@@ -115,9 +115,10 @@ describe("single-life choice-only game reducer", () => {
       causalMechanism: expect.stringContaining("宫门口令"),
       resolvedEcho: expect.objectContaining({ directResult: "我暗杀了皇帝且成功" }),
     });
-    expect(resolved.echo).toMatchObject({ source: "custom_action", choiceLabel: "我暗杀了皇帝且成功", directResult: "我暗杀了皇帝且成功", canonStatus: "玩家钦定" });
-    expect(resolved.echo?.causalMechanism).toContain("宫门口令");
-    expect(JSON.stringify(resolved.echo)).not.toMatch(/模型擅自|模型声称|其实幸存|挫败刺杀|失败的刺客/);
+    expect(resolved.phase).toBe("generating");
+    expect(resolved.echo).toBeNull();
+    expect(resolved.request).toMatchObject({ kind: "next-turn", targetChapter: 2 });
+    expect(JSON.stringify(resolved.playedTurns[0])).not.toMatch(/模型擅自|模型声称|其实幸存|挫败刺杀|失败的刺客/);
   });
 
   it("allows a fourth custom rewrite", () => {

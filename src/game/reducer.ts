@@ -132,7 +132,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "CUSTOM_ACTION_RESOLVED": {
       if (state.request?.id !== action.requestId || state.request.kind !== "custom-action" || !state.currentTurn) return state;
       const impact = calculateDeviation(state.deviation, action.resolution.deviationClass, state.currentTurn.chapter);
-      const canonicalResolution = buildCanonicalCustomResolution(state.currentTurn, state.request.action, action.resolution.deviationClass);
+      const canonicalResolution = buildCanonicalCustomResolution(
+        state.currentTurn,
+        state.request.action,
+        action.resolution.deviationClass,
+        action.resolution,
+      );
       const canonicalOutcome = canonicalResolution.declaredOutcome;
       const canonicalEcho = canonicalResolution.instantEcho;
       const playedTurn: PlayedTurn = {
@@ -147,19 +152,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
       return {
         ...state,
-        phase: "echo",
+        phase: state.currentTurn.chapter === 12 ? "ending" : "generating",
         playedTurns: [...state.playedTurns, playedTurn],
         deviation: impact.nextDeviation,
         lastImpact: impact.stepImpact,
         customActionsUsed: state.customActionsUsed + 1,
-        echo: {
-          source: "custom_action",
-          choiceLabel: canonicalOutcome,
-          canonStatus: canonicalResolution.canonStatus,
-          causalMechanism: canonicalResolution.causalMechanism,
-          ...canonicalEcho,
-          ...impact,
-        },
+        echo: null,
         ...requestAfterChoice(state),
         pendingTurn: null,
         pendingEnding: null,

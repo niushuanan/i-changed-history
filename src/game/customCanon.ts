@@ -33,14 +33,23 @@ export function buildCanonicalCustomResolution(
   turn: TimelineTurn,
   outcome: string,
   deviationClass: CustomActionResolution["deviationClass"],
+  modelResolution?: CustomActionResolution,
 ): CustomActionResolution {
   const declaredOutcome = [...outcome.trim()].slice(0, 80).join("");
+  const modelDetail = modelResolution
+    ? `${modelResolution.causalMechanism}${modelResolution.instantEcho.unexpectedCost}${modelResolution.instantEcho.beneficiary}${modelResolution.instantEcho.payer}`
+    : "";
+  const modelPreservesCanon = modelResolution?.declaredOutcome === declaredOutcome
+    && modelResolution.instantEcho.directResult === declaredOutcome
+    && !/并未发生|从未发生|没有成功|最终失败|其实未死|其实没有|仍然在世|毫发无伤|只是一场误会|只是计划|只是尝试|未能实现|并未成为/.test(modelDetail);
   const consequence = CONSEQUENCES[deviationClass];
   return {
     declaredOutcome,
     canonStatus: "玩家钦定",
-    causalMechanism: causalMechanism(declaredOutcome, turn),
+    causalMechanism: modelPreservesCanon ? modelResolution.causalMechanism : causalMechanism(declaredOutcome, turn),
     deviationClass,
-    instantEcho: { directResult: declaredOutcome, ...consequence },
+    instantEcho: modelPreservesCanon
+      ? { ...modelResolution.instantEcho, directResult: declaredOutcome }
+      : { directResult: declaredOutcome, ...consequence },
   };
 }
