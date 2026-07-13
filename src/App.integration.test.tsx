@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { endingFixture, turnFixture } from "./test/fixtures";
@@ -69,12 +69,12 @@ describe("complete player journey", () => {
   afterEach(() => cleanup());
 
   async function completeProfile(user: ReturnType<typeof userEvent.setup>) {
-    await user.type(screen.getByRole("textbox", { name: "你的名字" }), "林舟");
-    await user.click(screen.getByRole("radio", { name: "产品 / 运营" }));
-    await user.click(screen.getByRole("checkbox", { name: "谈判" }));
-    await user.click(screen.getByRole("checkbox", { name: "谋略" }));
-    await user.click(screen.getByRole("radio", { name: /权衡/ }));
-    await user.click(screen.getByRole("button", { name: /生成我的历史坐标/ }));
+    await user.click(screen.getByRole("button", { name: /开始人格校准/ }));
+    await user.click(screen.getByRole("button", { name: /独自核实/ }));
+    await user.click(screen.getByRole("button", { name: /隐藏模式/ }));
+    await user.click(screen.getByRole("button", { name: /结构后果/ }));
+    await user.click(screen.getByRole("button", { name: /临场变招/ }));
+    await user.click(screen.getByRole("button", { name: /进入五十个历史瞬间/ }));
   }
 
   it("plays eleven AI choices from a real card into an alternate 2026", async () => {
@@ -82,7 +82,9 @@ describe("complete player journey", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "I！我改变了历史" })).toBeVisible();
+    expect(score.start).not.toHaveBeenCalled();
     await completeProfile(user);
+    expect(score.start).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
 
@@ -105,6 +107,14 @@ describe("complete player journey", () => {
     expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
   });
 
+  it("unlocks the score for keyboard-first play", async () => {
+    render(<App />);
+
+    fireEvent.keyDown(screen.getByRole("heading", { name: "I！我改变了历史" }), { key: "Enter" });
+
+    await waitFor(() => expect(score.start).toHaveBeenCalledTimes(1));
+  });
+
   it("keeps free text inside the three-use fourth-path action", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -114,7 +124,7 @@ describe("complete player journey", () => {
     expect(screen.queryByText(/写下第四条路/)).not.toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
     await waitFor(() => expect(engine.generateOpening).toHaveBeenCalledWith(
-      expect.objectContaining({ profile: expect.objectContaining({ name: "林舟", occupation: "product" }), seed: expect.objectContaining({ year: expect.any(Number), eventName: expect.any(String) }) }),
+      expect.objectContaining({ profile: expect.objectContaining({ name: "因果侦探", typeCode: "INTP" }), seed: expect.objectContaining({ year: expect.any(Number), eventName: expect.any(String) }) }),
       expect.any(Object),
     ));
     expect(await screen.findByText(/周瑜帐下负责火船的军需官/)).toBeVisible();
@@ -127,7 +137,7 @@ describe("complete player journey", () => {
     render(<App />);
 
     await completeProfile(user);
-    expect(screen.getAllByText(/系统拆解/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/因果侦探/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
     expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(50);
@@ -138,6 +148,6 @@ describe("complete player journey", () => {
 
     expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
     expect(await screen.findByText("DeepSeek 实时生成")).toBeVisible();
-    expect(screen.getAllByText(/系统拆解/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/因果侦探/).length).toBeGreaterThan(0);
   });
 });

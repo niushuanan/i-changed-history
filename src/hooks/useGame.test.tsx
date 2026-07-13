@@ -5,8 +5,9 @@ import { createInitialGameState, type GameState } from "../game/reducer";
 import { parseAlternatePresent, parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { useGame, type UseGameDependencies } from "./useGame";
+import { buildTravelerProfile } from "../game/profile";
 
-const profile = { name: "林舟", occupation: "product", strengths: ["negotiation", "strategy"], riskStyle: "balanced" } as const;
+const profile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
   generateOpening: vi.fn().mockResolvedValue(turn), generateNextTurn: vi.fn(), adjudicateCustomAction: vi.fn(), generateEnding: vi.fn(),
@@ -15,6 +16,29 @@ const deps = (): UseGameDependencies => ({
 });
 
 describe("useGame profile orchestration", () => {
+  it("starts the score from the profile calibration gesture", async () => {
+    const dependencies = deps();
+    const { result } = renderHook(() => useGame(dependencies));
+
+    await act(() => result.current.startExperience());
+    await act(() => result.current.startExperience());
+
+    expect(dependencies.audio.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the score running when an active run exits to the picker", async () => {
+    const dependencies = deps();
+    const { result } = renderHook(() => useGame(dependencies));
+    act(() => result.current.setProfile(profile));
+    act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
+    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+
+    act(() => result.current.restart());
+
+    expect(result.current.state.phase).toBe("selecting");
+    expect(dependencies.audio.stop).not.toHaveBeenCalled();
+  });
+
   it("requires a profile and sends the complete traveler scenario to AI", async () => {
     const dependencies = deps();
     const { result } = renderHook(() => useGame(dependencies));
@@ -62,6 +86,7 @@ describe("useGame profile orchestration", () => {
     vi.mocked(dependencies.adjudicateCustomAction).mockResolvedValue({
       normalizedAction: "先扣下军令，再请皇帝临朝",
       ruling: "受限执行",
+      personalityLeverage: "INTP 因果侦探先推演守军指挥链",
       constraintApplied: "只能调动身边宿卫",
       deviationClass: "reform",
       instantEcho: {

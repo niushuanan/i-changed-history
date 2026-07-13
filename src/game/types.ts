@@ -30,8 +30,17 @@ export type TravelerStrength =
 
 export type TravelerRiskStyle = "cautious" | "balanced" | "bold";
 
+export type TravelerPersonalityDimensions = {
+  energy: "I" | "E";
+  perception: "S" | "N";
+  judgment: "T" | "F";
+  tactics: "J" | "P";
+};
+
 export type TravelerProfile = {
   name: string;
+  typeCode: string;
+  dimensions: TravelerPersonalityDimensions;
   occupation: TravelerOccupation;
   strengths: readonly [TravelerStrength, TravelerStrength];
   riskStyle: TravelerRiskStyle;

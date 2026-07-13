@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
+import { buildTravelerProfile } from "./profile";
 import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
 
 const scenario: GameScenario = {
-  profile: { name: "林舟", occupation: "product", strengths: ["negotiation", "strategy"], riskStyle: "balanced" },
+  profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
   seed: HISTORY_SEEDS.find((seed) => seed.id === "sarajevo-1914")!,
 };
 
@@ -16,7 +17,10 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain("萨拉热窝刺杀");
     expect(body).toContain("塞尔维亚总理大臣帕希奇的特别联络员");
     expect(body).toContain("距离车队再次经过拉丁桥约 8 分钟");
-    expect(body).toContain("negotiation");
+    expect(body).toContain("strategy");
+    expect(body).toContain("INTP");
+    expect(body).toContain("因果侦探");
+    expect(body).toContain("三次自由改命");
     expect(body).toContain("role");
     expect(body).toContain("immediateObjective");
     expect(body).toContain("timePressure");
@@ -76,6 +80,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(body).toContain(parsedTurn.role);
     expect(body).toContain("不得凭空增加身份、资源、技术或知情范围");
     expect(body).toContain("constraintApplied");
+    expect(body).toContain("personalityLeverage");
     expect(body).toContain("受限执行");
   });
 });

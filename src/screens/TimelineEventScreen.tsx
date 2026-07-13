@@ -4,12 +4,16 @@ import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
+import type { TravelerAbility } from "../game/profile";
 
 export function TimelineEventScreen({
   turn,
   deviation,
   lastChoiceLabel,
   abilityTitle,
+  abilityCode,
+  abilityPreviewMode,
+  abilityCustomAction,
   customActionsRemaining,
   onChoose,
   onCustomAction,
@@ -20,6 +24,9 @@ export function TimelineEventScreen({
   deviation: number;
   lastChoiceLabel?: string;
   abilityTitle: string;
+  abilityCode: string;
+  abilityPreviewMode: TravelerAbility["previewMode"];
+  abilityCustomAction: string;
   customActionsRemaining: number;
   onChoose: (id: "A" | "B" | "C") => void;
   onCustomAction: (action: string) => void;
@@ -78,8 +85,8 @@ export function TimelineEventScreen({
       )}
 
       <section className="decision-zone">
-        <h2><span>你要怎么做？</span><em><Sparkle size={11} weight="fill" />{abilityTitle}</em></h2>
-        <ChoiceList choices={turn.choices} abilityTitle={abilityTitle} onChoose={onChoose} />
+        <h2><span>你要怎么做？</span><em><Sparkle size={11} weight="fill" />{abilityCode} · {abilityTitle}</em></h2>
+        <ChoiceList choices={turn.choices} abilityTitle={abilityTitle} previewMode={abilityPreviewMode} onChoose={onChoose} />
         <button
           className="custom-action-command"
           type="button"
@@ -100,7 +107,7 @@ export function TimelineEventScreen({
               <div><span>穿越者权限</span><h2>写下第四条路</h2></div>
               <button type="button" aria-label="关闭自由改命" onClick={() => setCustomOpen(false)}><X size={20} /></button>
             </header>
-            <p>你可以自由行动，但只能使用这个身份此刻真正接触得到的人、物和信息。</p>
+            <p>{abilityCustomAction}。你仍只能使用这个身份此刻真正接触得到的人、物和信息。</p>
             <textarea
               autoFocus
               aria-label="你的自由行动"

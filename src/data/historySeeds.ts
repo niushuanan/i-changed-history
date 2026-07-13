@@ -7,6 +7,7 @@ import type {
   TravelerStrength,
   VisualTone,
 } from "../game/types";
+import { buildTravelerProfile } from "../game/profile";
 
 const eraFor = (year: number): HistoryEra => {
   if (year <= 600) return "ancient";
@@ -171,12 +172,7 @@ export function browseHistorySeeds(_profile?: TravelerProfile): HistorySeed[] {
   return [...HISTORY_SEEDS].sort((left, right) => left.year - right.year || left.eventName.localeCompare(right.eventName, "zh-CN"));
 }
 
-const DEFAULT_PROFILE: TravelerProfile = {
-  name: "穿越者",
-  occupation: "student",
-  strengths: ["organization", "strategy"],
-  riskStyle: "balanced",
-};
+const DEFAULT_PROFILE: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "T", tactics: "J" });
 
 export function dealHistorySeeds(previousIds: readonly string[] = []): HistorySeed[] {
   const candidates = recommendHistorySeeds(DEFAULT_PROFILE, previousIds);

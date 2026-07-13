@@ -1,61 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { getTravelerAbility, validateTravelerProfile } from "./profile";
+import { buildTravelerProfile, getTravelerAbility, PERSONALITY_QUESTIONS } from "./profile";
 
-describe("traveler profile validation", () => {
-  it("accepts a complete structured traveler profile", () => {
-    expect(validateTravelerProfile({
-      name: " 阿开 ",
-      occupation: "product",
-      strengths: ["negotiation", "organization"],
-      riskStyle: "balanced",
-    })).toEqual({
-      ok: true,
-      value: {
-        name: "阿开",
-        occupation: "product",
-        strengths: ["negotiation", "organization"],
-        riskStyle: "balanced",
-      },
+describe("time traveler personality calibration", () => {
+  it("uses four historical dilemmas to build a stable four-letter profile", () => {
+    expect(PERSONALITY_QUESTIONS).toHaveLength(4);
+
+    const profile = buildTravelerProfile({
+      energy: "I",
+      perception: "N",
+      judgment: "T",
+      tactics: "P",
     });
+
+    expect(profile).toMatchObject({
+      name: "因果侦探",
+      typeCode: "INTP",
+      dimensions: { energy: "I", perception: "N", judgment: "T", tactics: "P" },
+    });
+    expect(profile.strengths[0]).not.toBe(profile.strengths[1]);
   });
 
-  it("requires a 2-12 character name and exactly two distinct strengths", () => {
-    expect(validateTravelerProfile({
-      name: "我",
-      occupation: "product",
-      strengths: ["negotiation", "negotiation"],
-      riskStyle: "balanced",
-    })).toMatchObject({
-      ok: false,
-      errors: {
-        name: "称呼需要 2–12 个字符",
-        strengths: "请选择两项不同的现代优势",
-      },
-    });
-  });
+  it("turns the personality into three visible gameplay rules", () => {
+    const ability = getTravelerAbility(buildTravelerProfile({
+      energy: "I",
+      perception: "N",
+      judgment: "T",
+      tactics: "P",
+    }));
 
-  it("rejects missing structured selections", () => {
-    expect(validateTravelerProfile({ name: "阿开", strengths: [] })).toMatchObject({
-      ok: false,
-      errors: {
-        occupation: "请选择现代身份",
-        strengths: "请选择两项不同的现代优势",
-        riskStyle: "请选择决策本能",
-      },
+    expect(ability).toMatchObject({
+      typeCode: "INTP",
+      title: "因果侦探",
+      action: "每幕三个行动中，有一个只按 INTP 的本能生成",
+      preview: "预判时优先看见长期连锁与制度代价",
     });
-  });
-
-  it("turns the profile into a named gameplay ability", () => {
-    expect(getTravelerAbility({
-      name: "阿开",
-      occupation: "product",
-      strengths: ["negotiation", "strategy"],
-      riskStyle: "balanced",
-    })).toEqual({
-      title: "系统拆解",
-      strengths: "谈判 + 战略",
-      action: "每幕可预判一个专属行动的受益者与隐藏代价",
-      style: "先比较收益与代价，再推动制度落地",
-    });
+    expect(ability.customAction).toContain("三次自由改命");
+    expect(ability.promptDirective).toContain("INTP");
   });
 });

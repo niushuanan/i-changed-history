@@ -3,9 +3,10 @@ import { HISTORY_SEEDS } from "../data/historySeeds";
 import { parseTimelineTurn } from "./schema";
 import { createFallbackTurn } from "./fallbackTurn";
 import { turnFixture } from "../test/fixtures";
+import { buildTravelerProfile } from "./profile";
 
 const scenario = {
-  profile: { name: "林舟", occupation: "product" as const, strengths: ["negotiation", "strategy"] as const, riskStyle: "balanced" as const },
+  profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
   seed: HISTORY_SEEDS[0],
 };
 
@@ -27,7 +28,8 @@ describe("deterministic fallback turn", () => {
     expect(turn.role).not.toContain(scenario.profile.name);
     expect(turn.location).not.toContain(scenario.seed.location);
     expect(turn.identityBridge).toContain("接棒");
-    expect(turn.profileAdvantage).toContain("现代");
+    expect(turn.profileAdvantage).toContain("INTP");
+    expect(turn.profileAdvantage).toContain("制度代价");
     expect(turn.choices.filter((choice) => choice.usesTravelerStrength)).toHaveLength(1);
   });
 

@@ -1,4 +1,5 @@
 import type { GameScenario } from "./reducer";
+import { getTravelerAbility } from "./profile";
 import type { PlayedTurn } from "./prompts";
 import { alternatePresentSchema, customActionResolutionSchema, timelineTurnSchema, type AlternatePresent, type CustomActionResolution, type TimelineTurn } from "./schema";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
@@ -10,9 +11,11 @@ function previousEcho(playedTurns: readonly PlayedTurn[]): TimelineTurn["previou
 }
 
 export function createFallbackCustomActionResolution(
+  scenario: GameScenario,
   turn: TimelineTurn,
   action: string,
 ): CustomActionResolution {
+  const ability = getTravelerAbility(scenario.profile);
   const normalizedAction = [...action.trim()].slice(0, 56).join("");
   const deviationClass = /废除|杀|炸|焚|夺权|起兵|全部/.test(normalizedAction)
     ? "rupture"
@@ -22,6 +25,7 @@ export function createFallbackCustomActionResolution(
   return customActionResolutionSchema.parse({
     normalizedAction,
     ruling: "受限执行",
+    personalityLeverage: `${scenario.profile.typeCode}「${ability.title}」通过${ability.style}找到现场杠杆`,
     constraintApplied: `你只能以${turn.role}的身份，动用此刻现场可接触的人与物`,
     deviationClass,
     instantEcho: {
@@ -59,6 +63,7 @@ export function createFallbackTurn(
   playedTurns: readonly PlayedTurn[],
   chapter: DecisionChapter,
 ): TimelineTurn {
+  const ability = getTravelerAbility(scenario.profile);
   const node = getTimelineNode(chapter, scenario.seed.year);
   const previous = playedTurns.at(-1)?.turn;
   const echo = previousEcho(playedTurns);
@@ -78,7 +83,7 @@ export function createFallbackTurn(
     location: chapter === 1 ? scenario.seed.location : relay.location,
     role: chapter === 1 ? scenario.seed.role : relay.role,
     identityBridge: chapter === 1 ? "你的现代意识直接进入这一历史现场" : relay.bridge,
-    profileAdvantage: `你的现代${scenario.profile.strengths.join("与")}能力，能看出本代规则中的隐藏杠杆`,
+    profileAdvantage: `${scenario.profile.typeCode}「${ability.title}」能${ability.preview.replace("预判时", "")}`,
     immediateObjective: objective,
     timePressure: chapter === 1 ? scenario.seed.urgency : `下一个时间窗口将在${node.jumpLabel}结束前关闭`,
     headline: chapter === 1 ? scenario.seed.eventName : `${node.jumpLabel}：${relay.topic}`,
@@ -89,7 +94,7 @@ export function createFallbackTurn(
     previousEcho: chapter === 1 ? null : echo,
     choices: [
       { id: "A", label: "保留现有安排，只修正最紧迫的漏洞", intent: "用小范围试点降低立即损失", deviationClass: "nudge", usesTravelerStrength: false, instantEcho: { directResult: "执行者获得了短暂喘息", unexpectedCost: "根本矛盾被推迟而没有消失", beneficiary: "当前秩序中的普通参与者", payer: "被延后补偿的边缘群体" } },
-      { id: "B", label: "用现代经验建立公开规则", intent: "把个人决定变成可延续的制度", deviationClass: "reform", usesTravelerStrength: true, instantEcho: { directResult: "新的协商机制开始运转", unexpectedCost: "既得利益者组织起明确反对", beneficiary: "能进入新规则的人", payer: "失去特权的旧管理者" } },
+      { id: "B", label: `用${ability.title}的本能重写规则`, intent: ability.style, deviationClass: "reform", usesTravelerStrength: true, instantEcho: { directResult: "新的协商机制开始运转", unexpectedCost: "既得利益者组织起明确反对", beneficiary: "能进入新规则的人", payer: "失去特权的旧管理者" } },
       { id: "C", label: "废除旧约束，把决定权交给新的联盟", intent: "用不可逆的断裂换取全新路径", deviationClass: "rupture", usesTravelerStrength: false, instantEcho: { directResult: "旧命令体系立即失效", unexpectedCost: "秩序真空引发争夺与恐慌", beneficiary: "长期被排除的行动者", payer: "依赖旧体系生存的人" } },
     ],
     memorySummary: `第${chapter}节点沿着“${playedTurns.at(-1)?.selectedChoiceLabel ?? scenario.seed.decision}”继续分化。`,

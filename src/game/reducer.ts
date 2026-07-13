@@ -23,6 +23,7 @@ export type EchoState = {
   stepImpact: number;
   nextDeviation: number;
   ruling?: CustomActionResolution["ruling"];
+  personalityLeverage?: string;
   constraintApplied?: string;
 };
 
@@ -164,6 +165,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           source: "custom_action",
           choiceLabel: action.resolution.normalizedAction,
           ruling: action.resolution.ruling,
+          personalityLeverage: action.resolution.personalityLeverage,
           constraintApplied: action.resolution.constraintApplied,
           ...action.resolution.instantEcho,
           ...impact,

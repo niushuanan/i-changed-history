@@ -7,6 +7,12 @@ import { TimelineEventScreen } from "./TimelineEventScreen";
 describe("clear change event screen", () => {
   afterEach(() => cleanup());
   const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+  const abilityProps = {
+    abilityTitle: "因果侦探",
+    abilityCode: "INTP",
+    abilityPreviewMode: "system" as const,
+    abilityCustomAction: "三次自由改命中可用独立推演",
+  };
 
   it("shows proof of change and removes dashboard noise", () => {
     const turn = parseTimelineTurn(JSON.stringify({
@@ -19,7 +25,7 @@ describe("clear change event screen", () => {
       turn={turn}
       deviation={18}
       lastChoiceLabel="扶植年幼继承人"
-      abilityTitle="系统拆解"
+      {...abilityProps}
       customActionsRemaining={3}
       onChoose={vi.fn()}
       onCustomAction={vi.fn()}
@@ -47,7 +53,7 @@ describe("clear change event screen", () => {
     const { rerender } = render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      abilityTitle="系统拆解"
+      {...abilityProps}
       customActionsRemaining={3}
       onChoose={vi.fn()}
       onCustomAction={onCustomAction}
@@ -61,7 +67,7 @@ describe("clear change event screen", () => {
     rerender(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      abilityTitle="系统拆解"
+      {...abilityProps}
       customActionsRemaining={0}
       onChoose={vi.fn()}
       onCustomAction={onCustomAction}

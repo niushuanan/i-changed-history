@@ -32,6 +32,7 @@ const echoSchema = z.object({
 export const customActionResolutionSchema = z.object({
   normalizedAction: z.string().trim().min(2).max(56),
   ruling: z.enum(["按原意执行", "受限执行"]),
+  personalityLeverage: boundedString(56),
   constraintApplied: boundedString(56),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,

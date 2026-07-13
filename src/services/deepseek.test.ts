@@ -5,9 +5,10 @@ import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
+import { buildTravelerProfile } from "../game/profile";
 
 const messages = [{ role: "system" as const, content: "system" }, { role: "user" as const, content: "user" }];
-const scenario = { profile: { name: "林舟", occupation: "product" as const, strengths: ["negotiation", "strategy"] as const, riskStyle: "balanced" as const }, seed: HISTORY_SEEDS[0] };
+const scenario = { profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }), seed: HISTORY_SEEDS[0] };
 const firstTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 const playedTurn = { turn: firstTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: firstTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: firstTurn.choices[0].instantEcho };
 const endingPlayedTurns = endingFixture.historyTimeline.map((item, index) => ({
@@ -82,6 +83,7 @@ describe("DeepSeek transport and structured generation", () => {
     const ruling = {
       normalizedAction: "先扣下军令，再请皇帝临朝",
       ruling: "受限执行",
+      personalityLeverage: "INTP 因果侦探先推演守军指挥链",
       constraintApplied: "只能调动身边宿卫",
       deviationClass: "reform",
       instantEcho: turnFixture.choices[1].instantEcho,
@@ -90,6 +92,24 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
     await expect(adjudicateCustomAction(scenario, [], firstTurn, "调动全城军队"))
       .resolves.toMatchObject(ruling);
+  });
+
+  it("rejects a generic free-action leverage and falls back to the current personality", async () => {
+    const genericRuling = {
+      normalizedAction: "先扣下军令，再请皇帝临朝",
+      ruling: "受限执行",
+      personalityLeverage: "使用现代经验判断现场风险",
+      constraintApplied: "只能调动身边宿卫",
+      deviationClass: "reform",
+      instantEcho: turnFixture.choices[1].instantEcho,
+    };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(genericRuling))));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await adjudicateCustomAction(scenario, [], firstTurn, "调动全城军队");
+
+    expect(result.personalityLeverage).toContain("INTP");
+    expect(fetcher.mock.calls.length).toBeGreaterThan(1);
   });
 
   it("keeps the eleven player choices authoritative in the ending", async () => {

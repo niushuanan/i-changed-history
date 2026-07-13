@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Eye } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
+import type { TravelerAbility } from "../game/profile";
 
 const MODE_LABELS = { nudge: "微调", reform: "改制", rupture: "断裂" } as const;
 
 export function ChoiceList({
   choices,
   abilityTitle,
+  previewMode,
   onChoose,
 }: {
   choices: TimelineTurn["choices"];
   abilityTitle: string;
+  previewMode: TravelerAbility["previewMode"];
   onChoose: (id: "A" | "B" | "C") => void;
 }) {
   const [revealed, setRevealed] = useState<"A" | "B" | "C" | null>(null);
@@ -32,8 +35,10 @@ export function ChoiceList({
           )}
           {revealed === choice.id && (
             <div className="choice-forecast" aria-live="polite">
-              <span>受益：{choice.instantEcho.beneficiary}</span>
-              <span>代价：{choice.instantEcho.unexpectedCost}</span>
+              {previewMode === "system" && <><span>结构变化：{choice.instantEcho.directResult}</span><span>制度代价：{choice.instantEcho.unexpectedCost}</span></>}
+              {previewMode === "people" && <><span>被看见：{choice.instantEcho.beneficiary}</span><span>被忽略：{choice.instantEcho.payer}</span></>}
+              {previewMode === "evidence" && <><span>即时结果：{choice.instantEcho.directResult}</span><span>执行缺口：{choice.instantEcho.unexpectedCost}</span></>}
+              {previewMode === "care" && <><span>受益者：{choice.instantEcho.beneficiary}</span><span>承担者：{choice.instantEcho.payer}</span></>}
             </div>
           )}
         </div>

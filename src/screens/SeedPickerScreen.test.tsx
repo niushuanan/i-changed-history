@@ -4,13 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import type { TravelerProfile } from "../game/types";
 import { SeedPickerScreen } from "./SeedPickerScreen";
+import { buildTravelerProfile } from "../game/profile";
 
-const profile: TravelerProfile = {
-  name: "林舟",
-  occupation: "product",
-  strengths: ["organization", "strategy"],
-  riskStyle: "balanced",
-};
+const profile: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "T", tactics: "J" });
 
 describe("living history filmstrip", () => {
   afterEach(() => cleanup());

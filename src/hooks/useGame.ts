@@ -55,6 +55,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   }
   const [state, dispatch] = useReducer(gameReducer, initialStateRef.current);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const audioUnlockRef = useRef(false);
   const [muted, setMutedState] = useState(() => dependencies.audio.isMuted());
 
   useLayoutEffect(() => {
@@ -136,10 +137,18 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     dependencies.audio.dispose();
   }, [dependencies]);
 
-  const selectSeed = useCallback((seed: HistorySeed) => {
-    void dependencies.audio.start();
-    dispatch({ type: "START_SCENARIO", seed });
+  const startExperience = useCallback(async () => {
+    if (audioUnlockRef.current) return true;
+    audioUnlockRef.current = true;
+    const started = await dependencies.audio.start();
+    if (!started) audioUnlockRef.current = false;
+    return started;
   }, [dependencies]);
+
+  const selectSeed = useCallback((seed: HistorySeed) => {
+    void startExperience();
+    dispatch({ type: "START_SCENARIO", seed });
+  }, [startExperience]);
 
   const setProfile = useCallback((profile: TravelerProfile) => dispatch({ type: "SET_PROFILE", profile }), []);
   const changeProfile = useCallback(() => dispatch({ type: "CHANGE_PROFILE" }), []);
@@ -155,19 +164,20 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const retry = useCallback(() => dispatch({ type: "RETRY" }), []);
   const restart = useCallback(() => {
     requestControllerRef.current?.abort();
-    dependencies.audio.stop();
     dispatch({ type: "RESTART" });
-  }, [dependencies]);
+  }, []);
   const toggleMute = useCallback(() => {
     const next = dependencies.audio.toggleMuted();
     setMutedState(next);
+    if (!next) void startExperience();
     return next;
-  }, [dependencies]);
+  }, [dependencies, startExperience]);
 
   return {
     state,
     deviationStage: getDeviationStage(state.deviation),
     muted,
+    startExperience,
     setProfile,
     changeProfile,
     selectSeed,

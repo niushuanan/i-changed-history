@@ -7,6 +7,7 @@ describe("structured timeline parsing", () => {
     const resolution = parseCustomActionResolution(JSON.stringify({
       normalizedAction: "先封锁宫门，再派人请李渊临朝",
       ruling: "受限执行",
+      personalityLeverage: "INTP 因果侦探先推演守军指挥链",
       constraintApplied: "你只能调动本门禁军，无法号令全城",
       deviationClass: "reform",
       instantEcho: {

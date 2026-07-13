@@ -29,7 +29,7 @@ export function App() {
 
   let screen: React.ReactNode;
   if (state.phase === "profiling") {
-    screen = <TravelerProfileScreen onSubmit={game.setProfile} />;
+    screen = <TravelerProfileScreen onSubmit={game.setProfile} onStartExperience={game.startExperience} />;
   } else if (state.phase === "selecting" && state.profile) {
     screen = (
       <SeedPickerScreen
@@ -45,6 +45,9 @@ export function App() {
         deviation={state.deviation}
         lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
         abilityTitle={ability?.title ?? "现代认知"}
+        abilityCode={ability?.typeCode ?? "----"}
+        abilityPreviewMode={ability?.previewMode ?? "system"}
+        abilityCustomAction={ability?.customAction ?? "AI 会按真实历史约束裁决自由行动"}
         customActionsRemaining={Math.max(0, 3 - state.customActionsUsed)}
         onChoose={game.choose}
         onCustomAction={game.submitCustomAction}
@@ -94,7 +97,11 @@ export function App() {
   }
 
   return (
-    <div className="app-stage">
+    <div
+      className="app-stage"
+      onPointerDownCapture={() => { void game.startExperience(); }}
+      onKeyDownCapture={() => { void game.startExperience(); }}
+    >
       <div className="mobile-prototype game-shell">
         <button
           className="sound-toggle icon-button"

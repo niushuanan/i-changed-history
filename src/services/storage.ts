@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type { GameState } from "../game/reducer";
 import { alternatePresentSchema, timelineTurnSchema } from "../game/schema";
+import { migrateLegacyTravelerProfile } from "../game/profile";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v5";
-const LEGACY_GAME_STORAGE_KEY = "i-changed-history:session:v4";
-const STORAGE_VERSION = 5;
+export const GAME_STORAGE_KEY = "i-changed-history:session:v6";
+const LEGACY_GAME_STORAGE_KEYS = ["i-changed-history:session:v5", "i-changed-history:session:v4"] as const;
+const STORAGE_VERSION = 6;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -12,7 +13,13 @@ const occupation = z.enum(["student", "product", "engineering", "business", "cre
 const strength = z.enum(["negotiation", "organization", "technology", "business", "writing", "strategy", "law", "medicine"]);
 const risk = z.enum(["cautious", "balanced", "bold"]);
 const profileSchema = z.strictObject({
-  name: z.string().trim().min(2).max(12), occupation,
+  name: z.string().trim().min(2).max(12),
+  typeCode: z.string().regex(/^[IE][SN][TF][JP]$/),
+  dimensions: z.strictObject({
+    energy: z.enum(["I", "E"]), perception: z.enum(["S", "N"]),
+    judgment: z.enum(["T", "F"]), tactics: z.enum(["J", "P"]),
+  }),
+  occupation,
   strengths: z.tuple([strength, strength]).refine(([a, b]) => a !== b), riskStyle: risk,
 });
 const seedSchema = z.strictObject({
@@ -88,10 +95,10 @@ function toStored(state: GameState): StoredState | null {
 
 function remove(storage: StorageLike, key = GAME_STORAGE_KEY) { try { storage.removeItem(key); } catch { /* storage unavailable */ } }
 
-function migrateV4(raw: string): unknown {
+function migrateLegacy(raw: string): unknown {
   const envelope = JSON.parse(raw) as { version?: unknown; state?: Record<string, unknown> };
-  if (envelope.version !== 4 || !envelope.state) return envelope;
-  const playedTurns = Array.isArray(envelope.state.playedTurns)
+  if (![4, 5].includes(envelope.version as number) || !envelope.state) return envelope;
+  const playedTurns = envelope.version === 4 && Array.isArray(envelope.state.playedTurns)
     ? envelope.state.playedTurns.map((value) => {
         if (typeof value !== "object" || value === null) return value;
         const played = value as Record<string, unknown>;
@@ -101,9 +108,25 @@ function migrateV4(raw: string): unknown {
         return resolvedEcho ? { ...played, resolvedEcho } : played;
       })
     : envelope.state.playedTurns;
+  const migrateProfile = (value: unknown) => {
+    if (typeof value !== "object" || value === null) return value;
+    const candidate = value as Record<string, unknown>;
+    if (typeof candidate.typeCode === "string" && candidate.dimensions) return candidate;
+    return migrateLegacyTravelerProfile(candidate);
+  };
+  const profile = migrateProfile(envelope.state.profile);
+  const scenario = typeof envelope.state.scenario === "object" && envelope.state.scenario !== null
+    ? { ...(envelope.state.scenario as Record<string, unknown>), profile: migrateProfile((envelope.state.scenario as Record<string, unknown>).profile) }
+    : envelope.state.scenario;
   return {
     version: STORAGE_VERSION,
-    state: { ...envelope.state, customActionsUsed: 0, playedTurns },
+    state: {
+      ...envelope.state,
+      profile,
+      scenario,
+      customActionsUsed: envelope.version === 4 ? 0 : envelope.state.customActionsUsed,
+      playedTurns,
+    },
   };
 }
 
@@ -116,18 +139,20 @@ export function saveGameSnapshot(state: GameState, storage: StorageLike = localS
 export function loadGameSnapshot(storage: StorageLike = localStorage): GameState | null {
   try {
     let raw = storage.getItem(GAME_STORAGE_KEY);
-    let migrated = false;
+    let legacyKey: string | null = null;
     if (!raw) {
-      raw = storage.getItem(LEGACY_GAME_STORAGE_KEY);
-      migrated = Boolean(raw);
+      for (const key of LEGACY_GAME_STORAGE_KEYS) {
+        raw = storage.getItem(key);
+        if (raw) { legacyKey = key; break; }
+      }
     }
     if (!raw) return null;
-    const candidate = migrated ? migrateV4(raw) : JSON.parse(raw);
+    const candidate = legacyKey ? migrateLegacy(raw) : JSON.parse(raw);
     const parsed = envelopeSchema.safeParse(candidate);
-    if (!parsed.success) { remove(storage, migrated ? LEGACY_GAME_STORAGE_KEY : GAME_STORAGE_KEY); return null; }
-    if (migrated) {
+    if (!parsed.success) { remove(storage, legacyKey ?? GAME_STORAGE_KEY); return null; }
+    if (legacyKey) {
       storage.setItem(GAME_STORAGE_KEY, JSON.stringify(parsed.data));
-      remove(storage, LEGACY_GAME_STORAGE_KEY);
+      remove(storage, legacyKey);
     }
     return { ...parsed.data.state, pendingTurn: null, pendingEnding: null, echo: null } as GameState;
   } catch { remove(storage); return null; }

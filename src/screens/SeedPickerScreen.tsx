@@ -67,7 +67,7 @@ export function SeedPickerScreen({
         </div>
         <button type="button" onClick={onChangeProfile} aria-label="重设画像能力" title="重设画像能力">
           <IdentificationCard size={19} weight="bold" />
-          <span>{profile.name} · {ability.title}</span>
+          <span>{profile.typeCode} · {ability.title}</span>
         </button>
       </header>
 

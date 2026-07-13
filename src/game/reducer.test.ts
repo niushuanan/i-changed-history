@@ -4,13 +4,9 @@ import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
 import { createInitialGameState, gameReducer } from "./reducer";
 import type { TravelerProfile } from "./types";
+import { buildTravelerProfile } from "./profile";
 
-const profile: TravelerProfile = {
-  name: "林舟",
-  occupation: "product",
-  strengths: ["negotiation", "strategy"],
-  riskStyle: "balanced",
-};
+const profile: TravelerProfile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const eleventhTurn = parseTimelineTurn(JSON.stringify({
   ...turnFixture,
@@ -23,6 +19,7 @@ describe("profile-first choice-only game reducer", () => {
   const customResolution = {
     normalizedAction: "先封锁宫门，再请李渊临朝",
     ruling: "受限执行" as const,
+    personalityLeverage: "INTP 因果侦探先推演守军指挥链",
     constraintApplied: "只能调动玄武门宿卫",
     deviationClass: "reform" as const,
     instantEcho: {

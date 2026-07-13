@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { browseHistorySeeds, HISTORY_SEEDS, recommendHistorySeeds } from "./historySeeds";
 import type { TravelerProfile } from "../game/types";
+import { buildTravelerProfile } from "../game/profile";
 
-const profile: TravelerProfile = {
-  name: "阿开",
-  occupation: "product",
-  strengths: ["negotiation", "organization"],
-  riskStyle: "balanced",
-};
+const profile: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "F", tactics: "J" });
 
 describe("famous historical moment deck", () => {
   it("contains fifty complete AD moments with a substantial Chinese-history set", () => {
@@ -74,12 +70,7 @@ describe("famous historical moment deck", () => {
   });
 
   it("keeps every moment available regardless of traveler profile", () => {
-    const technical: TravelerProfile = {
-      name: "工程师",
-      occupation: "engineering",
-      strengths: ["technology", "strategy"],
-      riskStyle: "cautious",
-    };
+    const technical: TravelerProfile = buildTravelerProfile({ energy: "I", perception: "S", judgment: "T", tactics: "J" });
 
     expect(browseHistorySeeds(profile).map((seed) => seed.id).sort())
       .toEqual(browseHistorySeeds(technical).map((seed) => seed.id).sort());

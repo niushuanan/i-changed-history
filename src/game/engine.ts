@@ -144,16 +144,23 @@ export async function adjudicateCustomAction(
   options: GenerationOptions = {},
 ): Promise<CustomActionResolution> {
   const messages = buildCustomActionMessages(scenario, playedTurns, turn, action);
+  const parseForPersonality = (raw: string) => {
+    const resolution = parseCustomActionResolution(raw);
+    if (!resolution.personalityLeverage.includes(scenario.profile.typeCode)) {
+      throw new Error(`personalityLeverage 必须明确包含 ${scenario.profile.typeCode}`);
+    }
+    return resolution;
+  };
   try {
     return await requestValidated(
       messages,
       { phase: "turn", signal: options.signal },
       "custom_action",
-      parseCustomActionResolution,
+      parseForPersonality,
     );
   } catch (error) {
     if (error instanceof StructuredGenerationError) {
-      return createFallbackCustomActionResolution(turn, action);
+      return createFallbackCustomActionResolution(scenario, turn, action);
     }
     throw error;
   }

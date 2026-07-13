@@ -1,4 +1,5 @@
 import type { GameScenario } from "./reducer";
+import { getTravelerAbility } from "./profile";
 import type { DeviationClass, TimelineTurn } from "./schema";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
 
@@ -29,8 +30,18 @@ export const TIMELINE_SYSTEM_PROMPT = [
 const SYSTEM: ChatMessage = { role: "system", content: TIMELINE_SYSTEM_PROMPT };
 
 function scenarioPayload(scenario: GameScenario) {
+  const ability = getTravelerAbility(scenario.profile);
   return {
-    traveler: scenario.profile,
+    traveler: {
+      ...scenario.profile,
+      gameplayRules: {
+        archetype: ability.title,
+        dedicatedChoice: ability.action,
+        causalPreview: ability.preview,
+        freeAction: ability.customAction,
+        directive: ability.promptDirective,
+      },
+    },
     historyMoment: {
       id: scenario.seed.id,
       date: scenario.seed.dateLabel,
@@ -60,11 +71,11 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       location: "28 个汉字以内",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
       identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何落地" : "36 字以内；解释上一代影响如何让这一时代的新人物接棒",
-      profileAdvantage: "36 字以内；具体说明一项能力如何帮助本代身份",
+      profileAdvantage: "36 字以内；必须具体说明 traveler.gameplayRules.directive 如何帮助本代身份，不得泛称现代能力",
       immediateObjective: "28 个汉字以内；这一幕必须在现场完成的单一目标",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
-      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesTravelerStrength；恰好一个 usesTravelerStrength 为 true",
+      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesTravelerStrength；恰好一个 usesTravelerStrength 为 true，且该行动必须具体体现 traveler.gameplayRules.directive",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       previousEcho: chapter === 1 ? "必须为 null" : "完整承接上一选择即时回响",
       metrics: "stability、prosperity、freedom、cost，均为 0-100 数值",
@@ -134,7 +145,7 @@ export function buildCustomActionMessages(
   action: string,
 ): ChatMessage[] {
   return messages({
-    task: "裁决玩家写下的第四条路。必须把行动放回当前身份、地点、时间压力和可支配资源中；不得凭空增加身份、资源、技术或知情范围。能原样执行则 ruling 为按原意执行；否则保留玩家意图并降格为当场可执行的动作，ruling 为受限执行。无论哪种方式都必须给出真实收益、隐藏代价、受益者和承担者。",
+    task: "裁决玩家写下的第四条路。必须把行动放回当前身份、地点、时间压力和可支配资源中，并按 traveler.gameplayRules.freeAction 提供一种合理的人格杠杆；不得凭空增加身份、资源、技术或知情范围。能原样执行则 ruling 为按原意执行；否则保留玩家意图并降格为当场可执行的动作，ruling 为受限执行。无论哪种方式都必须给出真实收益、隐藏代价、受益者和承担者。",
     ...scenarioPayload(scenario),
     playedHistory: selectedHistory(playedTurns),
     currentScene: {
@@ -149,9 +160,10 @@ export function buildCustomActionMessages(
     },
     playerAction: action,
     outputContract: {
-      requiredFields: ["normalizedAction", "ruling", "constraintApplied", "deviationClass", "instantEcho"],
+      requiredFields: ["normalizedAction", "ruling", "personalityLeverage", "constraintApplied", "deviationClass", "instantEcho"],
       normalizedAction: "2-56 个汉字，保留玩家原意并改写成当前角色能执行的具体动作",
       ruling: "按原意执行/受限执行 二选一",
+      personalityLeverage: "56 个汉字以内，必须点名 traveler.typeCode，并具体说明人格如何让行动变得可执行",
       constraintApplied: "56 个汉字以内，说明身份、资源、技术或时间上的真实限制",
       deviationClass: "nudge/reform/rupture 之一",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",

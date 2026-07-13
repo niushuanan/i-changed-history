@@ -33,7 +33,7 @@ export function ButterflyEchoScreen({
         <span>世界裁决 · {echo.source === "custom_action" ? "自由改命 · " : ""}偏离 +{echo.stepImpact}</span>
         <h1>世界已回应</h1>
         <p className="echo-screen__choice">你选择：{echo.choiceLabel}</p>
-        {echo.ruling && <p className="echo-screen__ruling">{echo.ruling} · {echo.constraintApplied}</p>}
+        {echo.ruling && <p className="echo-screen__ruling">{echo.ruling} · {echo.personalityLeverage} · {echo.constraintApplied}</p>}
         <strong>{echo.directResult}</strong>
         <p className="echo-screen__cost">但 {echo.unexpectedCost}</p>
         <dl className="echo-people">
