@@ -69,7 +69,7 @@ function turnContract() {
       totalLength: "只返回 requiredFields，完整 JSON 控制在 1200 个汉字左右；玩家可见文案必须是短句",
       clientOwnedFields: "这些字段由客户端注入，禁止输出，避免重复与冲突",
       protagonistName: "第一幕给主角一个符合时代与地域的固定姓名；续幕必须逐字等于 authoritativeProtagonist.name",
-      narrative: "96-160 个汉字，用二至四句完整叙事交代三层信息，推荐三句，第二人称现在时。第一层交代著名史实局面或上一项决定如何造成当前局面；第二层写明真实人物、机构或阵营正在争夺什么及现场可见证据；第三层写清你能调动的身份或资源、必须决定什么、失败会立即失去什么",
+      narrative: "88-160 个汉字，用二至五句完整叙事交代三层信息，推荐三句，第二人称现在时。第一层交代著名史实局面或上一项决定如何造成当前局面；第二层写明真实人物、机构或阵营正在争夺什么及现场可见证据；第三层写清你能调动的身份或资源、必须决定什么、失败会立即失去什么",
       headline: "22 个汉字以内",
       location: "28 个汉字以内；必须使用当时真实存在或时代可信的称谓。1900 年前禁止使用议事厅、会议室、办公室、指挥中心、新闻中心、发布厅、报告厅、展览厅、作战室、控制室、调度室等现代通用空间名，改用府署正堂、军帐、中军帐、行辕、馆驿、宫门、城楼、书院等符合史实的时代真实称谓",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
@@ -159,7 +159,7 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
   const narrativeContext = buildNarrativeContext(playedTurns, chapter);
   const protagonist = playedTurns[0]?.turn;
   return turnMessages({
-    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的最近三幕玩家正史：让它们具体改变当前冲突、人物关系或制度条件，但不要在 causalLedger 中机械抄写，客户端会权威注入。更早的玩家正史继续成立，但无需每幕重复点名。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。`,
+    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的最近三幕玩家正史：让它们具体改变当前冲突、人物关系或制度条件，但不要在 causalLedger 中机械抄写，客户端会权威注入。更早的玩家正史继续成立，但无需每幕重复点名。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。输出前逐项确认 requiredFields 全部存在，尤其不得遗漏 immediateObjective、timePressure、historicalAnchors 与三个 choices。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     authoritativeProtagonist: { name: protagonist?.protagonistName, sameBodyThroughAllTwelveNodes: true, previousAge: playedTurns.at(-1)?.turn.protagonistAge, previousRole: playedTurns.at(-1)?.turn.role },

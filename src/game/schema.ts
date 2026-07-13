@@ -23,7 +23,8 @@ const visualToneSchema = z.enum([
   "digital",
 ]);
 const generationSourceSchema = z.enum(["fixed", "deepseek"]);
-const rippleLensSchema = z.enum(["origin", "power", "livelihood", "knowledge", "technology", "culture", "trade", "migration", "ecology", "diplomacy"]);
+const RIPPLE_LENS_VALUES = ["origin", "power", "livelihood", "knowledge", "technology", "culture", "trade", "migration", "ecology", "diplomacy"] as const;
+const rippleLensSchema = z.enum(RIPPLE_LENS_VALUES);
 
 const echoSchema = z.object({
   directResult: boundedString(80),
@@ -49,13 +50,18 @@ const actionSpecSchema = z.object({
   deadline: boundedString(20),
 });
 
-export const customActionResolutionSchema = z.object({
+const customActionResolutionObjectSchema = z.object({
   declaredOutcome: z.string().trim().min(2).max(80),
   canonStatus: z.literal("玩家钦定"),
   causalMechanism: boundedString(56),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
 });
+
+export const customActionResolutionSchema = z.preprocess(
+  normalizeCustomActionResolutionCandidate,
+  customActionResolutionObjectSchema,
+);
 
 const choiceFields = {
   label: boundedString(36),
@@ -98,14 +104,14 @@ const causalLedgerEntrySchema = z.object({
 
 const richNarrativeSchema = requiredString
   .max(160)
-  .refine((narrative) => [...narrative].length >= 96, {
-    message: "现场前情至少需要 96 字",
+  .refine((narrative) => [...narrative].length >= 88, {
+    message: "现场前情至少需要 88 字",
   })
   .refine((narrative) => {
     const sentenceCount = narrative.match(/[。！？!?]/g)?.length ?? 0;
-    return sentenceCount >= 2 && sentenceCount <= 4;
+    return sentenceCount >= 2 && sentenceCount <= 5;
   }, {
-    message: "现场前情必须用二至四句完整叙事交代来路、各方与风险",
+    message: "现场前情必须用二至五句完整叙事交代来路、各方与风险",
   });
 
 const timelineTurnFields = {
@@ -293,6 +299,44 @@ function normalizeEcho(value: unknown): unknown {
   };
 }
 
+function normalizeCustomActionResolutionCandidate(value: unknown): unknown {
+  const resolution = asRecord(value);
+  if (!resolution) return value;
+  return {
+    ...resolution,
+    causalMechanism: trimBounded(resolution.causalMechanism, 56),
+    instantEcho: normalizeEcho(resolution.instantEcho),
+  };
+}
+
+function normalizeRippleLens(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().toLowerCase();
+  if (RIPPLE_LENS_VALUES.includes(normalized as (typeof RIPPLE_LENS_VALUES)[number])) {
+    return normalized;
+  }
+  const aliases: Readonly<Record<string, (typeof RIPPLE_LENS_VALUES)[number]>> = {
+    military: "power",
+    politics: "power",
+    governance: "power",
+    science: "knowledge",
+    education: "knowledge",
+    information: "knowledge",
+    tech: "technology",
+    economy: "trade",
+    economics: "trade",
+    commerce: "trade",
+    society: "livelihood",
+    welfare: "livelihood",
+    population: "migration",
+    environment: "ecology",
+    foreign: "diplomacy",
+    religion: "culture",
+    arts: "culture",
+  };
+  return aliases[normalized] ?? value;
+}
+
 function normalizeActionSpec(value: unknown): unknown {
   const spec = asRecord(value);
   if (!spec) return value;
@@ -362,6 +406,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
     identityBridge: trimBounded(turn.identityBridge, 54),
     modernAdvantage: trimBounded(turn.modernAdvantage, 54),
+    rippleLens: normalizeRippleLens(turn.rippleLens),
     location: trimBounded(turn.location, 28),
     role: trimBounded(turn.role, 24),
     immediateObjective: trimBounded(turn.immediateObjective, 40),

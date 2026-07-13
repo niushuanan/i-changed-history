@@ -161,6 +161,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("divergenceProof");
     expect(continuation).toContain("自行选择其中最意外、最重大");
     expect(continuation).toContain("不得否认、降级、反转");
+    expect(continuation).toContain("尤其不得遗漏 immediateObjective、timePressure");
   });
 
   it("keeps all rewrites immutable but injects only three active mandates into the current turn", () => {
@@ -190,8 +191,8 @@ describe("modern traveler AI prompt contract", () => {
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const protocol = buildContinuationMessages(scenario, played, 2)[1].content;
     expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
-    expect(protocol).toContain("96-160 个汉字");
-    expect(protocol).toContain("二至四句");
+    expect(protocol).toContain("88-160 个汉字");
+    expect(protocol).toContain("二至五句");
     expect(protocol).toContain("上一项决定如何造成当前局面");
     expect(protocol).toContain("真实人物、机构或阵营");
     expect(protocol).toContain("失败会立即失去什么");

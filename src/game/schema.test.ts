@@ -43,6 +43,27 @@ describe("structured timeline parsing", () => {
     }))).toThrow();
   });
 
+  it("trims harmless custom adjudication overflow without changing the declared result", () => {
+    const declaredOutcome = "我已经建立全国公开账册制度";
+    const parsed = parseCustomActionResolution(JSON.stringify({
+      declaredOutcome,
+      canonStatus: "玩家钦定",
+      causalMechanism: "传播".repeat(40),
+      deviationClass: "rupture",
+      instantEcho: {
+        directResult: declaredOutcome,
+        unexpectedCost: "旧官僚体系需要重新核验全部账册".repeat(3),
+        beneficiary: "能够查账的普通民众".repeat(3),
+        payer: "失去隐匿空间的旧官员".repeat(3),
+      },
+    }));
+
+    expect(parsed.declaredOutcome).toBe(declaredOutcome);
+    expect(parsed.causalMechanism.length).toBeLessThanOrEqual(56);
+    expect(parsed.instantEcho).toMatchObject({ directResult: declaredOutcome });
+    expect(parsed.instantEcho.payer.length).toBeLessThanOrEqual(24);
+  });
+
   it("carries an eighty-character canonical result into the next turn", () => {
     const declaredOutcome = "我已经成功完成改写".repeat(8).slice(0, 80);
     const next = parseTimelineTurn(JSON.stringify({
@@ -179,6 +200,13 @@ describe("structured timeline parsing", () => {
     expect(parsed.causalBridge).toContain("驿站");
   });
 
+  it("normalizes common model ripple-lens aliases without repairing the scene", () => {
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, rippleLens: "military" })).rippleLens)
+      .toBe("power");
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, rippleLens: "science" })).rippleLens)
+      .toBe("knowledge");
+  });
+
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
     const raw = JSON.stringify({
       ...turnFixture,
@@ -192,21 +220,24 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("accepts two to four complete rich sentences", () => {
-    const twoSentences = `${"前".repeat(50)}。${"险".repeat(50)}。`;
+  it("accepts two to five complete rich sentences", () => {
+    const twoSentences = `${"前".repeat(44)}。${"险".repeat(44)}。`;
     const fourSentences = `${"前".repeat(24)}。${"因".repeat(24)}。${"争".repeat(24)}。${"险".repeat(24)}。`;
+    const fiveSentences = `${"前".repeat(18)}。${"因".repeat(18)}。${"争".repeat(18)}。${"变".repeat(18)}。${"险".repeat(18)}。`;
 
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: twoSentences })).narrative)
       .toBe(twoSentences);
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: fourSentences })).narrative)
       .toBe(fourSentences);
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: fiveSentences })).narrative)
+      .toBe(fiveSentences);
   });
 
   it("rejects a newly generated prehistory without enough complete context", () => {
     expect(() => parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       narrative: `${"局".repeat(100)}。`,
-    }))).toThrow(/二至四句/);
+    }))).toThrow(/二至五句/);
   });
 
   it("injects active player canon ahead of model ledger without changing scene prose", () => {
