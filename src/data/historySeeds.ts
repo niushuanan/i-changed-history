@@ -2,12 +2,10 @@ import type {
   HistoryEra,
   HistorySeed,
   TravelerOccupation,
-  TravelerProfile,
   TravelerRiskStyle,
   TravelerStrength,
   VisualTone,
 } from "../game/types";
-import { buildTravelerProfile } from "../game/profile";
 
 const eraFor = (year: number): HistoryEra => {
   if (year <= 600) return "ancient";
@@ -123,58 +121,6 @@ export const HISTORY_SEEDS: readonly HistorySeed[] = [
   moment("berlin-wall-1989", 1989, "1989年11月9日晚", "柏林墙边检站第一次开闸", "东柏林鲍尔霍莫大街口岸", "world", "边检站指挥官哈拉尔德·亚格的值班参谋", "是否在联系不上上级时说服亚格主动完全开闸，而不再对护照盖无效章", "数千人已挤在闸门前，卫兵只有几分钟决定", "鲍尔霍莫大街口岸在无明确上级命令下开闸，人群穿过柏林墙，东德边境体系迅速崩解。", ["东德官员刚在记者会上误称新规立即生效", "大批民众涌向边检站", "边防军未收到可执行的处置命令"], "政治", "revolution", P, ["organization", "negotiation"], BOLD),
 ];
 
-function stableHash(value: string): number {
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function profileScore(profile: TravelerProfile, seed: HistorySeed): number {
-  const occupation = seed.occupationTags.includes(profile.occupation) ? 3 : 0;
-  const strengths = profile.strengths.reduce(
-    (score, strength) => score + (seed.strengthTags.includes(strength) ? 4 : 0),
-    0,
-  );
-  const risk = seed.riskTags.includes(profile.riskStyle) ? 2 : 0;
-  return occupation + strengths + risk;
-}
-
-export function recommendHistorySeeds(
-  profile: TravelerProfile,
-  previousIds: readonly string[] = [],
-): HistorySeed[] {
-  const previous = new Set(previousIds);
-  const profileKey = `${profile.name}:${profile.occupation}:${profile.strengths.join(",")}:${profile.riskStyle}`;
-  const ranked = HISTORY_SEEDS
-    .filter((seed) => !previous.has(seed.id))
-    .map((seed) => ({
-      seed,
-      score: profileScore(profile, seed),
-      tie: stableHash(`${profileKey}:${seed.id}`),
-    }))
-    .sort((left, right) => right.score - left.score || left.tie - right.tie);
-
-  const chosen = [
-    ...ranked.filter((item) => item.seed.perspective === "china").slice(0, 2),
-    ...ranked.filter((item) => item.seed.perspective === "world").slice(0, 2),
-  ];
-  const chosenIds = new Set(chosen.map((item) => item.seed.id));
-  const final = ranked.find((item) => !chosenIds.has(item.seed.id));
-  if (final) chosen.push(final);
-  return chosen.sort((left, right) => right.score - left.score || left.tie - right.tie)
-    .map((item) => item.seed);
-}
-
-export function browseHistorySeeds(_profile?: TravelerProfile): HistorySeed[] {
+export function browseHistorySeeds(): HistorySeed[] {
   return [...HISTORY_SEEDS].sort((left, right) => left.year - right.year || left.eventName.localeCompare(right.eventName, "zh-CN"));
-}
-
-const DEFAULT_PROFILE: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "T", tactics: "J" });
-
-export function dealHistorySeeds(previousIds: readonly string[] = []): HistorySeed[] {
-  const candidates = recommendHistorySeeds(DEFAULT_PROFILE, previousIds);
-  return candidates.length === 5 ? candidates : recommendHistorySeeds(DEFAULT_PROFILE);
 }

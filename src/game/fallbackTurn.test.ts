@@ -3,10 +3,8 @@ import { HISTORY_SEEDS } from "../data/historySeeds";
 import { parseTimelineTurn } from "./schema";
 import { createFallbackCustomActionResolution } from "./fallbackTurn";
 import { turnFixture } from "../test/fixtures";
-import { buildTravelerProfile } from "./profile";
 
 const scenario = {
-  profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
   seed: HISTORY_SEEDS[0],
 };
 

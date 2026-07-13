@@ -17,16 +17,14 @@ describe("alternate present export", () => {
     const user = userEvent.setup();
     render(
       <AlternatePresentScreen
-        playerResult={result}
-        instinctResult={{ ...result, worldName: "本能纪元" }}
-        playerDeviation={64}
-        instinctDeviation={51}
+        result={result}
+        deviation={64}
         onSave={onSave}
         onRestart={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "保存历史报告" }));
+    await user.click(screen.getByRole("button", { name: "保存这一页" }));
     expect(screen.getByRole("button", { name: "正在生成报告" })).toBeDisabled();
 
     finish?.("downloaded");
@@ -37,35 +35,33 @@ describe("alternate present export", () => {
     const user = userEvent.setup();
     render(
       <AlternatePresentScreen
-        playerResult={result}
-        instinctResult={{ ...result, worldName: "本能纪元" }}
-        playerDeviation={64}
-        instinctDeviation={51}
+        result={result}
+        deviation={64}
         onSave={vi.fn().mockRejectedValue(new Error("render failed"))}
         onRestart={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "保存历史报告" }));
+    await user.click(screen.getByRole("button", { name: "保存这一页" }));
     expect(await screen.findByRole("status")).toHaveTextContent("报告生成失败，请重试");
     expect(screen.getByRole("button", { name: "重新保存报告" })).toBeEnabled();
   });
 
-  it("pages between the player's world and the profile-instinct world", async () => {
+  it("pages between the biography and the changed 2026", async () => {
     const user = userEvent.setup();
     render(
       <AlternatePresentScreen
-        playerResult={result}
-        instinctResult={{ ...result, worldName: "本能纪元" }}
-        playerDeviation={64}
-        instinctDeviation={51}
+        result={result}
+        deviation={64}
         onSave={vi.fn().mockResolvedValue("downloaded")}
         onRestart={vi.fn()}
       />,
     );
 
+    expect(screen.getByText("白话本纪")).toBeVisible();
+    expect(screen.getByText("史臣曰 · 文言")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByText(result.worldName)).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "如果你始终听从第一反应" }));
-    expect(screen.getByText("本能纪元")).toBeVisible();
+    expect(screen.queryByText(/人格|第一反应/)).not.toBeInTheDocument();
   });
 });

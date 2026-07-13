@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { browseHistorySeeds, HISTORY_SEEDS, recommendHistorySeeds } from "./historySeeds";
-import type { TravelerProfile } from "../game/types";
-import { buildTravelerProfile } from "../game/profile";
+import { browseHistorySeeds, HISTORY_SEEDS } from "./historySeeds";
 import { historyAssetForSeed } from "./visualAssets";
 
-const profile: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "F", tactics: "J" });
 
 describe("famous historical moment deck", () => {
   it("contains exactly thirty Chinese and twenty world AD moments", () => {
@@ -75,32 +72,9 @@ describe("famous historical moment deck", () => {
     });
   });
 
-  it("recommends a stable five-card set with China and world balance", () => {
-    const first = recommendHistorySeeds(profile);
-    const second = recommendHistorySeeds(profile);
-
-    expect(first.map((seed) => seed.id)).toEqual(second.map((seed) => seed.id));
-    expect(first).toHaveLength(5);
-    expect(first.filter((seed) => seed.perspective === "china").length).toBeGreaterThanOrEqual(2);
-    expect(first.filter((seed) => seed.perspective === "world").length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("changes recommendations when modern strengths change", () => {
-    const technical: TravelerProfile = {
-      ...profile,
-      occupation: "engineering",
-      strengths: ["technology", "strategy"],
-    };
-
-    expect(recommendHistorySeeds(technical).map((seed) => seed.id))
-      .not.toEqual(recommendHistorySeeds(profile).map((seed) => seed.id));
-  });
-
-  it("keeps every moment available regardless of traveler profile", () => {
-    const technical: TravelerProfile = buildTravelerProfile({ energy: "I", perception: "S", judgment: "T", tactics: "J" });
-
-    expect(browseHistorySeeds(profile).map((seed) => seed.id).sort())
-      .toEqual(browseHistorySeeds(technical).map((seed) => seed.id).sort());
-    expect(browseHistorySeeds(profile)).toHaveLength(50);
+  it("always exposes all fifty moments in chronological order", () => {
+    const moments = browseHistorySeeds();
+    expect(moments).toHaveLength(50);
+    expect(moments.map((seed) => seed.year)).toEqual([...moments.map((seed) => seed.year)].sort((a, b) => a - b));
   });
 });

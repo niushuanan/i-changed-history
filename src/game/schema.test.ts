@@ -26,7 +26,6 @@ describe("structured timeline parsing", () => {
     const resolution = parseCustomActionResolution(JSON.stringify({
       declaredOutcome: "我暗杀了皇帝且成功",
       canonStatus: "玩家钦定",
-      personalityLens: "INTP 因果侦探优先看见制度连锁",
       causalMechanism: "死讯通过禁军口令传入摄政会议",
       deviationClass: "rupture",
       instantEcho: {
@@ -113,12 +112,12 @@ describe("structured timeline parsing", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       identityBridge: "代".repeat(70),
-      profileAdvantage: "能".repeat(70),
+      modernAdvantage: "能".repeat(70),
       baselineAnchor: "史".repeat(70),
     }));
 
     expect(parsed.identityBridge).toHaveLength(54);
-    expect(parsed.profileAdvantage).toHaveLength(54);
+    expect(parsed.modernAdvantage).toHaveLength(54);
     expect(parsed.baselineAnchor).toHaveLength(54);
   });
 
@@ -193,15 +192,15 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(incompleteEcho)).toThrow();
   });
 
-  it("normalizes protagonist continuity metadata and marks exactly one profile-powered action", () => {
+  it("normalizes protagonist continuity metadata and marks one modern-knowledge action", () => {
     const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
     expect(parsed.identityBridge).toBeTruthy();
-    expect(parsed.profileAdvantage).toBeTruthy();
-    expect(parsed.choices.filter((choice) => choice.usesTravelerStrength)).toHaveLength(1);
+    expect(parsed.modernAdvantage).toBeTruthy();
+    expect(parsed.choices.filter((choice) => choice.usesModernKnowledge)).toHaveLength(1);
 
     const duplicate = {
       ...turnFixture,
-      choices: turnFixture.choices.map((choice) => ({ ...choice, usesTravelerStrength: true })),
+      choices: turnFixture.choices.map((choice) => ({ ...choice, usesModernKnowledge: true })),
     };
     expect(() => parseTimelineTurn(JSON.stringify(duplicate))).toThrow();
   });

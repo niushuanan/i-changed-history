@@ -29,7 +29,7 @@ describe("front-page export", () => {
 
     expect(renderToBlob).toHaveBeenCalledWith(node, expect.objectContaining({ pixelRatio: 2 }));
     expect(share).toHaveBeenCalledWith(expect.objectContaining({
-      title: "I！我改变了历史",
+      title: "哎！我改变了历史？",
       text: "我把历史改写到了 2026。",
       files: [expect.any(File)],
     }));

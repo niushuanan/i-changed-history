@@ -2,18 +2,14 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
-import type { TravelerProfile } from "../game/types";
 import { SeedPickerScreen } from "./SeedPickerScreen";
-import { buildTravelerProfile } from "../game/profile";
-
-const profile: TravelerProfile = buildTravelerProfile({ energy: "E", perception: "N", judgment: "T", tactics: "J" });
 
 describe("living history filmstrip", () => {
   afterEach(() => cleanup());
 
   it("synchronizes the fifty-event rail and chronological card strip", async () => {
     const user = userEvent.setup();
-    render(<SeedPickerScreen onSelect={vi.fn()} onChangeProfile={vi.fn()} profile={profile} />);
+    render(<SeedPickerScreen onSelect={vi.fn()} />);
 
     expect(screen.getAllByRole("article")).toHaveLength(50);
     expect(screen.getByText("（滑动可切换不同的历史瞬间）")).toBeVisible();

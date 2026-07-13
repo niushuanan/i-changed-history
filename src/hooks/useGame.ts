@@ -6,7 +6,7 @@ import {
   type GameState,
 } from "../game/reducer";
 import { getDeviationStage } from "../game/deviation";
-import type { HistorySeed, TravelerProfile } from "../game/types";
+import type { HistorySeed } from "../game/types";
 import { createEpicAudioController, type EpicAudioController } from "../services/audio";
 import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 
@@ -42,17 +42,6 @@ function errorDetails(error: unknown): { code: string; message: string } {
     };
   }
   return { code: "request_failed", message: "这一幕推演失败，请重试。" };
-}
-
-function historiesAreIdentical(left: GameState["playedTurns"], right: GameState["playedTurns"]): boolean {
-  if (left.length !== right.length) return false;
-  return left.every((turn, index) => {
-    const other = right[index];
-    return other
-      && turn.selectedChoiceLabel === other.selectedChoiceLabel
-      && turn.playerAuthored === other.playerAuthored
-      && JSON.stringify(turn.resolvedEcho) === JSON.stringify(other.resolvedEcho);
-  });
 }
 
 export function useGame(overrides: Partial<UseGameDependencies> = {}) {
@@ -100,14 +89,8 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
         }
 
         if (request.kind === "next-turn") {
-          const playerPromise = dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, { signal: controller.signal });
-          const [turn, instinctTurn] = historiesAreIdentical(state.playedTurns, state.instinctPlayedTurns)
-            ? await playerPromise.then((generated) => [generated, generated] as const)
-            : await Promise.all([
-                playerPromise,
-                dependencies.generateNextTurn(scenario, state.instinctPlayedTurns, request.targetChapter, { signal: controller.signal }),
-              ]);
-          if (active) dispatch({ type: "TURN_PAIR_RESOLVED", requestId: request.id, turn, instinctTurn });
+          const turn = await dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, { signal: controller.signal });
+          if (active) dispatch({ type: "TURN_RESOLVED", requestId: request.id, turn });
           return;
         }
 
@@ -124,14 +107,8 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
           return;
         }
 
-        const playerEndingPromise = dependencies.generateEnding(scenario, state.playedTurns, { signal: controller.signal });
-        const [ending, instinctEnding] = historiesAreIdentical(state.playedTurns, state.instinctPlayedTurns)
-          ? await playerEndingPromise.then((generated) => [generated, generated] as const)
-          : await Promise.all([
-              playerEndingPromise,
-              dependencies.generateEnding(scenario, state.instinctPlayedTurns, { signal: controller.signal }),
-            ]);
-        if (active) dispatch({ type: "ENDING_PAIR_RESOLVED", requestId: request.id, ending, instinctEnding });
+        const ending = await dependencies.generateEnding(scenario, state.playedTurns, { signal: controller.signal });
+        if (active) dispatch({ type: "ENDING_RESOLVED", requestId: request.id, ending });
       } catch (error) {
         if (!active) return;
         dispatch({ type: "REQUEST_FAILED", requestId: request.id, ...errorDetails(error) });
@@ -164,8 +141,6 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     dispatch({ type: "START_SCENARIO", seed });
   }, [startExperience]);
 
-  const setProfile = useCallback((profile: TravelerProfile) => dispatch({ type: "SET_PROFILE", profile }), []);
-  const changeProfile = useCallback(() => dispatch({ type: "CHANGE_PROFILE" }), []);
 
   const choose = useCallback((choiceId: "A" | "B" | "C") => {
     dispatch({ type: "COMMIT_AI_CHOICE", choiceId });
@@ -192,8 +167,6 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     deviationStage: getDeviationStage(state.deviation),
     muted,
     startExperience,
-    setProfile,
-    changeProfile,
     selectSeed,
     choose,
     submitCustomAction,

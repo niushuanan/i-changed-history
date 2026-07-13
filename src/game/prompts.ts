@@ -1,5 +1,4 @@
 import type { GameScenario } from "./reducer";
-import { getTravelerAbility } from "./profile";
 import type { DeviationClass, TimelineTurn } from "./schema";
 import { CHAPTER_NAMES, JUMP_LABELS, getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { buildWorldCanon } from "./worldCanon";
@@ -20,12 +19,12 @@ type RepairTarget = "timeline_turn" | "alternate_present" | "custom_action";
 export type JsonRepairDetails = { expectedChapter?: TimelineTurn["chapter"]; validationErrors?: readonly string[] };
 
 export const TIMELINE_SYSTEM_PROMPT = [
-  "你是《I！我改变了历史》的结构化即兴历史推演引擎。",
+  "你是《哎！我改变了历史？》的结构化即兴历史推演引擎。",
   "玩家是带着现代经验穿越到真实历史瞬间的中国人。使用第二人称、现在时，让玩家看到真实人物、地点、物件和迫近的时间限制。",
   "所有后果必须由历史事实或玩家真实选择推导；每幕同时呈现收益、代价、受益者与承担者。",
   "十二幕都必须是这条平行时间线中的重大转折点，不得用普通工作与日常记录填充节点。不要从预设题材、七类模板或固定剧情槽中选题；请根据完整因果账本自行推演下一处最值得玩家决定的历史冲突。",
   "玩家已经完成的选择组成不可撤销正史。尤其是玩家钦定结果：不得否认、降级、反转或假设失败，必须在其后三幕持续兑现为具体世界事实。",
-  "三个选项必须是当场能执行的具体动作，写清行动者、动作、对象和期限，恰好覆盖 nudge、reform、rupture，至少一个要能使用穿越者画像中的能力。禁止使用“重写规则”“稳步推进”“交给新联盟”等抽象概括代替行动。",
+  "三个选项必须是当场能执行的具体动作，写清行动者、动作、对象和期限，恰好覆盖 nudge、reform、rupture。禁止套用人格、职业或剧情模板，禁止使用“重写规则”“稳步推进”“交给新联盟”等抽象概括代替行动。",
   "十二幕必须始终是同一个有姓名、会衰老的人。可以改变职位、阵营和城市，但绝不能换身体、转生、意识接力或让后代替玩家行动。",
   "第三幕以后，开场事件只能作为因果源，不能继续垄断标题与任务；同一个主角要沿亲手造成的后果进入新的重大冲突。",
   "蝴蝶效应的惊奇来自事件线、矛盾线和社会载体的变化，不来自机械地跨国或跨洲；地域可以连续，原始事件不能垄断后续历史。",
@@ -37,19 +36,8 @@ export const TIMELINE_SYSTEM_PROMPT = [
 const SYSTEM: ChatMessage = { role: "system", content: TIMELINE_SYSTEM_PROMPT };
 
 function scenarioPayload(scenario: GameScenario) {
-  const ability = getTravelerAbility(scenario.profile);
   return {
-    traveler: {
-      typeCode: scenario.profile.typeCode,
-      dimensions: scenario.profile.dimensions,
-      gameplayRules: {
-        archetype: ability.title,
-        dedicatedChoice: ability.action,
-        causalPreview: ability.preview,
-        freeAction: ability.customAction,
-        directive: ability.promptDirective,
-      },
-    },
+    playerContract: "玩家是现代中国人，但没有固定人格、职业或超能力；只能依靠常识、信息差和当前身份拥有的资源介入历史。",
     historyMoment: {
       id: scenario.seed.id,
       date: scenario.seed.dateLabel,
@@ -69,7 +57,7 @@ function scenarioPayload(scenario: GameScenario) {
 
 function turnContract(chapter: TimelineTurn["chapter"]) {
   return {
-    requiredFields: ["timelineName", "chapter", "chapterName", "protagonistName", "protagonistAge", "lifeStage", "yearLabel", "location", "role", "identityBridge", "profileAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "historicalAnchors", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
+    requiredFields: ["timelineName", "chapter", "chapterName", "protagonistName", "protagonistAge", "lifeStage", "yearLabel", "location", "role", "identityBridge", "modernAdvantage", "rippleLens", "causalBridge", "turningPointStakes", "worldStateChange", "divergenceProof", "immediateObjective", "timePressure", "headline", "narrative", "baselineAnchor", "historicalAnchors", "previousEcho", "choices", "memorySummary", "metrics", "metricDeltas", "causalLedger", "callbackUsed", "visualTone"],
     rules: {
       totalLength: "完整 JSON 可到 1800 个汉字，不得为了短而省略字段；玩家可见的 headline、narrative、choice.label 必须保持短句",
       chapter,
@@ -82,7 +70,7 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       location: "28 个汉字以内",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
       identityBridge: chapter === 1 ? "36 字以内；解释现代意识如何进入主角此后唯一的一生" : "36 字以内；说明同一主角如何从上一职位走到当前职位，禁止接棒或换人",
-      profileAdvantage: "36 字以内；必须具体说明 traveler.gameplayRules.directive 如何帮助主角当前身份，不得泛称现代能力",
+      modernAdvantage: "36 字以内；说明现代常识或信息差在当前身份的具体用处，不得套用人格、职业或超能力",
       rippleLens: "根据本幕真正受影响的社会载体自行选择，不得按固定轮次或模板选择",
       causalBridge: chapter === 1 ? "54 字以内；说明玩家决定如何成为时间线源头" : "54 字以内；明确写出上次结果通过何种媒介传到本幕新冲突",
       turningPointStakes: "54 字以内；说明本幕将不可逆地决定哪种政权、战争、制度、技术或文明秩序，以及主要受影响者",
@@ -92,7 +80,7 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       baselineAnchor: "54 个汉字以内的真实历史锚点",
       historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念",
-      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesTravelerStrength、actionSpec；actionSpec 必须含 actor、action、target、deadline，四项合起来构成历史人物此刻真的能下达或执行的动作；恰好一个 usesTravelerStrength 为 true",
+      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 22 字以内、intent 24 字以内；含 deviationClass、instantEcho、usesModernKnowledge、actionSpec；actionSpec 必须含 actor、action、target、deadline，四项合起来构成历史人物此刻真的能下达或执行的动作；usesModernKnowledge 只表示是否使用现代常识，不得与性格相关",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       previousEcho: chapter === 1 ? "必须为 null" : "完整承接上一选择即时回响",
       metrics: "stability、prosperity、freedom、cost，均为 0-100 数值",
@@ -104,7 +92,7 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
     exactShapeExample: {
       timelineName: "示例线名", chapter, chapterName: CHAPTER_NAMES[chapter], protagonistName: "沈砚", protagonistAge: 24, lifeStage: JUMP_LABELS[chapter - 1], yearLabel: "具体年月日 · 24岁", location: "具体地点",
       role: "具体角色", immediateObjective: "当场目标", timePressure: "倒计时",
-      identityBridge: "同一主角如何走到当前身份", profileAdvantage: "现代画像在当前身份的具体用处",
+      identityBridge: "同一主角如何走到当前身份", modernAdvantage: "现代常识在当前身份的具体用处",
       rippleLens: "power", causalBridge: "上一结果通过具体媒介进入本幕的新社会冲突",
       turningPointStakes: "本幕将决定的重大秩序与受影响者",
       worldStateChange: "上一选择已经造成的具体世界事实",
@@ -112,9 +100,9 @@ function turnContract(chapter: TimelineTurn["chapter"]) {
       headline: "本幕标题", narrative: "第二人称现场叙事", baselineAnchor: "真实历史锚点", historicalAnchors: ["真实人物", "真实机构", "时代器物"],
       previousEcho: chapter === 1 ? null : { directResult: "上次直接结果", unexpectedCost: "上次意外代价", beneficiary: "受益者", payer: "承担者" },
       choices: [
-        { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", usesTravelerStrength: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", usesTravelerStrength: true, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", usesTravelerStrength: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "A", label: "具体行动", intent: "怎样行动", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", label: "具体行动", intent: "怎样行动", deviationClass: "reform", usesModernKnowledge: true, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "C", label: "具体行动", intent: "怎样行动", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
       memorySummary: "本幕摘要", metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
       metricDeltas: { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
@@ -188,7 +176,7 @@ export function buildCustomActionMessages(
   action: string,
 ): ChatMessage[] {
   return messages({
-    task: "玩家正在直接写入一条新的历史结果。playerDeclaredOutcome 是已经发生的既成事实，不是行动申请。你无权判断可行性，不得改变它写明的成功或失败，不得把完成时改成尝试。必须逐字保留结果的成败关系，只推演它如何进入社会、产生什么意外代价、谁受益、谁承担。causalMechanism、unexpectedCost、beneficiary、payer 也不得暗示该结果其实失败、未遂、未发生或反向成功。人格只决定优先看见哪类后果，不能改变玩家钦定的事实。",
+    task: "玩家正在直接写入一条新的历史结果。playerDeclaredOutcome 是已经发生的既成事实，不是行动申请。你无权判断可行性，不得改变它写明的成功或失败，不得把完成时改成尝试。必须逐字保留结果的成败关系，只推演它如何进入社会、产生什么意外代价、谁受益、谁承担。causalMechanism、unexpectedCost、beneficiary、payer 也不得暗示该结果其实失败、未遂、未发生或反向成功。不得加入任何性格或人格解释。",
     ...scenarioPayload(scenario),
     playedHistory: selectedHistory(playedTurns),
     currentScene: {
@@ -198,15 +186,14 @@ export function buildCustomActionMessages(
       role: turn.role,
       immediateObjective: turn.immediateObjective,
       timePressure: turn.timePressure,
-      availableProfileAdvantage: turn.profileAdvantage,
+      availableModernKnowledge: turn.modernAdvantage,
       causalLedger: turn.causalLedger,
     },
     playerDeclaredOutcome: action,
     outputContract: {
-      requiredFields: ["declaredOutcome", "canonStatus", "personalityLens", "causalMechanism", "deviationClass", "instantEcho"],
+      requiredFields: ["declaredOutcome", "canonStatus", "causalMechanism", "deviationClass", "instantEcho"],
       declaredOutcome: "必须与 playerDeclaredOutcome 完全一致，2-80 个汉字，不得改写成败关系",
       canonStatus: "固定为 玩家钦定",
-      personalityLens: "56 个汉字以内，必须点名 traveler.typeCode，只说明该人格优先看见哪类隐藏后果",
       causalMechanism: "56 个汉字以内，说明既成结果通过命令、消息、法律、市场、迁徙或其他具体媒介进入社会",
       deviationClass: "nudge/reform/rupture 之一",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer；directResult 必须逐字复制 playerDeclaredOutcome，可到 80 字，其余每项 24 字以内",
@@ -216,17 +203,19 @@ export function buildCustomActionMessages(
 
 export function buildEndingMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
   return messages({
-    task: "十二次选择已经结束。先写同一主角在第十二项决定完成后的死亡现场，再把他无法亲眼看到的历史延伸到 2026。报告要像小说后续：遗产被继承、误读、争夺并制度化，最后落到普通人的具体生活。authoritativeWorldCanon 是不可撤销正史，玩家钦定结果必须进入身后历史。不得把 2026 写成第十三个玩家节点，不得让主角活到 2026，也不得加入没有因果来源的决定性发明、战争或人物。",
+    task: "十二次选择已经结束。输出同一条玩家正史的两份互补文本。第一份仿《史记》为穿越者立传，白话文和文言文都必须贯穿十二个节点，不是节点摘要拼接。第二份把他死后到 2026 的蝴蝶效应写成一页可读完的小说后续：遗产被继承、误读、争夺并制度化，最后落到普通人的具体生活。authoritativeWorldCanon 是不可撤销正史，玩家钦定结果必须进入两份文本。不得加入任何性格、人格或测试结论，不得把 2026 写成第十三个玩家节点，不得让主角活到 2026。",
     ...scenarioPayload(scenario), authoritativeWorldCanon: { status: "不可撤销正史", ...buildWorldCanon(playedTurns) }, playedHistory: selectedHistory(playedTurns),
     outputContract: {
-      requiredFields: ["worldName", "frontPageHeadline", "protagonistName", "lifespanSummary", "deathScene", "historyTimeline", "posthumousChronicle", "causalChains", "ordinaryLife2026", "closingPassage", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
+      requiredFields: ["worldName", "frontPageHeadline", "vernacularBiography", "classicalBiography", "protagonistName", "lifespanSummary", "deathScene", "historyTimeline", "posthumousChronicle", "causalChains", "ordinaryLife2026", "closingPassage", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
+      vernacularBiography: "720 字以内的完整白话人物列传，必须串起十二次决定、身份变化、所得与代价，并以主角死亡收束",
+      classicalBiography: "520 字以内的文言人物列传，体例接近史传，有名、事、论，必须覆盖其一生关键转折",
       protagonistName: `必须逐字等于 ${playedTurns[0]?.turn.protagonistName ?? "第一幕主角姓名"}`,
       deathScene: "含 yearLabel、age、place、finalMoment、lastingLegacy；年龄和年份承接第十二幕，明确主角自然或因其人生代价而死亡",
       historyTimeline: "恰好十二项，每项含 chapter、yearLabel、playerChoice、consequence；玩家钦定项的 consequence 必须逐字包含对应 playerChoice",
-      posthumousChronicle: "恰好四项，每项含 period、title、narrative、inheritedChange；从主角死后到 2026 逐步拉长时间，展示遗产如何变形",
+      posthumousChronicle: "恰好四项，每项含 period、title、narrative、inheritedChange；每个字段都用短句，从主角死后到 2026 逐步拉长时间，展示遗产如何变形",
       causalChains: "恰好三项，每项含 origin、transformation、payoff",
-      ordinaryLife2026: "恰好三个具体生活细节",
-      closingPassage: "260 字以内的小说式尾声，明确主角没看到 2026，但世界仍活在他的选择之后",
+      ordinaryLife2026: "恰好三个具体生活细节，每项 36 字以内",
+      closingPassage: "180 字以内的小说式尾声，明确主角没看到 2026，但世界仍活在他的选择之后",
       plausibilityScore: "0-100 数值",
     },
   });

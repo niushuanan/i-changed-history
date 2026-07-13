@@ -5,9 +5,6 @@ import { createInitialGameState, type GameState } from "../game/reducer";
 import { parseAlternatePresent, parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { useGame, type UseGameDependencies } from "./useGame";
-import { buildTravelerProfile } from "../game/profile";
-
-const profile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
   generateOpening: vi.fn().mockResolvedValue(turn), generateNextTurn: vi.fn(), adjudicateCustomAction: vi.fn(), generateEnding: vi.fn(),
@@ -15,8 +12,8 @@ const deps = (): UseGameDependencies => ({
   audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
 });
 
-describe("useGame profile orchestration", () => {
-  it("starts the score from the profile calibration gesture", async () => {
+describe("useGame single-life orchestration", () => {
+  it("starts the score from the first product gesture", async () => {
     const dependencies = deps();
     const { result } = renderHook(() => useGame(dependencies));
 
@@ -29,7 +26,6 @@ describe("useGame profile orchestration", () => {
   it("keeps the score running when an active run exits to the picker", async () => {
     const dependencies = deps();
     const { result } = renderHook(() => useGame(dependencies));
-    act(() => result.current.setProfile(profile));
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
 
@@ -39,15 +35,12 @@ describe("useGame profile orchestration", () => {
     expect(dependencies.audio.stop).not.toHaveBeenCalled();
   });
 
-  it("requires a profile and sends the complete traveler scenario to AI", async () => {
+  it("starts directly from a historical moment", async () => {
     const dependencies = deps();
     const { result } = renderHook(() => useGame(dependencies));
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
-    expect(dependencies.generateOpening).not.toHaveBeenCalled();
-    act(() => result.current.setProfile(profile));
-    act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
-    expect(dependencies.generateOpening).toHaveBeenCalledWith({ profile, seed: HISTORY_SEEDS[0] }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(dependencies.generateOpening).toHaveBeenCalledWith(expect.objectContaining({ seed: HISTORY_SEEDS[0] }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it("automatically runs a restored ending request after refresh", async () => {
@@ -55,8 +48,7 @@ describe("useGame profile orchestration", () => {
     const restored: GameState = {
       ...createInitialGameState(9),
       phase: "ending",
-      profile,
-      scenario: { profile, seed: HISTORY_SEEDS[0] },
+      scenario: { seed: HISTORY_SEEDS[0] },
       currentTurn: turn,
       playedTurns: [{
         turn,
@@ -86,7 +78,6 @@ describe("useGame profile orchestration", () => {
     vi.mocked(dependencies.adjudicateCustomAction).mockResolvedValue({
       declaredOutcome: "我暗杀了皇帝且成功",
       canonStatus: "玩家钦定",
-      personalityLens: "INTP 因果侦探优先看见制度连锁",
       causalMechanism: "死讯通过禁军口令传入摄政会议",
       deviationClass: "rupture",
       instantEcho: {
@@ -97,7 +88,6 @@ describe("useGame profile orchestration", () => {
       },
     });
     const { result } = renderHook(() => useGame(dependencies));
-    act(() => result.current.setProfile(profile));
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
 

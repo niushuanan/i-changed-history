@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
-import { buildTravelerProfile } from "./profile";
 import type { PlayedTurn } from "./prompts";
 import { RIPPLE_LENSES, rippleFallbackScene, rippleSceneMatches, selectRippleDirective } from "./rippleRouter";
 
 const scenario = {
-  profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
   seed: HISTORY_SEEDS[0],
 };
 

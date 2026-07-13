@@ -5,25 +5,22 @@ import { GAME_STORAGE_KEY, loadGameSnapshot, saveGameSnapshot } from "./storage"
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
-import { buildTravelerProfile } from "../game/profile";
-
-const profile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v10 resumable dual-history storage", () => {
-  it("persists a traveler profile and ignores old v1 sessions", () => {
+describe("v11 resumable single-history storage", () => {
+  it("persists the historical picker and ignores old v1 sessions", () => {
     const storage = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     expect(saveGameSnapshot(selecting, storage)).toBe(true);
-    expect(loadGameSnapshot(storage)).toMatchObject({ phase: "selecting", profile });
+    expect(loadGameSnapshot(storage)).toMatchObject({ phase: "selecting" });
 
     const old = memoryStorage({ "i-changed-history:session:v1": JSON.stringify({ version: 1, state: {} }) });
     expect(loadGameSnapshot(old)).toBeNull();
   });
 
-  it("returns an incompatible v4 run to selection while preserving the profile", () => {
+  it("returns an incompatible v4 run to a clean selection", () => {
     const current = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     saveGameSnapshot(generating, current);
     const legacyEnvelope = JSON.parse(current.getItem(GAME_STORAGE_KEY)!);
@@ -43,7 +40,6 @@ describe("v10 resumable dual-history storage", () => {
 
     expect(loadGameSnapshot(legacy)).toMatchObject({
       phase: "selecting",
-      profile: { typeCode: "ENFJ", name: "共识建造者" },
       customActionsUsed: 0,
       request: null,
     });
@@ -51,7 +47,7 @@ describe("v10 resumable dual-history storage", () => {
 
   it("returns an incompatible v5 run to selection instead of mixing engines", () => {
     const current = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(generating, {
       type: "OPENING_RESOLVED",
@@ -79,19 +75,18 @@ describe("v10 resumable dual-history storage", () => {
 
     expect(loadGameSnapshot(legacy)).toMatchObject({
       phase: "selecting",
-      profile: { typeCode: "ENFJ", name: "共识建造者" },
       scenario: null,
       currentTurn: null,
       customActionsUsed: 0,
       request: null,
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
   it("automatically resumes an opening request interrupted by a refresh", () => {
     const storage = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     saveGameSnapshot(generating, storage);
     expect(loadGameSnapshot(storage)).toMatchObject({
@@ -99,7 +94,7 @@ describe("v10 resumable dual-history storage", () => {
       request: { kind: "opening", id: generating.request?.id },
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
   });
 
   it("automatically resumes the posthumous report without losing twelve decisions", () => {
@@ -114,12 +109,9 @@ describe("v10 resumable dual-history storage", () => {
     const state = {
       ...createInitialGameState(12),
       phase: "ending" as const,
-      profile,
-      scenario: { profile, seed: HISTORY_SEEDS[0] },
+      scenario: { seed: HISTORY_SEEDS[0] },
       currentTurn: playedTurns[11].turn,
       playedTurns,
-      instinctCurrentTurn: playedTurns[11].turn,
-      instinctPlayedTurns: playedTurns,
       request: { kind: "ending" as const, id: 11 },
     };
 
@@ -141,14 +133,14 @@ describe("v10 resumable dual-history storage", () => {
       resolvedEcho: turnFixture.choices[0].instantEcho,
     }));
     const storage = memoryStorage();
-    const state = { ...createInitialGameState(), phase: "event" as const, profile, scenario: { profile, seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[11].turn, playedTurns, instinctCurrentTurn: playedTurns[11].turn, instinctPlayedTurns: playedTurns };
+    const state = { ...createInitialGameState(), phase: "event" as const, scenario: { seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[11].turn, playedTurns };
     expect(saveGameSnapshot(state as never, storage)).toBe(true);
     expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
   });
 
   it("resumes a custom-action ruling without spending the chance early", () => {
     const storage = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(generating, {
       type: "OPENING_RESOLVED",
@@ -167,7 +159,7 @@ describe("v10 resumable dual-history storage", () => {
 
   it("returns an incompatible v6 run to selection", () => {
     const current = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(generating, {
       type: "OPENING_RESOLVED",
@@ -195,13 +187,13 @@ describe("v10 resumable dual-history storage", () => {
       currentTurn: null,
       playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
   it("round-trips player-authored canon metadata without weakening the declared result", () => {
     const storage = memoryStorage();
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(generating, {
       type: "OPENING_RESOLVED",
@@ -215,7 +207,6 @@ describe("v10 resumable dual-history storage", () => {
       resolution: {
         declaredOutcome: "我成为新皇帝",
         canonStatus: "玩家钦定",
-        personalityLens: "INTP 优先看见制度连锁",
         causalMechanism: "登基诏书进入官署执行",
         deviationClass: "rupture",
         instantEcho: { directResult: "我成为新皇帝", unexpectedCost: "旧贵族反对", beneficiary: "新朝军民", payer: "旧宗室" },
@@ -232,7 +223,7 @@ describe("v10 resumable dual-history storage", () => {
   });
 
   it("returns an incompatible v7 run to selection", () => {
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(generating, {
       type: "OPENING_RESOLVED",
@@ -251,8 +242,8 @@ describe("v10 resumable dual-history storage", () => {
     expect(loadGameSnapshot(legacy)).toMatchObject({ phase: "selecting", currentTurn: null, playedTurns: [] });
   });
 
-  it("returns an incompatible v8 cross-generation run to selection while preserving the profile", () => {
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+  it("returns an incompatible v8 run to selection", () => {
+    const selecting = createInitialGameState();
     const generating = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const current = memoryStorage();
     saveGameSnapshot(generating, current);
@@ -262,12 +253,11 @@ describe("v10 resumable dual-history storage", () => {
 
     expect(loadGameSnapshot(legacy)).toMatchObject({
       phase: "selecting",
-      profile: { typeCode: profile.typeCode },
       scenario: null,
       playedTurns: [],
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":10');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":11');
   });
 });

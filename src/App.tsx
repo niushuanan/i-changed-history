@@ -1,21 +1,18 @@
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
 import { useGame } from "./hooks/useGame";
 import { SeedPickerScreen } from "./screens/SeedPickerScreen";
-import { TravelerProfileScreen } from "./screens/TravelerProfileScreen";
 import { TimelineEventScreen } from "./screens/TimelineEventScreen";
 import { ButterflyEchoScreen } from "./screens/ButterflyEchoScreen";
 import { GeneratingScreen } from "./screens/GeneratingScreen";
 import { ErrorScreen } from "./screens/ErrorScreen";
 import { AlternatePresentScreen } from "./screens/AlternatePresentScreen";
 import { saveFrontPage } from "./services/share";
-import { getTravelerAbility } from "./game/profile";
 import { historyAssetForSeed, visualAssetForTurn } from "./data/visualAssets";
 import "./styles/game.css";
 
 export function App() {
   const game = useGame();
   const { state } = game;
-  const ability = state.profile ? getTravelerAbility(state.profile) : null;
 
   const saveResult = async (result: NonNullable<typeof state.result>) => {
     const target = document.getElementById("result-capture");
@@ -27,24 +24,14 @@ export function App() {
   };
 
   let screen: React.ReactNode;
-  if (state.phase === "profiling") {
-    screen = <TravelerProfileScreen onSubmit={game.setProfile} onStartExperience={game.startExperience} />;
-  } else if (state.phase === "selecting" && state.profile) {
-    screen = (
-      <SeedPickerScreen
-        onSelect={game.selectSeed}
-        onChangeProfile={game.changeProfile}
-        profile={state.profile}
-      />
-    );
+  if (state.phase === "selecting") {
+    screen = <SeedPickerScreen onSelect={game.selectSeed} />;
   } else if (state.phase === "event" && state.currentTurn) {
     screen = (
       <TimelineEventScreen
         turn={state.currentTurn}
         deviation={state.deviation}
         lastChoiceLabel={state.playedTurns.at(-1)?.selectedChoiceLabel}
-        abilityPreviewMode={ability?.previewMode ?? "system"}
-        abilityCustomAction={ability?.customAction ?? "结果立即成为正史，AI 只推演传播与隐藏代价"}
         customActionsRemaining={Math.max(0, 3 - state.customActionsUsed)}
         onChoose={game.choose}
         onCustomAction={game.submitCustomAction}
@@ -61,7 +48,6 @@ export function App() {
         isFinal={state.currentTurn?.chapter === 12}
         onContinue={game.continueTimeline}
         onExit={game.restart}
-        parallelProgress={state.instinctPlayedTurns.length}
         sceneImage={state.currentTurn
           ? state.currentTurn.chapter <= 3 && state.scenario
             ? historyAssetForSeed(state.scenario.seed)
@@ -71,13 +57,11 @@ export function App() {
     );
   } else if (state.phase === "error" && state.error) {
     screen = <ErrorScreen error={state.error} onRetry={game.retry} onRestart={game.restart} />;
-  } else if (state.phase === "result" && state.result && state.instinctResult) {
+  } else if (state.phase === "result" && state.result) {
     screen = (
       <AlternatePresentScreen
-        playerResult={state.result}
-        instinctResult={state.instinctResult}
-        playerDeviation={state.deviation}
-        instinctDeviation={state.instinctDeviation}
+        result={state.result}
+        deviation={state.deviation}
         onSave={saveResult}
         onRestart={game.restart}
       />

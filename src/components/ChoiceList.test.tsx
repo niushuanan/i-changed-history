@@ -5,17 +5,18 @@ import { parseTimelineTurn } from "../game/schema";
 import { turnFixture } from "../test/fixtures";
 import { ChoiceList } from "./ChoiceList";
 
-describe("traveler ability choices", () => {
+describe("historical action choices", () => {
   afterEach(() => cleanup());
 
-  it("hides verbose intent and lets the profile preview one tailored consequence", async () => {
+  it("shows three concrete actions without personality decorations", async () => {
     const user = userEvent.setup();
     const choices = parseTimelineTurn(JSON.stringify(turnFixture)).choices;
-    render(<ChoiceList choices={choices} previewMode="system" onChoose={vi.fn()} />);
+    const onChoose = vi.fn();
+    render(<ChoiceList choices={choices} onChoose={onChoose} />);
 
     expect(screen.queryByText(choices[0].intent)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "预判这项行动的隐藏代价" }));
-    expect(screen.getByText(/结构变化：摄政制度被正式确立|结构变化：/)).toBeVisible();
-    expect(screen.getByText(/制度代价：宫廷派系掌握幼主|制度代价：/)).toBeVisible();
+    expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: new RegExp(choices[0].label) }));
+    expect(onChoose).toHaveBeenCalledWith("A");
   });
 });

@@ -42,7 +42,7 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
     alt: "新的历史现场正在形成",
     title: "历史正在发生",
     focus: "把真实人物、地点与倒计时放回现场",
-    steps: ["确认真实人物与地点", "把你的优势放进现场", "写出下一次关键抉择"],
+    steps: ["确认真实人物与地点", "把既有决定写进现场", "写出下一次关键抉择"],
   };
 }
 

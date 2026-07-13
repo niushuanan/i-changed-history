@@ -5,6 +5,8 @@ dist/
 .env.local
 playwright-report/
 .playwright-mcp/
+.playwright-cli/
+output/
 test-results/
 coverage/
 tmp/

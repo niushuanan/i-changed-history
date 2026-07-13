@@ -3,10 +3,6 @@ import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
 import { createInitialGameState, gameReducer } from "./reducer";
-import type { TravelerProfile } from "./types";
-import { buildTravelerProfile } from "./profile";
-
-const profile: TravelerProfile = buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" });
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const twelfthTurn = parseTimelineTurn(JSON.stringify({
   ...turnFixture,
@@ -17,11 +13,10 @@ const twelfthTurn = parseTimelineTurn(JSON.stringify({
   previousEcho: turnFixture.choices[0].instantEcho,
 }));
 
-describe("profile-first choice-only game reducer", () => {
+describe("single-life choice-only game reducer", () => {
   const customResolution = {
     declaredOutcome: "我暗杀了皇帝且成功",
     canonStatus: "玩家钦定" as const,
-    personalityLens: "INTP 因果侦探优先看见制度连锁",
     causalMechanism: "死讯通过禁军口令传入摄政会议",
     deviationClass: "rupture" as const,
     instantEcho: {
@@ -32,22 +27,16 @@ describe("profile-first choice-only game reducer", () => {
     },
   };
 
-  it("starts in profiling and requires a profile before a historical moment", () => {
+  it("starts directly at the historical filmstrip", () => {
     const initial = createInitialGameState();
-    expect(initial.phase).toBe("profiling");
-
-    const ignored = gameReducer(initial, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    expect(ignored).toBe(initial);
-
-    const selecting = gameReducer(initial, { type: "SET_PROFILE", profile });
-    expect(selecting.phase).toBe("selecting");
-    const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    expect(started.scenario).toEqual({ profile, seed: HISTORY_SEEDS[0] });
+    expect(initial.phase).toBe("selecting");
+    const started = gameReducer(initial, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    expect(started.scenario?.seed).toEqual(HISTORY_SEEDS[0]);
     expect(started.request?.kind).toBe("opening");
   });
 
-  it("records the player choice and the profile-driven instinct choice on separate lines", () => {
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+  it("records only the player's chosen history", () => {
+    const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(started, {
       type: "OPENING_RESOLVED",
@@ -57,30 +46,23 @@ describe("profile-first choice-only game reducer", () => {
     const chosen = gameReducer(event, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
     expect(chosen.playedTurns).toHaveLength(1);
     expect(chosen.playedTurns[0].selectedChoiceId).toBe("A");
-    expect(chosen.instinctPlayedTurns).toHaveLength(1);
-    expect(chosen.instinctPlayedTurns[0].selectedChoiceId).toBe("B");
-    expect(chosen.instinctPlayedTurns[0].selectedChoiceLabel).not.toBe(chosen.playedTurns[0].selectedChoiceLabel);
+    expect(chosen).not.toHaveProperty("instinctPlayedTurns");
     expect(chosen.playedTurns[0]).not.toHaveProperty("customIntervention");
   });
 
-  it("restarts with the same profile and can explicitly change traveler", () => {
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+  it("restarts at the complete historical filmstrip", () => {
+    const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const restarted = gameReducer(started, { type: "RESTART" });
     expect(restarted.phase).toBe("selecting");
-    expect(restarted.profile).toEqual(profile);
-
-    const changed = gameReducer(restarted, { type: "CHANGE_PROFILE" });
-    expect(changed.phase).toBe("profiling");
-    expect(changed.profile).toBeNull();
+    expect(restarted.scenario).toBeNull();
   });
 
   it("requests the posthumous 2026 report only after the twelfth player decision", () => {
     const state = {
       ...createInitialGameState(),
       phase: "event" as const,
-      profile,
-      scenario: { profile, seed: HISTORY_SEEDS[0] },
+      scenario: { seed: HISTORY_SEEDS[0] },
       currentTurn: twelfthTurn,
       playedTurns: Array.from({ length: 11 }, () => ({
         turn,
@@ -97,7 +79,7 @@ describe("profile-first choice-only game reducer", () => {
   });
 
   it("writes one of three player-declared outcomes into canonical history", () => {
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(started, { type: "OPENING_RESOLVED", requestId: started.request!.id, turn });
     const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "我暗杀了皇帝且成功" });
@@ -141,8 +123,7 @@ describe("profile-first choice-only game reducer", () => {
     const state = {
       ...createInitialGameState(),
       phase: "event" as const,
-      profile,
-      scenario: { profile, seed: HISTORY_SEEDS[0] },
+      scenario: { seed: HISTORY_SEEDS[0] },
       currentTurn: turn,
       customActionsUsed: 3,
     };
@@ -150,7 +131,7 @@ describe("profile-first choice-only game reducer", () => {
   });
 
   it("does not spend a custom rewrite when adjudication fails and retries", () => {
-    const selecting = gameReducer(createInitialGameState(), { type: "SET_PROFILE", profile });
+    const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
     const event = gameReducer(started, { type: "OPENING_RESOLVED", requestId: started.request!.id, turn });
     const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令" });

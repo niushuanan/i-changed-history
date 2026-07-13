@@ -44,7 +44,6 @@ const actionSpecSchema = z.object({
 export const customActionResolutionSchema = z.object({
   declaredOutcome: z.string().trim().min(2).max(80),
   canonStatus: z.literal("玩家钦定"),
-  personalityLens: boundedString(56),
   causalMechanism: boundedString(56),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
@@ -55,7 +54,7 @@ const choiceFields = {
   intent: boundedString(40),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
-  usesTravelerStrength: z.boolean(),
+  usesModernKnowledge: z.boolean(),
   actionSpec: actionSpecSchema,
 } as const;
 
@@ -101,7 +100,7 @@ const strictTimelineTurnSchema = z
     location: boundedString(28),
     role: boundedString(24),
     identityBridge: boundedString(54),
-    profileAdvantage: boundedString(54),
+    modernAdvantage: boundedString(54),
     rippleLens: rippleLensSchema,
     causalBridge: boundedString(54),
     turningPointStakes: boundedString(54),
@@ -157,11 +156,11 @@ const strictTimelineTurnSchema = z
       });
     }
 
-    if (turn.choices.filter((choice) => choice.usesTravelerStrength).length !== 1) {
+    if (turn.choices.filter((choice) => choice.usesModernKnowledge).length !== 1) {
       context.addIssue({
         code: "custom",
         path: ["choices"],
-        message: "三个选择中必须恰好一个使用穿越者优势",
+        message: "三个选择中必须恰好一个使用现代知识",
       });
     }
 
@@ -249,7 +248,7 @@ function normalizeChoice(value: unknown, index: number): unknown {
     label,
     intent: intentWasClass ? label : intent,
     deviationClass: choice.deviationClass ?? (intentWasClass ? choice.intent : undefined),
-    usesTravelerStrength: choice.usesTravelerStrength ?? index === 1,
+    usesModernKnowledge: choice.usesModernKnowledge ?? index === 1,
     actionSpec: choice.actionSpec ?? {
       actor: "你与当前同伴",
       action: trimBounded(label, 28),
@@ -282,7 +281,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
         ? "你的现代意识在这一刻进入这个人的一生"
         : "你仍是同一个人，只是身份与责任已经改变"
     ), 54),
-    profileAdvantage: trimBounded(turn.profileAdvantage ?? "现代知识与决策习惯仍可影响本代行动", 54),
+    modernAdvantage: trimBounded(turn.modernAdvantage ?? "现代知识与决策习惯仍可影响本代行动", 54),
     narrative: trimNarrative(turn.narrative),
     causalBridge: trimBounded(turn.causalBridge, 54),
     turningPointStakes: trimBounded(turn.turningPointStakes, 54),
@@ -329,6 +328,8 @@ export const alternatePresentSchema = z
   .object({
     worldName: requiredString,
     frontPageHeadline: requiredString,
+    vernacularBiography: requiredString.max(720),
+    classicalBiography: requiredString.max(520),
     protagonistName: boundedString(16),
     lifespanSummary: requiredString.max(180),
     deathScene: z.object({
@@ -340,14 +341,14 @@ export const alternatePresentSchema = z
     }),
     historyTimeline: z.array(historyTimelineItemSchema).length(12),
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
-    ordinaryLife2026: z.tuple([requiredString, requiredString, requiredString]),
+    ordinaryLife2026: z.tuple([boundedString(36), boundedString(36), boundedString(36)]),
     posthumousChronicle: z.tuple([
-      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
-      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
-      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
-      z.object({ period: requiredString, title: requiredString, narrative: requiredString, inheritedChange: requiredString }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
     ]),
-    closingPassage: requiredString.max(260),
+    closingPassage: requiredString.max(180),
     greatestGain: requiredString,
     hiddenPrice: requiredString,
     strangestDetail: requiredString,

@@ -5,7 +5,7 @@ import { buildCanonicalCustomResolution } from "./customCanon";
 // A direct rewrite is player-owned canon. This local receipt never invents a scene;
 // it only preserves the player's exact completed result if the model response drifts.
 export function createFallbackCustomActionResolution(
-  scenario: GameScenario,
+  _scenario: GameScenario,
   turn: TimelineTurn,
   action: string,
 ): CustomActionResolution {
@@ -16,6 +16,6 @@ export function createFallbackCustomActionResolution(
       ? "reform"
       : "nudge";
   return customActionResolutionSchema.parse(
-    buildCanonicalCustomResolution(scenario.profile, turn, declaredOutcome, deviationClass),
+    buildCanonicalCustomResolution(turn, declaredOutcome, deviationClass),
   );
 }

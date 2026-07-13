@@ -4,14 +4,11 @@ import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
-import type { TravelerAbility } from "../game/profile";
 
 export function TimelineEventScreen({
   turn,
   deviation,
   lastChoiceLabel,
-  abilityPreviewMode,
-  abilityCustomAction,
   customActionsRemaining,
   onChoose,
   onCustomAction,
@@ -21,8 +18,6 @@ export function TimelineEventScreen({
   turn: TimelineTurn;
   deviation: number;
   lastChoiceLabel?: string;
-  abilityPreviewMode: TravelerAbility["previewMode"];
-  abilityCustomAction: string;
   customActionsRemaining: number;
   onChoose: (id: "A" | "B" | "C") => void;
   onCustomAction: (action: string) => void;
@@ -85,7 +80,7 @@ export function TimelineEventScreen({
 
       <section className="decision-zone">
         <h2><span>你要怎么做？</span></h2>
-        <ChoiceList choices={turn.choices} previewMode={abilityPreviewMode} onChoose={onChoose} />
+        <ChoiceList choices={turn.choices} onChoose={onChoose} />
         <button
           className="custom-action-command"
           type="button"
@@ -106,7 +101,7 @@ export function TimelineEventScreen({
               <div><span>玩家拥有最终解释权</span><h2>直接改写结果</h2></div>
               <button type="button" aria-label="关闭结果改写" onClick={() => setCustomOpen(false)}><X size={20} /></button>
             </header>
-            <p>你写下的结果将直接成为这条时间线的既成事实。AI 不判断成败，只推演它的后果。{abilityCustomAction}</p>
+            <p>你写下的结果将直接成为这条时间线的既成事实。AI 不判断成败，只推演它的传播、受益者与隐藏代价。</p>
             <textarea
               autoFocus
               aria-label="你要写入的历史结果"

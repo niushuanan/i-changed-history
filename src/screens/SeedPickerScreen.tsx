@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { IdentificationCard } from "@phosphor-icons/react";
-import type { HistorySeed, TravelerProfile } from "../game/types";
+import type { HistorySeed } from "../game/types";
 import { HistoryCard } from "../components/HistoryCard";
 import { browseHistorySeeds } from "../data/historySeeds";
 
@@ -16,12 +15,8 @@ function moveScroller(element: HTMLElement, left: number) {
 
 export function SeedPickerScreen({
   onSelect,
-  onChangeProfile,
-  profile,
 }: {
   onSelect: (seed: HistorySeed) => void;
-  onChangeProfile: () => void;
-  profile: TravelerProfile;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const cards = useMemo(() => browseHistorySeeds(), []);
@@ -60,13 +55,9 @@ export function SeedPickerScreen({
     <main className="seed-picker">
       <header className="seed-picker__brand">
         <div>
-          <span>I！我改变了历史</span>
+          <h1>哎！我改变了历史？</h1>
           <strong>选择你要闯入的瞬间</strong>
         </div>
-        <button type="button" onClick={onChangeProfile} aria-label="重设时间人格" title="重设时间人格">
-          <IdentificationCard size={19} weight="bold" />
-          <span>另一种你 · 已就绪</span>
-        </button>
       </header>
 
       <section className="history-time" aria-label="历史时间轴">

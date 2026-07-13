@@ -26,7 +26,7 @@ export const turnFixture = {
       label: "立刻放出第一批火船",
       intent: "抢在曹军巡哨靠近前点火",
       deviationClass: "nudge",
-      usesTravelerStrength: false,
+      usesModernKnowledge: false,
       actionSpec: { actor: "你与黄盖", action: "点燃前列十艘蒙冲", target: "曹军连环船左翼", deadline: "巡哨抵近前半刻" },
       instantEcho: {
         directResult: "曹军左翼提前起火",
@@ -40,7 +40,7 @@ export const turnFixture = {
       label: "用旗语诱使巡哨让航",
       intent: "伪造曹军旗号为火船开路",
       deviationClass: "reform",
-      usesTravelerStrength: true,
+      usesModernKnowledge: true,
       actionSpec: { actor: "你与旗手", action: "伪造曹军粮船旗语", target: "江面巡哨舰", deadline: "两轮旗号之内" },
       instantEcho: {
         directResult: "曹军巡哨让出水道",
@@ -54,7 +54,7 @@ export const turnFixture = {
       label: "扣住黄盖改袭乌林粮仓",
       intent: "放弃连环船，先烧曹军军粮",
       deviationClass: "rupture",
-      usesTravelerStrength: false,
+      usesModernKnowledge: false,
       actionSpec: { actor: "你与火船队", action: "转舵突袭并焚烧", target: "乌林岸上曹军粮仓", deadline: "东南风转向之前" },
       instantEcho: {
         directResult: "乌林粮仓先于水寨燃烧",
@@ -77,6 +77,8 @@ export const turnFixture = {
 export const endingFixture = {
   worldName: "公议纪元",
   frontPageHeadline: "跨洲公议院通过第两千份城市自治章程",
+  vernacularBiography: "沈砚，江夏人。赤壁之夜，他从一名军需官起步，十二次在帝国裂缝中作出决定。他见过胜利，也亲手承担制度落地的代价，最终没有称王，却让公开质询成为后世共同的规则。",
+  classicalBiography: "沈砚者，江夏人也。初掌赤壁军需，临难断事。凡十二决，或救一城，或更一制，功过相随。终不王而法传后世。太史公曰：人之一念，亦可移天下之势。",
   protagonistName: "沈砚",
   lifespanSummary: "沈砚从赤壁军需官走到公议制度的奠基者，一生十二次把个人选择写进公共秩序。",
   deathScene: {

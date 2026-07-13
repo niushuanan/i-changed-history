@@ -5,10 +5,9 @@ import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "../game/timelinePlan";
-import { buildTravelerProfile } from "../game/profile";
 
 const messages = [{ role: "system" as const, content: "system" }, { role: "user" as const, content: "user" }];
-const scenario = { profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }), seed: HISTORY_SEEDS[0] };
+const scenario = { seed: HISTORY_SEEDS[0] };
 const firstTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 const playedTurn = { turn: firstTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: firstTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: firstTurn.choices[0].instantEcho };
 const endingPlayedTurns = endingFixture.historyTimeline.map((item, index) => ({
@@ -142,7 +141,6 @@ describe("DeepSeek transport and structured generation", () => {
     const ruling = {
       declaredOutcome: "我暗杀了皇帝且成功",
       canonStatus: "玩家钦定",
-      personalityLens: "INTP 因果侦探优先看见制度连锁",
       causalMechanism: "死讯通过禁军口令传入摄政会议",
       deviationClass: "rupture",
       instantEcho: turnFixture.choices[1].instantEcho,
@@ -151,7 +149,7 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
     const result = await adjudicateCustomAction(scenario, [], firstTurn, "我暗杀了皇帝且成功");
     expect(result).toMatchObject({ declaredOutcome: "我暗杀了皇帝且成功", canonStatus: "玩家钦定", deviationClass: "rupture", instantEcho: { directResult: "我暗杀了皇帝且成功" } });
-    expect(result.personalityLens).toContain("INTP");
+    expect(JSON.stringify(result)).not.toMatch(/人格|INTP|ENFP/);
     expect(result.causalMechanism).toContain("宫门口令");
   });
 
@@ -159,7 +157,6 @@ describe("DeepSeek transport and structured generation", () => {
     const genericRuling = {
       declaredOutcome: "我试图暗杀皇帝但失败",
       canonStatus: "玩家钦定",
-      personalityLens: "使用现代经验判断现场风险",
       causalMechanism: "消息没有传出宫门",
       deviationClass: "nudge",
       instantEcho: turnFixture.choices[1].instantEcho,
@@ -171,7 +168,7 @@ describe("DeepSeek transport and structured generation", () => {
 
     expect(result.declaredOutcome).toBe("我暗杀了皇帝且成功");
     expect(result.canonStatus).toBe("玩家钦定");
-    expect(result.personalityLens).toContain("INTP");
+    expect(JSON.stringify(result)).not.toMatch(/人格|INTP|ENFP/);
     expect(JSON.stringify(result)).not.toContain("失败");
     expect(fetcher.mock.calls.length).toBeGreaterThan(1);
   });
@@ -180,7 +177,6 @@ describe("DeepSeek transport and structured generation", () => {
     const contradictory = {
       declaredOutcome: "我暗杀了皇帝且成功",
       canonStatus: "玩家钦定",
-      personalityLens: "INTP 因果侦探优先看见制度连锁",
       causalMechanism: "死讯通过禁军口令传入摄政会议",
       deviationClass: "rupture",
       instantEcho: {

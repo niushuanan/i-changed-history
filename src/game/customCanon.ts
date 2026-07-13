@@ -1,5 +1,3 @@
-import { getTravelerAbility } from "./profile";
-import type { TravelerProfile } from "./types";
 import type { CustomActionResolution, TimelineTurn } from "./schema";
 
 function causalMechanism(outcome: string, turn: TimelineTurn): string {
@@ -32,18 +30,15 @@ const CONSEQUENCES: Record<CustomActionResolution["deviationClass"], Pick<Custom
 };
 
 export function buildCanonicalCustomResolution(
-  profile: TravelerProfile,
   turn: TimelineTurn,
   outcome: string,
   deviationClass: CustomActionResolution["deviationClass"],
 ): CustomActionResolution {
   const declaredOutcome = [...outcome.trim()].slice(0, 80).join("");
-  const ability = getTravelerAbility(profile);
   const consequence = CONSEQUENCES[deviationClass];
   return {
     declaredOutcome,
     canonStatus: "玩家钦定",
-    personalityLens: `${profile.typeCode}「${ability.title}」优先看见${ability.preview.replace("预判时优先看见", "")}`,
     causalMechanism: causalMechanism(declaredOutcome, turn),
     deviationClass,
     instantEcho: { directResult: declaredOutcome, ...consequence },

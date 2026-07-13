@@ -175,19 +175,19 @@ export async function adjudicateCustomAction(
   options: GenerationOptions = {},
 ): Promise<CustomActionResolution> {
   const messages = buildCustomActionMessages(scenario, playedTurns, turn, action);
-  const parseForPersonality = (raw: string) => {
+  const parseCanonicalResult = (raw: string) => {
     const resolution = parseCustomActionResolution(raw);
     if (resolution.declaredOutcome !== action.trim()) {
       throw new Error("declaredOutcome 必须逐字保留玩家钦定结果");
     }
-    return buildCanonicalCustomResolution(scenario.profile, turn, action, resolution.deviationClass);
+    return buildCanonicalCustomResolution(turn, action, resolution.deviationClass);
   };
   try {
     return await requestValidated(
       messages,
       { phase: "turn", signal: options.signal },
       "custom_action",
-      parseForPersonality,
+      parseCanonicalResult,
     );
   } catch (error) {
     if (error instanceof StructuredGenerationError) {

@@ -2,26 +2,23 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
-import { buildTravelerProfile } from "./profile";
 import { buildContinuationMessages, buildCustomActionMessages, buildEndingMessages, buildOpeningMessages } from "./prompts";
 import type { GameScenario } from "./reducer";
 
 const scenario: GameScenario = {
-  profile: buildTravelerProfile({ energy: "I", perception: "N", judgment: "T", tactics: "P" }),
   seed: HISTORY_SEEDS.find((seed) => seed.id === "sarajevo-1914")!,
 };
 
 describe("modern traveler AI prompt contract", () => {
-  it("grounds the opening in a concrete role, objective, clock and modern strengths", () => {
+  it("grounds the opening without a personality profile", () => {
     const body = buildOpeningMessages(scenario).at(-1)!.content;
     expect(body).toContain("萨拉热窝刺杀");
     expect(body).toContain("塞尔维亚总理大臣帕希奇的特别联络员");
     expect(body).toContain("距离车队再次经过拉丁桥约 8 分钟");
-    expect(body).toContain('"dimensions"');
-    expect(body).toContain("INTP");
-    expect(body).toContain("因果侦探");
-    expect(body).toContain("三次直接改写");
-    expect(body).toContain("结果立即成为正史");
+    expect(body).not.toContain('"dimensions"');
+    expect(body).not.toContain("INTP");
+    expect(body).not.toContain("因果侦探");
+    expect(body).toContain("没有固定人格");
     expect(body).toContain("role");
     expect(body).toContain("immediateObjective");
     expect(body).toContain("timePressure");
@@ -51,8 +48,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("不要从预设类别、通用模板或固定章节槽中选题");
     expect(continuation).toContain("一阶、二阶和三阶后果");
     expect(continuation).toContain("identityBridge");
-    expect(continuation).toContain("profileAdvantage");
-    expect(continuation).toContain("usesTravelerStrength");
+    expect(continuation).toContain("modernAdvantage");
+    expect(continuation).toContain("usesModernKnowledge");
     expect(continuation).toContain("完整 JSON 可到 1800 个汉字");
     expect(continuation).not.toContain("authoritativePivotalBrief");
     expect(continuation).toContain("historicalAnchors");

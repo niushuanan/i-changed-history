@@ -10,14 +10,12 @@ export function ButterflyEchoScreen({
   onContinue,
   onExit,
   sceneImage,
-  parallelProgress,
 }: {
   echo: EchoState;
   isFinal: boolean;
   onContinue: () => void;
   onExit: () => void;
   sceneImage?: string;
-  parallelProgress?: number;
 }) {
   const [ready, setReady] = useState(ECHO_DELAY_MS === 0);
 
@@ -35,16 +33,15 @@ export function ButterflyEchoScreen({
         <span>因果回响 · {echo.source === "custom_action" ? "玩家写入正史 · " : ""}偏离 +{echo.stepImpact}</span>
         <h1>世界已回应</h1>
         <p className="echo-screen__choice">你选择：{echo.choiceLabel}</p>
-        {echo.canonStatus && <p className="echo-screen__ruling">{echo.canonStatus} · {echo.personalityLens} · {echo.causalMechanism}</p>}
+        {echo.canonStatus && <p className="echo-screen__ruling">{echo.canonStatus} · {echo.causalMechanism}</p>}
         <strong>{echo.directResult}</strong>
         <p className="echo-screen__cost">但 {echo.unexpectedCost}</p>
-        {parallelProgress !== undefined && <p className="echo-screen__parallel">另一条时间线已同步推进至 {parallelProgress}/12</p>}
         <dl className="echo-people">
           <div><dt>获益</dt><dd>{echo.beneficiary}</dd></div>
           <div><dt>付出</dt><dd>{echo.payer}</dd></div>
         </dl>
         <button className="echo-continue" type="button" disabled={!ready} onClick={onContinue}>
-          {isFinal ? "查看平行世界" : "继续推演"}<ArrowRight size={20} weight="bold" />
+          {isFinal ? "打开身后历史" : "继续推演"}<ArrowRight size={20} weight="bold" />
         </button>
       </section>
     </main>
