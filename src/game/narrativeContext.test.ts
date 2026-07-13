@@ -19,7 +19,7 @@ function played(chapter: DecisionChapter, custom = false): PlayedTurn {
     previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
     causalLedger: [{ fact: `第${chapter}幕仍生效的事实`, causedByChapter: chapter, mustAffect: `第${chapter + 1}幕` }],
   }));
-  const selectedChoiceLabel = custom && chapter === 2 ? "我成为新皇帝，且登基诏已颁布" : `第${chapter}幕决定`;
+  const selectedChoiceLabel = custom ? `第${chapter}幕玩家钦定结果已经发生` : `第${chapter}幕决定`;
   return {
     turn,
     selectedChoiceId: custom ? "custom" : "A",
@@ -57,11 +57,24 @@ describe("compact narrative context", () => {
 
     expect(context.playerCanon).toEqual([{
       chapter: 2,
-      sourceText: "我成为新皇帝，且登基诏已颁布",
+      sourceText: "第2幕玩家钦定结果已经发生",
       propagationMechanism: "登基诏通过驿站与官署进入全国",
     }]);
     expect(context.latestDecision?.decision).toBe("第4幕决定");
     expect(context.persistentLedger).toEqual(turns[3].turn.causalLedger);
     expect(context.recentScenes).toHaveLength(3);
+  });
+
+  it("injects only the previous three player rewrites as active current mandates", () => {
+    const turns = [1, 2, 3, 4, 5].map((chapter) => played(chapter as DecisionChapter, true));
+    const context = buildNarrativeContext(turns, 6);
+
+    expect(context.playerCanon).toHaveLength(5);
+    expect(context.activePlayerCanon.map((item) => item.chapter)).toEqual([3, 4, 5]);
+    expect(context.activePlayerCanon.map((item) => item.sourceText)).toEqual([
+      "第3幕玩家钦定结果已经发生",
+      "第4幕玩家钦定结果已经发生",
+      "第5幕玩家钦定结果已经发生",
+    ]);
   });
 });

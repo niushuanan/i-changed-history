@@ -3,11 +3,39 @@ import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
 import { buildBiographyMessages, buildContinuationMessages, buildCustomActionMessages, buildWorldReportMessages } from "./prompts";
+import type { PlayedTurn } from "./prompts";
 import type { GameScenario } from "./reducer";
+import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
 
 const scenario: GameScenario = {
   seed: HISTORY_SEEDS.find((seed) => seed.id === "sarajevo-1914")!,
 };
+
+function customHistory(count: number): PlayedTurn[] {
+  return Array.from({ length: count }, (_, index) => {
+    const chapter = (index + 1) as DecisionChapter;
+    const node = getTimelineNode(chapter, scenario.seed.year);
+    const chapterTurn = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      chapter,
+      chapterName: CHAPTER_NAMES[chapter],
+      protagonistAge: node.protagonistAge,
+      lifeStage: node.lifeStage,
+      previousEcho: chapter === 1 ? null : turnFixture.choices[0].instantEcho,
+    }));
+    const result = `第${chapter}幕玩家改写已经成为正史`;
+    return {
+      turn: chapterTurn,
+      selectedChoiceId: "custom" as const,
+      selectedChoiceLabel: result,
+      selectedDeviationClass: "rupture" as const,
+      resolvedEcho: { ...chapterTurn.choices[2].instantEcho, directResult: result },
+      playerAuthored: true,
+      canonStatus: "玩家钦定" as const,
+      causalMechanism: `第${chapter}幕命令经驿站进入官署`,
+    };
+  });
+}
 
 describe("modern traveler AI prompt contract", () => {
   it("grounds the continuation in the selected fixed opening without a personality profile", () => {
@@ -135,6 +163,17 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("不得否认、降级、反转");
   });
 
+  it("keeps all rewrites immutable but injects only three active mandates into the current turn", () => {
+    const continuation = buildContinuationMessages(scenario, customHistory(5), 6);
+    const payload = JSON.parse(continuation.at(-1)!.content);
+
+    expect(payload.narrativeContext.playerCanon).toHaveLength(5);
+    expect(payload.narrativeContext.activePlayerCanon.map((item: { chapter: number }) => item.chapter))
+      .toEqual([3, 4, 5]);
+    expect(payload.task).toContain("activePlayerCanon");
+    expect(payload.task).not.toContain("对 narrativeContext.playerCanon 的每项玩家正史：causalLedger");
+  });
+
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
@@ -152,7 +191,7 @@ describe("modern traveler AI prompt contract", () => {
     const protocol = buildContinuationMessages(scenario, played, 2)[1].content;
     expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
     expect(protocol).toContain("96-160 个汉字");
-    expect(protocol).toContain("恰好三句");
+    expect(protocol).toContain("二至四句");
     expect(protocol).toContain("上一项决定如何造成当前局面");
     expect(protocol).toContain("真实人物、机构或阵营");
     expect(protocol).toContain("失败会立即失去什么");

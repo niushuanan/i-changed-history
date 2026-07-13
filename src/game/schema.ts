@@ -101,8 +101,11 @@ const richNarrativeSchema = requiredString
   .refine((narrative) => [...narrative].length >= 96, {
     message: "现场前情至少需要 96 字",
   })
-  .refine((narrative) => (narrative.match(/[。！？!?]/g)?.length ?? 0) === 3, {
-    message: "现场前情必须用恰好三句完整叙事交代来路、各方与风险",
+  .refine((narrative) => {
+    const sentenceCount = narrative.match(/[。！？!?]/g)?.length ?? 0;
+    return sentenceCount >= 2 && sentenceCount <= 4;
+  }, {
+    message: "现场前情必须用二至四句完整叙事交代来路、各方与风险",
   });
 
 const timelineTurnFields = {
@@ -132,7 +135,7 @@ const timelineTurnFields = {
     memorySummary: requiredString,
     metrics: metricsSchema,
     metricDeltas: metricDeltasSchema,
-    causalLedger: z.array(causalLedgerEntrySchema),
+    causalLedger: z.array(causalLedgerEntrySchema).max(3),
     callbackUsed: requiredString.nullable(),
     visualTone: visualToneSchema,
     generationSource: generationSourceSchema,
@@ -383,7 +386,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     memorySummary: joinStringArray(turn.memorySummary),
     metrics: turn.metrics ?? { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
     metricDeltas: turn.metricDeltas ?? { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
-    causalLedger: turn.causalLedger ?? [],
+    causalLedger: Array.isArray(turn.causalLedger) ? turn.causalLedger.slice(0, 3) : turn.causalLedger ?? [],
     callbackUsed:
       turn.callbackUsed === false
         ? null
@@ -487,6 +490,7 @@ export type TimelineTurnParseOptions = {
   expectedProtagonistAge?: number;
   expectedLifeStage?: LifeStage;
   expectedGenerationSource?: TimelineTurn["generationSource"];
+  expectedCausalLedger?: TimelineTurn["causalLedger"];
 };
 export type ExpectedHistoryTimelineItem = {
   yearLabel: string;
@@ -552,6 +556,20 @@ function parseJsonObject(raw: string): unknown {
   return JSON.parse(extractFirstJsonObject(raw));
 }
 
+function mergeAuthoritativeLedger(
+  modelLedger: unknown,
+  authoritativeLedger: TimelineTurn["causalLedger"],
+): unknown[] {
+  const authoritativeChapters = new Set(authoritativeLedger.map((entry) => entry.causedByChapter));
+  const modelEntries = Array.isArray(modelLedger)
+    ? modelLedger.filter((entry) => {
+        const record = asRecord(entry);
+        return record && !authoritativeChapters.has(Number(record.causedByChapter));
+      })
+    : [];
+  return [...authoritativeLedger, ...modelEntries].slice(0, 3);
+}
+
 export function parseTimelineTurn(
   raw: string,
   options: TimelineTurnParseOptions = {},
@@ -568,6 +586,9 @@ export function parseTimelineTurn(
     ...(options.expectedProtagonistName ? { protagonistName: options.expectedProtagonistName } : {}),
     ...(options.expectedProtagonistAge !== undefined ? { protagonistAge: options.expectedProtagonistAge } : {}),
     ...(options.expectedLifeStage ? { lifeStage: options.expectedLifeStage } : {}),
+    ...(options.expectedCausalLedger ? {
+      causalLedger: mergeAuthoritativeLedger(candidate.causalLedger, options.expectedCausalLedger),
+    } : {}),
   } : parsed);
   const expectedYear = Number(options.expectedYearLabel?.match(/\d+/)?.[0]);
   if (Number.isFinite(expectedYear) && expectedYear < 1900) {

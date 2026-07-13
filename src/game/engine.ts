@@ -27,8 +27,9 @@ import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution } from "./fallbackTurn";
 import { buildCanonicalCustomResolution } from "./customCanon";
 import {
-  endingConsequencePreservesCanon,
+  consequenceContradictsCanon,
 } from "./worldCanon";
+import { buildNarrativeContext, type NarrativeContext } from "./narrativeContext";
 
 type RepairTarget = "timeline_turn" | "biography_report" | "world_report" | "custom_action";
 type Parser<T> = (raw: string) => T;
@@ -36,9 +37,25 @@ type Parser<T> = (raw: string) => T;
 export type GenerationOptions = {
   signal?: AbortSignal;
   onProgress?: (stage: DeepSeekProgressStage) => void;
+  onDiagnostic?: (diagnostic: GenerationDiagnostic) => void;
 };
 
 export type NextTurnGenerationOptions = GenerationOptions;
+
+export type GenerationDiagnostic = Readonly<{
+  target: RepairTarget;
+  stage:
+    | "primary_invalid"
+    | "repair_invalid"
+    | "recovery_started"
+    | "recovery_succeeded"
+    | "recovery_invalid"
+    | "custom_fallback";
+  errors: readonly string[];
+  repairFields?: readonly string[];
+}>;
+
+type EngineCompletionOptions = CompletionOptions & Pick<GenerationOptions, "onDiagnostic">;
 
 export class StructuredGenerationError extends Error {
   readonly name = "StructuredGenerationError";
@@ -114,11 +131,18 @@ function mergeAiFieldPatch(originalRaw: string, patchRaw: string, fields: readon
 
 async function requestValidated<T>(
   messages: ChatMessage[],
-  requestOptions: CompletionOptions,
+  requestOptions: EngineCompletionOptions,
   target: RepairTarget,
   parse: Parser<T>,
   repairDetails: JsonRepairDetails = {},
 ): Promise<T> {
+  const diagnose = (diagnostic: Omit<GenerationDiagnostic, "target">) => {
+    try {
+      requestOptions.onDiagnostic?.({ target, ...diagnostic });
+    } catch {
+      // Diagnostics must never interrupt generation.
+    }
+  };
   const complete = async (requestMessages: ChatMessage[], relayProgress = true) => {
     try {
       return await requestCompletion(requestMessages, {
@@ -139,6 +163,11 @@ async function requestValidated<T>(
   } catch (validationError) {
     const repairFields = repairableRootFields(validationError);
     const patchOnly = repairFields !== null;
+    diagnose({
+      stage: "primary_invalid",
+      errors: summarizeValidationError(validationError),
+      ...(patchOnly ? { repairFields } : {}),
+    });
     requestOptions.onProgress?.({ stage: "repairing" });
     const repairedRaw = await complete(
       buildContextualJsonRepairMessages(messages, raw, target, {
@@ -148,18 +177,40 @@ async function requestValidated<T>(
       }),
       false,
     );
+    let repairedCandidate = repairedRaw;
     try {
-      return parse(patchOnly ? mergeAiFieldPatch(raw, repairedRaw, repairFields) : repairedRaw);
+      repairedCandidate = patchOnly ? mergeAiFieldPatch(raw, repairedRaw, repairFields) : repairedRaw;
+      return parse(repairedCandidate);
     } catch (repairError) {
-      throw new StructuredGenerationError(target, { validationError, repairError });
+      diagnose({ stage: "repair_invalid", errors: summarizeValidationError(repairError) });
+      diagnose({ stage: "recovery_started", errors: summarizeValidationError(repairError) });
+      requestOptions.onProgress?.({ stage: "repairing" });
+      const recoveryRaw = await complete(
+        buildContextualJsonRepairMessages(messages, repairedCandidate, target, {
+          ...repairDetails,
+          validationErrors: summarizeValidationError(repairError),
+          patchOnly: false,
+          repairFields: undefined,
+        }),
+        false,
+      );
+      try {
+        const recovered = parse(recoveryRaw);
+        diagnose({ stage: "recovery_succeeded", errors: [] });
+        return recovered;
+      } catch (recoveryError) {
+        diagnose({ stage: "recovery_invalid", errors: summarizeValidationError(recoveryError) });
+        throw new StructuredGenerationError(target, { validationError, repairError, recoveryError });
+      }
     }
   }
 }
 
-function completionOptions(phase: CompletionOptions["phase"], options: GenerationOptions): CompletionOptions {
+function completionOptions(phase: CompletionOptions["phase"], options: GenerationOptions): EngineCompletionOptions {
   return {
     phase,
     signal: options.signal,
+    onDiagnostic: options.onDiagnostic,
     onProgress: options.onProgress
       ? ({ stage }) => options.onProgress?.(stage)
       : undefined,
@@ -173,8 +224,14 @@ function parseRequestedTurn(
   expectedProtagonist?: { name?: string; age: number; lifeStage: TimelineTurn["lifeStage"] },
   openingContext?: { eventName: string; role: string },
   customCanon: readonly PlayedTurn[] = [],
+  activePlayerCanon: NarrativeContext["activePlayerCanon"] = [],
 ): Parser<TimelineTurn> {
   return (raw) => {
+    const authoritativeLedger = activePlayerCanon.map((canon) => ({
+      fact: canon.sourceText,
+      causedByChapter: canon.chapter,
+      mustAffect: canon.propagationMechanism,
+    }));
     const turn = parseTimelineTurn(raw, {
       expectedChapter,
       expectedYearLabel,
@@ -182,6 +239,7 @@ function parseRequestedTurn(
       expectedProtagonistName: expectedProtagonist?.name,
       expectedProtagonistAge: expectedProtagonist?.age,
       expectedLifeStage: expectedProtagonist?.lifeStage,
+      expectedCausalLedger: authoritativeLedger,
     });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
@@ -195,10 +253,17 @@ function parseRequestedTurn(
     if (expectedChapter === 12 && /已经死|闭上眼|咽气|去世|生命结束/.test(turn.narrative)) {
       throw new Error("第十二幕必须先让玩家完成最后一次选择，不能提前写死主角");
     }
+    const visibleCurrentHistory = [
+      turn.headline,
+      turn.narrative,
+      turn.causalBridge,
+      turn.turningPointStakes,
+      turn.worldStateChange,
+      turn.immediateObjective,
+      turn.memorySummary,
+    ].join("；");
     for (const canon of customCanon) {
-      const exactLedger = turn.causalLedger.some((entry) => entry.causedByChapter === canon.turn.chapter && entry.fact === canon.selectedChoiceLabel);
-      if (!exactLedger) throw new Error(`本幕因果账本遗漏不可撤销正史第 ${canon.turn.chapter} 节点`);
-      if (!endingConsequencePreservesCanon(canon.selectedChoiceLabel, JSON.stringify(turn))) {
+      if (consequenceContradictsCanon(canon.selectedChoiceLabel, visibleCurrentHistory)) {
         throw new Error(`本幕否定了玩家钦定正史「${canon.selectedChoiceLabel}」`);
       }
     }
@@ -246,6 +311,15 @@ export async function adjudicateCustomAction(
     );
   } catch (error) {
     if (error instanceof StructuredGenerationError) {
+      try {
+        options.onDiagnostic?.({
+          target: "custom_action",
+          stage: "custom_fallback",
+          errors: summarizeValidationError(error.cause),
+        });
+      } catch {
+        // Diagnostics must never interrupt the canonical player result.
+      }
       return createFallbackCustomActionResolution(scenario, turn, action);
     }
     throw error;
@@ -270,7 +344,7 @@ function parseExpectedBiography(
       throw new Error("结局时间线没有按顺序保留玩家的十二次真实选择。");
     }
     const contradictedCanon = expectedHistoryTimeline.find((expected, index) =>
-      expected.playerAuthored && !endingConsequencePreservesCanon(
+      expected.playerAuthored && consequenceContradictsCanon(
         expected.playerChoice,
         biography.historyTimeline[index]?.consequence ?? "",
       ),
@@ -292,7 +366,8 @@ export async function generateNextTurn(
   const node = getTimelineNode(chapter, scenario.seed.year);
   const protagonistName = playedTurns[0]?.turn.protagonistName;
   const customCanon = playedTurns.filter((turn) => turn.playerAuthored);
-  return requestValidated(messages, completionOptions("turn", options), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon), { expectedChapter: chapter });
+  const activePlayerCanon = buildNarrativeContext(playedTurns, chapter).activePlayerCanon;
+  return requestValidated(messages, completionOptions("turn", options), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon), { expectedChapter: chapter });
 }
 
 export async function generateEnding(

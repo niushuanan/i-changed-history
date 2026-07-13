@@ -112,6 +112,53 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("reports validation evidence and recovers once after a failed field patch", async () => {
+    const second = {
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "三日余波",
+      lifeStage: "三日后",
+      previousEcho: playedTurn.resolvedEcho,
+    };
+    const missingHeadline = { ...second, headline: undefined };
+    const responses = [
+      JSON.stringify(missingHeadline),
+      JSON.stringify({ headline: "" }),
+      JSON.stringify(second),
+    ];
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(responses.shift())));
+    vi.stubGlobal("fetch", fetcher);
+    const diagnostics: Array<{ stage: string; errors: readonly string[] }> = [];
+
+    const result = await generateNextTurn(scenario, [playedTurn], 2, {
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    });
+
+    expect(result.headline).toBe(second.headline);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(diagnostics.map((diagnostic) => diagnostic.stage)).toEqual([
+      "primary_invalid",
+      "repair_invalid",
+      "recovery_started",
+      "recovery_succeeded",
+    ]);
+    expect(diagnostics[0].errors.join(" ")).toContain("headline");
+    expect(JSON.stringify(diagnostics)).not.toContain(second.narrative);
+  });
+
+  it("reports a terminal recovery failure without inventing a local scene", async () => {
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
+    vi.stubGlobal("fetch", fetcher);
+    const diagnostics: Array<{ stage: string }> = [];
+
+    await expect(generateNextTurn(scenario, [playedTurn], 2, {
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    })).rejects.toBeInstanceOf(StructuredGenerationError);
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(diagnostics.at(-1)?.stage).toBe("recovery_invalid");
+  });
+
   it("rejects a continuation that negates an active player-authored fact", async () => {
     const customPlayed = {
       ...playedTurn,
@@ -145,7 +192,48 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
 
     await expect(generateNextTurn(scenario, [customPlayed], 2)).rejects.toBeInstanceOf(StructuredGenerationError);
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("continues after five rewrites by carrying only the three active mandates", async () => {
+    const fiveCustom = endingPlayedTurns.slice(0, 5).map((played, index) => {
+      const result = `第${index + 1}幕玩家改写已经成为正史`;
+      return {
+        ...played,
+        selectedChoiceId: "custom" as const,
+        selectedChoiceLabel: result,
+        selectedDeviationClass: "rupture" as const,
+        resolvedEcho: { ...played.resolvedEcho, directResult: result },
+        playerAuthored: true,
+        canonStatus: "玩家钦定" as const,
+        causalMechanism: `第${index + 1}幕命令经驿站进入官署`,
+      };
+    });
+    const node = getTimelineNode(6, scenario.seed.year);
+    const sixth = {
+      ...turnFixture,
+      chapter: 6,
+      chapterName: CHAPTER_NAMES[6],
+      protagonistAge: node.protagonistAge,
+      lifeStage: node.lifeStage,
+      previousEcho: fiveCustom[4].resolvedEcho,
+      role: "江东新政军政总管",
+      location: "建业石头城中军堂",
+      headline: "江东新法进入军营",
+      narrative: "第五幕颁下的军政命令已经沿长江驿站抵达建业，各郡守军开始按新法重新登记兵粮。孙权旧部与新任郡守正在石头城争夺军册和粮仓印信，堂外已有士卒拒绝旧将调遣。你以军政总管身份掌握新印与传令船，必须在日落前决定由谁接管江防，否则两套军令会在前线直接冲突。",
+      causalLedger: [],
+    };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(sixth))));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await generateNextTurn(scenario, fiveCustom, 6);
+
+    expect(result.causalLedger.map((entry) => entry.causedByChapter)).toEqual([3, 4, 5]);
+    expect(result.causalLedger.map((entry) => entry.fact)).toEqual(
+      fiveCustom.slice(2).map((played) => played.selectedChoiceLabel),
+    );
+    expect(result.narrative).toBe(sixth.narrative);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("returns a player-canon result without feasibility adjudication", async () => {
@@ -212,6 +300,67 @@ describe("DeepSeek transport and structured generation", () => {
     expect(ending.historyTimeline.map((item) => item.playerChoice)).toEqual(endingPlayedTurns.map((item) => item.selectedChoiceLabel));
   });
 
+  it("keeps five long custom choices authoritative without duplicating them in consequences", async () => {
+    const customPlayedTurns = endingPlayedTurns.map((played, index) => {
+      if (index >= 5) return played;
+      const result = `第${index + 1}幕我亲自颁布的新制度已经在全国生效并由各地官署执行`;
+      return {
+        ...played,
+        selectedChoiceId: "custom" as const,
+        selectedChoiceLabel: result,
+        selectedDeviationClass: "rupture" as const,
+        resolvedEcho: { ...played.resolvedEcho, directResult: result },
+        playerAuthored: true,
+        canonStatus: "玩家钦定" as const,
+        causalMechanism: `第${index + 1}幕诏令进入全国官署`,
+      };
+    });
+    const biography = {
+      vernacularBiography: endingFixture.vernacularBiography,
+      classicalBiography: endingFixture.classicalBiography,
+      protagonistName: endingFixture.protagonistName,
+      lifespanSummary: endingFixture.lifespanSummary,
+      deathScene: endingFixture.deathScene,
+      historyTimeline: endingFixture.historyTimeline.map((item, index) => ({
+        ...item,
+        playerChoice: "模型无需复述玩家原句",
+        consequence: `第${index + 1}项决定推动新的权力与生活秩序落地`,
+      })),
+    };
+    const worldReport = {
+      worldName: endingFixture.worldName,
+      frontPageHeadline: endingFixture.frontPageHeadline,
+      causalChains: endingFixture.causalChains,
+      ordinaryLife2026: endingFixture.ordinaryLife2026,
+      posthumousChronicle: endingFixture.posthumousChronicle,
+      closingPassage: endingFixture.closingPassage,
+      greatestGain: endingFixture.greatestGain,
+      hiddenPrice: endingFixture.hiddenPrice,
+      strangestDetail: endingFixture.strangestDetail,
+      biggestBeneficiary: endingFixture.biggestBeneficiary,
+      biggestLoser: endingFixture.biggestLoser,
+      rewriteLevel: endingFixture.rewriteLevel,
+      plausibilityScore: endingFixture.plausibilityScore,
+      plausibilityReason: endingFixture.plausibilityReason,
+      shareLine: endingFixture.shareLine,
+    };
+    const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      const userPayload = body.messages.at(-1).content;
+      return Promise.resolve(completion(JSON.stringify(
+        userPayload.includes('"lifeRecord"') ? biography : worldReport,
+      )));
+    });
+    vi.stubGlobal("fetch", fetcher);
+
+    const ending = await generateEnding(scenario, customPlayedTurns);
+
+    expect(ending.historyTimeline.map((item) => item.playerChoice))
+      .toEqual(customPlayedTurns.map((item) => item.selectedChoiceLabel));
+    expect(ending.historyTimeline[0].consequence).not.toContain(customPlayedTurns[0].selectedChoiceLabel);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("starts the biography and 2026 report requests concurrently before merging them", async () => {
     const biography = {
       vernacularBiography: endingFixture.vernacularBiography,
@@ -275,7 +424,7 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
 
     await expect(generateEnding(scenario, customPlayedTurns)).rejects.toBeInstanceOf(StructuredGenerationError);
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
   it("keeps an invalid ending retryable instead of fabricating a local report", async () => {

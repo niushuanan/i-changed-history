@@ -192,11 +192,46 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("rejects a newly generated prehistory that has fewer than three rich sentences", () => {
+  it("accepts two to four complete rich sentences", () => {
+    const twoSentences = `${"前".repeat(50)}。${"险".repeat(50)}。`;
+    const fourSentences = `${"前".repeat(24)}。${"因".repeat(24)}。${"争".repeat(24)}。${"险".repeat(24)}。`;
+
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: twoSentences })).narrative)
+      .toBe(twoSentences);
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: fourSentences })).narrative)
+      .toBe(fourSentences);
+  });
+
+  it("rejects a newly generated prehistory without enough complete context", () => {
     expect(() => parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      narrative: "你站在宣阳门城楼箭垛后，俯视着押送百官的吕布。城外的并州军正在集结。",
-    }))).toThrow(/三句/);
+      narrative: `${"局".repeat(100)}。`,
+    }))).toThrow(/二至四句/);
+  });
+
+  it("injects active player canon ahead of model ledger without changing scene prose", () => {
+    const narrative = turnFixture.narrative;
+    const activeLedger = [
+      { fact: "第三幕玩家改写已发生", causedByChapter: 3, mustAffect: "当前权力结构" },
+      { fact: "第四幕玩家改写已发生", causedByChapter: 4, mustAffect: "当前军政命令" },
+      { fact: "第五幕玩家改写已发生", causedByChapter: 5, mustAffect: "当前社会秩序" },
+    ];
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      chapter: 6,
+      chapterName: "执掌一方",
+      previousEcho: turnFixture.choices[0].instantEcho,
+      causalLedger: [
+        { fact: "模型遗留的旧账本", causedByChapter: 1, mustAffect: "无关旧事件" },
+      ],
+    }), {
+      expectedChapter: 6,
+      expectedPreviousEcho: turnFixture.choices[0].instantEcho,
+      expectedCausalLedger: activeLedger,
+    });
+
+    expect(parsed.causalLedger).toEqual(activeLedger);
+    expect(parsed.narrative).toBe(narrative);
   });
 
   it("ends a trimmed narrative at a complete sentence when possible", () => {

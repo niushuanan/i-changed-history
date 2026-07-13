@@ -1,4 +1,5 @@
 import type { PlayedTurn } from "./prompts";
+import { buildWorldCanon } from "./worldCanon";
 
 export type LifeIndexEntry = {
   chapter: number;
@@ -30,6 +31,12 @@ export type NarrativeContext = {
     sourceText: string;
     propagationMechanism: string;
   }>;
+  activePlayerCanon: ReadonlyArray<{
+    chapter: number;
+    sourceText: string;
+    propagationMechanism: string;
+    activeThroughChapter: number;
+  }>;
   persistentLedger: PlayedTurn["turn"]["causalLedger"];
   recentScenes: ReadonlyArray<{
     chapter: number;
@@ -52,9 +59,18 @@ function lifeEntry(played: PlayedTurn): LifeIndexEntry {
   };
 }
 
-export function buildNarrativeContext(playedTurns: readonly PlayedTurn[]): NarrativeContext {
+export function buildNarrativeContext(
+  playedTurns: readonly PlayedTurn[],
+  targetChapter = (playedTurns.at(-1)?.turn.chapter ?? 0) + 1,
+): NarrativeContext {
   const lifeIndex = playedTurns.map(lifeEntry);
   const latest = playedTurns.at(-1);
+  const activePlayerCanon = buildWorldCanon(playedTurns, targetChapter).activeMandates.map((mandate) => ({
+    chapter: mandate.sourceChapter,
+    sourceText: mandate.sourceText,
+    propagationMechanism: mandate.propagationMechanism,
+    activeThroughChapter: mandate.activeThroughChapter,
+  }));
 
   return {
     lifeIndex,
@@ -81,6 +97,7 @@ export function buildNarrativeContext(playedTurns: readonly PlayedTurn[]): Narra
         sourceText: played.selectedChoiceLabel,
         propagationMechanism: played.causalMechanism ?? played.turn.causalBridge,
       })),
+    activePlayerCanon,
     persistentLedger: latest?.turn.causalLedger ?? [],
     recentScenes: playedTurns.slice(-3).map((played) => ({
       chapter: played.turn.chapter,
