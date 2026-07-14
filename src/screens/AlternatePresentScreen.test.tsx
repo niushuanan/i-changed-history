@@ -67,7 +67,8 @@ describe("alternate present export", () => {
 
     await user.click(screen.getByRole("button", { name: "打开系统保存" }));
     expect(onShare).toHaveBeenCalledOnce();
-    expect(await screen.findByRole("status")).toHaveTextContent("已打开系统面板");
+    expect(await screen.findByRole("status")).toHaveTextContent("系统操作已完成");
+    expect(screen.getByRole("status")).toHaveTextContent("是否存入相册取决于你在系统面板中的选择");
   });
 
   it("keeps a cancelled mobile image ready for sharing or PNG fallback", async () => {

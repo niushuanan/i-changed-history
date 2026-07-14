@@ -105,7 +105,7 @@ export function AlternatePresentScreen({
     };
     setSaveState(nextState[shareResult]);
     setStatus(shareResult === "shared"
-      ? "已打开系统面板。请在面板中选择“存储图像/保存到相册”。"
+      ? "系统操作已完成；是否存入相册取决于你在系统面板中的选择。"
       : shareResult === "cancelled"
         ? "已取消，图片仍可保存。"
         : "当前浏览器无法打开系统保存，可下载 PNG。");
