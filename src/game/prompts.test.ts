@@ -110,6 +110,16 @@ describe("modern traveler AI prompt contract", () => {
     expect(worldReport).not.toContain("vernacularBiography");
   });
 
+  it("asks for three concise complete ordinary-life sentences", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = Array(12).fill({ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho });
+    const worldReport = buildWorldReportMessages(scenario, played).at(-1)!.content;
+
+    expect(worldReport).toContain("恰好三个互不重复");
+    expect(worldReport).toContain("每项 12—18 字");
+    expect(worldReport).toContain("完整生活短句");
+  });
+
   it("forces one aging protagonist through butterfly-effect topic changes", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];

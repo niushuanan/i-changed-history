@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { browseHistorySeeds, HISTORY_SEEDS } from "./historySeeds";
 import { historyAssetForSeed } from "./visualAssets";
 
 
 describe("famous historical moment deck", () => {
-  it("contains exactly thirty Chinese and twenty world AD moments", () => {
-    expect(HISTORY_SEEDS).toHaveLength(50);
-    expect(new Set(HISTORY_SEEDS.map((seed) => seed.id)).size).toBe(50);
-    expect(HISTORY_SEEDS.every((seed) => seed.year > 0)).toBe(true);
-    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china")).toHaveLength(30);
-    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "world")).toHaveLength(20);
+  it("contains exactly sixty Chinese and forty world moments across BCE and CE", () => {
+    expect(HISTORY_SEEDS).toHaveLength(100);
+    expect(new Set(HISTORY_SEEDS.map((seed) => seed.id)).size).toBe(100);
+    expect(HISTORY_SEEDS.some((seed) => seed.year < 0)).toBe(true);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china")).toHaveLength(60);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "world")).toHaveLength(40);
 
     for (const seed of HISTORY_SEEDS) {
       expect(seed.baselineFacts).toHaveLength(3);
@@ -21,12 +23,11 @@ describe("famous historical moment deck", () => {
       expect(seed.historicalOutcome.trim()).not.toBe("");
       expect(seed.strengthTags.length).toBeGreaterThan(0);
       expect(historyAssetForSeed(seed)).toBe(`/assets/history/${seed.id}.webp`);
+      expect(existsSync(join(process.cwd(), "public/assets/history", `${seed.id}.webp`))).toBe(true);
     }
   });
 
-  it("keeps Chinese moments before 1840 and includes globally famous pivot points", () => {
-    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china" && seed.year >= 1840))
-      .toEqual([]);
+  it("includes famous Chinese and global pivot points from antiquity to the modern era", () => {
     expect(HISTORY_SEEDS.map((seed) => seed.id)).toEqual(expect.arrayContaining([
       "red-cliffs-208",
       "dong-zhuo-lu-bu-190",
@@ -40,6 +41,10 @@ describe("famous historical moment deck", () => {
       "cuban-missile-1962",
       "apollo-11-1969",
       "berlin-wall-1989",
+      "qin-unification-221bc",
+      "wuchang-1911",
+      "marathon-490bc",
+      "soviet-dissolution-1991",
     ]));
   });
 
@@ -72,9 +77,32 @@ describe("famous historical moment deck", () => {
     });
   });
 
-  it("always exposes all fifty moments in chronological order", () => {
+  it("keeps reviewed historical anchors precise instead of importing later institutions", () => {
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "shang-yang-356bc")).toMatchObject({
+      decision: expect.stringContaining("什伍连坐与军功授爵"),
+    });
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "shang-yang-356bc")?.decision).not.toContain("县制");
+
+    const blackDeath = HISTORY_SEEDS.find((seed) => seed.id === "black-death-1347");
+    expect(`${blackDeath?.location}${blackDeath?.role}${blackDeath?.decision}`).not.toMatch(/检疫|隔离制度|港务会/);
+    expect(blackDeath?.historicalOutcome).toContain("驱逐");
+
+    const oilCrisis = HISTORY_SEEDS.find((seed) => seed.id === "oil-crisis-1973");
+    expect(oilCrisis?.decision).toContain("减产5%");
+    expect(oilCrisis?.decision).not.toContain("禁运");
+    expect(oilCrisis?.historicalOutcome).toMatch(/10月17日.*减产.*随后.*禁运/);
+  });
+
+  it("gives ceremonial and technical milestones a consequential immediate lever", () => {
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "prc-founded-1949")?.decision).toMatch(/带实弹|迎击/);
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "circumnavigation-1522")?.decision).toMatch(/抛弃.*香料|减轻吃水/);
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "un-charter-1945")?.decision).toMatch(/否决权.*拒绝签署|拒绝.*否决权/);
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "sputnik-1957")?.decision).toMatch(/延长.*燃烧|稳定轨道/);
+  });
+
+  it("always exposes all one hundred moments in chronological order", () => {
     const moments = browseHistorySeeds();
-    expect(moments).toHaveLength(50);
+    expect(moments).toHaveLength(100);
     expect(moments.map((seed) => seed.year)).toEqual([...moments.map((seed) => seed.year)].sort((a, b) => a - b));
   });
 });

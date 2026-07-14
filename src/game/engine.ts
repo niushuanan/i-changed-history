@@ -40,6 +40,7 @@ import {
   consequenceContradictsCanon,
 } from "./worldCanon";
 import { buildNarrativeContext, type NarrativeContext } from "./narrativeContext";
+import { formatHistoricalYear } from "../data/historicalYear";
 
 type RepairTarget = "timeline_turn" | "biography_report" | "world_report" | "custom_action";
 type Parser<T> = (raw: string) => T;
@@ -345,9 +346,9 @@ function parseRequestedTurn(
 function expectedYearLabel(scenario: GameScenario, chapter: DecisionChapter): string {
   const node = getTimelineNode(chapter, scenario.seed.year);
   if (chapter === 1) return `${scenario.seed.dateLabel} · ${node.protagonistAge}岁`;
-  if (chapter === 2) return `${scenario.seed.year}年 · 三日后 · ${node.protagonistAge}岁`;
-  if (chapter === 3) return `${scenario.seed.year}年 · 六周后 · ${node.protagonistAge}岁`;
-  return `${node.targetYear}年 · ${node.protagonistAge}岁`;
+  if (chapter === 2) return `${formatHistoricalYear(scenario.seed.year)} · 三日后 · ${node.protagonistAge}岁`;
+  if (chapter === 3) return `${formatHistoricalYear(scenario.seed.year)} · 六周后 · ${node.protagonistAge}岁`;
+  return `${formatHistoricalYear(node.targetYear)} · ${node.protagonistAge}岁`;
 }
 
 function expectedPreviousEcho(

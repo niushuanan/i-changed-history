@@ -1,9 +1,59 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { HistorySeed } from "../game/types";
 import { HistoryCard } from "../components/HistoryCard";
+import { HistoryGridCard, HISTORY_THEME_LABELS } from "../components/HistoryGridCard";
+import {
+  EMPTY_FILTERS,
+  filterHistorySeeds,
+  type HistoryBrowseMode,
+  type HistoryFilters,
+  type HistoryPeriod,
+  type HistoryRegion,
+  type HistoryTheme,
+} from "../data/historyCatalog";
 import { browseHistorySeeds } from "../data/historySeeds";
+import { formatHistoricalYear } from "../data/historicalYear";
 
 const CARD_STEP = 312;
+const HISTORY_CARDS = browseHistorySeeds();
+
+const PERIOD_LABELS: ReadonlyArray<{ value: HistoryPeriod; label: string }> = [
+  { value: "all", label: "全部时间" },
+  { value: "bce", label: "公元前" },
+  { value: "before-500", label: "公元 1—499 年" },
+  { value: "500-1499", label: "公元 500—1499 年" },
+  { value: "1500-1899", label: "公元 1500—1899 年" },
+  { value: "after-1900", label: "公元 1900 年后" },
+];
+
+const REGION_LABELS: ReadonlyArray<{ value: HistoryRegion; label: string }> = [
+  { value: "all", label: "全部地域" },
+  { value: "china", label: "中国" },
+  { value: "world", label: "世界" },
+];
+
+const THEME_LABELS: ReadonlyArray<{ value: HistoryTheme; label: string }> = [
+  { value: "all", label: "全部属性" },
+  ...Object.entries(HISTORY_THEME_LABELS).map(([value, label]) => ({ value: value as HistoryTheme, label })),
+];
+
+export type PickerContext = {
+  mode: HistoryBrowseMode;
+  activeSeedId: string;
+  filters: HistoryFilters;
+};
+
+export const DEFAULT_PICKER_CONTEXT: PickerContext = {
+  mode: "filmstrip",
+  activeSeedId: HISTORY_CARDS[0].id,
+  filters: EMPTY_FILTERS,
+};
+
+type SeedPickerScreenProps = {
+  context: PickerContext;
+  onContextChange: (context: PickerContext) => void;
+  onSelect: (seed: HistorySeed) => void;
+};
 
 function moveScroller(element: HTMLElement, left: number) {
   if (typeof element.scrollTo === "function") {
@@ -13,16 +63,28 @@ function moveScroller(element: HTMLElement, left: number) {
   }
 }
 
-export function SeedPickerScreen({
-  onSelect,
-}: {
-  onSelect: (seed: HistorySeed) => void;
-}) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const cards = useMemo(() => browseHistorySeeds(), []);
+function hasFilters(filters: HistoryFilters): boolean {
+  return filters.search.trim() !== ""
+    || filters.period !== "all"
+    || filters.region !== "all"
+    || filters.theme !== "all";
+}
+
+export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPickerScreenProps) {
+  const cards = HISTORY_CARDS;
+  const activeIndex = Math.max(0, cards.findIndex((seed) => seed.id === context.activeSeedId));
+  const activeSeed = cards[activeIndex];
+  const filteredCards = useMemo(
+    () => filterHistorySeeds(cards, context.filters),
+    [cards, context.filters],
+  );
+  const isActiveSeedVisible = filteredCards.some((seed) => seed.id === activeSeed.id);
   const carouselRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLElement>(null);
   const timelineNodes = useRef<Array<HTMLButtonElement | null>>([]);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const programmaticCardIndex = useRef<number | null>(null);
+  const gestureSyncedIndex = useRef<number | null>(null);
 
   const cardStep = () => {
     const first = carouselRef.current?.children[0] as HTMLElement | undefined;
@@ -38,62 +100,201 @@ export function SeedPickerScreen({
     moveScroller(timeline, node.offsetLeft - timeline.clientWidth / 2 + node.clientWidth / 2);
   };
 
+  const setActiveSeed = (seed: HistorySeed) => {
+    if (seed.id === context.activeSeedId) return;
+    onContextChange({ ...context, activeSeedId: seed.id });
+  };
+
+  const scrollCardsTo = (index: number) => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+    const targetLeft = index * cardStep();
+    if (Math.abs(carousel.scrollLeft - targetLeft) <= 1) {
+      programmaticCardIndex.current = null;
+      return;
+    }
+    programmaticCardIndex.current = index;
+    moveScroller(carousel, targetLeft);
+  };
+
   const focusCard = (index: number) => {
-    setActiveIndex(index);
-    if (carouselRef.current) moveScroller(carouselRef.current, index * cardStep());
+    const seed = cards[index];
+    if (!seed) return;
+    scrollCardsTo(index);
+    setActiveSeed(seed);
     centerTimelineNode(index);
   };
 
   const syncFromCards = () => {
     const index = Math.max(0, Math.min(cards.length - 1, Math.round((carouselRef.current?.scrollLeft ?? 0) / cardStep())));
-    if (index === activeIndex) return;
-    setActiveIndex(index);
+    const targetIndex = programmaticCardIndex.current;
+    if (targetIndex !== null) {
+      if (index === targetIndex) programmaticCardIndex.current = null;
+      return;
+    }
+    const seed = cards[index];
+    if (!seed || seed.id === activeSeed.id) return;
+    gestureSyncedIndex.current = index;
+    setActiveSeed(seed);
     centerTimelineNode(index);
   };
 
+  const beginCardGesture = () => {
+    programmaticCardIndex.current = null;
+  };
+
+  const setMode = (mode: HistoryBrowseMode) => {
+    if (mode !== context.mode) onContextChange({ ...context, mode });
+  };
+
+  const setFilters = (patch: Partial<HistoryFilters>) => {
+    onContextChange({ ...context, filters: { ...context.filters, ...patch } });
+  };
+
+  useEffect(() => {
+    if (context.mode === "filmstrip") {
+      if (gestureSyncedIndex.current === activeIndex) {
+        gestureSyncedIndex.current = null;
+      } else {
+        scrollCardsTo(activeIndex);
+      }
+      centerTimelineNode(activeIndex);
+      return;
+    }
+
+    const currentCard = gridRef.current?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (typeof currentCard?.scrollIntoView === "function") {
+      currentCard.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIndex, context.mode, isActiveSeedVisible]);
+
+  const modeControl = (
+    <div className="seed-picker__modes" role="group" aria-label="历史浏览方式">
+      <button type="button" aria-pressed={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>胶片</button>
+      <button type="button" aria-pressed={context.mode === "grid"} onClick={() => setMode("grid")}>网格</button>
+    </div>
+  );
+
   return (
-    <main className="seed-picker">
+    <main className={`seed-picker seed-picker--${context.mode}`}>
       <header className="seed-picker__brand">
         <div>
           <h1>哎！我改变了历史？</h1>
           <strong>选择你要闯入的瞬间</strong>
         </div>
+        {modeControl}
       </header>
 
-      <section className="history-time" aria-label="历史时间轴">
-        <div className="history-time__readout">
-          <span>公元</span><strong>{cards[activeIndex].year}</strong>
-          <div className="history-time__meta">
-            <span className="history-time__hint">（滑动可切换不同的历史瞬间）</span>
-            <small>{activeIndex + 1} / {cards.length}</small>
-          </div>
-        </div>
-        <nav className="history-time__track" ref={timelineRef} aria-label="五十个历史年份">
-          <div className="history-time__line" aria-hidden="true" />
-          {cards.map((seed, index) => (
-            <button
-              key={seed.id}
-              ref={(node) => { timelineNodes.current[index] = node; }}
-              type="button"
-              className={index === activeIndex ? "is-active" : ""}
-              aria-current={index === activeIndex ? "step" : undefined}
-              aria-label={`定位到公元 ${seed.year} 年`}
-              onClick={() => focusCard(index)}
-            >
-              <i />
-              <span>{seed.year}</span>
-            </button>
-          ))}
-        </nav>
-      </section>
+      {context.mode === "filmstrip" ? (
+        <>
+          <section className="history-time" aria-label="历史时间轴">
+            <div className="history-time__readout">
+              <strong>{formatHistoricalYear(activeSeed.year)}</strong>
+              <div className="history-time__meta">
+                <span className="history-time__hint">（滑动可切换不同的历史瞬间）</span>
+                <small>{activeIndex + 1} / {cards.length}</small>
+              </div>
+            </div>
+            <nav className="history-time__track" ref={timelineRef} aria-label="一百个历史年份">
+              {cards.map((seed, index) => (
+                <button
+                  key={seed.id}
+                  ref={(node) => { timelineNodes.current[index] = node; }}
+                  type="button"
+                  className={index === activeIndex ? "is-active" : ""}
+                  aria-current={index === activeIndex ? "step" : undefined}
+                  aria-label={`定位到${formatHistoricalYear(seed.year)}`}
+                  onClick={() => focusCard(index)}
+                >
+                  <i />
+                  <span>{formatHistoricalYear(seed.year)}</span>
+                </button>
+              ))}
+            </nav>
+          </section>
 
-      <div className="history-carousel" ref={carouselRef} onScroll={syncFromCards} aria-label="按时间排列的历史瞬间">
-        {cards.map((seed, index) => (
-          <div key={seed.id} className={index === activeIndex ? "is-active" : ""} onFocus={() => focusCard(index)}>
-            <HistoryCard seed={seed} onSelect={() => onSelect(seed)} />
+          <div
+            className="history-carousel"
+            ref={carouselRef}
+            onPointerDown={beginCardGesture}
+            onTouchStart={beginCardGesture}
+            onWheel={beginCardGesture}
+            onScroll={syncFromCards}
+            aria-label="按时间排列的历史瞬间"
+          >
+            {cards.map((seed, index) => (
+              <div key={seed.id} className={index === activeIndex ? "is-active" : ""} onFocus={() => focusCard(index)}>
+                <HistoryCard
+                  seed={seed}
+                  onSelect={() => {
+                    onContextChange({ ...context, activeSeedId: seed.id });
+                    onSelect(seed);
+                  }}
+                />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      ) : (
+        <section className="history-grid-browser" aria-label="历史网格浏览">
+          <div className="history-grid-browser__controls">
+            <input
+              type="search"
+              aria-label="搜索历史瞬间"
+              placeholder="搜索事件、地点或角色"
+              value={context.filters.search}
+              onChange={(event) => setFilters({ search: event.target.value })}
+            />
+            <div className="history-grid-browser__filters">
+              <label>
+                <span>时间</span>
+                <select aria-label="时间" value={context.filters.period} onChange={(event) => setFilters({ period: event.target.value as HistoryPeriod })}>
+                  {PERIOD_LABELS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>地域</span>
+                <select aria-label="地域" value={context.filters.region} onChange={(event) => setFilters({ region: event.target.value as HistoryRegion })}>
+                  {REGION_LABELS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>属性</span>
+                <select aria-label="属性" value={context.filters.theme} onChange={(event) => setFilters({ theme: event.target.value as HistoryTheme })}>
+                  {THEME_LABELS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="history-grid-browser__summary">
+              <strong>{filteredCards.length} 个结果</strong>
+              {hasFilters(context.filters) && filteredCards.length > 0 ? (
+                <button type="button" onClick={() => onContextChange({ ...context, filters: EMPTY_FILTERS })}>清除筛选</button>
+              ) : null}
+            </div>
+          </div>
+
+          {filteredCards.length > 0 ? (
+            <div className="history-grid" ref={gridRef}>
+              {filteredCards.map((seed) => (
+                <HistoryGridCard
+                  key={seed.id}
+                  seed={seed}
+                  isCurrent={seed.id === context.activeSeedId}
+                  onSelect={(selectedSeed) => {
+                    onContextChange({ ...context, activeSeedId: selectedSeed.id });
+                    onSelect(selectedSeed);
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="history-grid-empty">
+              <strong>没有符合条件的历史瞬间</strong>
+              <button type="button" onClick={() => onContextChange({ ...context, filters: EMPTY_FILTERS })}>清除筛选</button>
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 }

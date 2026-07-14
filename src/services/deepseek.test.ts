@@ -196,7 +196,7 @@ describe("DeepSeek transport and structured generation", () => {
       causalLedger: [{ fact: "立刻放出第一批火船", causedByChapter: 1, mustAffect: "曹军水寨与粮道" }],
     };
     const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(second))); vi.stubGlobal("fetch", fetcher);
-    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `${scenario.seed.year}年 · 三日后 · 24岁`, protagonistName: firstTurn.protagonistName, previousEcho: turnFixture.choices[0].instantEcho, worldStateChange: expect.stringContaining("立刻放出第一批火船") });
+    await expect(generateNextTurn(scenario, [playedTurn], 2)).resolves.toMatchObject({ chapter: 2, yearLabel: `公元 ${scenario.seed.year} 年 · 三日后 · 24岁`, protagonistName: firstTurn.protagonistName, previousEcho: turnFixture.choices[0].instantEcho, worldStateChange: expect.stringContaining("立刻放出第一批火船") });
   });
 
   it("accepts a valid scene without requesting an obsolete social-lens field", async () => {

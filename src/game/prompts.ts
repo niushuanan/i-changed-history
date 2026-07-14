@@ -251,7 +251,7 @@ export function buildWorldReportMessages(scenario: GameScenario, playedTurns: re
       requiredFields: ["worldName", "frontPageHeadline", "posthumousChronicle", "causalChains", "ordinaryLife2026", "closingPassage", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
       posthumousChronicle: "恰好四项，每项含 period、title、narrative、inheritedChange；从主角死后到 2026 逐步拉长时间。每项 narrative 为 35-96 个汉字，写清一个完整时代变化；inheritedChange 为 18-64 个汉字，写清继承到下一时代的具体结果。两者都必须以完整句号、问号或叹号收尾，不得截断句子来满足字数",
       causalChains: "恰好三项，每项含 origin、transformation、payoff",
-      ordinaryLife2026: "恰好三个具体生活细节，每项 18-48 个汉字，写成语义完整、普通人可感知的一件事；每项都必须以完整句号、问号或叹号收尾，不得停在半句话中",
+      ordinaryLife2026: "恰好三个互不重复的具体生活细节，每项 12—18 字的完整生活短句，写成普通人可感知的一件事；每项必须以完整句号、问号或叹号收尾，不得停在半句话中",
       closingPassage: "90-180 个汉字的完整小说式尾声，以完整句号、问号或叹号收尾；明确主角没看到 2026，但世界仍活在他的选择之后，不得截断句子来满足字数",
       plausibilityScore: "0-100 数值",
       plausibilityReason: "用完整句解释可信度，并以句号、问号或叹号收尾",

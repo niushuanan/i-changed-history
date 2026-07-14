@@ -3,7 +3,7 @@ import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
-const completeReportSentence = (max: number, label: string) => boundedString(max).refine(
+const completeReportSentence = (max: number, label: string, min = 1) => z.string().trim().min(min).max(max).refine(
   (value) => {
     if (!/[。！？!?](?:[”"』」）)])?$/.test(value)) return false;
     const withoutClosing = value.replace(/[”"』」）)]*$/, "").trim();
@@ -685,9 +685,9 @@ const worldReportFields = {
     frontPageHeadline: requiredString,
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
     ordinaryLife2026: z.tuple([
-      completeReportSentence(72, "2026生活细节"),
-      completeReportSentence(72, "2026生活细节"),
-      completeReportSentence(72, "2026生活细节"),
+      completeReportSentence(18, "2026生活细节", 12),
+      completeReportSentence(18, "2026生活细节", 12),
+      completeReportSentence(18, "2026生活细节", 12),
     ]),
     posthumousChronicle: z.tuple([
       posthumousChronicleItemSchema,

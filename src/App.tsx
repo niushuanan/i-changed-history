@@ -1,31 +1,51 @@
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+import { useState } from "react";
 import { useGame } from "./hooks/useGame";
-import { SeedPickerScreen } from "./screens/SeedPickerScreen";
+import { DEFAULT_PICKER_CONTEXT, SeedPickerScreen } from "./screens/SeedPickerScreen";
 import { TimelineEventScreen } from "./screens/TimelineEventScreen";
 import { ButterflyEchoScreen } from "./screens/ButterflyEchoScreen";
 import { GeneratingScreen } from "./screens/GeneratingScreen";
 import { ErrorScreen } from "./screens/ErrorScreen";
 import { AlternatePresentScreen } from "./screens/AlternatePresentScreen";
-import { saveFrontPage } from "./services/share";
+import {
+  disposePreparedReport,
+  downloadPreparedReport,
+  isMobileSavePlatform,
+  prepareReportImage,
+  sharePreparedReport,
+} from "./services/share";
+import type { ResultReportPage } from "./components/ResultFrontPage";
 import { historyAssetForSeed, visualAssetForTurn } from "./data/visualAssets";
 import "./styles/game.css";
 
 export function App() {
   const game = useGame();
   const { state } = game;
+  const [pickerContext, setPickerContext] = useState(DEFAULT_PICKER_CONTEXT);
+  const [isMobileSave] = useState(() => isMobileSavePlatform());
 
-  const saveResult = async (result: NonNullable<typeof state.result>) => {
+  const prepareResultImage = async (
+    result: NonNullable<typeof state.result>,
+    page: ResultReportPage,
+  ) => {
     const target = document.getElementById("result-capture");
-    if (!(target instanceof HTMLElement)) throw new Error("未找到可导出的头版。");
-    return saveFrontPage(target, {
+    if (!(target instanceof HTMLElement)) throw new Error("未找到可导出的报告。");
+    return prepareReportImage(target, {
       worldName: result.worldName,
       shareLine: result.shareLine,
+      page,
     });
   };
 
   let screen: React.ReactNode;
   if (state.phase === "selecting") {
-    screen = <SeedPickerScreen onSelect={game.selectSeed} />;
+    screen = (
+      <SeedPickerScreen
+        context={pickerContext}
+        onContextChange={setPickerContext}
+        onSelect={game.selectSeed}
+      />
+    );
   } else if (state.phase === "event" && state.currentTurn) {
     screen = (
       <TimelineEventScreen
@@ -60,7 +80,11 @@ export function App() {
       <AlternatePresentScreen
         result={state.result}
         deviation={state.deviation}
-        onSave={saveResult}
+        isMobileSave={isMobileSave}
+        onPrepare={prepareResultImage}
+        onShare={sharePreparedReport}
+        onDownload={downloadPreparedReport}
+        onDispose={disposePreparedReport}
         onRestart={game.restart}
       />
     );

@@ -75,8 +75,8 @@ describe("complete player journey", () => {
 
     expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
     expect(score.start).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
-    await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
+    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(100);
+    await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
     expect(score.start).toHaveBeenCalledTimes(1);
 
     for (let chapter = 1; chapter <= 12; chapter += 1) {
@@ -102,7 +102,7 @@ describe("complete player journey", () => {
     expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(12);
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByRole("heading", { name: "公议纪元" })).toBeVisible();
-    for (const detail of endingFixture.ordinaryLife2026) expect(screen.getByText(detail)).toBeVisible();
+    expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(endingFixture.ordinaryLife2026.join("；"));
     expect(screen.getByRole("button", { name: "保存这一页" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
   });
@@ -121,21 +121,22 @@ describe("complete player journey", () => {
 
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
+    await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
     expect(await screen.findByText("固定历史开场")).toBeVisible();
+    expect(engine.generateNextTurn).not.toHaveBeenCalled();
     expect(screen.getAllByText(/城市水道和消防队的值夜主管/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /直接改写结果，不限次数/ })).toBeVisible();
   });
 
-  it("always exposes one chronological fifty-moment filmstrip and exits an active run", async () => {
+  it("always exposes one chronological one-hundred-moment filmstrip and exits an active run", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
-    expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(50);
+    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(100);
+    expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(100);
     expect(screen.queryByText(/展开全部|收回精选|为你的画像精选|换一批/)).not.toBeInTheDocument();
     const dates = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
     expect(dates).toEqual([...dates].sort((left, right) => left - right));
@@ -144,5 +145,25 @@ describe("complete player journey", () => {
     expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
     expect(await screen.findByText("固定历史开场")).toBeVisible();
     expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
+  });
+
+  it("restores grid mode, query, and current seed after exiting an active run", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "网格" }));
+    const search = screen.getByRole("searchbox", { name: "搜索历史瞬间" });
+    await user.type(search, "罗马大火");
+    const seedCard = screen.getByRole("button", { name: /罗马大火开始蔓延/ });
+    await user.click(seedCard);
+
+    expect(await screen.findByText("固定历史开场")).toBeVisible();
+    expect(engine.generateNextTurn).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "退出本次推演" }));
+
+    expect(screen.getByRole("button", { name: "网格" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toHaveValue("罗马大火");
+    expect(screen.getByRole("button", { name: /罗马大火开始蔓延/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
   });
 });
