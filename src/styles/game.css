@@ -1496,6 +1496,6 @@
 .echo-continue { font-size: 16px; }
 
 @media (max-width: 350px) {
-  .history-time__readout .history-time__hint { font-size: 10px; }
+  .history-time__readout .history-time__hint { font-size: 11px; }
   .event-screen[data-layout="image-overlay"] .event-body { padding-inline: 15px; }
 }

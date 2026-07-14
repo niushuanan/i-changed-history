@@ -156,14 +156,19 @@ describe("living history browser", () => {
 
     await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
     await user.click(screen.getByRole("button", { name: "网格" }));
+    const initiallyCurrentCard = screen.getByRole("button", { name: new RegExp(target.eventName) });
+    const scrollIntoView = vi.mocked(initiallyCurrentCard.scrollIntoView);
+    scrollIntoView.mockClear();
     await user.type(screen.getByRole("searchbox", { name: "搜索历史瞬间" }), "不存在的历史瞬间");
 
     expect(screen.getByText("没有符合条件的历史瞬间")).toBeVisible();
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
+    expect(scrollIntoView).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "清除筛选" }));
 
     expect(screen.getByRole("button", { name: new RegExp(target.eventName) })).toHaveAttribute("aria-current", "true");
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
   });
 
   it("updates the active seed before selecting the exact grid item", async () => {

@@ -78,6 +78,7 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
     () => filterHistorySeeds(cards, context.filters),
     [cards, context.filters],
   );
+  const isActiveSeedVisible = filteredCards.some((seed) => seed.id === activeSeed.id);
   const carouselRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLElement>(null);
   const timelineNodes = useRef<Array<HTMLButtonElement | null>>([]);
@@ -165,7 +166,7 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
     if (typeof currentCard?.scrollIntoView === "function") {
       currentCard.scrollIntoView({ block: "nearest" });
     }
-  }, [activeIndex, context.mode]);
+  }, [activeIndex, context.mode, isActiveSeedVisible]);
 
   const modeControl = (
     <div className="seed-picker__modes" role="group" aria-label="历史浏览方式">
