@@ -108,7 +108,7 @@ describe("useGame single-life orchestration", () => {
     );
   });
 
-  it("writes a declared result immediately and starts exactly one next-turn request", async () => {
+  it("writes a declared result immediately, generates once, and waits for the player to reveal it", async () => {
     const dependencies = deps();
     vi.mocked(dependencies.generateNextTurn).mockResolvedValue(turn);
     const { result } = renderHook(() => useGame(dependencies));
@@ -123,7 +123,8 @@ describe("useGame single-life orchestration", () => {
       playerAuthored: true,
       canonStatus: "玩家钦定",
     });
-    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+    await waitFor(() => expect(result.current.state.pendingTurn).not.toBeNull());
+    expect(result.current.state.phase).toBe("generating");
     expect(result.current.state.echo).toBeNull();
     expect(dependencies.generateNextTurn).toHaveBeenCalledTimes(1);
     expect(dependencies.generateNextTurn).toHaveBeenCalledWith(
@@ -132,5 +133,7 @@ describe("useGame single-life orchestration", () => {
       2,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+    act(() => result.current.revealGeneratedTurn());
+    expect(result.current.state.phase).toBe("event");
   });
 });

@@ -155,4 +155,27 @@ describe("clear change event screen", () => {
 
     expect(screen.getByRole("button", { name: `A${fullAction}` })).toBeVisible();
   });
+
+  it("shows a compact action while keeping the full canonical choice accessible", () => {
+    const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们在日落之前重新宣誓效忠";
+    const turn = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => index === 0 ? {
+        ...choice,
+        label: canonical,
+        actionSpec: { actor: "你", action: "公开核验军令", target: "边军将领", deadline: "日落前" },
+      } : choice),
+    }));
+
+    render(<TimelineEventScreen
+      turn={turn}
+      deviation={0}
+      onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    expect(screen.getByText("公开核验军令：边军将领")).toBeVisible();
+    expect(screen.getByRole("button", { name: `A${canonical}` })).toBeVisible();
+  });
 });

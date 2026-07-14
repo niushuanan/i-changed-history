@@ -104,6 +104,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(biography).not.toContain("ordinaryLife2026");
     expect(worldReport).toContain("ordinaryLife2026");
     expect(worldReport).toContain("posthumousChronicle");
+    expect(worldReport).toContain("narrative 为 35-96 个汉字");
+    expect(worldReport).toContain("inheritedChange 为 18-64 个汉字");
+    expect(worldReport).toContain("不得截断句子来满足字数");
     expect(worldReport).not.toContain("vernacularBiography");
   });
 
@@ -204,7 +207,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("真实人物、机构或阵营");
     expect(protocol).toContain("失败会立即失去什么");
     expect(protocol).toContain("只写真实历史的对应结果");
-    expect(protocol).toContain('"causalBridge":"30 字以内');
+    expect(protocol).toContain('"causalBridge":"24-30 字的单个完整短句');
+    expect(protocol).toContain("不要使用逗号或分号");
     expect(protocol).toContain('"worldStateChange":"30 字以内');
     expect(protocol).toContain('"divergenceProof":"42 字以内');
     expect(protocol).toContain("每个短字段必须以完整短句收尾");

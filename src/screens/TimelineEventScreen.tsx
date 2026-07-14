@@ -31,7 +31,7 @@ export function TimelineEventScreen({
     ...(turn.previousEcho
       ? [turn.worldStateChange, turn.causalBridge, turn.divergenceProof]
       : [turn.baselineAnchor, turn.immediateObjective]),
-    ...turn.choices.map((choice) => choice.label),
+    ...turn.choices.map((choice) => choice.displayLabel),
   ].reduce((total, copy) => total + [...(copy ?? "")].length, 0);
   const narrativeLength = [...turn.narrative].length;
   const density = narrativeLength > 132 || visibleCopyLength > 300

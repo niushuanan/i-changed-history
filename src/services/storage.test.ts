@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { createInitialGameState, gameReducer } from "../game/reducer";
 import { GAME_STORAGE_KEY, loadGameSnapshot, saveGameSnapshot } from "./storage";
-import { turnFixture } from "../test/fixtures";
+import { endingFixture, turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
@@ -172,6 +172,164 @@ describe("v13 fast-path single-history storage", () => {
       request: { kind: "next-turn", targetChapter: 2 },
       playedTurns: [expect.objectContaining({ selectedChoiceLabel: "先扣下军令，再请皇帝临朝" })],
     });
+  });
+
+  it("restores a validated scene without revealing it before the player clicks next", () => {
+    const storage = memoryStorage();
+    const selecting = createInitialGameState();
+    const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const generating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令，再请皇帝临朝" });
+    const nextTurn = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      chapter: 2,
+      chapterName: CHAPTER_NAMES[2],
+      previousEcho: turnFixture.choices[0].instantEcho,
+    }));
+    const readyState = {
+      ...generating,
+      request: null,
+      pendingTurn: nextTurn,
+    };
+
+    expect(saveGameSnapshot(readyState, storage)).toBe(true);
+    expect(loadGameSnapshot(storage)).toMatchObject({
+      phase: "generating",
+      currentTurn: { chapter: 1 },
+      pendingTurn: { chapter: 2 },
+      request: null,
+    });
+  });
+
+  it("preserves all twelve decisions and regenerates a legacy report whose prose was cut mid-sentence", () => {
+    const playedTurns = Array.from({ length: 12 }, (_, index) => {
+      const custom = index === 4;
+      return {
+        turn: parseTimelineTurn(JSON.stringify({
+          ...turnFixture,
+          chapter: index + 1,
+          chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter],
+          previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho,
+        })),
+        selectedChoiceId: custom ? "custom" as const : "A" as const,
+        selectedChoiceLabel: custom ? "我已经接管兵符，现场部队全部服从。" : turnFixture.choices[0].label,
+        selectedDeviationClass: custom ? "rupture" as const : "nudge" as const,
+        resolvedEcho: custom ? {
+          ...turnFixture.choices[0].instantEcho,
+          directResult: "我已经接管兵符，现场部队全部服从。",
+        } : turnFixture.choices[0].instantEcho,
+        ...(custom ? {
+          playerAuthored: true,
+          canonStatus: "玩家钦定" as const,
+          causalMechanism: "兵符与公开军令同时进入正史",
+        } : {}),
+      };
+    });
+    const incompleteResult = {
+      ...endingFixture,
+      posthumousChronicle: endingFixture.posthumousChronicle.map((item, index) => index === 0
+        ? { ...item, narrative: "主角死后，旧部把仓法交给地方官府，官府随后正式" }
+        : item),
+    };
+    const storage = memoryStorage();
+    const state = {
+      ...createInitialGameState(23),
+      phase: "result" as const,
+      scenario: { seed: HISTORY_SEEDS[0] },
+      currentTurn: playedTurns.at(-1)!.turn,
+      playedTurns,
+      result: incompleteResult,
+    };
+
+    expect(saveGameSnapshot(state as never, storage)).toBe(true);
+    const loaded = loadGameSnapshot(storage);
+    expect(loaded).toMatchObject({
+      phase: "ending",
+      result: null,
+      request: { kind: "ending", id: 23 },
+      nextRequestId: 24,
+    });
+    expect(loaded?.playedTurns).toHaveLength(12);
+    expect(loaded?.playedTurns).toEqual(playedTurns);
+  });
+
+  it("regenerates a legacy report whose 2026 life detail has no completed ending", () => {
+    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
+      turn: parseTimelineTurn(JSON.stringify({
+        ...turnFixture,
+        chapter: index + 1,
+        chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter],
+        previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho,
+      })),
+      selectedChoiceId: "A" as const,
+      selectedChoiceLabel: turnFixture.choices[0].label,
+      selectedDeviationClass: "nudge" as const,
+      resolvedEcho: turnFixture.choices[0].instantEcho,
+    }));
+    const storage = memoryStorage();
+    const state = {
+      ...createInitialGameState(31),
+      phase: "result" as const,
+      scenario: { seed: HISTORY_SEEDS[0] },
+      currentTurn: playedTurns.at(-1)!.turn,
+      playedTurns,
+      result: {
+        ...endingFixture,
+        ordinaryLife2026: [
+          "学生每天在历史课上查阅",
+          ...endingFixture.ordinaryLife2026.slice(1),
+        ],
+      },
+    };
+
+    expect(saveGameSnapshot(state as never, storage)).toBe(true);
+    expect(loadGameSnapshot(storage)).toMatchObject({
+      phase: "ending",
+      playedTurns: expect.arrayContaining([expect.objectContaining({ selectedChoiceId: "A" })]),
+      result: null,
+      request: { kind: "ending", id: 31 },
+      nextRequestId: 32,
+    });
+  });
+
+  it("preserves twelve decisions when an older report contains prose beyond the new limits", () => {
+    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
+      turn: parseTimelineTurn(JSON.stringify({
+        ...turnFixture,
+        chapter: index + 1,
+        chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter],
+        previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho,
+      })),
+      selectedChoiceId: "A" as const,
+      selectedChoiceLabel: turnFixture.choices[0].label,
+      selectedDeviationClass: "nudge" as const,
+      resolvedEcho: turnFixture.choices[0].instantEcho,
+    }));
+    const storage = memoryStorage();
+    const state = {
+      ...createInitialGameState(41),
+      phase: "result" as const,
+      scenario: { seed: HISTORY_SEEDS[0] },
+      currentTurn: playedTurns.at(-1)!.turn,
+      playedTurns,
+      result: {
+        ...endingFixture,
+        historyTimeline: endingFixture.historyTimeline.map((item, index) => index === 0
+          ? { ...item, consequence: `${"旧报告中的完整历史后果从未限制长度，".repeat(8)}这段文字仍然以完整句结束。` }
+          : item),
+        plausibilityReason: `${"旧版可信度说明没有字符上限，".repeat(8)}这段文字仍然以完整句结束。`,
+        shareLine: `${"旧版分享语没有字符上限，".repeat(8)}这段文字仍然以完整句结束。`,
+      },
+    };
+
+    expect(saveGameSnapshot(state as never, storage)).toBe(true);
+    const loaded = loadGameSnapshot(storage);
+    expect(loaded).toMatchObject({
+      phase: "ending",
+      result: null,
+      request: { kind: "ending", id: 41 },
+      nextRequestId: 42,
+    });
+    expect(loaded?.playedTurns).toEqual(playedTurns);
   });
 
   it("returns an incompatible v6 run to selection", () => {

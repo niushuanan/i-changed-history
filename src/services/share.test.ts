@@ -9,6 +9,32 @@ afterEach(() => {
 });
 
 describe("front-page export", () => {
+  it("renders the complete scrollable report instead of only the visible viewport", async () => {
+    const scrollingReport = document.createElement("article");
+    Object.defineProperties(scrollingReport, {
+      scrollWidth: { configurable: true, value: 390 },
+      scrollHeight: { configurable: true, value: 1420 },
+    });
+    const renderToBlob = vi.fn().mockResolvedValue(blob);
+
+    await saveFrontPage(scrollingReport, {
+      worldName: "完整纪元",
+      shareLine: "完整报告",
+    }, {
+      renderToBlob,
+      navigator: { share: vi.fn().mockResolvedValue(undefined), canShare: () => true },
+      document,
+      url: { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() },
+      schedule: (callback) => callback(),
+    });
+
+    expect(renderToBlob).toHaveBeenCalledWith(scrollingReport, expect.objectContaining({
+      width: 390,
+      height: 1420,
+      style: expect.objectContaining({ overflow: "visible" }),
+    }));
+  });
+
   it("uses native file sharing when the browser supports it", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     const canShare = vi.fn().mockReturnValue(true);

@@ -64,4 +64,26 @@ describe("alternate present export", () => {
     expect(screen.getByText(result.worldName)).toBeVisible();
     expect(screen.queryByText(/人格|第一反应/)).not.toBeInTheDocument();
   });
+
+  it("renders the complete AI-authored chronicle instead of an abbreviated display copy", async () => {
+    const completeNarrative = "主角死后，旧部将他留下的仓册重新抄写，地方官府把战时配给改成常设制度，商路沿线又把公开账簿变成议事凭据，普通人第一次能凭票追问粮食去向。";
+    const completeResult = alternatePresentSchema.parse({
+      ...endingFixture,
+      posthumousChronicle: endingFixture.posthumousChronicle.map((item, index) => index === 0
+        ? { ...item, narrative: completeNarrative }
+        : item),
+    });
+    const user = userEvent.setup();
+    render(
+      <AlternatePresentScreen
+        result={completeResult}
+        deviation={64}
+        onSave={vi.fn().mockResolvedValue("downloaded")}
+        onRestart={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
+    expect(screen.getByText(completeNarrative)).toBeVisible();
+  });
 });

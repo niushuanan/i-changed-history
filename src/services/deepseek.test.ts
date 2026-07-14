@@ -521,7 +521,7 @@ describe("DeepSeek transport and structured generation", () => {
       historyTimeline: endingFixture.historyTimeline.map((item, index) => ({
         ...item,
         playerChoice: "模型无需复述玩家原句",
-        consequence: `第${index + 1}项决定推动新的权力与生活秩序落地`,
+        consequence: `第${index + 1}项决定推动新的权力与生活秩序落地。`,
       })),
     };
     const worldReport = {
@@ -556,6 +556,64 @@ describe("DeepSeek transport and structured generation", () => {
       .toEqual(customPlayedTurns.map((item) => item.selectedChoiceLabel));
     expect(ending.historyTimeline[0].consequence).not.toContain(customPlayedTurns[0].selectedChoiceLabel);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("repairs a cut 2026 chronicle field without rewriting the valid world report", async () => {
+    const biography = {
+      vernacularBiography: endingFixture.vernacularBiography,
+      classicalBiography: endingFixture.classicalBiography,
+      protagonistName: endingFixture.protagonistName,
+      lifespanSummary: endingFixture.lifespanSummary,
+      deathScene: endingFixture.deathScene,
+      historyTimeline: endingFixture.historyTimeline,
+    };
+    const incompleteWorldReport = {
+      worldName: endingFixture.worldName,
+      frontPageHeadline: endingFixture.frontPageHeadline,
+      causalChains: endingFixture.causalChains,
+      ordinaryLife2026: endingFixture.ordinaryLife2026,
+      posthumousChronicle: endingFixture.posthumousChronicle.map((item, index) => index === 0
+        ? { ...item, narrative: "主角死后，旧部把仓法交给地方官府，官府随后正式" }
+        : item),
+      closingPassage: endingFixture.closingPassage,
+      greatestGain: endingFixture.greatestGain,
+      hiddenPrice: endingFixture.hiddenPrice,
+      strangestDetail: endingFixture.strangestDetail,
+      biggestBeneficiary: endingFixture.biggestBeneficiary,
+      biggestLoser: endingFixture.biggestLoser,
+      rewriteLevel: endingFixture.rewriteLevel,
+      plausibilityScore: endingFixture.plausibilityScore,
+      plausibilityReason: endingFixture.plausibilityReason,
+      shareLine: endingFixture.shareLine,
+    };
+    const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      const payload = JSON.parse(body.messages.at(-1).content);
+      if (payload.outputContract?.requiredFields?.includes("vernacularBiography")) {
+        return Promise.resolve(completion(JSON.stringify(biography)));
+      }
+      if (payload.details?.repairFields?.includes("posthumousChronicle")) {
+        return Promise.resolve(completion(JSON.stringify({
+          posthumousChronicle: endingFixture.posthumousChronicle,
+        })));
+      }
+      return Promise.resolve(completion(JSON.stringify(incompleteWorldReport)));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const diagnostics: Array<{ target: string; stage: string; repairFields?: readonly string[] }> = [];
+
+    const ending = await generateEnding(scenario, endingPlayedTurns, {
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    });
+
+    expect(ending.frontPageHeadline).toBe(endingFixture.frontPageHeadline);
+    expect(ending.posthumousChronicle).toEqual(endingFixture.posthumousChronicle);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(diagnostics).toContainEqual(expect.objectContaining({
+      target: "world_report",
+      stage: "primary_invalid",
+      repairFields: ["posthumousChronicle"],
+    }));
   });
 
   it("starts the biography and 2026 report requests concurrently before merging them", async () => {

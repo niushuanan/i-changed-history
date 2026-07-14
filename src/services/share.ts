@@ -6,6 +6,9 @@ type RenderOptions = {
   backgroundColor: string;
   cacheBust: boolean;
   pixelRatio: number;
+  width?: number;
+  height?: number;
+  style?: Partial<CSSStyleDeclaration>;
 };
 
 type ShareNavigator = {
@@ -51,10 +54,15 @@ export async function saveFrontPage(
   const dependencies = { ...DEFAULT_DEPENDENCIES, ...overrides };
   await dependencies.document.fonts?.ready;
 
+  const exportWidth = node.scrollWidth || node.clientWidth;
+  const exportHeight = node.scrollHeight || node.clientHeight;
   const blob = await dependencies.renderToBlob(node, {
     backgroundColor: "#efede6",
     cacheBust: true,
     pixelRatio: 2,
+    ...(exportWidth > 0 ? { width: exportWidth } : {}),
+    ...(exportHeight > 0 ? { height: exportHeight } : {}),
+    style: { overflow: "visible", maxHeight: "none" },
   });
   if (!blob) throw new Error("无法生成头版图片，请重试。");
 

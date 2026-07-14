@@ -3,7 +3,14 @@ import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
 import { createInitialGameState, gameReducer } from "./reducer";
+import { CHAPTER_NAMES } from "./timelinePlan";
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
+const secondTurn = parseTimelineTurn(JSON.stringify({
+  ...turnFixture,
+  chapter: 2,
+  chapterName: CHAPTER_NAMES[2],
+  previousEcho: turnFixture.choices[0].instantEcho,
+}));
 const twelfthTurn = parseTimelineTurn(JSON.stringify({
   ...turnFixture,
   chapter: 12,
@@ -37,6 +44,30 @@ describe("single-life choice-only game reducer", () => {
     expect(chosen.playedTurns[0].selectedChoiceId).toBe("A");
     expect(chosen).not.toHaveProperty("instinctPlayedTurns");
     expect(chosen.playedTurns[0]).not.toHaveProperty("customIntervention");
+  });
+
+  it("records the full canonical AI choice instead of its compact display label", () => {
+    const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们在日落之前重新宣誓效忠";
+    const longChoiceTurn = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => index === 0 ? {
+        ...choice,
+        label: canonical,
+        actionSpec: { actor: "你", action: "公开核验军令", target: "边军将领", deadline: "日落前" },
+      } : choice),
+    }));
+    const state = {
+      ...createInitialGameState(),
+      phase: "event" as const,
+      scenario: { seed: HISTORY_SEEDS[0] },
+      currentTurn: longChoiceTurn,
+    };
+
+    const chosen = gameReducer(state, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
+
+    expect(longChoiceTurn.choices[0].displayLabel).toBe("公开核验军令：边军将领");
+    expect(chosen.playedTurns[0].selectedChoiceLabel).toBe(canonical);
+    expect(chosen.echo?.choiceLabel).toBe(canonical);
   });
 
   it("restarts at the complete historical filmstrip", () => {
@@ -86,6 +117,58 @@ describe("single-life choice-only game reducer", () => {
     expect(resolved.echo).toBeNull();
     expect(resolved.request).toMatchObject({ kind: "next-turn", targetChapter: 2 });
     expect(JSON.stringify(resolved)).not.toContain("custom-action");
+  });
+
+  it("keeps a validated scene behind an explicit player reveal", () => {
+    const selecting = createInitialGameState();
+    const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const generating = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "我已夺取宫门并控制诏书" });
+    const ready = gameReducer(generating, {
+      type: "TURN_RESOLVED",
+      requestId: generating.request!.id,
+      turn: secondTurn,
+    });
+
+    expect(ready).toMatchObject({
+      phase: "generating",
+      currentTurn: { chapter: 1 },
+      pendingTurn: { chapter: 2 },
+      request: null,
+    });
+
+    const revealed = gameReducer(ready, { type: "REVEAL_GENERATED_TURN" } as never);
+    expect(revealed).toMatchObject({
+      phase: "event",
+      currentTurn: { chapter: 2 },
+      pendingTurn: null,
+    });
+  });
+
+  it("keeps a prefetched A/B/C continuation behind the same explicit reveal", () => {
+    const selecting = createInitialGameState();
+    const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const echo = gameReducer(started, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
+    const prefetched = gameReducer(echo, {
+      type: "TURN_RESOLVED",
+      requestId: echo.request!.id,
+      turn: secondTurn,
+    });
+
+    const ready = gameReducer(prefetched, { type: "CONTINUE_TIMELINE" });
+    expect(ready).toMatchObject({
+      phase: "generating",
+      currentTurn: { chapter: 1 },
+      pendingTurn: { chapter: 2 },
+      request: null,
+      echo: null,
+    });
+
+    const revealed = gameReducer(ready, { type: "REVEAL_GENERATED_TURN" });
+    expect(revealed).toMatchObject({
+      phase: "event",
+      currentTurn: { chapter: 2 },
+      pendingTurn: null,
+    });
   });
 
   it("allows a fourth custom rewrite", () => {

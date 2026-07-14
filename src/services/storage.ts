@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
-import { alternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
+import { alternatePresentSchema, storedAlternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
 
 export const GAME_STORAGE_KEY = "i-changed-history:session:v13";
 const LEGACY_GAME_STORAGE_KEYS = [
@@ -11,7 +11,7 @@ const LEGACY_GAME_STORAGE_KEYS = [
 ] as const;
 const STORAGE_VERSION = 13;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
+type StoredState = Omit<GameState, "pendingEnding" | "echo">;
 
 const occupation = z.enum(["student", "product", "engineering", "business", "creative", "public-service"]);
 const strength = z.enum(["negotiation", "organization", "technology", "business", "writing", "strategy", "law", "medicine"]);
@@ -57,7 +57,8 @@ const stateSchema = z.strictObject({
   lastImpact: z.number().int().min(0).max(100),
   customActionsUsed: z.number().int().min(0),
   request: requestSchema.nullable(),
-  result: alternatePresentSchema.nullable(),
+  pendingTurn: storedTimelineTurnSchema.nullable().default(null),
+  result: storedAlternatePresentSchema.nullable(),
   error: errorSchema.nullable(),
   nextRequestId: z.number().int().positive(),
 }).superRefine((state, context) => {
@@ -65,7 +66,9 @@ const stateSchema = z.strictObject({
   if (state.phase === "event" && !state.currentTurn) context.addIssue({ code: "custom", message: "事件缺少幕次" });
   if (state.phase === "result" && !state.result) context.addIssue({ code: "custom", message: "结局缺失" });
   if (state.phase === "error" && !state.error) context.addIssue({ code: "custom", message: "错误恢复信息缺失" });
-  if (["generating", "ending"].includes(state.phase) && !state.request) context.addIssue({ code: "custom", message: "生成阶段缺少可恢复请求" });
+  if (state.phase === "generating" && !state.request && !state.pendingTurn) context.addIssue({ code: "custom", message: "生成阶段缺少请求或待揭晓场景" });
+  if (state.phase === "ending" && !state.request) context.addIssue({ code: "custom", message: "结局生成阶段缺少可恢复请求" });
+  if (state.pendingTurn && state.phase !== "generating") context.addIssue({ code: "custom", message: "待揭晓场景只能停留在生成页" });
 });
 const envelopeSchema = z.strictObject({ version: z.literal(STORAGE_VERSION), state: stateSchema });
 
@@ -73,12 +76,13 @@ function base(state: GameState) {
   return {
     scenario: state.scenario, currentTurn: state.currentTurn,
     playedTurns: state.playedTurns, deviation: state.deviation, lastImpact: state.lastImpact,
-    customActionsUsed: state.customActionsUsed, result: state.result, nextRequestId: state.nextRequestId,
+    customActionsUsed: state.customActionsUsed, pendingTurn: state.pendingTurn,
+    result: state.result, nextRequestId: state.nextRequestId,
   };
 }
 
 function toStored(state: GameState): StoredState | null {
-  if (state.pendingTurn) return { ...base(state), phase: "event", currentTurn: state.pendingTurn, request: null, error: null };
+  if (state.pendingTurn) return { ...base(state), phase: "generating", request: null, error: null };
   if (state.pendingEnding) return { ...base(state), phase: "result", result: state.pendingEnding, request: null, error: null };
   if (state.request) return {
     ...base(state),
@@ -114,7 +118,21 @@ export function loadGameSnapshot(storage: StorageLike = localStorage): GameState
     if (current) {
       const parsed = envelopeSchema.safeParse(JSON.parse(current));
       if (!parsed.success) { remove(storage); return null; }
-      return { ...parsed.data.state, pendingTurn: null, pendingEnding: null, echo: null } as GameState;
+      const loaded = { ...parsed.data.state, pendingEnding: null, echo: null } as GameState;
+      if (loaded.phase === "result" && loaded.result) {
+        const completeResult = alternatePresentSchema.safeParse(loaded.result);
+        if (completeResult.success) return { ...loaded, result: completeResult.data };
+        if (loaded.playedTurns.length !== 12) { remove(storage); return null; }
+        const requestId = loaded.nextRequestId;
+        return {
+          ...loaded,
+          phase: "ending",
+          request: { kind: "ending", id: requestId },
+          result: null,
+          nextRequestId: requestId + 1,
+        };
+      }
+      return loaded;
     }
 
     for (const key of LEGACY_GAME_STORAGE_KEYS) {

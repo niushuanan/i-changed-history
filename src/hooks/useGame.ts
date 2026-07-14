@@ -169,6 +169,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   }, []);
 
   const continueTimeline = useCallback(() => dispatch({ type: "CONTINUE_TIMELINE" }), []);
+  const revealGeneratedTurn = useCallback(() => dispatch({ type: "REVEAL_GENERATED_TURN" }), []);
   const retry = useCallback(() => dispatch({ type: "RETRY" }), []);
   const restart = useCallback(() => {
     requestControllerRef.current?.abort();
@@ -193,6 +194,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     choose,
     submitCustomAction,
     continueTimeline,
+    revealGeneratedTurn,
     retry,
     restart,
     toggleMute,

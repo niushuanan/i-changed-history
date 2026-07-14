@@ -90,6 +90,10 @@ describe("complete player journey", () => {
       const continueButton = await screen.findByRole("button", { name: /看看接下来发生什么|查看最终历史/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);
+      if (chapter < 12) {
+        expect(await screen.findByText("场景已经完成")).toBeVisible();
+        await user.click(screen.getByRole("button", { name: /下一步/ }));
+      }
     }
 
     expect(await screen.findByRole("heading", { name: "沈砚列传" })).toBeVisible();

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeneratingScreen } from "./GeneratingScreen";
 
@@ -78,6 +78,39 @@ describe("history developing room", () => {
     expect(screen.getByText("旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。")).toBeVisible();
     expect(screen.getByText("场景仍在写成，完整校验后才能决定")).toBeVisible();
     expect(screen.queryByRole("button", { name: /选择/ })).not.toBeInTheDocument();
+  });
+
+  it("waits for the player after validation instead of changing screens automatically", () => {
+    const onContinue = vi.fn();
+    const { rerender } = render(
+      <GeneratingScreen
+        chapter={4}
+        ending={false}
+        progressStage="validating"
+        ready={false}
+        draft={{ headline: "盐路突然断绝", narrative: "旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。" }}
+        onContinue={onContinue}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "下一步" })).not.toBeInTheDocument();
+
+    rerender(
+      <GeneratingScreen
+        chapter={4}
+        ending={false}
+        progressStage="validating"
+        ready
+        draft={{ headline: "盐路突然断绝", narrative: "旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。" }}
+        onContinue={onContinue}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("场景已经完成")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the exact player-authored fact visible while its consequences are generated", () => {

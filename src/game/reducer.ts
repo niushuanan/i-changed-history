@@ -52,6 +52,7 @@ export type GameAction =
   | { type: "TURN_RESOLVED"; requestId: number; turn: TimelineTurn }
   | { type: "ENDING_RESOLVED"; requestId: number; ending: AlternatePresent }
   | { type: "CONTINUE_TIMELINE" }
+  | { type: "REVEAL_GENERATED_TURN" }
   | { type: "REQUEST_FAILED"; requestId: number; code: string; message: string }
   | { type: "RETRY" }
   | { type: "RESTART" };
@@ -156,7 +157,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.request?.id !== action.requestId || state.request.kind !== "next-turn") return state;
       if (state.phase === "echo") return { ...state, pendingTurn: action.turn, request: null };
       if (state.phase !== "generating") return state;
-      return { ...state, phase: "event", currentTurn: action.turn, request: null, pendingTurn: null, error: null };
+      return { ...state, pendingTurn: action.turn, request: null, error: null };
     case "ENDING_RESOLVED":
       if (state.request?.id !== action.requestId || state.request.kind !== "ending") return state;
       if (state.phase === "echo") return { ...state, pendingEnding: action.ending, request: null };
@@ -165,10 +166,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "CONTINUE_TIMELINE":
       if (state.phase !== "echo") return state;
       if (state.error) return { ...state, phase: "error", echo: null };
-      if (state.pendingTurn) return { ...state, phase: "event", currentTurn: state.pendingTurn, pendingTurn: null, echo: null };
+      if (state.pendingTurn) return { ...state, phase: "generating", echo: null };
       if (state.pendingEnding) return { ...state, phase: "result", result: state.pendingEnding, pendingEnding: null, echo: null };
       if (state.request?.kind === "ending") return { ...state, phase: "ending", echo: null };
       return { ...state, phase: "generating", echo: null };
+    case "REVEAL_GENERATED_TURN":
+      if (state.phase !== "generating" || !state.pendingTurn) return state;
+      return {
+        ...state,
+        phase: "event",
+        currentTurn: state.pendingTurn,
+        pendingTurn: null,
+        error: null,
+      };
     case "REQUEST_FAILED":
       if (state.request?.id !== action.requestId) return state;
       return {

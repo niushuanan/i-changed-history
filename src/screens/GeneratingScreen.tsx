@@ -1,4 +1,4 @@
-import { Aperture, Check, Circle, CircleNotch } from "@phosphor-icons/react";
+import { Aperture, ArrowRight, Check, Circle, CircleNotch } from "@phosphor-icons/react";
 import type { DeepSeekPartialDraft, DeepSeekProgressStage } from "../services/deepseek";
 
 type DevelopingStage = {
@@ -53,6 +53,8 @@ export function GeneratingScreen({
   customCanonText,
   progressStage = "connected",
   draft,
+  ready = false,
+  onContinue,
   onCancel,
 }: {
   chapter: number;
@@ -61,10 +63,12 @@ export function GeneratingScreen({
   customCanonText?: string;
   progressStage?: DeepSeekProgressStage;
   draft?: DeepSeekPartialDraft;
+  ready?: boolean;
+  onContinue?: () => void;
   onCancel: () => void;
 }) {
   const stage = stageFor(chapter, ending, customAction);
-  const activeStep = progressStage === "connected" ? 0 : progressStage === "reasoning" ? 1 : 2;
+  const activeStep = ready ? 3 : progressStage === "connected" ? 0 : progressStage === "reasoning" ? 1 : 2;
   const readableDraft = !ending && Boolean(draft?.headline && draft?.narrative);
 
   const stamp = customAction ? "下一幕" : ending ? "身后历史书写中" : "历史正在发生";
@@ -96,13 +100,22 @@ export function GeneratingScreen({
       {readableDraft ? (
         <section className={`developing-draft${customCanonText ? " developing-draft--with-canon" : ""}`} aria-label="正在写成的历史现场">
           {canonReceipt}
-          <span>现场正在写成</span>
+          <span>{ready ? "现场已经写成" : "现场正在写成"}</span>
           <h1>{draft?.headline}</h1>
           <p>{draft?.narrative}</p>
           {(draft?.location || draft?.role) && (
             <small>{[draft.location, draft.role].filter(Boolean).join(" · ")}</small>
           )}
-          <em><CircleNotch size={14} weight="bold" />场景仍在写成，完整校验后才能决定</em>
+          {ready ? (
+            <div className="developing-ready">
+              <strong><Check size={16} weight="bold" />场景已经完成</strong>
+              <button type="button" onClick={onContinue}>
+                下一步 <ArrowRight size={18} weight="bold" />
+              </button>
+            </div>
+          ) : (
+            <em><CircleNotch size={14} weight="bold" />场景仍在写成，完整校验后才能决定</em>
+          )}
         </section>
       ) : (
         <>

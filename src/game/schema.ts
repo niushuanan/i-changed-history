@@ -3,6 +3,15 @@ import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
+const completeReportSentence = (max: number, label: string) => boundedString(max).refine(
+  (value) => {
+    if (!/[。！？!?](?:[”"』」）)])?$/.test(value)) return false;
+    const withoutClosing = value.replace(/[”"』」）)]*$/, "").trim();
+    const withoutTerminal = withoutClosing.replace(/[。！？!?]+$/, "").trim();
+    return isCompleteSentenceBody(withoutTerminal);
+  },
+  `${label}必须以完整句结束，不能停在半句话中`,
+);
 const chapterSchema = z.number().int().min(1).max(12).transform((value) => value as DecisionChapter);
 const causalChapterSchema = z.number().int().min(0).max(12);
 const chapterNameSchema = z.enum([
@@ -31,9 +40,97 @@ const echoSchema = z.object({
 });
 
 const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
-const INCOMPLETE_CHOICE_END_PATTERN = /(?:的|并|同时|随后|转而|改为|通过|试图|准备|意图|而非|而非中|试图平衡|是应急|出资补|[，,](?:向|对|把|将|让|以|从|与|和|及|但|且))$/;
+const INCOMPLETE_CHOICE_END_PATTERN = /(?:的|同时|随后|转而|改为|试图|准备|意图|而非|而非中|试图平衡|是应急|出资补|[，,](?:向|对|把|将|让|以|从|与|和|及|但|且))$/;
+const DEPENDENT_SENTENCE_START_PATTERN = /^(?:因为|由于|为了|为使|随着|如果|若(?:是|非)?|只要|除非|一旦|当(?!场|即|众|面)|待(?!命)|等到|尽管|虽然|即使|纵然)/;
+const DEPENDENT_CLAUSE_START_PATTERN = /^(?:如果|若(?:是|非)?|只要|除非|一旦|当|待|等到|由于|因为|为了|为使|尽管|虽然|即使|纵然|随着|通过|凭借|依靠)/;
+const LEADING_CONNECTOR_PATTERN = /^(?:并|但|而|且|以及|并且|同时|随后|然后|于是|因此|所以|从而|则|便|才|却)/;
+const INCOMPLETE_CLAUSE_END_PATTERN = /(?:的|之|与|和|及|或|并|但|而|且|把|将|向|对|以|从|由|被|让|使|为|在|于|通过)$/;
+const DISPENSABLE_SCAN_MODIFIER_PATTERN = /已经|随即|立即|正式|开始|正在|进一步|由此|从而|最终|当前|这项|整个/g;
+const COORDINATE_CLAUSE_SPLIT_PATTERN = /[，,。！？!?；;：:]|从而|进而|继而|并(?=已|将|使|令|迫使|导致|引发|改变|进入|形成|成为|失去|获得|转向|倒向|公开|开始|停止|完成|执行|控制|接管|改组|重组|封锁|解除)/;
 const ALTERNATE_TIMELINE_IN_BASELINE_PATTERN = /当前(?:时间)?线|本线|架空线|改变后|玩家(?:的)?选择|你(?:的)?决定/;
 const PRE_MODERN_LOCATION_PATTERN = /议事厅|会议室|办公室|指挥中心|新闻中心|发布厅|报告厅|展览厅|作战室|控制室|调度室/;
+const WORD_SEGMENTER = new Intl.Segmenter("zh-CN", { granularity: "word" });
+const DANGLING_GRAMMAR_WORDS = new Set([
+  "把", "将", "向", "并", "因为", "由于", "为了", "为使", "以及", "并且", "随后", "然后", "于是", "因此", "所以", "从而",
+]);
+const MILITARY_RANK_PREFIXES = new Set(["上", "中", "少", "大", "名", "老", "武", "主", "副", "猛", "守", "宿", "儒", "飞"]);
+const COMPOUND_BING_PREFIXES = new Set(["火", "合", "吞", "兼", "归"]);
+const PREDICATE_EVIDENCE_PATTERN = /(?:公开|推广|推行|施行|实施|执行|改为|改成|改写|改造|改革|改变|变成|变为|成为|纳入|列入|写入|编入|交给|交由|移交|转交|送往|发给|分给|分配|封存|保存|保留|烧毁|销毁|焚毁|撤销|撤回|撤离|释放|处死|杀死|迁往|转为|置于|投入|用于|用作|作为|公布|颁布|重建|拆除|开放|关闭|控制|接管|交出|归还|归入|落实|固定|制度化|合法化|国有化|私有化|完成|停止|恢复|扩大|缩小|记录|抄写|推翻|拒绝|扣下|封锁|放弃|任命|罢免|调往|调离|调入|调出|征调|征收|征用|交付|带到|带入|带回|留在|留给|赐给|还给|拆成|划为|划入|划出|组织|改组|重组|建成|修成|迁入|迁出|传给|传入|传往|变作|化为|送入|交到|写成|定为|立为|设为|升为|降为|撤掉|打开|关上|铭记|统领|上涨|下跌|崩溃|稳定|改善|恶化|增长|减少|中断|延续|生效|失效|结束|爆发|形成|消失|出现|陷入|逆转|保住|失去|获得|拥有|维持|继续|[杀烧抓放送交给迁改写记封拆建修开关留撤废毁锁夺还罚赦编分卖买征用])/;
+
+function segmentWords(value: string): string[] {
+  return [...WORD_SEGMENTER.segment(value)]
+    .filter((part) => part.isWordLike)
+    .map((part) => part.segment);
+}
+
+function isLexicalizedMilitaryRank(words: readonly string[], index: number): boolean {
+  return words[index] === "将" && MILITARY_RANK_PREFIXES.has(words[index - 1] ?? "");
+}
+
+function endsWithDanglingGrammar(value: string): boolean {
+  const words = segmentWords(value);
+  const last = words.at(-1) ?? "";
+  if (last === "将" && isLexicalizedMilitaryRank(words, words.length - 1)) return false;
+  if (last === "并" && COMPOUND_BING_PREFIXES.has(words.at(-2) ?? "")) return false;
+  return DANGLING_GRAMMAR_WORDS.has(last);
+}
+
+function hasDanglingDisposalStructure(value: string): boolean {
+  const words = segmentWords(value);
+  let markerIndex = -1;
+  for (let index = 0; index < words.length; index += 1) {
+    if (words[index] === "把") markerIndex = index;
+    if (words[index] === "将" && !isLexicalizedMilitaryRank(words, index)) markerIndex = index;
+  }
+  if (markerIndex < 0) return false;
+  const remainder = words.slice(markerIndex + 1);
+  if (remainder.length === 0) return true;
+
+  const marker = words[markerIndex];
+  const predicateIndex = remainder.findIndex((word) => PREDICATE_EVIDENCE_PATTERN.test(word));
+  if (marker === "把") {
+    // A short 把 phrase needs an object followed by a predicate. Longer phrases
+    // can contain open-ended historical verbs that a local lexicon cannot know.
+    return remainder.length < 3 && predicateIndex < 1;
+  }
+
+  // 将 can be either a disposal marker or the future auxiliary "will". Reject
+  // only the high-confidence bare nominal tail instead of guessing its grammar.
+  return remainder.length === 1 && predicateIndex < 0;
+}
+
+function hasPredicateEvidence(value: string): boolean {
+  return segmentWords(value).some((word) => PREDICATE_EVIDENCE_PATTERN.test(word));
+}
+
+function finalClause(value: string): string {
+  return value.split(/[，,；;：:]/).map((clause) => clause.trim()).filter(Boolean).at(-1) ?? value;
+}
+
+function hasIndependentMainClause(value: string): boolean {
+  const clauses = value.split(/[，,；;：:]/).map((clause) => clause.trim()).filter(Boolean);
+  if (clauses.length < 2) return false;
+  const mainClause = clauses.at(-1) ?? "";
+  const mainWords = segmentWords(mainClause);
+  return [...mainClause].length >= 4
+    && !DEPENDENT_SENTENCE_START_PATTERN.test(mainClause)
+    && !endsWithDanglingGrammar(mainClause)
+    && !hasDanglingDisposalStructure(mainClause)
+    && (hasPredicateEvidence(mainClause) || mainWords.length >= 5);
+}
+
+function isCompleteSentenceBody(value: string): boolean {
+  if (DEPENDENT_SENTENCE_START_PATTERN.test(value) && !hasIndependentMainClause(value)) return false;
+  const clause = finalClause(value);
+  return !endsWithDanglingGrammar(clause) && !hasDanglingDisposalStructure(clause);
+}
+
+function isCompleteActionLabel(value: string): boolean {
+  if (INCOMPLETE_CHOICE_END_PATTERN.test(value)) return false;
+  if (DEPENDENT_SENTENCE_START_PATTERN.test(value) && !hasIndependentMainClause(value)) return false;
+  const clause = finalClause(value);
+  return !endsWithDanglingGrammar(clause) && !hasDanglingDisposalStructure(clause);
+}
 const preModernLocationSchema = z.object({
   location: z.string().refine(
     (location) => !PRE_MODERN_LOCATION_PATTERN.test(location),
@@ -61,13 +158,14 @@ export const customActionResolutionSchema = z.preprocess(
   customActionResolutionObjectSchema,
 );
 
-const choiceLabelSchema = boundedString(36).refine((label) => {
+const choiceLabelSchema = boundedString(160).refine((label) => {
   const withoutPunctuation = label.replace(/[。！？!?]+$/g, "").trim();
-  return !INCOMPLETE_CHOICE_END_PATTERN.test(withoutPunctuation);
+  return isCompleteActionLabel(withoutPunctuation);
 }, "行动必须是完整句，不能停在连接词、意图或缺少对象的动词上");
 
 const choiceFields = {
   label: choiceLabelSchema,
+  displayLabel: boundedString(36),
   intent: boundedString(40),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
@@ -108,7 +206,7 @@ const timelineTurnFields = {
     yearLabel: requiredString,
     location: boundedString(28),
     role: boundedString(32),
-    causalBridge: boundedString(48),
+    causalBridge: boundedString(36),
     worldStateChange: boundedString(48),
     divergenceProof: boundedString(64),
     immediateObjective: boundedString(40),
@@ -283,15 +381,52 @@ function trimAtCompleteClause(value: unknown, max: number): unknown {
   const candidate = characters.slice(0, max);
   let boundaryIndex = -1;
   for (let index = 0; index < candidate.length; index += 1) {
-    if ("。！？!?；;，,".includes(candidate[index])) boundaryIndex = index;
+    if ("。！？!?；;".includes(candidate[index])) boundaryIndex = index;
   }
-  if (boundaryIndex < Math.floor(max * 0.45)) return value;
+  if (boundaryIndex < 4) return value;
 
   const boundary = candidate[boundaryIndex];
   if ("。！？!?".includes(boundary)) {
     return candidate.slice(0, boundaryIndex + 1).join("");
   }
   return `${candidate.slice(0, boundaryIndex).join("").trim()}。`;
+}
+
+function compactCompleteScanCopy(value: unknown, max: number): unknown {
+  if (typeof value !== "string" || [...value].length <= max) return value;
+  if (DEPENDENT_CLAUSE_START_PATTERN.test(value.trim())) return value;
+
+  const isIndependent = (candidate: string) => {
+    const text = candidate.replace(/[。！？!?；;]+$/g, "").trim();
+    return [...text].length >= 6
+      && !DEPENDENT_CLAUSE_START_PATTERN.test(text)
+      && !LEADING_CONNECTOR_PATTERN.test(text)
+      && !INCOMPLETE_CHOICE_END_PATTERN.test(text)
+      && !INCOMPLETE_CLAUSE_END_PATTERN.test(text);
+  };
+  const closeSentence = (candidate: string) => {
+    const text = candidate.replace(/[。！？!?；;]+$/g, "").trim();
+    return `${text}。`;
+  };
+
+  const completeSentences = value.match(/[^。！？!?；;]+[。！？!?；;]/g) ?? [];
+  const sentence = completeSentences.find((candidate) => (
+    [...closeSentence(candidate)].length <= max && isIndependent(candidate)
+  ));
+  if (sentence) return closeSentence(sentence);
+
+  const clause = value
+    .split(COORDINATE_CLAUSE_SPLIT_PATTERN)
+    .map((candidate) => candidate.trim())
+    .find((candidate) => (
+      [...candidate].length + 1 <= max && isIndependent(candidate)
+    ));
+  if (clause) return closeSentence(clause);
+
+  const compressed = value.replace(DISPENSABLE_SCAN_MODIFIER_PATTERN, "");
+  return [...compressed].length <= max && isIndependent(compressed)
+    ? closeSentence(compressed)
+    : value;
 }
 
 function coerceDisplayString(value: unknown): unknown {
@@ -302,50 +437,18 @@ function coerceDisplayString(value: unknown): unknown {
 }
 
 function normalizeBiographyReportCandidate(value: unknown): unknown {
-  const report = asRecord(value);
-  if (!report) return value;
-  const deathScene = asRecord(report.deathScene);
-  return {
-    ...report,
-    vernacularBiography: trimBounded(report.vernacularBiography, 720),
-    classicalBiography: trimBounded(report.classicalBiography, 520),
-    lifespanSummary: trimBounded(report.lifespanSummary, 180),
-    deathScene: deathScene ? {
-      ...deathScene,
-      place: trimBounded(deathScene.place, 32),
-      finalMoment: trimBounded(deathScene.finalMoment, 120),
-      lastingLegacy: trimBounded(deathScene.lastingLegacy, 120),
-    } : report.deathScene,
-  };
+  return value;
 }
 
 function normalizeWorldReportCandidate(value: unknown): unknown {
   const report = asRecord(value);
   if (!report) return value;
-  const posthumousChronicle = Array.isArray(report.posthumousChronicle)
-    ? report.posthumousChronicle.map((entry) => {
-        const item = asRecord(entry);
-        return item ? {
-          ...item,
-          period: trimBounded(item.period, 18),
-          title: trimBounded(item.title, 22),
-          narrative: trimBounded(item.narrative, 54),
-          inheritedChange: trimBounded(item.inheritedChange, 42),
-        } : entry;
-      })
-    : report.posthumousChronicle;
-  const ordinaryLife2026 = Array.isArray(report.ordinaryLife2026)
-    ? report.ordinaryLife2026.map((item) => trimBounded(item, 36))
-    : report.ordinaryLife2026;
   const plausibilityScore = typeof report.plausibilityScore === "string"
     && report.plausibilityScore.trim() !== ""
     ? Number(report.plausibilityScore)
     : report.plausibilityScore;
   return {
     ...report,
-    posthumousChronicle,
-    ordinaryLife2026,
-    closingPassage: trimBounded(report.closingPassage, 180),
     rewriteLevel: coerceDisplayString(report.rewriteLevel),
     plausibilityScore,
   };
@@ -406,6 +509,33 @@ function normalizeTimelineEcho(value: unknown): unknown {
   };
 }
 
+function displayLabelForChoice(label: unknown, actionSpec: unknown): unknown {
+  if (typeof label !== "string") return label;
+  const canonical = label.trim();
+  if ([...canonical].length <= 36) return canonical;
+
+  const spec = asRecord(actionSpec);
+  const action = typeof spec?.action === "string" ? spec.action.trim() : "";
+  const target = typeof spec?.target === "string" ? spec.target.trim() : "";
+  const structured = action && target ? `${action}：${target}` : "";
+  if (
+    [...structured].length >= 6
+    && [...structured].length <= 36
+    && !INCOMPLETE_CHOICE_END_PATTERN.test(structured)
+  ) return structured;
+
+  const clause = compactAiAuthoredClause(canonical, 36);
+  if (
+    typeof clause === "string"
+    && [...clause].length <= 36
+    && !DEPENDENT_CLAUSE_START_PATTERN.test(clause)
+    && !LEADING_CONNECTOR_PATTERN.test(clause)
+    && !INCOMPLETE_CHOICE_END_PATTERN.test(clause)
+  ) return clause;
+
+  return canonical;
+}
+
 function normalizeChoice(value: unknown, index: number): unknown {
   const choice = asRecord(value);
   const expectedId = CHOICE_IDS[index];
@@ -430,9 +560,10 @@ function normalizeChoice(value: unknown, index: number): unknown {
   return {
     ...choice,
     id: expectedId,
-    // Visible choices must never be silently cut into a half sentence. An
-    // oversized label is repaired as part of the model-owned choices field.
-    label: compactAiAuthoredClause(typeof label === "string" ? label.trim() : label, 36),
+    // This exact text becomes player canon after selection, so an oversized
+    // label is preserved while the compact derivative stays display-only.
+    label: typeof label === "string" ? label.trim() : label,
+    displayLabel: displayLabelForChoice(label, choice.actionSpec),
     intent: trimBounded(normalizedIntent, 24),
     deviationClass: DEVIATION_CLASSES[index],
     usesModernKnowledge: choice.usesModernKnowledge,
@@ -481,11 +612,11 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     location: turn.location,
     role: compactAiAuthoredClause(turn.role, 32),
     immediateObjective: trimBounded(turn.immediateObjective ?? derivedObjective, 40),
-    timePressure: turn.timePressure ?? derivedDeadline,
+    timePressure: trimAtCompleteClause(turn.timePressure ?? derivedDeadline, 36),
     headline: turn.headline,
     narrative: trimNarrative(turn.narrative),
-    causalBridge: trimAtCompleteClause(turn.causalBridge, 48),
-    worldStateChange: trimAtCompleteClause(turn.worldStateChange, 48),
+    causalBridge: compactCompleteScanCopy(turn.causalBridge, 36),
+    worldStateChange: compactCompleteScanCopy(turn.worldStateChange, 48),
     divergenceProof: normalizeDivergenceProof(turn.divergenceProof),
     baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor ?? derivedBaseline), 54),
     historicalAnchors: Array.isArray(turn.historicalAnchors)
@@ -518,7 +649,7 @@ const historyTimelineItemSchema = z.object({
   chapter: chapterSchema,
   yearLabel: requiredString,
   playerChoice: requiredString,
-  consequence: requiredString,
+  consequence: completeReportSentence(120, "决定后果"),
 });
 
 const causalChainSchema = z.object({
@@ -528,32 +659,43 @@ const causalChainSchema = z.object({
 });
 
 const biographyFields = {
-    vernacularBiography: requiredString.max(720),
-    classicalBiography: requiredString.max(520),
+    vernacularBiography: completeReportSentence(960, "白话列传"),
+    classicalBiography: completeReportSentence(720, "文言列传"),
     protagonistName: boundedString(16),
-    lifespanSummary: requiredString.max(180),
+    lifespanSummary: completeReportSentence(240, "一生总述"),
     deathScene: z.object({
       yearLabel: requiredString,
       age: z.number().int().min(14).max(100),
       place: boundedString(32),
-      finalMoment: requiredString.max(120),
-      lastingLegacy: requiredString.max(120),
+      finalMoment: completeReportSentence(180, "临终场景"),
+      lastingLegacy: completeReportSentence(180, "身后遗产"),
     }),
     historyTimeline: z.array(historyTimelineItemSchema).length(12),
 } as const;
+
+const posthumousChronicleItemSchema = z.object({
+  period: boundedString(18),
+  title: boundedString(22),
+  narrative: completeReportSentence(128, "身后时代叙事"),
+  inheritedChange: completeReportSentence(96, "时代遗产结论"),
+});
 
 const worldReportFields = {
     worldName: requiredString,
     frontPageHeadline: requiredString,
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
-    ordinaryLife2026: z.tuple([boundedString(36), boundedString(36), boundedString(36)]),
-    posthumousChronicle: z.tuple([
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
+    ordinaryLife2026: z.tuple([
+      completeReportSentence(72, "2026生活细节"),
+      completeReportSentence(72, "2026生活细节"),
+      completeReportSentence(72, "2026生活细节"),
     ]),
-    closingPassage: requiredString.max(180),
+    posthumousChronicle: z.tuple([
+      posthumousChronicleItemSchema,
+      posthumousChronicleItemSchema,
+      posthumousChronicleItemSchema,
+      posthumousChronicleItemSchema,
+    ]),
+    closingPassage: completeReportSentence(320, "小说尾声"),
     greatestGain: requiredString,
     hiddenPrice: requiredString,
     strangestDetail: requiredString,
@@ -561,8 +703,8 @@ const worldReportFields = {
     biggestLoser: requiredString,
     rewriteLevel: requiredString,
     plausibilityScore: z.number().finite().min(0).max(100),
-    plausibilityReason: requiredString,
-    shareLine: requiredString,
+    plausibilityReason: completeReportSentence(180, "可信度说明"),
+    shareLine: completeReportSentence(120, "分享语"),
 } as const;
 
 const biographyReportObjectSchema = z.object(biographyFields);
@@ -591,9 +733,56 @@ const alternatePresentObjectSchema = z
     });
   });
 
+const compatibleStoredAlternatePresentObjectSchema = z
+  .object({
+    ...biographyFields,
+    ...worldReportFields,
+    vernacularBiography: requiredString.max(960),
+    classicalBiography: requiredString.max(720),
+    lifespanSummary: requiredString.max(240),
+    deathScene: z.object({
+      yearLabel: requiredString,
+      age: z.number().int().min(14).max(100),
+      place: boundedString(32),
+      finalMoment: requiredString.max(180),
+      lastingLegacy: requiredString.max(180),
+    }),
+    historyTimeline: z.array(z.object({
+      chapter: chapterSchema,
+      yearLabel: requiredString,
+      playerChoice: requiredString,
+      consequence: requiredString,
+    })).length(12),
+    ordinaryLife2026: z.tuple([boundedString(72), boundedString(72), boundedString(72)]),
+    posthumousChronicle: z.tuple([
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
+      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
+    ]),
+    closingPassage: requiredString.max(320),
+    plausibilityReason: requiredString,
+    shareLine: requiredString,
+  })
+  .superRefine((ending, context) => {
+    ending.historyTimeline.forEach((item, index) => {
+      if (item.chapter !== index + 1) {
+        context.addIssue({
+          code: "custom",
+          path: ["historyTimeline", index, "chapter"],
+          message: "结局时间线必须按第一节点到第十二节点排列",
+        });
+      }
+    });
+  });
+
 export const alternatePresentSchema = z.preprocess(
   normalizeAlternatePresentCandidate,
   alternatePresentObjectSchema,
+);
+export const storedAlternatePresentSchema = z.preprocess(
+  normalizeAlternatePresentCandidate,
+  compatibleStoredAlternatePresentObjectSchema,
 );
 
 export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
@@ -735,7 +924,7 @@ export function parseBiographyReport(
         if (!authoritative) return item;
         const record = asRecord(item);
         return {
-          ...(record ?? { consequence: typeof item === "string" ? item : "该决定继续改变后世" }),
+          ...(record ?? { consequence: item }),
           chapter: index + 1,
           yearLabel: authoritative.yearLabel,
           playerChoice: authoritative.playerChoice,

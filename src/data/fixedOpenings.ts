@@ -69,6 +69,7 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     {
       id: "A",
       label: action,
+      displayLabel: action,
       intent: "立即执行眼前的关键决定",
       deviationClass: "nudge",
       usesModernKnowledge: false,
@@ -83,6 +84,7 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     {
       id: "B",
       label: `核验${factKey}后，再决定是否执行原令`,
+      displayLabel: `核验${factKey}后，再决定是否执行原令`,
       intent: "用现代核验方法降低误判",
       deviationClass: "reform",
       usesModernKnowledge: true,
@@ -97,6 +99,7 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     {
       id: "C",
       label: `公开拒绝并阻止${action}`,
+      displayLabel: `公开拒绝并阻止${action}`,
       intent: "让真实历史的关键动作无法发生",
       deviationClass: "rupture",
       usesModernKnowledge: false,
