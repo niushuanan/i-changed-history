@@ -7,11 +7,11 @@ import { SeedPickerScreen } from "./SeedPickerScreen";
 describe("living history filmstrip", () => {
   afterEach(() => cleanup());
 
-  it("synchronizes the fifty-event rail and chronological card strip", async () => {
+  it("synchronizes the one-hundred-event rail and chronological card strip", async () => {
     const user = userEvent.setup();
     render(<SeedPickerScreen onSelect={vi.fn()} />);
 
-    expect(screen.getAllByRole("article")).toHaveLength(50);
+    expect(screen.getAllByRole("article")).toHaveLength(100);
     expect(screen.getByText("（滑动可切换不同的历史瞬间）")).toBeVisible();
     const years = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
     expect(years).toEqual([...years].sort((left, right) => left - right));

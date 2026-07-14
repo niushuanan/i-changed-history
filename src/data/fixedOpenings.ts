@@ -1,6 +1,7 @@
 import { parseTimelineTurn, type TimelineTurn } from "../game/schema";
 import { getTimelineNode } from "../game/timelinePlan";
 import type { HistorySeed } from "../game/types";
+import { formatHistoricalYear } from "./historicalYear";
 
 const PROTAGONIST_NAMES = [
   "沈砚", "陈潜", "顾衡", "陆昭", "谢临", "韩策", "程骁", "周砺", "许闻", "林澈",
@@ -113,6 +114,9 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
 
 export function getFixedOpening(seed: HistorySeed): TimelineTurn {
   const node = getTimelineNode(1, seed.year);
+  const openingDateLabel = seed.year < 0
+    ? formatHistoricalYear(seed.year)
+    : seed.dateLabel.trim() || formatHistoricalYear(seed.year);
   const nameHash = Math.abs(seed.id.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0));
   const protagonistName = seed.perspective === "china"
     ? PROTAGONIST_NAMES[nameHash % 30]
@@ -123,7 +127,7 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
     protagonistName,
     protagonistAge: node.protagonistAge,
     lifeStage: node.lifeStage,
-    yearLabel: `${seed.dateLabel} · ${node.protagonistAge}岁`,
+    yearLabel: `${openingDateLabel} · ${node.protagonistAge}岁`,
     location: clip(seed.location, 28),
     role: clip(seed.role, 24),
     causalBridge: "你此刻的命令将成为整条时间线的源头",

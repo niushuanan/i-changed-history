@@ -1,54 +1,104 @@
 # Historical Card Image Credits
 
-Event-specific images come from the exact English Wikipedia pages below. Cached cards retain a previously downloaded local image. Cards marked local fallback use the project's generated period artwork because the article had no suitable page image.
+Generated from `manifest.json`. Wikimedia attribution and license fields are retained from Commons metadata; fallback cards use local period artwork.
 
-- **董卓焚洛阳：吕布的生死**: cached local image - `dong-zhuo-lu-bu-190.webp`
-- **官渡决胜：曹操夜袭乌巢**: cached local image - `guandu-wuchao-200.webp`
-- **赤壁火攻前夜**: cached local image - `red-cliffs-208.webp`
-- **夷陵之战：刘备连营七百里**: cached local image - `yiling-222.webp`
-- **马谡失街亭前夜**: cached local image - `jieting-228.webp`
-- **高平陵之变：曹爽是否投降**: cached local image - `gaoping-tombs-249.webp`
-- **淝水之战临河退阵**: cached local image - `feishui-383.webp`
-- **隋军渡江灭陈**: cached local image - `sui-unification-589.webp`
-- **玄武门之变**: cached local image - `xuanwu-gate-626.webp`
-- **武则天称帝前的最后一道诏书**: cached local image - `wu-zetian-690.webp`
-- **安禄山叛军逼近潼关**: cached local image - `an-lushan-755.webp`
-- **马嵬驿兵变：玄宗的选择**: cached local image - `mawei-756.webp`
-- **陈桥兵变黄袍加身**: cached local image - `chen-bridge-960.webp`
-- **澶渊前线和议**: cached local image - `chanyuan-1004.webp`
-- **王安石变法：青苗法出京**: cached local image - `wang-anshi-1069.webp`
-- **金军二围汴京**: cached local image - `jingkang-1127.webp`
-- **郾城大捷后的十二道金牌**: cached local image - `yue-fei-1140.webp`
-- **蒙哥汗死于钓鱼城下**: cached local image - `diaoyu-1259.webp`
-- **襄阳城破前的最后补给船**: cached local image - `xiangyang-1273.webp`
-- **崖山海战最后一日**: cached local image - `yamen-1279.webp`
-- **鄱阳湖火攻陈友谅巨舰**: cached local image - `poyang-1363.webp`
-- **朱棣入南京：建文帝失踪**: cached local image - `jingnan-nanjing-1402.webp`
-- **郑和宝船从刘家港启航**: cached local image - `zheng-he-1405.webp`
-- **土木堡之变后的北京守卫会议**: cached local image - `tumu-crisis-1449.webp`
-- **袁崇焕宁远炮击努尔哈赤**: cached local image - `ningyuan-1626.webp`
-- **山海关前的借兵决定**: cached local image - `shanhai-pass-1644.webp`
-- **郑成功横渡台湾海峡**: cached local image - `koxinga-1661.webp`
-- **少年康熙擒鳌拜**: cached local image - `kangxi-aobai-1669.webp`
-- **马嘎尔尼使团觐见乾隆**: cached local image - `macartney-1793.webp`
-- **虎门销烟前的外交通牒**: cached local image - `humen-1839.webp`
-- **罗马大火开始蔓延**: cached local image - `great-fire-rome-64.webp`
-- **西罗马最后一位皇帝退位**: cached local image - `fall-rome-476.webp`
-- **君士坦丁堡陷落前夜**: cached local image - `constantinople-1453.webp`
-- **哥伦布船队看见陆地火光**: cached local image - `columbus-1492.webp`
-- **路德公开九十五条论纲**: cached local image - `luther-1517.webp`
-- **《星空使者》印刷前夜**: cached local image - `galileo-1610.webp`
-- **牛顿《自然哲学的数学原理》出版**: cached local image - `newton-principia-1687.webp`
-- **巴士底狱攻占前的火药争夺**: cached local image - `bastille-1789.webp`
-- **滑铁卢黄昏前的近卫军**: cached local image - `waterloo-1815.webp`
-- **《物种起源》首印发行**: cached local image - `origin-species-1859.webp`
-- **林肯公布《解放宣言》前夜**: cached local image - `lincoln-emancipation-1862.webp`
-- **萨拉热窝刺杀**: cached local image - `sarajevo-1914.webp`
-- **列宁发动十月革命**: cached local image - `october-revolution-1917.webp`
-- **罗斯福关闭全美银行**: cached local image - `roosevelt-bank-holiday-1933.webp`
-- **希特勒下令入侵波兰**: cached local image - `hitler-poland-1939.webp`
-- **斯大林决定留守莫斯科**: cached local image - `stalin-moscow-1941.webp`
-- **艾森豪威尔决定诺曼底登陆**: cached local image - `normandy-1944.webp`
-- **古巴导弹危机黑色星期六**: cached local image - `cuban-missile-1962.webp`
-- **阿波罗11号登月前的1202警报**: cached local image - `apollo-11-1969.webp`
-- **柏林墙边检站第一次开闸**: cached local image - `berlin-wall-1989.webp`
+- **赤壁火攻前夜**: [article](https://en.wikipedia.org/wiki/Battle_of_Red_Cliffs) · [source file](https://en.wikipedia.org/wiki/Battle_of_Red_Cliffs) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Red_Cliffs)
+- **董卓焚洛阳：吕布的生死**: [article](https://en.wikipedia.org/wiki/Dong_Zhuo) · [source file](https://en.wikipedia.org/wiki/Dong_Zhuo) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Dong_Zhuo)
+- **官渡决胜：曹操夜袭乌巢**: [article](https://en.wikipedia.org/wiki/Battle_of_Guandu) · [source file](https://en.wikipedia.org/wiki/Battle_of_Guandu) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Guandu)
+- **夷陵之战：刘备连营七百里**: [article](https://en.wikipedia.org/wiki/Battle_of_Xiaoting) · [source file](https://en.wikipedia.org/wiki/Battle_of_Xiaoting) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Xiaoting)
+- **马谡失街亭前夜**: [article](https://en.wikipedia.org/wiki/Battle_of_Jieting) · [source file](https://en.wikipedia.org/wiki/Battle_of_Jieting) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Jieting)
+- **高平陵之变：曹爽是否投降**: [article](https://en.wikipedia.org/wiki/Incident_at_the_Gaoping_Tombs) · [source file](https://en.wikipedia.org/wiki/Incident_at_the_Gaoping_Tombs) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Incident_at_the_Gaoping_Tombs)
+- **淝水之战临河退阵**: [article](https://en.wikipedia.org/wiki/Battle_of_Fei_River) · [source file](https://en.wikipedia.org/wiki/Battle_of_Fei_River) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Fei_River)
+- **隋军渡江灭陈**: [article](https://en.wikipedia.org/wiki/Chen_conquest_by_Sui) · [source file](https://en.wikipedia.org/wiki/Chen_conquest_by_Sui) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Chen_conquest_by_Sui)
+- **玄武门之变**: [article](https://en.wikipedia.org/wiki/Xuanwu_Gate_Incident) · [source file](https://en.wikipedia.org/wiki/Xuanwu_Gate_Incident) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Xuanwu_Gate_Incident)
+- **武则天称帝前的最后一道诏书**: [article](https://en.wikipedia.org/wiki/Wu_Zetian) · [source file](https://en.wikipedia.org/wiki/Wu_Zetian) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Wu_Zetian)
+- **安禄山叛军逼近潼关**: [article](https://en.wikipedia.org/wiki/An_Lushan_Rebellion) · [source file](https://en.wikipedia.org/wiki/An_Lushan_Rebellion) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/An_Lushan_Rebellion)
+- **马嵬驿兵变：玄宗的选择**: [article](https://en.wikipedia.org/wiki/Mawei_courier_station_incident) · [source file](https://en.wikipedia.org/wiki/Mawei_courier_station_incident) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Mawei_courier_station_incident)
+- **陈桥兵变黄袍加身**: [article](https://en.wikipedia.org/wiki/Chen_Bridge_Incident) · [source file](https://en.wikipedia.org/wiki/Chen_Bridge_Incident) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Chen_Bridge_Incident)
+- **澶渊前线和议**: [article](https://en.wikipedia.org/wiki/Chanyuan_Treaty) · [source file](https://en.wikipedia.org/wiki/Chanyuan_Treaty) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Chanyuan_Treaty)
+- **王安石变法：青苗法出京**: [article](https://en.wikipedia.org/wiki/New_Policies_(Song_dynasty)) · [source file](https://en.wikipedia.org/wiki/New_Policies_(Song_dynasty)) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/New_Policies_(Song_dynasty))
+- **金军二围汴京**: [article](https://en.wikipedia.org/wiki/Jingkang_Incident) · [source file](https://en.wikipedia.org/wiki/Jingkang_Incident) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Jingkang_Incident)
+- **郾城大捷后的十二道金牌**: [article](https://en.wikipedia.org/wiki/Yue_Fei) · [source file](https://en.wikipedia.org/wiki/Yue_Fei) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Yue_Fei)
+- **蒙哥汗死于钓鱼城下**: [article](https://en.wikipedia.org/wiki/Battle_of_Diaoyu_Fortress) · [source file](https://en.wikipedia.org/wiki/Battle_of_Diaoyu_Fortress) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Diaoyu_Fortress)
+- **襄阳城破前的最后补给船**: [article](https://en.wikipedia.org/wiki/Battle_of_Xiangyang_(1267%E2%80%931273)) · [source file](https://en.wikipedia.org/wiki/Battle_of_Xiangyang_(1267%E2%80%931273)) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Xiangyang_(1267%E2%80%931273))
+- **崖山海战最后一日**: [article](https://en.wikipedia.org/wiki/Battle_of_Yamen) · [source file](https://en.wikipedia.org/wiki/Battle_of_Yamen) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Yamen)
+- **鄱阳湖火攻陈友谅巨舰**: [article](https://en.wikipedia.org/wiki/Battle_of_Lake_Poyang) · [source file](https://en.wikipedia.org/wiki/Battle_of_Lake_Poyang) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Lake_Poyang)
+- **朱棣入南京：建文帝失踪**: [article](https://en.wikipedia.org/wiki/Jingnan_campaign) · [source file](https://en.wikipedia.org/wiki/Jingnan_campaign) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Jingnan_campaign)
+- **郑和宝船从刘家港启航**: [article](https://en.wikipedia.org/wiki/Ming_treasure_voyages) · [source file](https://en.wikipedia.org/wiki/Ming_treasure_voyages) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Ming_treasure_voyages)
+- **土木堡之变后的北京守卫会议**: [article](https://en.wikipedia.org/wiki/Tumu_Crisis) · [source file](https://en.wikipedia.org/wiki/Tumu_Crisis) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Tumu_Crisis)
+- **袁崇焕宁远炮击努尔哈赤**: [article](https://en.wikipedia.org/wiki/Battle_of_Ningyuan) · [source file](https://en.wikipedia.org/wiki/Battle_of_Ningyuan) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Ningyuan)
+- **山海关前的借兵决定**: [article](https://en.wikipedia.org/wiki/Battle_of_Shanhai_Pass) · [source file](https://en.wikipedia.org/wiki/Battle_of_Shanhai_Pass) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Shanhai_Pass)
+- **郑成功横渡台湾海峡**: [article](https://en.wikipedia.org/wiki/Siege_of_Fort_Zeelandia) · [source file](https://en.wikipedia.org/wiki/Siege_of_Fort_Zeelandia) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Siege_of_Fort_Zeelandia)
+- **少年康熙擒鳌拜**: [article](https://en.wikipedia.org/wiki/Oboi) · [source file](https://en.wikipedia.org/wiki/Oboi) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Oboi)
+- **马嘎尔尼使团觐见乾隆**: [article](https://en.wikipedia.org/wiki/Macartney_Embassy) · [source file](https://en.wikipedia.org/wiki/Macartney_Embassy) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Macartney_Embassy)
+- **虎门销烟前的外交通牒**: [article](https://en.wikipedia.org/wiki/Destruction_of_opium_at_Humen) · [source file](https://en.wikipedia.org/wiki/Destruction_of_opium_at_Humen) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Destruction_of_opium_at_Humen)
+- **罗马大火开始蔓延**: [article](https://en.wikipedia.org/wiki/Great_Fire_of_Rome) · [source file](https://en.wikipedia.org/wiki/Great_Fire_of_Rome) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Great_Fire_of_Rome)
+- **西罗马最后一位皇帝退位**: [article](https://en.wikipedia.org/wiki/Fall_of_the_Western_Roman_Empire) · [source file](https://en.wikipedia.org/wiki/Fall_of_the_Western_Roman_Empire) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Fall_of_the_Western_Roman_Empire)
+- **君士坦丁堡陷落前夜**: [article](https://en.wikipedia.org/wiki/Fall_of_Constantinople) · [source file](https://en.wikipedia.org/wiki/Fall_of_Constantinople) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Fall_of_Constantinople)
+- **哥伦布船队看见陆地火光**: [article](https://en.wikipedia.org/wiki/Christopher_Columbus) · [source file](https://en.wikipedia.org/wiki/Christopher_Columbus) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Christopher_Columbus)
+- **路德公开九十五条论纲**: [article](https://en.wikipedia.org/wiki/Ninety-five_Theses) · [source file](https://en.wikipedia.org/wiki/Ninety-five_Theses) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Ninety-five_Theses)
+- **《星空使者》印刷前夜**: [article](https://en.wikipedia.org/wiki/Sidereus_Nuncius) · [source file](https://en.wikipedia.org/wiki/Sidereus_Nuncius) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Sidereus_Nuncius)
+- **牛顿《自然哲学的数学原理》出版**: [article](https://en.wikipedia.org/wiki/Philosophi%C3%A6_Naturalis_Principia_Mathematica) · [source file](https://en.wikipedia.org/wiki/Philosophi%C3%A6_Naturalis_Principia_Mathematica) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Philosophi%C3%A6_Naturalis_Principia_Mathematica)
+- **巴士底狱攻占前的火药争夺**: [article](https://en.wikipedia.org/wiki/Storming_of_the_Bastille) · [source file](https://en.wikipedia.org/wiki/Storming_of_the_Bastille) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Storming_of_the_Bastille)
+- **滑铁卢黄昏前的近卫军**: [article](https://en.wikipedia.org/wiki/Battle_of_Waterloo) · [source file](https://en.wikipedia.org/wiki/Battle_of_Waterloo) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Waterloo)
+- **《物种起源》首印发行**: [article](https://en.wikipedia.org/wiki/On_the_Origin_of_Species) · [source file](https://en.wikipedia.org/wiki/On_the_Origin_of_Species) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/On_the_Origin_of_Species)
+- **林肯公布《解放宣言》前夜**: [article](https://en.wikipedia.org/wiki/Emancipation_Proclamation) · [source file](https://en.wikipedia.org/wiki/Emancipation_Proclamation) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Emancipation_Proclamation)
+- **萨拉热窝刺杀**: [article](https://en.wikipedia.org/wiki/Assassination_of_Archduke_Franz_Ferdinand) · [source file](https://en.wikipedia.org/wiki/Assassination_of_Archduke_Franz_Ferdinand) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Assassination_of_Archduke_Franz_Ferdinand)
+- **列宁发动十月革命**: [article](https://en.wikipedia.org/wiki/October_Revolution) · [source file](https://en.wikipedia.org/wiki/October_Revolution) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/October_Revolution)
+- **罗斯福关闭全美银行**: [article](https://en.wikipedia.org/wiki/Emergency_Banking_Act) · [source file](https://en.wikipedia.org/wiki/Emergency_Banking_Act) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Emergency_Banking_Act)
+- **希特勒下令入侵波兰**: [article](https://en.wikipedia.org/wiki/Invasion_of_Poland) · [source file](https://en.wikipedia.org/wiki/Invasion_of_Poland) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Invasion_of_Poland)
+- **斯大林决定留守莫斯科**: [article](https://en.wikipedia.org/wiki/Battle_of_Moscow) · [source file](https://en.wikipedia.org/wiki/Battle_of_Moscow) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Battle_of_Moscow)
+- **艾森豪威尔决定诺曼底登陆**: [article](https://en.wikipedia.org/wiki/Normandy_landings) · [source file](https://en.wikipedia.org/wiki/Normandy_landings) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Normandy_landings)
+- **古巴导弹危机黑色星期六**: [article](https://en.wikipedia.org/wiki/Cuban_Missile_Crisis) · [source file](https://en.wikipedia.org/wiki/Cuban_Missile_Crisis) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Cuban_Missile_Crisis)
+- **阿波罗11号登月前的1202警报**: [article](https://en.wikipedia.org/wiki/Apollo_11) · [source file](https://en.wikipedia.org/wiki/Apollo_11) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Apollo_11)
+- **柏林墙边检站第一次开闸**: [article](https://en.wikipedia.org/wiki/Fall_of_the_Berlin_Wall) · [source file](https://en.wikipedia.org/wiki/Fall_of_the_Berlin_Wall) · artist not stated · [license metadata unavailable](https://en.wikipedia.org/wiki/Fall_of_the_Berlin_Wall)
+- **周平王东迁**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **商鞅变法**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **长平之战**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **秦统一六国**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **大泽乡起义**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **刘邦建立汉朝**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **张骞出使西域**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **漠北之战**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **王莽建新**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **昆阳之战**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **黄巾起义**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **蜀汉灭亡**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **西晋统一**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **北魏统一北方**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **孝文帝迁都**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **大运河开工**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **李渊建唐**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **唐朝灭亡**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **阿骨打建金**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **忽必烈定国号**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **朱元璋建明**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **明迁都北京**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **隆庆开关**: local fallback `stage-early-modern.webp` (article lookup failed: fetch failed)
+- **《天工开物》刊行**: local fallback `stage-early-modern.webp` (article lookup failed: fetch failed)
+- **尼布楚条约**: local fallback `stage-early-modern.webp` (article lookup failed: fetch failed)
+- **戊戌变法**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **武昌起义**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **五四运动**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **新中国成立**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **改革开放决策**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **马拉松战役**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **亚历山大高加米拉**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **凯撒渡过卢比孔河**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **米兰敕令**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **查理曼加冕**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **大宪章**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **黑死病抵达欧洲**: local fallback `tone-ancient.webp` (article lookup failed: fetch failed)
+- **古腾堡圣经**: local fallback `stage-early-modern.webp` (article lookup failed: fetch failed)
+- **首次环球航行**: local fallback `stage-early-modern.webp` (article lookup failed: fetch failed)
+- **瓦特蒸汽机专利**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **独立宣言**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **牛痘接种**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **明治维新**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **首次动力飞行**: local fallback `tone-revolution.webp` (article lookup failed: fetch failed)
+- **联合国宪章**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **印度独立**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **首颗人造卫星**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **石油危机**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **切尔诺贝利核事故**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)
+- **苏联解体**: local fallback `tone-industry.webp` (article lookup failed: fetch failed)

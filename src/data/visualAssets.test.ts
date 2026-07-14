@@ -30,7 +30,7 @@ describe("timeline scene selection", () => {
 
   it("gives every opening archive a dedicated local image", () => {
     const images = HISTORY_SEEDS.map(historyAssetForSeed);
-    expect(new Set(images)).toHaveLength(50);
+    expect(new Set(images)).toHaveLength(100);
     expect(images.every((image) => image.startsWith("/assets/history/") && image.endsWith(".webp"))).toBe(true);
   });
 });

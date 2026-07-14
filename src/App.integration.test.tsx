@@ -75,8 +75,8 @@ describe("complete player journey", () => {
 
     expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
     expect(score.start).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
-    await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
+    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(100);
+    await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
     expect(score.start).toHaveBeenCalledTimes(1);
 
     for (let chapter = 1; chapter <= 12; chapter += 1) {
@@ -117,21 +117,21 @@ describe("complete player journey", () => {
 
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
+    await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
     expect(await screen.findByText("固定历史开场")).toBeVisible();
     expect(screen.getAllByText(/城市水道和消防队的值夜主管/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /直接改写结果，不限次数/ })).toBeVisible();
   });
 
-  it("always exposes one chronological fifty-moment filmstrip and exits an active run", async () => {
+  it("always exposes one chronological one-hundred-moment filmstrip and exits an active run", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(50);
-    expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(50);
+    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(100);
+    expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(100);
     expect(screen.queryByText(/展开全部|收回精选|为你的画像精选|换一批/)).not.toBeInTheDocument();
     const dates = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
     expect(dates).toEqual([...dates].sort((left, right) => left - right));

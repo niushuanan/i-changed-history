@@ -6,7 +6,7 @@ describe("fixed first turns", () => {
   it("provides one playable, schema-valid opening for every history card", () => {
     const openings = HISTORY_SEEDS.map(getFixedOpening);
 
-    expect(openings).toHaveLength(50);
+    expect(openings).toHaveLength(100);
     for (const [index, opening] of openings.entries()) {
       const seed = HISTORY_SEEDS[index];
       expect(opening).toMatchObject({
@@ -22,6 +22,13 @@ describe("fixed first turns", () => {
     }
   });
 
+  it("formats BCE opening years without exposing a negative number", () => {
+    const seed = HISTORY_SEEDS.find((candidate) => candidate.id === "qin-unification-221bc");
+    expect(seed).toBeDefined();
+    expect(getFixedOpening(seed!).yearLabel).toContain("公元前 221 年");
+    expect(getFixedOpening(seed!).yearLabel).not.toContain("-221");
+  });
+
   it("returns stable copy for the same card", () => {
     expect(getFixedOpening(HISTORY_SEEDS[0])).toEqual(getFixedOpening(HISTORY_SEEDS[0]));
   });
@@ -31,7 +38,7 @@ describe("fixed first turns", () => {
     const labels = openings.flatMap((opening) => opening.choices.map((choice) => choice.label));
     const apollo = openings[HISTORY_SEEDS.findIndex((seed) => seed.id === "apollo-11-1969")];
 
-    expect(labels).toHaveLength(150);
+    expect(labels).toHaveLength(300);
     expect(labels.every((label) => [...label].length <= 36)).toBe(true);
     expect(labels.filter((label) => /(?:的|并|，以|而非中|出资补)$/.test(label))).toEqual([]);
     expect(apollo.choices[0].label).toContain("中止登月的口令");
