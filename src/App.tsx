@@ -1,6 +1,7 @@
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+import { useState } from "react";
 import { useGame } from "./hooks/useGame";
-import { SeedPickerScreen } from "./screens/SeedPickerScreen";
+import { DEFAULT_PICKER_CONTEXT, SeedPickerScreen } from "./screens/SeedPickerScreen";
 import { TimelineEventScreen } from "./screens/TimelineEventScreen";
 import { ButterflyEchoScreen } from "./screens/ButterflyEchoScreen";
 import { GeneratingScreen } from "./screens/GeneratingScreen";
@@ -13,6 +14,7 @@ import "./styles/game.css";
 export function App() {
   const game = useGame();
   const { state } = game;
+  const [pickerContext, setPickerContext] = useState(DEFAULT_PICKER_CONTEXT);
 
   const saveResult = async (result: NonNullable<typeof state.result>) => {
     const target = document.getElementById("result-capture");
@@ -25,7 +27,13 @@ export function App() {
 
   let screen: React.ReactNode;
   if (state.phase === "selecting") {
-    screen = <SeedPickerScreen onSelect={game.selectSeed} />;
+    screen = (
+      <SeedPickerScreen
+        context={pickerContext}
+        onContextChange={setPickerContext}
+        onSelect={game.selectSeed}
+      />
+    );
   } else if (state.phase === "event" && state.currentTurn) {
     screen = (
       <TimelineEventScreen

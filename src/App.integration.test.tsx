@@ -119,6 +119,7 @@ describe("complete player journey", () => {
     expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
     expect(await screen.findByText("固定历史开场")).toBeVisible();
+    expect(engine.generateNextTurn).not.toHaveBeenCalled();
     expect(screen.getAllByText(/城市水道和消防队的值夜主管/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /直接改写结果，不限次数/ })).toBeVisible();
@@ -140,5 +141,25 @@ describe("complete player journey", () => {
     expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
     expect(await screen.findByText("固定历史开场")).toBeVisible();
     expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
+  });
+
+  it("restores grid mode, query, and current seed after exiting an active run", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "网格" }));
+    const search = screen.getByRole("searchbox", { name: "搜索历史瞬间" });
+    await user.type(search, "罗马大火");
+    const seedCard = screen.getByRole("button", { name: /罗马大火开始蔓延/ });
+    await user.click(seedCard);
+
+    expect(await screen.findByText("固定历史开场")).toBeVisible();
+    expect(engine.generateNextTurn).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "退出本次推演" }));
+
+    expect(screen.getByRole("button", { name: "网格" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toHaveValue("罗马大火");
+    expect(screen.getByRole("button", { name: /罗马大火开始蔓延/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
   });
 });
