@@ -609,6 +609,15 @@ describe("structured timeline parsing", () => {
     }))).toThrow(/完整句/);
   });
 
+  it("accepts a complete report sentence whose final verb is followed by terminal punctuation", () => {
+    const raw = JSON.stringify({
+      ...endingFixture,
+      ordinaryLife2026: ["法案经议会正式通过。", ...endingFixture.ordinaryLife2026.slice(1)],
+    });
+
+    expect(parseWorldReport(raw).ordinaryLife2026[0]).toBe("法案经议会正式通过。");
+  });
+
   it("rebuilds string-only ending timeline entries from authoritative played turns", () => {
     const expectedHistoryTimeline = endingFixture.historyTimeline.map((item) => ({
       yearLabel: item.yearLabel,

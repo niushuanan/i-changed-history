@@ -510,8 +510,8 @@ const causalChainSchema = z.object({
 });
 
 const completeReportSentence = (max: number) => requiredString.max(max).refine((value) => {
-  const withoutPunctuation = value.replace(/[。！？!?]+$/g, "").trim();
-  return !INCOMPLETE_CHOICE_END_PATTERN.test(withoutPunctuation);
+  if (/[。！？!?]$/.test(value)) return true;
+  return !INCOMPLETE_CHOICE_END_PATTERN.test(value);
 }, "报告文案必须是完整句，不能停在连接词或未完成的动作上");
 
 const biographyFields = {
