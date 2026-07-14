@@ -86,6 +86,32 @@ describe("living history browser", () => {
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(cards[20].id);
   });
 
+  it("preserves a clicked timeline target throughout smooth scrolling, then resumes gesture sync", async () => {
+    const user = userEvent.setup();
+    const target = cards.at(-1)!;
+    render(<PickerHarness />);
+
+    const carousel = screen.getByLabelText("按时间排列的历史瞬间");
+    Object.defineProperty(carousel, "scrollTo", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
+    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
+
+    for (const intermediateIndex of [20, 60, 90]) {
+      fireEvent.scroll(carousel, { target: { scrollLeft: 312 * intermediateIndex } });
+      expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
+    }
+
+    fireEvent.scroll(carousel, { target: { scrollLeft: 312 * (cards.length - 1) } });
+    fireEvent.pointerDown(carousel);
+    fireEvent.scroll(carousel, { target: { scrollLeft: 312 * 15 } });
+
+    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(cards[15].id);
+  });
+
   it("commits the exact filmstrip seed to the shared context when entering it", () => {
     const onSelect = vi.fn();
     const target = cards[1];

@@ -82,6 +82,8 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
   const timelineRef = useRef<HTMLElement>(null);
   const timelineNodes = useRef<Array<HTMLButtonElement | null>>([]);
   const gridRef = useRef<HTMLDivElement>(null);
+  const programmaticCardIndex = useRef<number | null>(null);
+  const gestureSyncedIndex = useRef<number | null>(null);
 
   const cardStep = () => {
     const first = carouselRef.current?.children[0] as HTMLElement | undefined;
@@ -102,20 +104,42 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
     onContextChange({ ...context, activeSeedId: seed.id });
   };
 
+  const scrollCardsTo = (index: number) => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+    const targetLeft = index * cardStep();
+    if (Math.abs(carousel.scrollLeft - targetLeft) <= 1) {
+      programmaticCardIndex.current = null;
+      return;
+    }
+    programmaticCardIndex.current = index;
+    moveScroller(carousel, targetLeft);
+  };
+
   const focusCard = (index: number) => {
     const seed = cards[index];
     if (!seed) return;
+    scrollCardsTo(index);
     setActiveSeed(seed);
-    if (carouselRef.current) moveScroller(carouselRef.current, index * cardStep());
     centerTimelineNode(index);
   };
 
   const syncFromCards = () => {
     const index = Math.max(0, Math.min(cards.length - 1, Math.round((carouselRef.current?.scrollLeft ?? 0) / cardStep())));
+    const targetIndex = programmaticCardIndex.current;
+    if (targetIndex !== null) {
+      if (index === targetIndex) programmaticCardIndex.current = null;
+      return;
+    }
     const seed = cards[index];
     if (!seed || seed.id === activeSeed.id) return;
+    gestureSyncedIndex.current = index;
     setActiveSeed(seed);
     centerTimelineNode(index);
+  };
+
+  const beginCardGesture = () => {
+    programmaticCardIndex.current = null;
   };
 
   const setMode = (mode: HistoryBrowseMode) => {
@@ -128,7 +152,11 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
 
   useEffect(() => {
     if (context.mode === "filmstrip") {
-      if (carouselRef.current) moveScroller(carouselRef.current, activeIndex * cardStep());
+      if (gestureSyncedIndex.current === activeIndex) {
+        gestureSyncedIndex.current = null;
+      } else {
+        scrollCardsTo(activeIndex);
+      }
       centerTimelineNode(activeIndex);
       return;
     }
@@ -184,7 +212,15 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
             </nav>
           </section>
 
-          <div className="history-carousel" ref={carouselRef} onScroll={syncFromCards} aria-label="按时间排列的历史瞬间">
+          <div
+            className="history-carousel"
+            ref={carouselRef}
+            onPointerDown={beginCardGesture}
+            onTouchStart={beginCardGesture}
+            onWheel={beginCardGesture}
+            onScroll={syncFromCards}
+            aria-label="按时间排列的历史瞬间"
+          >
             {cards.map((seed, index) => (
               <div key={seed.id} className={index === activeIndex ? "is-active" : ""} onFocus={() => focusCard(index)}>
                 <HistoryCard

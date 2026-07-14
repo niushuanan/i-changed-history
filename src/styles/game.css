@@ -829,7 +829,7 @@
 .history-time__track button {
   position: relative;
   z-index: 1;
-  flex: 0 0 42px;
+  flex: 0 0 44px;
   height: 54px;
   padding: 0;
   display: grid;
@@ -846,8 +846,8 @@
   position: absolute;
   z-index: -1;
   top: 26px;
-  right: 21px;
-  width: 42px;
+  right: 22px;
+  width: 44px;
   height: 1px;
   background: #454541;
   pointer-events: none;
