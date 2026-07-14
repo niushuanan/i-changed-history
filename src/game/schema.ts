@@ -509,7 +509,7 @@ const causalChainSchema = z.object({
   payoff: requiredString,
 });
 
-const completeReportSentence = (max: number) => requiredString.max(max).refine((value) => {
+const completeReportSentence = (max: number, min = 1) => z.string().trim().min(min).max(max).refine((value) => {
   if (/[。！？!?]$/.test(value)) return true;
   return !INCOMPLETE_CHOICE_END_PATTERN.test(value);
 }, "报告文案必须是完整句，不能停在连接词或未完成的动作上");
@@ -533,7 +533,7 @@ const worldReportFields = {
     worldName: requiredString,
     frontPageHeadline: requiredString,
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
-    ordinaryLife2026: z.tuple([completeReportSentence(48), completeReportSentence(48), completeReportSentence(48)]),
+    ordinaryLife2026: z.tuple([completeReportSentence(18, 12), completeReportSentence(18, 12), completeReportSentence(18, 12)]),
     posthumousChronicle: z.tuple([
       z.object({ period: boundedString(24), title: boundedString(32), narrative: completeReportSentence(84), inheritedChange: completeReportSentence(64) }),
       z.object({ period: boundedString(24), title: boundedString(32), narrative: completeReportSentence(84), inheritedChange: completeReportSentence(64) }),

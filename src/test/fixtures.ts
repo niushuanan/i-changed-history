@@ -101,7 +101,7 @@ export const endingFixture = {
     { origin: "共享道路", transformation: "跨洲税制", payoff: "公共交通" },
     { origin: "承认地方语言", transformation: "多语教育", payoff: "翻译网络" },
   ],
-  ordinaryLife2026: ["通勤者使用公共驿路", "家庭持有多语身份证", "学校教授城市议事"],
+  ordinaryLife2026: ["通勤者乘公共驿路列车准时上班", "家庭凭多语身份证跨城办理日常事务", "学生在课堂公开质询城市交通预算"],
   posthumousChronicle: [
     { period: "他死后十年", title: "继承者争夺解释权", narrative: "旧部把他的手稿拆成互相冲突的制度版本。", inheritedChange: "公开质询仍成为所有派系都不敢废除的底线。" },
     { period: "他死后一百年", title: "城市把规则写进石碑", narrative: "商路沿线开始复制公议程序。", inheritedChange: "地方税与战争动员必须公开表决。" },
