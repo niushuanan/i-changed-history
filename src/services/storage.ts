@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HISTORY_SEEDS } from "../data/historySeeds";
 import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
 import { alternatePresentSchema, storedAlternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
@@ -10,6 +11,7 @@ const LEGACY_GAME_STORAGE_KEYS = [
   "i-changed-history:session:v4",
 ] as const;
 const STORAGE_VERSION = 13;
+const ACTIVE_HISTORY_SEED_IDS = new Set(HISTORY_SEEDS.map((seed) => seed.id));
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingEnding" | "echo">;
 
@@ -118,6 +120,11 @@ export function loadGameSnapshot(storage: StorageLike = localStorage): GameState
     if (current) {
       const parsed = envelopeSchema.safeParse(JSON.parse(current));
       if (!parsed.success) { remove(storage); return null; }
+      const savedSeedId = parsed.data.state.scenario?.seed.id;
+      if (savedSeedId && !ACTIVE_HISTORY_SEED_IDS.has(savedSeedId)) {
+        remove(storage);
+        return createInitialGameState(parsed.data.state.nextRequestId);
+      }
       const loaded = { ...parsed.data.state, pendingEnding: null, echo: null } as GameState;
       if (loaded.phase === "result" && loaded.result) {
         const completeResult = alternatePresentSchema.safeParse(loaded.result);

@@ -33,6 +33,26 @@ describe("fixed first turns", () => {
     expect(getFixedOpening(HISTORY_SEEDS[0])).toEqual(getFixedOpening(HISTORY_SEEDS[0]));
   });
 
+  it("keeps the CERN opening objective and primary action complete through same-day publication", () => {
+    const seed = HISTORY_SEEDS.find((candidate) => candidate.id === "web-public-domain-1993");
+    const opening = getFixedOpening(seed!);
+    const completeAction = "把万维网免费开放条款送交两位主任共同签署并当日发布";
+
+    expect(opening.immediateObjective).toBe(completeAction);
+    expect(opening.choices[0].label).toBe(completeAction);
+    expect(opening.immediateObjective).toMatch(/万维网免费开放条款.*两位主任共同签署.*当日发布$/);
+    expect(opening.choices[0].label).toMatch(/万维网免费开放条款.*两位主任共同签署.*当日发布$/);
+  });
+
+  it("保留苏伊士固定开场的广播同步接管命令", () => {
+    const seed = HISTORY_SEEDS.find((candidate) => candidate.id === "suez-nationalization-1956");
+    const opening = getFixedOpening(seed!);
+    const completeAction = "在纳赛尔广播时同步发出运河公司立即接管密令";
+
+    expect(opening.immediateObjective).toBe(completeAction);
+    expect(opening.choices[0].label).toBe(completeAction);
+  });
+
   it("keeps all 150 opening choices as complete clauses instead of slicing at 32 characters", () => {
     const openings = HISTORY_SEEDS.map(getFixedOpening);
     const labels = openings.flatMap((opening) => opening.choices.map((choice) => choice.label));

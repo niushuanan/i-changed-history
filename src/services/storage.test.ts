@@ -93,6 +93,30 @@ describe("v13 fast-path single-history storage", () => {
     expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
   });
 
+  it.each([
+    "prc-founded-1949",
+    "reform-opening-1978",
+  ])("retires a current v13 snapshot whose history seed ID is no longer active: %s", (retiredId) => {
+    const storage = memoryStorage();
+    const event = gameReducer(createInitialGameState(17), {
+      type: "START_SCENARIO",
+      seed: HISTORY_SEEDS[0],
+    });
+    saveGameSnapshot(event, storage);
+    const retiredEnvelope = JSON.parse(storage.getItem(GAME_STORAGE_KEY)!);
+    retiredEnvelope.state.scenario.seed.id = retiredId;
+    storage.setItem(GAME_STORAGE_KEY, JSON.stringify(retiredEnvelope));
+
+    expect(loadGameSnapshot(storage)).toMatchObject({
+      phase: "selecting",
+      scenario: null,
+      currentTurn: null,
+      playedTurns: [],
+      nextRequestId: 17,
+    });
+    expect(storage.getItem(GAME_STORAGE_KEY)).toBeNull();
+  });
+
   it("automatically resumes the posthumous report without losing twelve decisions", () => {
     const playedTurns = Array.from({ length: 12 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),

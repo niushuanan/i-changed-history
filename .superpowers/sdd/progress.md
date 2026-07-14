@@ -6,3 +6,7 @@ Task 5: complete (commits 2588e65, d9fecfb, 1d10f17; full suite 48/48; reviewer 
 Task 6A: complete (commits 2606c8f, 500b98c; full suite 73/73; reviewer approved)
 Task 6B: complete (commits b738809, abd2b0a; full suite 83/83; reviewer approved)
 Task 7: complete (full image-to-code journey, real five-turn DeepSeek run, PNG export, 98/98 tests, typecheck and build passed)
+2026-07-15 post-1949-China Task 1: complete (uncommitted TDD red tests, review clean)
+2026-07-15 post-1949-China Task 2: complete (uncommitted content/assets, review clean)
+2026-07-15 post-1949-China Task 3: complete (uncommitted documentation, review clean)
+2026-07-15 post-1949-China Task 4: complete (332/332 tests, typecheck, build, portability, browser QA, final review clean)

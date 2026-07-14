@@ -63,8 +63,8 @@ const pageTitles = {
   "longqing-trade-1567": "Haijin", "tiangong-kaiwu-1637": "Tiangong Kaiwu",
   "nerchinsk-1689": "Treaty of Nerchinsk", "hundred-days-1898": "Hundred Days' Reform",
   "wuchang-1911": "Wuchang Uprising", "may-fourth-1919": "May Fourth Movement",
-  "prc-founded-1949": "Proclamation of the People's Republic of China",
-  "reform-opening-1978": "Chinese economic reform",
+  "suez-nationalization-1956": "Suez Crisis",
+  "web-public-domain-1993": "World Wide Web",
   "marathon-490bc": "Battle of Marathon", "alexander-gaugamela-331bc": "Battle of Gaugamela",
   "caesar-rubicon-49bc": "Crossing the Rubicon", "edict-milan-313": "Edict of Milan",
   "charlemagne-800": "Charlemagne", "magna-carta-1215": "Magna Carta",
@@ -90,6 +90,14 @@ const imagePageTitles = {
   "poyang-1363": "Hongwu Emperor",
   "longqing-trade-1567": "Longqing Emperor",
   "wuchang-1911": "Li Yuanhong",
+};
+
+// Some article lead images are logos or modern screenshots rather than the
+// historical hardware behind the card. Prefer a specific Commons file when
+// an article-level override still cannot provide an event-accurate scene.
+const imageFileTitles = {
+  "suez-nationalization-1956": "File:Nasser cheered by supporters in 1956.jpg",
+  "web-public-domain-1993": "File:First Web Server.jpg",
 };
 
 const missingTitles = entries.filter(({ id }) => !pageTitles[id]);
@@ -169,7 +177,9 @@ for (const batch of chunks(entries)) {
   }
 }
 
-const fileTitles = [...new Set(entries.map(({ id }) => imageArticles.get(id)?.pageimage).filter(Boolean).map((name) => `File:${name}`))];
+const fileTitles = [...new Set(entries.map(({ id }) => (
+  imageFileTitles[id] ?? (imageArticles.get(id)?.pageimage ? `File:${imageArticles.get(id).pageimage}` : undefined)
+)).filter(Boolean))];
 const files = new Map();
 for (const batch of chunks(fileTitles)) {
   try {
@@ -272,7 +282,9 @@ let cached = 0;
 async function processEntry(entry) {
   const article = articles.get(entry.id);
   const imageArticle = imageArticles.get(entry.id);
-  const file = imageArticle?.pageimage ? files.get(`File:${imageArticle.pageimage}`) : undefined;
+  const requestedFileTitle = imageFileTitles[entry.id]
+    ?? (imageArticle?.pageimage ? `File:${imageArticle.pageimage}` : undefined);
+  const file = requestedFileTitle ? files.get(requestedFileTitle) : undefined;
   const image = file?.imageinfo?.[0];
   const metadata = image?.extmetadata ?? {};
   const target = join(output, `${entry.id}.webp`);

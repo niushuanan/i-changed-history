@@ -6,12 +6,12 @@ import { historyAssetForSeed } from "./visualAssets";
 
 
 describe("famous historical moment deck", () => {
-  it("contains exactly sixty Chinese and forty world moments across BCE and CE", () => {
+  it("contains exactly fifty-eight Chinese and forty-two world moments across BCE and CE", () => {
     expect(HISTORY_SEEDS).toHaveLength(100);
     expect(new Set(HISTORY_SEEDS.map((seed) => seed.id)).size).toBe(100);
     expect(HISTORY_SEEDS.some((seed) => seed.year < 0)).toBe(true);
-    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china")).toHaveLength(60);
-    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "world")).toHaveLength(40);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china")).toHaveLength(58);
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "world")).toHaveLength(42);
 
     for (const seed of HISTORY_SEEDS) {
       expect(seed.baselineFacts).toHaveLength(3);
@@ -25,6 +25,59 @@ describe("famous historical moment deck", () => {
       expect(historyAssetForSeed(seed)).toBe(`/assets/history/${seed.id}.webp`);
       expect(existsSync(join(process.cwd(), "public/assets/history", `${seed.id}.webp`))).toBe(true);
     }
+  });
+
+  it("keeps every Chinese entry before 1949", () => {
+    expect(HISTORY_SEEDS.filter((seed) => seed.perspective === "china").every((seed) => seed.year < 1949)).toBe(true);
+  });
+
+  it("excludes modern PRC political framing from every history seed", () => {
+    const prohibitedText = /中国共产党|中共|中华人民共和国|新中国|改革开放/;
+
+    for (const seed of HISTORY_SEEDS) {
+      expect(JSON.stringify(seed)).not.toMatch(prohibitedText);
+    }
+  });
+
+  it.each([
+    "prc-founded-1949",
+    "reform-opening-1978",
+  ])("excludes retired post-1949 Chinese history seed ID %s", (retiredId) => {
+    const ids = HISTORY_SEEDS.map((seed) => seed.id);
+
+    expect(ids).not.toContain(retiredId);
+  });
+
+  it.each([
+    "suez-nationalization-1956",
+    "web-public-domain-1993",
+  ])("includes replacement world-history seed ID %s", (replacementId) => {
+    const ids = HISTORY_SEEDS.map((seed) => seed.id);
+
+    expect(ids).toContain(replacementId);
+  });
+
+  it("gives the Suez replacement a broadcast-triggered immediate takeover lever", () => {
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "suez-nationalization-1956")).toMatchObject({
+      perspective: "world",
+      role: "总统府与运河管理方之间的行动联络官",
+      decision: "是否在纳赛尔广播时同步发出运河公司立即接管密令",
+    });
+  });
+
+  it("gives the CERN replacement a drafting-and-joint-signature publication lever", () => {
+    const cern = HISTORY_SEEDS.find((seed) => seed.id === "web-public-domain-1993");
+
+    expect(cern).toMatchObject({
+      perspective: "world",
+      role: expect.stringMatching(/CERN.*起草.*开放声明.*授权主管/),
+      decision: "是否把万维网免费开放条款送交两位主任共同签署并当日发布",
+      baselineFacts: expect.arrayContaining([
+        expect.stringMatching(/使用.*复制.*修改.*传播/),
+      ]),
+    });
+    expect([...(cern?.decision ?? "")]).toHaveLength(27);
+    expect(`${cern?.role}${cern?.decision}`).not.toMatch(/顾问.*签发|法律顾问/);
   });
 
   it("includes famous Chinese and global pivot points from antiquity to the modern era", () => {
@@ -94,7 +147,6 @@ describe("famous historical moment deck", () => {
   });
 
   it("gives ceremonial and technical milestones a consequential immediate lever", () => {
-    expect(HISTORY_SEEDS.find((seed) => seed.id === "prc-founded-1949")?.decision).toMatch(/带实弹|迎击/);
     expect(HISTORY_SEEDS.find((seed) => seed.id === "circumnavigation-1522")?.decision).toMatch(/抛弃.*香料|减轻吃水/);
     expect(HISTORY_SEEDS.find((seed) => seed.id === "un-charter-1945")?.decision).toMatch(/否决权.*拒绝签署|拒绝.*否决权/);
     expect(HISTORY_SEEDS.find((seed) => seed.id === "sputnik-1957")?.decision).toMatch(/延长.*燃烧|稳定轨道/);
