@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { adjudicateCustomAction, generateEnding, generateNextTurn } from "../game/engine";
+import { generateEnding, generateNextTurn } from "../game/engine";
 import {
   createInitialGameState,
   gameReducer,
@@ -9,11 +9,14 @@ import { getDeviationStage } from "../game/deviation";
 import type { HistorySeed } from "../game/types";
 import { createEpicAudioController, type EpicAudioController } from "../services/audio";
 import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
-import type { DeepSeekProgressStage } from "../services/deepseek";
+import type {
+  DeepSeekPartialDraft,
+  DeepSeekProgressStage,
+  DeepSeekRequestMetrics,
+} from "../services/deepseek";
 
 export type UseGameDependencies = {
   generateNextTurn: typeof generateNextTurn;
-  adjudicateCustomAction: typeof adjudicateCustomAction;
   generateEnding: typeof generateEnding;
   loadSnapshot: () => GameState | null;
   saveSnapshot: (state: GameState) => boolean;
@@ -31,7 +34,6 @@ const PROGRESS_RANK: Record<DeepSeekProgressStage, number> = {
 function resolveDependencies(overrides: Partial<UseGameDependencies>): UseGameDependencies {
   return {
     generateNextTurn,
-    adjudicateCustomAction,
     generateEnding,
     loadSnapshot: () => loadGameSnapshot(),
     saveSnapshot: (state) => saveGameSnapshot(state),
@@ -65,6 +67,8 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const audioUnlockRef = useRef(false);
   const [muted, setMutedState] = useState(() => dependencies.audio.isMuted());
   const [generationStage, setGenerationStage] = useState<DeepSeekProgressStage>("connected");
+  const [generationDraft, setGenerationDraft] = useState<DeepSeekPartialDraft | null>(null);
+  const [generationMetrics, setGenerationMetrics] = useState<readonly DeepSeekRequestMetrics[]>([]);
   const generationStageRef = useRef<DeepSeekProgressStage>("connected");
 
   useLayoutEffect(() => {
@@ -90,34 +94,39 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     let active = true;
     generationStageRef.current = "connected";
     setGenerationStage("connected");
+    setGenerationDraft(null);
     const onProgress = (stage: DeepSeekProgressStage) => {
       if (!active || PROGRESS_RANK[stage] < PROGRESS_RANK[generationStageRef.current]) return;
       generationStageRef.current = stage;
       setGenerationStage(stage);
     };
+    const onPartial = (draft: DeepSeekPartialDraft) => {
+      if (!active) return;
+      setGenerationDraft((current) => ({ ...current, ...draft }));
+    };
+    const onMetrics = (metrics: DeepSeekRequestMetrics) => {
+      if (!active) return;
+      setGenerationMetrics((current) => [...current.slice(-49), metrics]);
+    };
 
     const run = async () => {
       try {
         if (request.kind === "next-turn") {
-          const turn = await dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, { signal: controller.signal, onProgress });
+          const turn = await dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, {
+            signal: controller.signal,
+            onProgress,
+            onPartial,
+            onMetrics,
+          });
           if (active) dispatch({ type: "TURN_RESOLVED", requestId: request.id, turn });
           return;
         }
 
-        if (request.kind === "custom-action") {
-          if (!state.currentTurn) throw new Error("当前历史幕次不存在，无法裁决自由行动。");
-          const resolution = await dependencies.adjudicateCustomAction(
-            scenario,
-            state.playedTurns,
-            state.currentTurn,
-            request.action,
-            { signal: controller.signal, onProgress },
-          );
-          if (active) dispatch({ type: "CUSTOM_ACTION_RESOLVED", requestId: request.id, resolution });
-          return;
-        }
-
-        const ending = await dependencies.generateEnding(scenario, state.playedTurns, { signal: controller.signal, onProgress });
+        const ending = await dependencies.generateEnding(scenario, state.playedTurns, {
+          signal: controller.signal,
+          onProgress,
+          onMetrics,
+        });
         if (active) dispatch({ type: "ENDING_RESOLVED", requestId: request.id, ending });
       } catch (error) {
         if (!active) return;
@@ -177,6 +186,8 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     deviationStage: getDeviationStage(state.deviation),
     muted,
     generationStage,
+    generationDraft,
+    generationMetrics,
     startExperience,
     selectSeed,
     choose,

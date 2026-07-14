@@ -65,6 +65,10 @@ export function App() {
       />
     );
   } else {
+    const latestPlayed = state.playedTurns.at(-1);
+    const customCanonText = latestPlayed?.playerAuthored && state.request?.kind === "next-turn"
+      ? latestPlayed.selectedChoiceLabel
+      : undefined;
     const targetChapter = state.request?.kind === "next-turn"
       ? state.request.targetChapter
       : Math.min(12, (state.currentTurn?.chapter ?? 0) + 1);
@@ -72,7 +76,9 @@ export function App() {
       <GeneratingScreen
         chapter={targetChapter}
         ending={state.phase === "ending" || state.request?.kind === "ending"}
-        customAction={state.phase === "adjudicating" || state.request?.kind === "custom-action"}
+        customAction={Boolean(customCanonText)}
+        customCanonText={customCanonText}
+        draft={game.generationDraft ?? undefined}
         progressStage={game.generationStage}
         onCancel={game.restart}
       />

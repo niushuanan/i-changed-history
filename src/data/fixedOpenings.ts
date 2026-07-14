@@ -10,19 +10,31 @@ const PROTAGONIST_NAMES = [
   "塞缪尔", "米洛什", "伊万", "艾琳", "卡尔", "尼古拉", "罗伯特", "丹尼尔", "迈克尔", "安娜",
 ] as const;
 
-const LENS_BY_DOMAIN: Record<string, TimelineTurn["rippleLens"]> = {
-  战争: "power", 政变: "power", 军令: "power", 兵变: "power", 围城: "power", 统一: "power",
-  继承: "power", 外交: "diplomacy", 改革: "livelihood", 贸易: "trade", 航海: "trade",
-  科学: "knowledge", 技术: "technology", 文化: "culture", 宗教: "culture", 革命: "power",
-  工业: "technology", 法律: "power", 经济: "trade", 探索: "knowledge", 太空: "technology",
-};
-
 function clean(value: string): string {
   return value.replace(/[。！？!?；;]+/g, "，").replace(/，+/g, "，").replace(/^，|，$/g, "").trim();
 }
 
 function clip(value: string, max: number): string {
   return [...value].slice(0, max).join("");
+}
+
+const DANGLING_CLAUSE_END_PATTERN = /(?:的|并|同时|随后|转而|改为|通过|试图|准备|意图|而非|而非中|试图平衡|是应急|出资补|[，,](?:向|对|把|将|让|以|从|与|和|及|但|且))$/;
+
+function compactCompleteClause(value: string, max: number, fallback: string): string {
+  const normalized = clean(value);
+  if ([...normalized].length <= max && !DANGLING_CLAUSE_END_PATTERN.test(normalized)) {
+    return normalized;
+  }
+
+  const clauses = normalized
+    .split(/[，,。！？!?；;]/)
+    .map((clause) => clause.trim())
+    .filter((clause) => (
+      [...clause].length >= 6
+      && [...clause].length <= max
+      && !DANGLING_CLAUSE_END_PATTERN.test(clause)
+    ));
+  return clauses.at(-1) ?? fallback;
 }
 
 function decisionAction(seed: HistorySeed): string {
@@ -42,18 +54,25 @@ function fixedNarrative(seed: HistorySeed): string {
 }
 
 function choices(seed: HistorySeed): TimelineTurn["choices"] {
-  const action = decisionAction(seed);
+  const originalAction = decisionAction(seed);
   const fact = clean(seed.baselineFacts[0]);
   const event = clean(seed.eventName);
+  const eventKey = compactCompleteClause(event, 18, "这一历史现场");
+  const action = compactCompleteClause(
+    originalAction,
+    28,
+    `执行改变${eventKey}走向的关键命令`,
+  );
+  const factKey = compactCompleteClause(fact, 18, eventKey);
   const deadline = clip(clean(seed.urgency), 20);
   return [
     {
       id: "A",
-      label: clip(action, 32),
+      label: action,
       intent: "立即执行眼前的关键决定",
       deviationClass: "nudge",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与现场执行者", action: clip(action, 28), target: clip(event, 28), deadline },
+      actionSpec: { actor: "你与现场执行者", action, target: clip(event, 28), deadline },
       instantEcho: {
         directResult: clip(`你决定${action}，现场立即照办`, 80),
         unexpectedCost: "原有矛盾提前爆发",
@@ -63,7 +82,7 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     },
     {
       id: "B",
-      label: clip(`先核验${fact}再下令`, 32),
+      label: `核验${factKey}后，再决定是否执行原令`,
       intent: "用现代核验方法降低误判",
       deviationClass: "reform",
       usesModernKnowledge: true,
@@ -77,7 +96,7 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     },
     {
       id: "C",
-      label: clip(`公开拒绝并阻止${action}`, 32),
+      label: `公开拒绝并阻止${action}`,
       intent: "让真实历史的关键动作无法发生",
       deviationClass: "rupture",
       usesModernKnowledge: false,
@@ -99,7 +118,6 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
     ? PROTAGONIST_NAMES[nameHash % 30]
     : PROTAGONIST_NAMES[30 + (nameHash % 20)];
   const opening = {
-    timelineName: clip(`${seed.eventName}新史`, 24),
     chapter: 1,
     chapterName: "历史现场",
     protagonistName,
@@ -108,11 +126,7 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
     yearLabel: `${seed.dateLabel} · ${node.protagonistAge}岁`,
     location: clip(seed.location, 28),
     role: clip(seed.role, 24),
-    identityBridge: "你的现代意识进入这个名字与身体，此后只活这一生",
-    modernAdvantage: clip(`你知道真实历史中${clean(seed.historicalOutcome)}`, 54),
-    rippleLens: LENS_BY_DOMAIN[seed.domain] ?? "origin",
     causalBridge: "你此刻的命令将成为整条时间线的源头",
-    turningPointStakes: clip(`这一决定将改写${seed.eventName}及其后继秩序`, 44),
     worldStateChange: "历史尚未改变，决定权已经落到你手中",
     divergenceProof: clip(clean(seed.historicalOutcome), 48),
     immediateObjective: clip(decisionAction(seed), 40),
@@ -124,10 +138,7 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
     previousEcho: null,
     choices: choices(seed),
     memorySummary: clip(`你在${seed.eventName}现场获得改变真实历史的决定权`, 54),
-    metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 0 },
-    metricDeltas: { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
     causalLedger: [],
-    callbackUsed: null,
     visualTone: seed.visualTone,
     generationSource: "fixed",
   };

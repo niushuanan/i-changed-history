@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
-import { buildBiographyMessages, buildContinuationMessages, buildCustomActionMessages, buildWorldReportMessages } from "./prompts";
+import { buildBiographyMessages, buildContinuationMessages, buildWorldReportMessages } from "./prompts";
 import type { PlayedTurn } from "./prompts";
 import type { GameScenario } from "./reducer";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
@@ -119,14 +119,17 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("原始历史事件不得继续作为本幕主题");
     expect(continuation).toContain("不要从预设类别、通用模板或固定章节槽中选题");
     expect(continuation).toContain("一阶、二阶和三阶后果");
-    expect(protocol).toContain("identityBridge");
-    expect(protocol).toContain("modernAdvantage");
     expect(protocol).toContain("usesModernKnowledge");
-    expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
+    expect(protocol).toContain("完整 JSON 控制在 900 个汉字左右");
     expect(continuation).not.toContain("authoritativePivotalBrief");
     expect(protocol).toContain("historicalAnchors");
     expect(protocol).toContain("actionSpec");
-    expect(protocol).toContain("rippleLens");
+    expect(protocol).not.toContain("rippleLens");
+    expect(protocol).not.toContain("timelineName");
+    expect(protocol).not.toContain("identityBridge");
+    expect(protocol).not.toContain("modernAdvantage");
+    expect(protocol).not.toContain("metricDeltas");
+    expect(protocol).not.toContain("callbackUsed");
     expect(protocol).toContain("causalBridge");
     expect(protocol).toContain("议事厅");
     expect(protocol).toContain("时代真实称谓");
@@ -156,12 +159,16 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("不可撤销正史");
     expect(continuation).toContain("我成为新皇帝，并设立国家科学院大力发展科技");
     expect(continuation).toContain("重大转折点");
-    expect(protocol).toContain("turningPointStakes");
     expect(protocol).toContain("worldStateChange");
     expect(protocol).toContain("divergenceProof");
     expect(continuation).toContain("自行选择其中最意外、最重大");
     expect(continuation).toContain("不得否认、降级、反转");
-    expect(continuation).toContain("尤其不得遗漏 immediateObjective、timePressure");
+    expect(continuation).toContain("尤其不得遗漏 timePressure、historicalAnchors");
+    const continuationPayload = JSON.parse(continuation);
+    expect(continuationPayload.latestPlayerFactForThisScene).toMatchObject({
+      status: "已经发生，不可否认或弱化",
+      sourceText: "我成为新皇帝，并设立国家科学院大力发展科技",
+    });
   });
 
   it("keeps all rewrites immutable but injects only three active mandates into the current turn", () => {
@@ -190,31 +197,32 @@ describe("modern traveler AI prompt contract", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const protocol = buildContinuationMessages(scenario, played, 2)[1].content;
-    expect(protocol).toContain("完整 JSON 控制在 1200 个汉字左右");
-    expect(protocol).toContain("88-160 个汉字");
+    expect(protocol).toContain("完整 JSON 控制在 900 个汉字左右");
+    expect(protocol).toContain("80-160 个汉字");
     expect(protocol).toContain("二至五句");
     expect(protocol).toContain("上一项决定如何造成当前局面");
     expect(protocol).toContain("真实人物、机构或阵营");
     expect(protocol).toContain("失败会立即失去什么");
     expect(protocol).toContain("只写真实历史的对应结果");
-    expect(protocol).toContain('"causalBridge":"36 字以内');
-    expect(protocol).toContain('"worldStateChange":"36 字以内');
-    expect(protocol).toContain('"divergenceProof":"48 字以内');
-    expect(protocol).toContain("每个 label 32 字以内");
+    expect(protocol).toContain('"causalBridge":"30 字以内');
+    expect(protocol).toContain('"worldStateChange":"30 字以内');
+    expect(protocol).toContain('"divergenceProof":"42 字以内');
+    expect(protocol).toContain("每个短字段必须以完整短句收尾");
+    expect(protocol).toContain("目标年份仍在世、在任或确实存在");
+    expect(protocol).toContain("每个 label 18-30 字");
+    expect(protocol).toContain("禁止以“的、并、试图、计划、平衡、处理、推进”等悬空词结尾");
+    expect(protocol).not.toContain('"intent"');
     expect(protocol).toContain("clientOwnedFields");
     expect(protocol).toContain("禁止输出");
   });
 
-  it("makes a player-declared result canon instead of judging whether it succeeds", () => {
+  it("forbids reusing a recent scene headline", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const body = buildCustomActionMessages(scenario, [], parsedTurn, "我暗杀了皇帝且成功").at(-1)!.content;
+    const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
+    const continuation = buildContinuationMessages(scenario, played, 2).at(-1)!.content;
 
-    expect(body).toContain("我暗杀了皇帝且成功");
-    expect(body).toContain(parsedTurn.role);
-    expect(body).toContain("既成事实");
-    expect(body).toContain("不得改变它写明的成功或失败");
-    expect(body).toContain("declaredOutcome");
-    expect(body).toContain("canonStatus");
-    expect(body).not.toContain("受限执行");
+    expect(continuation).toContain("本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同");
+    expect(continuation).toContain("至少逐字写出一个核心人物、制度、地点、器物或动作名");
   });
+
 });

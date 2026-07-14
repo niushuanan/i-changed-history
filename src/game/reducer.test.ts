@@ -14,19 +14,6 @@ const twelfthTurn = parseTimelineTurn(JSON.stringify({
 }));
 
 describe("single-life choice-only game reducer", () => {
-  const customResolution = {
-    declaredOutcome: "我暗杀了皇帝且成功",
-    canonStatus: "玩家钦定" as const,
-    causalMechanism: "死讯通过禁军口令传入摄政会议",
-    deviationClass: "rupture" as const,
-    instantEcho: {
-      directResult: "李渊提前收到宫变消息",
-      unexpectedCost: "两宫禁军开始互扣使者",
-      beneficiary: "忠于皇帝的宿卫",
-      payer: "玄武门低阶军士",
-    },
-  };
-
   it("opens the fixed first turn immediately without requesting DeepSeek", () => {
     const initial = createInitialGameState();
     expect(initial.phase).toBe("selecting");
@@ -80,32 +67,11 @@ describe("single-life choice-only game reducer", () => {
     expect(chosen.request).toMatchObject({ kind: "ending" });
   });
 
-  it("writes one of three player-declared outcomes into canonical history", () => {
+  it("writes a player-declared outcome into canon and starts the next turn without adjudication", () => {
     const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const adjudicating = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "我暗杀了皇帝且成功" });
+    const resolved = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "我暗杀了皇帝且成功" });
 
-    expect(adjudicating).toMatchObject({
-      phase: "adjudicating",
-      customActionsUsed: 0,
-      request: { kind: "custom-action", action: "我暗杀了皇帝且成功" },
-    });
-
-    const resolved = gameReducer(adjudicating, {
-      type: "CUSTOM_ACTION_RESOLVED",
-      requestId: adjudicating.request!.id,
-      resolution: {
-        ...customResolution,
-        declaredOutcome: "模型擅自改写的结果",
-        causalMechanism: "模型声称共和国并未成立",
-        instantEcho: {
-          directResult: "模型声称暗杀失败",
-          unexpectedCost: "皇帝其实幸存",
-          beneficiary: "挫败刺杀的人",
-          payer: "失败的刺客",
-        },
-      },
-    });
     expect(resolved.customActionsUsed).toBe(1);
     expect(resolved.playedTurns[0]).toMatchObject({
       selectedChoiceId: "custom",
@@ -114,11 +80,12 @@ describe("single-life choice-only game reducer", () => {
       canonStatus: "玩家钦定",
       causalMechanism: expect.stringContaining("宫门口令"),
       resolvedEcho: expect.objectContaining({ directResult: "我暗杀了皇帝且成功" }),
+      selectedDeviationClass: "rupture",
     });
     expect(resolved.phase).toBe("generating");
     expect(resolved.echo).toBeNull();
     expect(resolved.request).toMatchObject({ kind: "next-turn", targetChapter: 2 });
-    expect(JSON.stringify(resolved.playedTurns[0])).not.toMatch(/模型擅自|模型声称|其实幸存|挫败刺杀|失败的刺客/);
+    expect(JSON.stringify(resolved)).not.toContain("custom-action");
   });
 
   it("allows a fourth custom rewrite", () => {
@@ -130,23 +97,33 @@ describe("single-life choice-only game reducer", () => {
       customActionsUsed: 3,
     };
     expect(gameReducer(state, { type: "SUBMIT_CUSTOM_ACTION", action: "再改一次" })).toMatchObject({
-      phase: "adjudicating",
-      customActionsUsed: 3,
-      request: { kind: "custom-action", action: "再改一次" },
+      phase: "generating",
+      customActionsUsed: 4,
+      request: { kind: "next-turn", targetChapter: 2 },
     });
   });
 
-  it("does not spend a custom rewrite when adjudication fails and retries", () => {
-    const selecting = createInitialGameState();
-    const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const adjudicating = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令" });
-    const failed = gameReducer(adjudicating, {
-      type: "REQUEST_FAILED",
-      requestId: adjudicating.request!.id,
-      code: "network",
-      message: "网络中断",
+  it("commits a twelfth-node rewrite before requesting the ending", () => {
+    const state = {
+      ...createInitialGameState(),
+      phase: "event" as const,
+      scenario: { seed: HISTORY_SEEDS[0] },
+      currentTurn: twelfthTurn,
+      playedTurns: Array.from({ length: 11 }, () => ({
+        turn,
+        selectedChoiceId: "A" as const,
+        selectedChoiceLabel: turn.choices[0].label,
+        selectedDeviationClass: "nudge" as const,
+        resolvedEcho: turn.choices[0].instantEcho,
+      })),
+    };
+
+    const resolved = gameReducer(state, { type: "SUBMIT_CUSTOM_ACTION", action: "我宣布停战且双方已经签字" });
+    expect(resolved).toMatchObject({
+      phase: "ending",
+      customActionsUsed: 1,
+      request: { kind: "ending" },
     });
-    expect(failed).toMatchObject({ customActionsUsed: 0, phase: "error", error: { retry: { kind: "custom-action", action: "先扣下军令" } } });
-    expect(gameReducer(failed, { type: "RETRY" })).toMatchObject({ customActionsUsed: 0, phase: "adjudicating", request: { kind: "custom-action", action: "先扣下军令" } });
+    expect(resolved.playedTurns.at(-1)?.selectedChoiceLabel).toBe("我宣布停战且双方已经签字");
   });
 });

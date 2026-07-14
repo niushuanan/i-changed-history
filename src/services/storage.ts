@@ -3,13 +3,13 @@ import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
 import { alternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v12";
+export const GAME_STORAGE_KEY = "i-changed-history:session:v13";
 const LEGACY_GAME_STORAGE_KEYS = [
-  "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
+  "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
   "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5",
   "i-changed-history:session:v4",
 ] as const;
-const STORAGE_VERSION = 12;
+const STORAGE_VERSION = 13;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingTurn" | "pendingEnding" | "echo">;
 
@@ -41,17 +41,15 @@ const playedSchema = z.strictObject({
 });
 const retrySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12) }),
-  z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80) }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const requestSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12), id: z.number().int().positive() }),
-  z.strictObject({ kind: z.literal("custom-action"), action: z.string().trim().min(2).max(80), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("ending"), id: z.number().int().positive() }),
 ]);
 const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retry: retrySchema });
 const stateSchema = z.strictObject({
-  phase: z.enum(["selecting", "generating", "adjudicating", "event", "ending", "result", "error"]),
+  phase: z.enum(["selecting", "generating", "event", "ending", "result", "error"]),
   scenario: scenarioSchema.nullable(),
   currentTurn: storedTimelineTurnSchema.nullable(),
   playedTurns: z.array(playedSchema).max(12),
@@ -63,12 +61,11 @@ const stateSchema = z.strictObject({
   error: errorSchema.nullable(),
   nextRequestId: z.number().int().positive(),
 }).superRefine((state, context) => {
-  if (["generating", "adjudicating", "event", "ending", "result", "error"].includes(state.phase) && !state.scenario) context.addIssue({ code: "custom", message: "缺少历史场景" });
+  if (["generating", "event", "ending", "result", "error"].includes(state.phase) && !state.scenario) context.addIssue({ code: "custom", message: "缺少历史场景" });
   if (state.phase === "event" && !state.currentTurn) context.addIssue({ code: "custom", message: "事件缺少幕次" });
-  if (state.phase === "adjudicating" && !state.currentTurn) context.addIssue({ code: "custom", message: "自由改命缺少当前幕次" });
   if (state.phase === "result" && !state.result) context.addIssue({ code: "custom", message: "结局缺失" });
   if (state.phase === "error" && !state.error) context.addIssue({ code: "custom", message: "错误恢复信息缺失" });
-  if (["generating", "adjudicating", "ending"].includes(state.phase) && !state.request) context.addIssue({ code: "custom", message: "生成阶段缺少可恢复请求" });
+  if (["generating", "ending"].includes(state.phase) && !state.request) context.addIssue({ code: "custom", message: "生成阶段缺少可恢复请求" });
 });
 const envelopeSchema = z.strictObject({ version: z.literal(STORAGE_VERSION), state: stateSchema });
 
@@ -85,7 +82,7 @@ function toStored(state: GameState): StoredState | null {
   if (state.pendingEnding) return { ...base(state), phase: "result", result: state.pendingEnding, request: null, error: null };
   if (state.request) return {
     ...base(state),
-    phase: state.request.kind === "ending" ? "ending" : state.request.kind === "custom-action" ? "adjudicating" : "generating",
+    phase: state.request.kind === "ending" ? "ending" : "generating",
     request: state.request,
     error: null,
   };

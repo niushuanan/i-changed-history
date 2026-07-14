@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { parseTimelineTurn } from "./schema";
-import { buildWorldCanon, consequenceContradictsCanon, endingConsequencePreservesCanon } from "./worldCanon";
+import {
+  buildWorldCanon,
+  consequenceAcknowledgesCanon,
+  consequenceContradictsCanon,
+  endingConsequencePreservesCanon,
+} from "./worldCanon";
 import { turnFixture } from "../test/fixtures";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import type { PlayedTurn } from "./prompts";
@@ -88,5 +93,24 @@ describe("open causal canon", () => {
   it("rejects an anchored contradiction without confusing an enemy failure for player failure", () => {
     expect(consequenceContradictsCanon("我成为新皇帝", "你并未成为皇帝，旧君仍在位")).toBe(true);
     expect(consequenceContradictsCanon("我成为新皇帝", "敌军的刺杀计划最终失败，新朝因此更稳固")).toBe(false);
+  });
+
+  it("requires the next visible scene to acknowledge the substance of the latest player canon", () => {
+    const canon = "我宣布废除世袭特权并完成土地重分，新的地契已经在各地生效";
+
+    expect(consequenceAcknowledgesCanon(
+      canon,
+      "各地新地契已经进入官署账册，失地豪族正在阻断粮道反扑。",
+    )).toBe(true);
+    expect(consequenceAcknowledgesCanon(
+      "我已经接管全部军令与印信，此后所有调动只承认我的签发",
+      "你独揽的指挥权迫使各部重新划分兵符，旧将正在反扑。",
+    )).toBe(true);
+    expect(consequenceAcknowledgesCanon(
+      canon,
+      "军方把登月燃料数据转入武器化议程，国会即将召开听证会。",
+    )).toBe(false);
+    expect(consequenceAcknowledgesCanon(canon, "你的决定已经产生重大影响。"))
+      .toBe(false);
   });
 });

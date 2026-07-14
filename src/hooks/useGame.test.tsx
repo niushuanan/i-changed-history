@@ -7,7 +7,7 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { useGame, type UseGameDependencies } from "./useGame";
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
-  generateNextTurn: vi.fn(), adjudicateCustomAction: vi.fn(), generateEnding: vi.fn(),
+  generateNextTurn: vi.fn(), generateEnding: vi.fn(),
   loadSnapshot: vi.fn(() => null), saveSnapshot: vi.fn(() => true),
   audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
 });
@@ -108,36 +108,29 @@ describe("useGame single-life orchestration", () => {
     );
   });
 
-  it("writes a declared result into history and spends one chance only after generation", async () => {
+  it("writes a declared result immediately and starts exactly one next-turn request", async () => {
     const dependencies = deps();
-    vi.mocked(dependencies.adjudicateCustomAction).mockResolvedValue({
-      declaredOutcome: "我暗杀了皇帝且成功",
-      canonStatus: "玩家钦定",
-      causalMechanism: "死讯通过禁军口令传入摄政会议",
-      deviationClass: "rupture",
-      instantEcho: {
-        directResult: "我暗杀了皇帝且成功",
-        unexpectedCost: "两宫禁军开始互扣使者",
-        beneficiary: "忠于皇帝的宿卫",
-        payer: "玄武门低阶军士",
-      },
-    });
     vi.mocked(dependencies.generateNextTurn).mockResolvedValue(turn);
     const { result } = renderHook(() => useGame(dependencies));
     act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
     await waitFor(() => expect(result.current.state.phase).toBe("event"));
 
     act(() => result.current.submitCustomAction("我暗杀了皇帝且成功"));
-    expect(result.current.state.customActionsUsed).toBe(0);
-    await waitFor(() => expect(result.current.state.phase).toBe("event"));
     expect(result.current.state.customActionsUsed).toBe(1);
-    expect(result.current.state.echo).toBeNull();
     expect(result.current.state.playedTurns[0]).toMatchObject({
       selectedChoiceLabel: "我暗杀了皇帝且成功",
-      causalMechanism: "死讯通过禁军口令传入摄政会议",
+      selectedDeviationClass: "rupture",
+      playerAuthored: true,
+      canonStatus: "玩家钦定",
     });
-    expect(dependencies.adjudicateCustomAction).toHaveBeenCalledWith(
-      expect.any(Object), [], expect.objectContaining({ generationSource: "fixed" }), "我暗杀了皇帝且成功", expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    await waitFor(() => expect(result.current.state.phase).toBe("event"));
+    expect(result.current.state.echo).toBeNull();
+    expect(dependencies.generateNextTurn).toHaveBeenCalledTimes(1);
+    expect(dependencies.generateNextTurn).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.arrayContaining([expect.objectContaining({ selectedChoiceLabel: "我暗杀了皇帝且成功" })]),
+      2,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 });

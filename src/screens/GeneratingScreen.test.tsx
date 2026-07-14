@@ -62,4 +62,37 @@ describe("history developing room", () => {
     expect(screen.getByText("正在整理这一页，已经发生的历史不会改变")).toBeVisible();
     expect(screen.getAllByRole("listitem")[2]).toHaveClass("is-active");
   });
+
+  it("reveals only complete streamed scene fields while choices are still being validated", () => {
+    render(
+      <GeneratingScreen
+        chapter={4}
+        ending={false}
+        progressStage="writing"
+        draft={{ headline: "盐路突然断绝", narrative: "旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。" }}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("盐路突然断绝")).toBeVisible();
+    expect(screen.getByText("旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。")).toBeVisible();
+    expect(screen.getByText("场景仍在写成，完整校验后才能决定")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /选择/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the exact player-authored fact visible while its consequences are generated", () => {
+    render(
+      <GeneratingScreen
+        chapter={5}
+        ending={false}
+        customAction
+        customCanonText="我已经登基，并让全国工坊改造蒸汽机"
+        draft={{ headline: "新帝召集百工", narrative: "登基诏书已经传遍州县。全国工坊正依照你的命令改造蒸汽机。" }}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("我已经登基，并让全国工坊改造蒸汽机")).toBeVisible();
+    expect(screen.getByText("这条事实已经生效，后续只能推演它造成什么")).toBeVisible();
+  });
 });

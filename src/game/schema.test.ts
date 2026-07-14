@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { endingFixture, turnFixture } from "../test/fixtures";
-import { extractFirstJsonObject, parseAlternatePresent, parseCustomActionResolution, parseTimelineTurn } from "./schema";
+import { extractFirstJsonObject, parseAlternatePresent, parseCustomActionResolution, parseTimelineTurn, parseWorldReport } from "./schema";
 
 describe("structured timeline parsing", () => {
   it("keeps the same protagonist while enforcing the authoritative age", () => {
@@ -81,24 +81,35 @@ describe("structured timeline parsing", () => {
     expect(JSON.parse(extractFirstJsonObject(raw))).toEqual(turnFixture);
   });
 
-  it("parses a valid turn and clamps world metrics", () => {
+  it("parses a valid turn while ignoring legacy world metrics", () => {
     const raw = JSON.stringify({
       ...turnFixture,
       metrics: { stability: 132, prosperity: -5, freedom: 31.4, cost: 18 },
     });
-    expect(parseTimelineTurn(raw).metrics).toEqual({
-      stability: 100,
-      prosperity: 0,
-      freedom: 31,
-      cost: 18,
-    });
-    expect(parseTimelineTurn(raw).generationSource).toBe("deepseek");
+    const parsed = parseTimelineTurn(raw);
+    expect(parsed).not.toHaveProperty("metrics");
+    expect(parsed.generationSource).toBe("deepseek");
+  });
+
+  it("drops legacy model fields that have no gameplay consumer", () => {
+    const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
+    for (const field of [
+      "timelineName",
+      "identityBridge",
+      "modernAdvantage",
+      "rippleLens",
+      "turningPointStakes",
+      "metrics",
+      "metricDeltas",
+      "callbackUsed",
+    ]) {
+      expect(parsed).not.toHaveProperty(field);
+    }
   });
 
   it("injects omitted client-owned turn fields without asking the model to repeat them", () => {
     const { chapter: _chapter, chapterName: _chapterName, protagonistAge: _age,
       lifeStage: _lifeStage, yearLabel: _yearLabel, previousEcho: _previousEcho,
-      metrics: _metrics, metricDeltas: _metricDeltas, callbackUsed: _callbackUsed,
       ...modelOwned } = turnFixture;
     const parsed = parseTimelineTurn(JSON.stringify(modelOwned), {
       expectedChapter: 1,
@@ -113,8 +124,6 @@ describe("structured timeline parsing", () => {
       protagonistAge: 24,
       yearLabel: "208 年冬 · 24岁",
       previousEcho: null,
-      callbackUsed: null,
-      metrics: { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
     });
   });
 
@@ -126,16 +135,11 @@ describe("structured timeline parsing", () => {
     }))).toThrow();
   });
 
-  it("keeps the decisive turning point and visible divergence proof", () => {
+  it("keeps the visible alternate-world change and divergence proof", () => {
     const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
 
-    expect(parsed.turningPointStakes).toBe(turnFixture.turningPointStakes);
     expect(parsed.worldStateChange).toBe(turnFixture.worldStateChange);
     expect(parsed.divergenceProof).toBe(turnFixture.divergenceProof);
-    expect(() => parseTimelineTurn(JSON.stringify({
-      ...turnFixture,
-      turningPointStakes: undefined,
-    }))).toThrow();
   });
 
   it("removes a repeated real-history label from the comparison copy", () => {
@@ -154,57 +158,52 @@ describe("structured timeline parsing", () => {
     }))).toThrow(/真实历史/);
   });
 
-  it("trims overlong pivotal proof fields instead of discarding an otherwise valid turn", () => {
+  it("keeps complete causal proof that only drifts beyond the old compact limits", () => {
+    const causalBridge = "玩家命令先经驿站传到边军，粮仓账册又把影响带回朝堂，三地因此同时改变部署。";
+    const worldStateChange = "三座城已经共同执行新法，地方官署和驻军都公开承认这项改变。";
+    const divergenceProof = "正史里的边军并未收到这道命令，粮仓仍由旧官署掌管，朝堂也没有因此提前改组。";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      turningPointStakes: "重".repeat(80),
-      worldStateChange: "变".repeat(90),
-      divergenceProof: "史".repeat(90),
+      causalBridge,
+      worldStateChange,
+      divergenceProof,
     }));
 
-    expect(parsed.turningPointStakes.length).toBeLessThanOrEqual(44);
-    expect(parsed.worldStateChange.length).toBeLessThanOrEqual(36);
-    expect(parsed.divergenceProof.length).toBeLessThanOrEqual(48);
+    expect(parsed.causalBridge).toBe(causalBridge);
+    expect(parsed.worldStateChange).toBe(worldStateChange);
+    expect(parsed.divergenceProof).toBe(divergenceProof);
   });
 
-  it("trims an overlong causal bridge instead of discarding a strong generated scene", () => {
+  it("shortens an overlong visible proof only at a complete AI-authored clause", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      causalBridge: "因".repeat(70),
+      causalBridge: "第一层因果已经通过驿站传到前线，第二层影响也由地方官署公开确认，后面这段冗长补充不应被截成半句话，这句更长的重复说明绝不应出现在界面上",
+      worldStateChange: "第一项改变已经落地，第二项改变也已被官署确认，后面这段冗长补充不应被截成半句话，这句更长的重复说明绝不应出现在界面上",
+      divergenceProof: "正史中的第一次结果有明确记录，第二次结果也见于同时代档案，后面这段冗长补充不应被截成半句话而留在界面上，这句更长的重复说明绝不应出现在界面上",
     }));
 
-    expect(parsed.causalBridge.length).toBeLessThanOrEqual(36);
+    expect(parsed.causalBridge).toMatch(/。$/);
+    expect(parsed.worldStateChange).toMatch(/。$/);
+    expect(parsed.divergenceProof).toMatch(/。$/);
+    expect(parsed.causalBridge).not.toContain("重复说明");
+    expect(parsed.worldStateChange).not.toContain("重复说明");
+    expect(parsed.divergenceProof).not.toContain("重复说明");
   });
 
-  it("trims overlong relay metadata and history anchors without discarding the scene", () => {
+  it("rejects unpunctuated visible overflow so the engine can ask the model to rewrite it", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      causalBridge: "因".repeat(90),
+    }))).toThrow(/causalBridge/);
+  });
+
+  it("trims an overlong history anchor without discarding the scene", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      identityBridge: "代".repeat(70),
-      modernAdvantage: "能".repeat(70),
       baselineAnchor: "史".repeat(70),
     }));
 
-    expect(parsed.identityBridge).toHaveLength(54);
-    expect(parsed.modernAdvantage).toHaveLength(54);
     expect(parsed.baselineAnchor).toHaveLength(54);
-  });
-
-  it("keeps the client-selected ripple carrier authoritative", () => {
-    const raw = JSON.stringify({
-      ...turnFixture,
-      rippleLens: "power",
-      causalBridge: "玩家公开遗诏，消息经驿站进入城市粮价",
-    });
-    const parsed = parseTimelineTurn(raw, { expectedRippleLens: "livelihood" });
-    expect(parsed.rippleLens).toBe("livelihood");
-    expect(parsed.causalBridge).toContain("驿站");
-  });
-
-  it("normalizes common model ripple-lens aliases without repairing the scene", () => {
-    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, rippleLens: "military" })).rippleLens)
-      .toBe("power");
-    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, rippleLens: "science" })).rippleLens)
-      .toBe("knowledge");
   });
 
   it("truncates an overlong narrative instead of interrupting gameplay", () => {
@@ -220,10 +219,11 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("accepts two to five complete rich sentences", () => {
+  it("accepts the prompted sentence range and tolerates two extra punctuation-delimited clauses", () => {
     const twoSentences = `${"前".repeat(44)}。${"险".repeat(44)}。`;
     const fourSentences = `${"前".repeat(24)}。${"因".repeat(24)}。${"争".repeat(24)}。${"险".repeat(24)}。`;
     const fiveSentences = `${"前".repeat(18)}。${"因".repeat(18)}。${"争".repeat(18)}。${"变".repeat(18)}。${"险".repeat(18)}。`;
+    const sevenClauses = `${"前".repeat(12)}。${"因".repeat(12)}。${"争".repeat(12)}。${"变".repeat(12)}。${"险".repeat(12)}。${"得".repeat(12)}。${"失".repeat(12)}。`;
 
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: twoSentences })).narrative)
       .toBe(twoSentences);
@@ -231,13 +231,15 @@ describe("structured timeline parsing", () => {
       .toBe(fourSentences);
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: fiveSentences })).narrative)
       .toBe(fiveSentences);
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: sevenClauses })).narrative)
+      .toBe(sevenClauses);
   });
 
   it("rejects a newly generated prehistory without enough complete context", () => {
     expect(() => parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       narrative: `${"局".repeat(100)}。`,
-    }))).toThrow(/二至五句/);
+    }))).toThrow(/至少两句完整叙事/);
   });
 
   it("injects active player canon ahead of model ledger without changing scene prose", () => {
@@ -331,10 +333,8 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(incompleteEcho)).toThrow();
   });
 
-  it("normalizes protagonist continuity metadata and marks one modern-knowledge action", () => {
+  it("keeps exactly one modern-knowledge action", () => {
     const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
-    expect(parsed.identityBridge).toBeTruthy();
-    expect(parsed.modernAdvantage).toBeTruthy();
     expect(parsed.choices.filter((choice) => choice.usesModernKnowledge)).toHaveLength(1);
 
     const duplicate = {
@@ -346,14 +346,14 @@ describe("structured timeline parsing", () => {
     expect(normalized.choices[0].usesModernKnowledge).toBe(true);
   });
 
-  it("normalizes positional choice authority and trims nested action copy", () => {
+  it("normalizes positional choice authority and trims non-visible nested action copy", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: turnFixture.choices.map((choice) => ({
         ...choice,
         id: "C",
         deviationClass: "rupture",
-        label: "行".repeat(40),
+        label: choice.label,
         intent: "因".repeat(50),
         actionSpec: {
           actor: "人".repeat(30),
@@ -367,11 +367,49 @@ describe("structured timeline parsing", () => {
     expect(parsed.choices.map((choice) => [choice.id, choice.deviationClass])).toEqual([
       ["A", "nudge"], ["B", "reform"], ["C", "rupture"],
     ]);
-    expect(parsed.choices[0].label.length).toBeLessThanOrEqual(32);
+    expect(parsed.choices[0].label).toBe(turnFixture.choices[0].label);
     expect(parsed.choices[0].intent.length).toBeLessThanOrEqual(24);
     expect(parsed.choices[0].actionSpec).toMatchObject({
       actor: "人".repeat(20), action: "做".repeat(28), target: "物".repeat(28), deadline: "时".repeat(20),
     });
+  });
+
+  it("keeps one complete AI-authored clause from an oversized visible choice", () => {
+    const oversized = "公开在救济营支持老将军普劳图斯提出的分片重建计划，并调用全部水道重新划定七个供水区";
+    expect([...oversized].length).toBeGreaterThan(36);
+
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => (
+        index === 0 ? { ...choice, label: oversized } : choice
+      )),
+    }));
+
+    expect(parsed.choices[0].label).toBe("公开在救济营支持老将军普劳图斯提出的分片重建计划");
+  });
+
+  it("rejects a choice label that ends on an unfinished connector", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => (
+        index === 2 ? { ...choice, label: "查封木匠铺与建材市场，切断重建开工的" } : choice
+      )),
+    }))).toThrow(/完整/);
+  });
+
+  it("keeps a complete AI-authored clause from an oversized choice consequence", () => {
+    const unexpectedCost = "元老院书记官封存全部供水账册导致听证中断，前线居民随后失去补给并公开抗议";
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => (
+        index === 1
+          ? { ...choice, instantEcho: { ...choice.instantEcho, unexpectedCost } }
+          : choice
+      )),
+    }));
+
+    expect(parsed.choices[1].instantEcho.unexpectedCost)
+      .toBe("元老院书记官封存全部供水账册导致听证中断");
   });
 
   it("requires a null first-turn echo and accepts all twelve decision chapters", () => {
@@ -420,8 +458,17 @@ describe("structured timeline parsing", () => {
       { id: "C", label: turnFixture.choices[2].label, deviationClass: "rupture" },
     ]);
     expect(parsed.causalLedger[0].causedByChapter).toBe(0);
-    expect(parsed.callbackUsed).toBeNull();
     expect(parsed.visualTone).toBe("ancient");
+  });
+
+  it("derives the non-visible choice intent from its executable label when V4-flash omits it", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map(({ intent: _intent, ...choice }) => choice),
+    }));
+
+    expect(parsed.choices.map((choice) => choice.intent))
+      .toEqual(turnFixture.choices.map((choice) => [...choice.label].slice(0, 24).join("")));
   });
 
   it("removes internal deviation labels from player-facing choice copy", () => {
@@ -437,13 +484,34 @@ describe("structured timeline parsing", () => {
       .toEqual(turnFixture.choices.map((choice) => choice.intent));
   });
 
-  it("trims copy to the fixed iPhone event budgets", () => {
-    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, headline: "过".repeat(23) })).headline)
-      .toHaveLength(22);
-    expect(parseTimelineTurn(JSON.stringify({
+  it("accepts a complete specific role up to 32 characters without cutting it", () => {
+    const role = "国民议会财政预算与军需联合审查委员会首席书记官";
+    const parsed = parseTimelineTurn(JSON.stringify({ ...turnFixture, role }));
+
+    expect(parsed.role).toBe(role);
+  });
+
+  it("keeps a complete 32-character consequence party instead of repairing the whole scene", () => {
+    const payer = "失去全部远洋航线经营权与港口税收豁免权的旧商人联合会";
+    const choices = turnFixture.choices.map((choice, index) => index === 0
+      ? { ...choice, instantEcho: { ...choice.instantEcho, payer } }
+      : choice);
+
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, choices })).choices[0].instantEcho.payer)
+      .toBe(payer);
+  });
+
+  it("rejects oversized player-facing headings, roles, locations, and choices", () => {
+    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, headline: "过".repeat(23) })))
+      .toThrow();
+    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, role: "身份".repeat(17) })))
+      .toThrow();
+    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, location: "地点".repeat(15) })))
+      .toThrow();
+    expect(() => parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: [{ ...turnFixture.choices[0], label: "选".repeat(37) }, turnFixture.choices[1], turnFixture.choices[2]],
-    })).choices[0].label).toHaveLength(32);
+    }))).toThrow();
   });
 
   it("uses the selected choice echo as the authoritative continuation callback", () => {
@@ -498,6 +566,29 @@ describe("structured timeline parsing", () => {
         JSON.stringify({ ...endingFixture, causalChains: endingFixture.causalChains.slice(0, 2) }),
       ),
     ).toThrow();
+  });
+
+  it("normalizes harmless ending length and scalar drift without another model call", () => {
+    const raw = JSON.stringify({
+      ...endingFixture,
+      rewriteLevel: 82,
+      plausibilityScore: "78",
+      closingPassage: `${"尾声仍由模型完整写成。".repeat(30)}`,
+      posthumousChronicle: endingFixture.posthumousChronicle.map((item) => ({
+        ...item,
+        narrative: `${item.narrative}${"余波".repeat(40)}`,
+        inheritedChange: `${item.inheritedChange}${"制度".repeat(30)}`,
+      })),
+    });
+
+    const report = parseWorldReport(raw);
+    expect(report.rewriteLevel).toBe("82");
+    expect(report.plausibilityScore).toBe(78);
+    expect(report.closingPassage.length).toBeLessThanOrEqual(180);
+    report.posthumousChronicle.forEach((item) => {
+      expect(item.narrative.length).toBeLessThanOrEqual(54);
+      expect(item.inheritedChange.length).toBeLessThanOrEqual(42);
+    });
   });
 
   it("rebuilds string-only ending timeline entries from authoritative played turns", () => {

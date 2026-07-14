@@ -22,11 +22,21 @@ import {
   type CustomActionResolution,
   type TimelineTurn,
 } from "./schema";
-import { DeepSeekError, requestCompletion, type CompletionOptions, type DeepSeekProgressStage } from "../services/deepseek";
+import {
+  DeepSeekError,
+  requestCompletion,
+  type CompletionOptions,
+  type DeepSeekPartialDraft,
+  type DeepSeekProgressStage,
+  type DeepSeekRequestKind,
+  type DeepSeekRequestMetrics,
+  type DeepSeekReasoning,
+} from "../services/deepseek";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution } from "./fallbackTurn";
 import { buildCanonicalCustomResolution } from "./customCanon";
 import {
+  consequenceAcknowledgesCanon,
   consequenceContradictsCanon,
 } from "./worldCanon";
 import { buildNarrativeContext, type NarrativeContext } from "./narrativeContext";
@@ -38,6 +48,8 @@ export type GenerationOptions = {
   signal?: AbortSignal;
   onProgress?: (stage: DeepSeekProgressStage) => void;
   onDiagnostic?: (diagnostic: GenerationDiagnostic) => void;
+  onPartial?: (draft: DeepSeekPartialDraft) => void;
+  onMetrics?: (metrics: DeepSeekRequestMetrics) => void;
 };
 
 export type NextTurnGenerationOptions = GenerationOptions;
@@ -56,6 +68,16 @@ export type GenerationDiagnostic = Readonly<{
 }>;
 
 type EngineCompletionOptions = CompletionOptions & Pick<GenerationOptions, "onDiagnostic">;
+
+class FieldValidationError extends Error {
+  readonly issues: Array<{ path: [string]; message: string }>;
+
+  constructor(fields: readonly string[], message: string) {
+    super(message);
+    this.name = "FieldValidationError";
+    this.issues = fields.map((field) => ({ path: [field], message }));
+  }
+}
 
 export class StructuredGenerationError extends Error {
   readonly name = "StructuredGenerationError";
@@ -143,11 +165,17 @@ async function requestValidated<T>(
       // Diagnostics must never interrupt generation.
     }
   };
-  const complete = async (requestMessages: ChatMessage[], relayProgress = true) => {
+  const complete = async (
+    requestMessages: ChatMessage[],
+    relayProgress = true,
+    override?: { reasoning: DeepSeekReasoning; requestKind: DeepSeekRequestKind },
+  ) => {
     try {
       return await requestCompletion(requestMessages, {
         ...requestOptions,
+        ...override,
         onProgress: relayProgress ? requestOptions.onProgress : undefined,
+        onPartial: relayProgress ? requestOptions.onPartial : undefined,
       });
     } catch (error) {
       if (error instanceof DeepSeekError && error.code === "invalid_response") {
@@ -176,6 +204,10 @@ async function requestValidated<T>(
         ...(patchOnly ? { patchOnly: true, repairFields } : {}),
       }),
       false,
+      {
+        reasoning: "fast",
+        requestKind: requestOptions.phase === "ending" ? "ending-repair" : "turn-repair",
+      },
     );
     let repairedCandidate = repairedRaw;
     try {
@@ -193,6 +225,10 @@ async function requestValidated<T>(
           repairFields: undefined,
         }),
         false,
+        {
+          reasoning: "high",
+          requestKind: requestOptions.phase === "ending" ? "ending-recovery" : "turn-recovery",
+        },
       );
       try {
         const recovered = parse(recoveryRaw);
@@ -206,11 +242,20 @@ async function requestValidated<T>(
   }
 }
 
-function completionOptions(phase: CompletionOptions["phase"], options: GenerationOptions): EngineCompletionOptions {
+function completionOptions(
+  phase: CompletionOptions["phase"],
+  options: GenerationOptions,
+  reasoning: DeepSeekReasoning,
+  requestKind: DeepSeekRequestKind,
+): EngineCompletionOptions {
   return {
     phase,
+    reasoning,
+    requestKind,
     signal: options.signal,
     onDiagnostic: options.onDiagnostic,
+    onPartial: options.onPartial,
+    onMetrics: options.onMetrics,
     onProgress: options.onProgress
       ? ({ stage }) => options.onProgress?.(stage)
       : undefined,
@@ -245,9 +290,22 @@ function parseRequestedTurn(
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
     }
     if (expectedChapter >= 4 && openingContext) {
-      const currentPlot = `${turn.headline}；${turn.immediateObjective}；${turn.narrative}`;
-      if (turn.role === openingContext.role || currentPlot.includes(openingContext.eventName)) {
-        throw new Error("第四幕以后不能继续把开场事件或开场职位当作当前主线");
+      const headlineKeepsOpeningPlot = turn.headline.includes(openingContext.eventName);
+      const objectiveKeepsOpeningPlot = turn.immediateObjective.includes(openingContext.eventName)
+        || turn.choices.some((choice) => choice.label.includes(openingContext.eventName));
+      const narrativeKeepsOpeningPlot = turn.narrative.includes(openingContext.eventName)
+        && (headlineKeepsOpeningPlot || objectiveKeepsOpeningPlot);
+      const staleFields = [
+        ...(turn.role === openingContext.role ? ["role"] : []),
+        ...(headlineKeepsOpeningPlot ? ["headline"] : []),
+        ...(narrativeKeepsOpeningPlot ? ["narrative"] : []),
+        ...(objectiveKeepsOpeningPlot ? ["choices"] : []),
+      ];
+      if (staleFields.length > 0) {
+        throw new FieldValidationError(
+          staleFields,
+          "第四幕以后不能继续把开场事件或开场职位当作当前主线",
+        );
       }
     }
     if (expectedChapter === 12 && /已经死|闭上眼|咽气|去世|生命结束/.test(turn.narrative)) {
@@ -257,15 +315,28 @@ function parseRequestedTurn(
       turn.headline,
       turn.narrative,
       turn.causalBridge,
-      turn.turningPointStakes,
       turn.worldStateChange,
       turn.immediateObjective,
       turn.memorySummary,
     ].join("；");
     for (const canon of customCanon) {
       if (consequenceContradictsCanon(canon.selectedChoiceLabel, visibleCurrentHistory)) {
-        throw new Error(`本幕否定了玩家钦定正史「${canon.selectedChoiceLabel}」`);
+        throw new FieldValidationError(
+          ["narrative", "worldStateChange", "causalBridge"],
+          `本幕否定了玩家钦定正史「${canon.selectedChoiceLabel}」`,
+        );
       }
+    }
+    const latestActiveCanon = activePlayerCanon.at(-1);
+    if (
+      latestActiveCanon
+      && latestActiveCanon.chapter === expectedChapter - 1
+      && !consequenceAcknowledgesCanon(latestActiveCanon.sourceText, visibleCurrentHistory)
+    ) {
+      throw new FieldValidationError(
+        ["narrative", "worldStateChange", "causalBridge"],
+        `本幕没有在可见剧情中兑现最新玩家钦定正史「${latestActiveCanon.sourceText}」；必须在 narrative、worldStateChange 或 causalBridge 中写出它已造成的具体局面`,
+      );
     }
     return turn;
   };
@@ -305,7 +376,7 @@ export async function adjudicateCustomAction(
   try {
     return await requestValidated(
       messages,
-      completionOptions("turn", options),
+      completionOptions("turn", options, "high", "turn-primary"),
       "custom_action",
       parseCanonicalResult,
     );
@@ -367,7 +438,7 @@ export async function generateNextTurn(
   const protagonistName = playedTurns[0]?.turn.protagonistName;
   const customCanon = playedTurns.filter((turn) => turn.playerAuthored);
   const activePlayerCanon = buildNarrativeContext(playedTurns, chapter).activePlayerCanon;
-  return requestValidated(messages, completionOptions("turn", options), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon), { expectedChapter: chapter });
+  return requestValidated(messages, completionOptions("turn", options, "fast", "turn-primary"), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon), { expectedChapter: chapter });
 }
 
 export async function generateEnding(
@@ -387,14 +458,14 @@ export async function generateEnding(
   }
   const biographyPromise = requestValidated(
     buildBiographyMessages(scenario, playedTurns),
-    completionOptions("ending", options),
+    completionOptions("ending", options, "high", "ending-primary"),
     "biography_report",
     parseExpectedBiography(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }),
     {},
   );
   const worldReportPromise = requestValidated(
     buildWorldReportMessages(scenario, playedTurns),
-    completionOptions("ending", options),
+    completionOptions("ending", options, "high", "ending-primary"),
     "world_report",
     parseWorldReport,
     {},

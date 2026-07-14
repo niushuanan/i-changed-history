@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from "./timelinePlan";
-import type { RippleLens } from "./rippleRouter";
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
@@ -23,17 +22,16 @@ const visualToneSchema = z.enum([
   "digital",
 ]);
 const generationSourceSchema = z.enum(["fixed", "deepseek"]);
-const RIPPLE_LENS_VALUES = ["origin", "power", "livelihood", "knowledge", "technology", "culture", "trade", "migration", "ecology", "diplomacy"] as const;
-const rippleLensSchema = z.enum(RIPPLE_LENS_VALUES);
 
 const echoSchema = z.object({
   directResult: boundedString(80),
   unexpectedCost: boundedString(32),
-  beneficiary: boundedString(24),
-  payer: boundedString(24),
+  beneficiary: boundedString(32),
+  payer: boundedString(32),
 });
 
 const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
+const INCOMPLETE_CHOICE_END_PATTERN = /(?:的|并|同时|随后|转而|改为|通过|试图|准备|意图|而非|而非中|试图平衡|是应急|出资补|[，,](?:向|对|把|将|让|以|从|与|和|及|但|且))$/;
 const ALTERNATE_TIMELINE_IN_BASELINE_PATTERN = /当前(?:时间)?线|本线|架空线|改变后|玩家(?:的)?选择|你(?:的)?决定/;
 const PRE_MODERN_LOCATION_PATTERN = /议事厅|会议室|办公室|指挥中心|新闻中心|发布厅|报告厅|展览厅|作战室|控制室|调度室/;
 const preModernLocationSchema = z.object({
@@ -63,8 +61,13 @@ export const customActionResolutionSchema = z.preprocess(
   customActionResolutionObjectSchema,
 );
 
+const choiceLabelSchema = boundedString(36).refine((label) => {
+  const withoutPunctuation = label.replace(/[。！？!?]+$/g, "").trim();
+  return !INCOMPLETE_CHOICE_END_PATTERN.test(withoutPunctuation);
+}, "行动必须是完整句，不能停在连接词、意图或缺少对象的动词上");
+
 const choiceFields = {
-  label: boundedString(36),
+  label: choiceLabelSchema,
   intent: boundedString(40),
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
@@ -78,24 +81,6 @@ const choicesSchema = z.tuple([
   z.object({ id: z.literal("C"), ...choiceFields }),
 ]);
 
-const clampedMetricSchema = z.number().finite().transform((value) =>
-  Math.min(100, Math.max(0, Math.round(value))),
-);
-
-const metricsSchema = z.object({
-  stability: clampedMetricSchema,
-  prosperity: clampedMetricSchema,
-  freedom: clampedMetricSchema,
-  cost: clampedMetricSchema,
-});
-
-const metricDeltasSchema = z.object({
-  stability: z.number().finite(),
-  prosperity: z.number().finite(),
-  freedom: z.number().finite(),
-  cost: z.number().finite(),
-});
-
 const causalLedgerEntrySchema = z.object({
   fact: requiredString,
   causedByChapter: causalChapterSchema,
@@ -104,18 +89,17 @@ const causalLedgerEntrySchema = z.object({
 
 const richNarrativeSchema = requiredString
   .max(160)
-  .refine((narrative) => [...narrative].length >= 88, {
-    message: "现场前情至少需要 88 字",
+  .refine((narrative) => [...narrative].length >= 80, {
+    message: "现场前情至少需要 80 字",
   })
   .refine((narrative) => {
     const sentenceCount = narrative.match(/[。！？!?]/g)?.length ?? 0;
-    return sentenceCount >= 2 && sentenceCount <= 5;
+    return sentenceCount >= 2 && sentenceCount <= 7;
   }, {
-    message: "现场前情必须用二至五句完整叙事交代来路、各方与风险",
+    message: "现场前情需要至少两句完整叙事，并避免堆叠碎句",
   });
 
 const timelineTurnFields = {
-    timelineName: requiredString,
     chapter: chapterSchema,
     chapterName: chapterNameSchema,
     protagonistName: boundedString(16),
@@ -123,26 +107,19 @@ const timelineTurnFields = {
     lifeStage: lifeStageSchema,
     yearLabel: requiredString,
     location: boundedString(28),
-    role: boundedString(24),
-    identityBridge: boundedString(54),
-    modernAdvantage: boundedString(54),
-    rippleLens: rippleLensSchema,
-    causalBridge: boundedString(36),
-    turningPointStakes: boundedString(44),
-    worldStateChange: boundedString(36),
-    divergenceProof: boundedString(48),
+    role: boundedString(32),
+    causalBridge: boundedString(48),
+    worldStateChange: boundedString(48),
+    divergenceProof: boundedString(64),
     immediateObjective: boundedString(40),
     timePressure: boundedString(36),
     headline: boundedString(22),
     baselineAnchor: boundedString(54),
-    historicalAnchors: z.array(boundedString(32)).min(2).max(4),
+    historicalAnchors: z.array(boundedString(40)).min(2).max(4),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
     memorySummary: requiredString,
-    metrics: metricsSchema,
-    metricDeltas: metricDeltasSchema,
     causalLedger: z.array(causalLedgerEntrySchema).max(3),
-    callbackUsed: requiredString.nullable(),
     visualTone: visualToneSchema,
     generationSource: generationSourceSchema,
 } as const;
@@ -282,9 +259,105 @@ function trimBounded(value: unknown, max: number): unknown {
   return typeof value === "string" ? [...value].slice(0, max).join("") : value;
 }
 
+function compactAiAuthoredClause(value: unknown, max: number): unknown {
+  if (typeof value !== "string" || [...value].length <= max) return value;
+
+  const candidates = value
+    .split(/[，,。！？!?；;：:（）()]/)
+    .map((clause) => clause.trim())
+    .filter((clause) => (
+      [...clause].length >= 4
+      && [...clause].length <= max
+      && !INCOMPLETE_CHOICE_END_PATTERN.test(clause)
+    ));
+  const standalone = candidates.filter((clause) => !/^(?:并|但|而|且|以及|并且|同时|随后|然后|以)/.test(clause));
+  const pool = standalone.length > 0 ? standalone : candidates;
+  return [...pool].sort((left, right) => [...right].length - [...left].length)[0] ?? value;
+}
+
+function trimAtCompleteClause(value: unknown, max: number): unknown {
+  if (typeof value !== "string") return value;
+  const characters = [...value];
+  if (characters.length <= max) return value;
+
+  const candidate = characters.slice(0, max);
+  let boundaryIndex = -1;
+  for (let index = 0; index < candidate.length; index += 1) {
+    if ("。！？!?；;，,".includes(candidate[index])) boundaryIndex = index;
+  }
+  if (boundaryIndex < Math.floor(max * 0.45)) return value;
+
+  const boundary = candidate[boundaryIndex];
+  if ("。！？!?".includes(boundary)) {
+    return candidate.slice(0, boundaryIndex + 1).join("");
+  }
+  return `${candidate.slice(0, boundaryIndex).join("").trim()}。`;
+}
+
+function coerceDisplayString(value: unknown): unknown {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  const record = asRecord(value);
+  return record?.label ?? record?.value ?? value;
+}
+
+function normalizeBiographyReportCandidate(value: unknown): unknown {
+  const report = asRecord(value);
+  if (!report) return value;
+  const deathScene = asRecord(report.deathScene);
+  return {
+    ...report,
+    vernacularBiography: trimBounded(report.vernacularBiography, 720),
+    classicalBiography: trimBounded(report.classicalBiography, 520),
+    lifespanSummary: trimBounded(report.lifespanSummary, 180),
+    deathScene: deathScene ? {
+      ...deathScene,
+      place: trimBounded(deathScene.place, 32),
+      finalMoment: trimBounded(deathScene.finalMoment, 120),
+      lastingLegacy: trimBounded(deathScene.lastingLegacy, 120),
+    } : report.deathScene,
+  };
+}
+
+function normalizeWorldReportCandidate(value: unknown): unknown {
+  const report = asRecord(value);
+  if (!report) return value;
+  const posthumousChronicle = Array.isArray(report.posthumousChronicle)
+    ? report.posthumousChronicle.map((entry) => {
+        const item = asRecord(entry);
+        return item ? {
+          ...item,
+          period: trimBounded(item.period, 18),
+          title: trimBounded(item.title, 22),
+          narrative: trimBounded(item.narrative, 54),
+          inheritedChange: trimBounded(item.inheritedChange, 42),
+        } : entry;
+      })
+    : report.posthumousChronicle;
+  const ordinaryLife2026 = Array.isArray(report.ordinaryLife2026)
+    ? report.ordinaryLife2026.map((item) => trimBounded(item, 36))
+    : report.ordinaryLife2026;
+  const plausibilityScore = typeof report.plausibilityScore === "string"
+    && report.plausibilityScore.trim() !== ""
+    ? Number(report.plausibilityScore)
+    : report.plausibilityScore;
+  return {
+    ...report,
+    posthumousChronicle,
+    ordinaryLife2026,
+    closingPassage: trimBounded(report.closingPassage, 180),
+    rewriteLevel: coerceDisplayString(report.rewriteLevel),
+    plausibilityScore,
+  };
+}
+
+function normalizeAlternatePresentCandidate(value: unknown): unknown {
+  return normalizeWorldReportCandidate(normalizeBiographyReportCandidate(value));
+}
+
 function normalizeDivergenceProof(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  return trimBounded(value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, ""), 48);
+  return trimAtCompleteClause(value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, ""), 64);
 }
 
 function normalizeEcho(value: unknown): unknown {
@@ -309,34 +382,6 @@ function normalizeCustomActionResolutionCandidate(value: unknown): unknown {
   };
 }
 
-function normalizeRippleLens(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const normalized = value.trim().toLowerCase();
-  if (RIPPLE_LENS_VALUES.includes(normalized as (typeof RIPPLE_LENS_VALUES)[number])) {
-    return normalized;
-  }
-  const aliases: Readonly<Record<string, (typeof RIPPLE_LENS_VALUES)[number]>> = {
-    military: "power",
-    politics: "power",
-    governance: "power",
-    science: "knowledge",
-    education: "knowledge",
-    information: "knowledge",
-    tech: "technology",
-    economy: "trade",
-    economics: "trade",
-    commerce: "trade",
-    society: "livelihood",
-    welfare: "livelihood",
-    population: "migration",
-    environment: "ecology",
-    foreign: "diplomacy",
-    religion: "culture",
-    arts: "culture",
-  };
-  return aliases[normalized] ?? value;
-}
-
 function normalizeActionSpec(value: unknown): unknown {
   const spec = asRecord(value);
   if (!spec) return value;
@@ -346,6 +391,18 @@ function normalizeActionSpec(value: unknown): unknown {
     action: trimBounded(spec.action, 28),
     target: trimBounded(spec.target, 28),
     deadline: trimBounded(spec.deadline, 20),
+  };
+}
+
+function normalizeTimelineEcho(value: unknown): unknown {
+  const echo = asRecord(value);
+  if (!echo) return value;
+  return {
+    ...echo,
+    directResult: compactAiAuthoredClause(echo.directResult, 80),
+    unexpectedCost: compactAiAuthoredClause(echo.unexpectedCost, 32),
+    beneficiary: compactAiAuthoredClause(echo.beneficiary, 32),
+    payer: compactAiAuthoredClause(echo.payer, 32),
   };
 }
 
@@ -364,16 +421,23 @@ function normalizeChoice(value: unknown, index: number): unknown {
   const intent = typeof choice.intent === "string"
     ? choice.intent.replace(/\s*[（(](?:nudge|reform|rupture)[）)]\s*$/i, "").trim()
     : choice.intent;
+  const normalizedIntent = intentWasClass
+    ? label
+    : typeof intent === "string" && intent.length > 0
+      ? intent
+      : label ?? asRecord(choice.actionSpec)?.action;
 
   return {
     ...choice,
     id: expectedId,
-    label: trimBounded(label, 32),
-    intent: trimBounded(intentWasClass ? label : intent, 24),
+    // Visible choices must never be silently cut into a half sentence. An
+    // oversized label is repaired as part of the model-owned choices field.
+    label: compactAiAuthoredClause(typeof label === "string" ? label.trim() : label, 36),
+    intent: trimBounded(normalizedIntent, 24),
     deviationClass: DEVIATION_CLASSES[index],
     usesModernKnowledge: choice.usesModernKnowledge,
     actionSpec: normalizeActionSpec(choice.actionSpec),
-    instantEcho: normalizeEcho(choice.instantEcho),
+    instantEcho: normalizeTimelineEcho(choice.instantEcho),
   };
 }
 
@@ -396,48 +460,46 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     ? normalizedChoices.findIndex((choice) => asRecord(choice)?.usesModernKnowledge === true)
     : -1;
   const authoritativeModernIndex = firstModernChoice >= 0 ? firstModernChoice : 1;
+  const choiceRecords = Array.isArray(normalizedChoices)
+    ? normalizedChoices.map((choice) => asRecord(choice))
+    : [];
+  const middleChoice = choiceRecords[1] ?? choiceRecords[0];
+  const middleAction = asRecord(middleChoice?.actionSpec);
+  const derivedObjective = middleChoice?.label;
+  const derivedDeadline = middleAction?.deadline;
+  const derivedBaseline = turn.divergenceProof;
+  const derivedMemory = [turn.headline, turn.worldStateChange]
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .join("：");
 
   return {
     ...turn,
     generationSource: turn.generationSource === "fixed" ? "fixed" : "deepseek",
-    timelineName: trimBounded(turn.timelineName, 24),
     protagonistName: turn.protagonistName,
     protagonistAge: turn.protagonistAge ?? 24,
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
-    identityBridge: trimBounded(turn.identityBridge, 54),
-    modernAdvantage: trimBounded(turn.modernAdvantage, 54),
-    rippleLens: normalizeRippleLens(turn.rippleLens),
-    location: trimBounded(turn.location, 28),
-    role: trimBounded(turn.role, 24),
-    immediateObjective: trimBounded(turn.immediateObjective, 40),
-    timePressure: trimBounded(turn.timePressure, 36),
-    headline: trimBounded(turn.headline, 22),
+    location: turn.location,
+    role: compactAiAuthoredClause(turn.role, 32),
+    immediateObjective: trimBounded(turn.immediateObjective ?? derivedObjective, 40),
+    timePressure: turn.timePressure ?? derivedDeadline,
+    headline: turn.headline,
     narrative: trimNarrative(turn.narrative),
-    causalBridge: trimBounded(turn.causalBridge, 36),
-    turningPointStakes: trimBounded(turn.turningPointStakes, 44),
-    worldStateChange: trimBounded(turn.worldStateChange, 36),
+    causalBridge: trimAtCompleteClause(turn.causalBridge, 48),
+    worldStateChange: trimAtCompleteClause(turn.worldStateChange, 48),
     divergenceProof: normalizeDivergenceProof(turn.divergenceProof),
-    baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor), 54),
+    baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor ?? derivedBaseline), 54),
     historicalAnchors: Array.isArray(turn.historicalAnchors)
-      ? turn.historicalAnchors.map((anchor) => trimBounded(anchor, 32))
+      ? turn.historicalAnchors.map((anchor) => compactAiAuthoredClause(anchor, 40))
       : turn.historicalAnchors,
     previousEcho:
       turn.previousEcho == null && Number(turn.chapter ?? 1) === 1
         ? null
-        : normalizeEcho(turn.previousEcho),
+        : turn.previousEcho,
     choices: Array.isArray(normalizedChoices)
       ? normalizedChoices.map((choice, index) => ({ ...asRecord(choice), usesModernKnowledge: index === authoritativeModernIndex }))
       : normalizedChoices,
-    memorySummary: joinStringArray(turn.memorySummary),
-    metrics: turn.metrics ?? { stability: 50, prosperity: 50, freedom: 50, cost: 50 },
-    metricDeltas: turn.metricDeltas ?? { stability: 0, prosperity: 0, freedom: 0, cost: 0 },
+    memorySummary: joinStringArray(turn.memorySummary ?? derivedMemory),
     causalLedger: Array.isArray(turn.causalLedger) ? turn.causalLedger.slice(0, 3) : turn.causalLedger ?? [],
-    callbackUsed:
-      turn.callbackUsed === false
-        ? null
-        : turn.callbackUsed === true
-          ? "已回收上一幕选择"
-          : turn.callbackUsed ?? null,
     visualTone: visualTone ?? turn.visualTone,
   };
 }
@@ -503,10 +565,19 @@ const worldReportFields = {
     shareLine: requiredString,
 } as const;
 
-export const biographyReportSchema = z.object(biographyFields);
-export const worldReportSchema = z.object(worldReportFields);
+const biographyReportObjectSchema = z.object(biographyFields);
+const worldReportObjectSchema = z.object(worldReportFields);
 
-export const alternatePresentSchema = z
+export const biographyReportSchema = z.preprocess(
+  normalizeBiographyReportCandidate,
+  biographyReportObjectSchema,
+);
+export const worldReportSchema = z.preprocess(
+  normalizeWorldReportCandidate,
+  worldReportObjectSchema,
+);
+
+const alternatePresentObjectSchema = z
   .object({ ...biographyFields, ...worldReportFields })
   .superRefine((ending, context) => {
     ending.historyTimeline.forEach((item, index) => {
@@ -520,6 +591,11 @@ export const alternatePresentSchema = z
     });
   });
 
+export const alternatePresentSchema = z.preprocess(
+  normalizeAlternatePresentCandidate,
+  alternatePresentObjectSchema,
+);
+
 export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
 export type AlternatePresent = z.infer<typeof alternatePresentSchema>;
 export type BiographyReport = z.infer<typeof biographyReportSchema>;
@@ -530,7 +606,6 @@ export type TimelineTurnParseOptions = {
   expectedChapter?: DecisionChapter;
   expectedYearLabel?: string;
   expectedPreviousEcho?: NonNullable<TimelineTurn["previousEcho"]>;
-  expectedRippleLens?: RippleLens;
   expectedProtagonistName?: string;
   expectedProtagonistAge?: number;
   expectedLifeStage?: LifeStage;
@@ -627,7 +702,6 @@ export function parseTimelineTurn(
     ...(options.expectedChapter ? { chapter: options.expectedChapter, chapterName: CHAPTER_NAMES[options.expectedChapter] } : {}),
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
     ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),
-    ...(options.expectedRippleLens ? { rippleLens: options.expectedRippleLens } : {}),
     ...(options.expectedProtagonistName ? { protagonistName: options.expectedProtagonistName } : {}),
     ...(options.expectedProtagonistAge !== undefined ? { protagonistAge: options.expectedProtagonistAge } : {}),
     ...(options.expectedLifeStage ? { lifeStage: options.expectedLifeStage } : {}),

@@ -4,16 +4,17 @@ import { describe, expect, it } from "vitest";
 import { getFixedOpening } from "../data/fixedOpenings";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import {
-  adjudicateCustomAction,
   generateEnding,
   generateNextTurn,
   type GenerationDiagnostic,
 } from "../game/engine";
+import { buildCanonicalCustomResolution } from "../game/customCanon";
 import { buildNarrativeContext } from "../game/narrativeContext";
 import type { PlayedTurn } from "../game/prompts";
 import type { GameScenario } from "../game/reducer";
 import type { AlternatePresent, TimelineTurn } from "../game/schema";
 import type { DecisionChapter } from "../game/timelinePlan";
+import type { DeepSeekPartialDraft, DeepSeekRequestMetrics } from "../services/deepseek";
 import { buildSoakCustomOutcome, LONG_RUN_SOAK_CASES, type LongRunSoakCase } from "./soakCases";
 
 type SanitizedError = Readonly<{
@@ -32,6 +33,7 @@ type NodeResult = Readonly<{
   chapter: number;
   yearLabel: string;
   headline: string;
+  location: string;
   role: string;
   choice: string;
   custom: boolean;
@@ -39,6 +41,12 @@ type NodeResult = Readonly<{
   activeCanonChapters: readonly number[];
   actionMs: number;
   nextTurnMs?: number;
+  firstReadableMs?: number;
+  narrative: string;
+  worldStateChange: string;
+  causalBridge: string;
+  divergenceProof: string;
+  choices: readonly string[];
 }>;
 
 type RunResult = {
@@ -51,12 +59,12 @@ type RunResult = {
   customChapters: readonly number[];
   customOutcomes: string[];
   manualRetries: number;
-  customFallbacks: number;
   endingMs?: number;
   diagnostics: GenerationDiagnostic[];
+  requestMetrics: DeepSeekRequestMetrics[];
   failures: StepFailure[];
   nodes: NodeResult[];
-  ending?: Pick<AlternatePresent, "worldName" | "frontPageHeadline" | "protagonistName">;
+  ending?: AlternatePresent;
   terminalError?: SanitizedError;
 };
 
@@ -88,6 +96,7 @@ async function retryOnce<T>(
       run.failures.push({ step, attempt, error: sanitizedError(error) });
       if (attempt === 2) throw error;
       run.manualRetries += 1;
+      await new Promise((resolve) => setTimeout(resolve, 2_000 + Math.random() * 1_000));
     }
   }
   throw new Error(`unreachable retry state for ${step}`);
@@ -104,25 +113,16 @@ function ordinaryPlayedTurn(turn: TimelineTurn, runIndex: number): PlayedTurn {
   };
 }
 
-async function customPlayedTurn(
-  scenario: GameScenario,
-  playedTurns: readonly PlayedTurn[],
+function customPlayedTurn(
   turn: TimelineTurn,
   outcome: string,
-  run: RunResult,
-): Promise<{ played: PlayedTurn; durationMs: number }> {
-  const adjudication = await retryOnce(
-    `custom-${turn.chapter}`,
-    () => adjudicateCustomAction(scenario, playedTurns, turn, outcome, {
-      onDiagnostic: (diagnostic) => run.diagnostics.push(diagnostic),
-    }),
-    run,
-  );
-  const resolution = adjudication.value;
+): { played: PlayedTurn; durationMs: number } {
+  const startedAt = Date.now();
+  const resolution = buildCanonicalCustomResolution(turn, outcome, "rupture");
   expect(resolution.declaredOutcome).toBe(outcome);
   expect(resolution.instantEcho.directResult).toBe(outcome);
   return {
-    durationMs: adjudication.durationMs,
+    durationMs: Date.now() - startedAt,
     played: {
       turn,
       selectedChoiceId: "custom",
@@ -174,8 +174,8 @@ async function runGame(
     customChapters: soakCase.customChapters,
     customOutcomes: [],
     manualRetries: 0,
-    customFallbacks: 0,
     diagnostics: [],
+    requestMetrics: [],
     failures: [],
     nodes: [],
   };
@@ -197,7 +197,7 @@ async function runGame(
         expect(usedCustomOutcomes.has(outcome)).toBe(false);
         usedCustomOutcomes.add(outcome);
         run.customOutcomes.push(outcome);
-        const custom = await customPlayedTurn(scenario, playedTurns, currentTurn, outcome, run);
+        const custom = customPlayedTurn(currentTurn, outcome);
         played = custom.played;
       } else {
         played = ordinaryPlayedTurn(currentTurn, runIndex);
@@ -208,26 +208,40 @@ async function runGame(
         chapter,
         yearLabel: currentTurn.yearLabel,
         headline: currentTurn.headline,
+        location: currentTurn.location,
         role: currentTurn.role,
         choice: played.selectedChoiceLabel,
         custom: isCustom,
         generationSource: currentTurn.generationSource,
         activeCanonChapters: [],
         actionMs: Date.now() - actionStartedAt,
+        narrative: currentTurn.narrative,
+        worldStateChange: currentTurn.worldStateChange,
+        causalBridge: currentTurn.causalBridge,
+        divergenceProof: currentTurn.divergenceProof,
+        choices: currentTurn.choices.map((choice) => choice.label),
       };
       run.completedChapters = chapter;
 
       if (chapter < 12) {
         const nextChapter = (chapter + 1) as Exclude<DecisionChapter, 1>;
+        const requestStartedAt = Date.now();
+        let firstReadableMs: number | undefined;
         const generated = await retryOnce(
           `turn-${nextChapter}`,
           () => generateNextTurn(scenario, playedTurns, nextChapter, {
             onDiagnostic: (diagnostic) => run.diagnostics.push(diagnostic),
+            onMetrics: (metrics) => run.requestMetrics.push(metrics),
+            onPartial: (draft: DeepSeekPartialDraft) => {
+              if (firstReadableMs === undefined && draft.headline && draft.narrative) {
+                firstReadableMs = Date.now() - requestStartedAt;
+              }
+            },
           }),
           run,
         );
         const activeCanonChapters = verifyNextTurn(generated.value, playedTurns, nextChapter);
-        run.nodes.push({ ...node, activeCanonChapters, nextTurnMs: generated.durationMs });
+        run.nodes.push({ ...node, activeCanonChapters, nextTurnMs: generated.durationMs, firstReadableMs: firstReadableMs ?? generated.durationMs });
         currentTurn = generated.value;
       } else {
         run.nodes.push(node);
@@ -241,6 +255,7 @@ async function runGame(
       "ending",
       () => generateEnding(scenario, playedTurns, {
         onDiagnostic: (diagnostic) => run.diagnostics.push(diagnostic),
+        onMetrics: (metrics) => run.requestMetrics.push(metrics),
       }),
       run,
     );
@@ -248,16 +263,10 @@ async function runGame(
     expect(ending.value.historyTimeline).toHaveLength(12);
     expect(ending.value.historyTimeline.map((item) => item.playerChoice))
       .toEqual(playedTurns.map((played) => played.selectedChoiceLabel));
-    run.ending = {
-      worldName: ending.value.worldName,
-      frontPageHeadline: ending.value.frontPageHeadline,
-      protagonistName: ending.value.protagonistName,
-    };
-    run.customFallbacks = run.diagnostics.filter((diagnostic) => diagnostic.stage === "custom_fallback").length;
+    run.ending = ending.value;
     run.success = true;
   } catch (error) {
     run.terminalError = sanitizedError(error);
-    run.customFallbacks = run.diagnostics.filter((diagnostic) => diagnostic.stage === "custom_fallback").length;
   } finally {
     run.durationMs = Date.now() - startedAt;
   }
@@ -267,6 +276,25 @@ async function runGame(
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function percentile(values: readonly number[], fraction: number): number | null {
+  if (values.length === 0) return null;
+  const ordered = [...values].sort((left, right) => left - right);
+  return ordered[Math.min(ordered.length - 1, Math.ceil(ordered.length * fraction) - 1)] ?? null;
+}
+
+function latencySummary(values: readonly number[]) {
+  return {
+    count: values.length,
+    minMs: values.length ? Math.min(...values) : null,
+    p50Ms: percentile(values, 0.5),
+    p90Ms: percentile(values, 0.9),
+    maxMs: values.length ? Math.max(...values) : null,
+    averageMs: values.length
+      ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+      : null,
+  };
 }
 
 describe("real DeepSeek twelve-node long-run stability", () => {
@@ -296,6 +324,28 @@ describe("real DeepSeek twelve-node long-run stability", () => {
     const successfulRunCustomOutcomes = results
       .filter((result) => result.success)
       .reduce((sum, result) => sum + result.customOutcomes.length, 0);
+    const successfulResults = results.filter((result) => result.success);
+    const turnDurations = successfulResults.flatMap((result) => result.nodes.flatMap((node) => node.nextTurnMs ?? []));
+    const firstReadableDurations = successfulResults.flatMap((result) => result.nodes.flatMap((node) => node.firstReadableMs ?? []));
+    const endingDurations = successfulResults.flatMap((result) => result.endingMs ?? []);
+    const actionDurations = successfulResults.flatMap((result) => result.nodes.filter((node) => node.custom).map((node) => node.actionMs));
+    const requestMetrics = results.flatMap((result) => result.requestMetrics);
+    const successfulMetrics = requestMetrics.filter((metric) => metric.outcome === "success");
+    const cacheHitTokens = successfulMetrics.reduce((sum, metric) => sum + (metric.usage?.promptCacheHitTokens ?? 0), 0);
+    const cacheMissTokens = successfulMetrics.reduce((sum, metric) => sum + (metric.usage?.promptCacheMissTokens ?? 0), 0);
+    const primaryInvalids = results.reduce(
+      (sum, result) => sum + result.diagnostics.filter((diagnostic) => diagnostic.target === "timeline_turn" && diagnostic.stage === "primary_invalid").length,
+      0,
+    );
+    const generatedTurns = successfulResults.reduce((sum, result) => sum + Math.max(0, result.completedChapters - 1), 0);
+    const acceptance = {
+      runP50TargetMs: 326_000,
+      turnP50TargetMs: 22_000,
+      turnP90TargetMs: 35_000,
+      firstReadableP50TargetMs: 8_000,
+      firstReadableP90TargetMs: 15_000,
+      primaryRepairRateTarget: 0.1,
+    };
     const summary = {
       batchId: BATCH_ID,
       model: import.meta.env.VITE_DEEPSEEK_MODEL || "deepseek-v4-flash",
@@ -308,7 +358,25 @@ describe("real DeepSeek twelve-node long-run stability", () => {
       successfulRunCustomOutcomes,
       uniqueCustomOutcomes: usedCustomOutcomes.size,
       totalManualRetries: results.reduce((sum, result) => sum + result.manualRetries, 0),
-      totalCustomFallbacks: results.reduce((sum, result) => sum + result.customFallbacks, 0),
+      latency: {
+        fullRun: latencySummary(successfulResults.map((result) => result.durationMs)),
+        nextTurn: latencySummary(turnDurations),
+        firstReadable: latencySummary(firstReadableDurations),
+        customCommit: latencySummary(actionDurations),
+        ending: latencySummary(endingDurations),
+      },
+      generatedTurns,
+      primaryInvalids,
+      primaryRepairRate: generatedTurns > 0 ? primaryInvalids / generatedTurns : null,
+      requestCount: requestMetrics.length,
+      requestKinds: Object.fromEntries([...new Set(requestMetrics.map((metric) => metric.requestKind))].map((kind) => [kind, requestMetrics.filter((metric) => metric.requestKind === kind).length])),
+      reasoningModes: Object.fromEntries([...new Set(requestMetrics.map((metric) => metric.reasoning))].map((mode) => [mode, requestMetrics.filter((metric) => metric.reasoning === mode).length])),
+      promptCache: {
+        hitTokens: cacheHitTokens,
+        missTokens: cacheMissTokens,
+        hitRate: cacheHitTokens + cacheMissTokens > 0 ? cacheHitTokens / (cacheHitTokens + cacheMissTokens) : null,
+      },
+      acceptance,
       diagnosticStages: results.flatMap((result) => result.diagnostics.map((diagnostic) => diagnostic.stage)),
       results: results.map((result) => ({
         id: result.id,
@@ -316,7 +384,6 @@ describe("real DeepSeek twelve-node long-run stability", () => {
         completedChapters: result.completedChapters,
         customCount: result.customOutcomes.length,
         manualRetries: result.manualRetries,
-        customFallbacks: result.customFallbacks,
         durationMs: result.durationMs,
         endingMs: result.endingMs,
         terminalError: result.terminalError,
@@ -335,5 +402,15 @@ describe("real DeepSeek twelve-node long-run stability", () => {
     });
     expect(usedCustomOutcomes.size).toBe(totalCustomOutcomes);
     expect(successes).toBeGreaterThanOrEqual(summary.requiredSuccesses);
+    expect(actionDurations.every((duration) => duration < 50)).toBe(true);
+    expect(requestMetrics.every((metric) => !metric.requestKind.includes("custom"))).toBe(true);
+    if (selectedCases.length === 10 && successes >= summary.requiredSuccesses) {
+      expect(summary.latency.fullRun.p50Ms).toBeLessThanOrEqual(acceptance.runP50TargetMs);
+      expect(summary.latency.nextTurn.p50Ms).toBeLessThanOrEqual(acceptance.turnP50TargetMs);
+      expect(summary.latency.nextTurn.p90Ms).toBeLessThanOrEqual(acceptance.turnP90TargetMs);
+      expect(summary.latency.firstReadable.p50Ms).toBeLessThanOrEqual(acceptance.firstReadableP50TargetMs);
+      expect(summary.latency.firstReadable.p90Ms).toBeLessThanOrEqual(acceptance.firstReadableP90TargetMs);
+      expect(summary.primaryRepairRate).toBeLessThanOrEqual(acceptance.primaryRepairRateTarget);
+    }
   }, 7_200_000);
 });

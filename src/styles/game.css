@@ -660,6 +660,20 @@
 .developing-steps li.is-complete svg { color: var(--teal); }
 @keyframes developing-spin { to { transform: rotate(360deg); } }
 .developing-note { margin: 16px 0 0; color: #666762; font-size: 10px; }
+.developing-canon { width: 100%; margin: 20px 0 0; padding: 12px 14px; border-left: 3px solid var(--red); background: rgba(246,245,239,.72); }
+.developing-canon strong { display: block; color: var(--ink); font-family: var(--serif); font-size: 15px; line-height: 1.55; font-weight: 800; }
+.developing-canon span { display: block; margin-top: 6px; color: #555651; font-size: 11px; line-height: 1.45; }
+.developing-draft { width: 100%; margin-top: 112px; padding: 18px 18px 16px; border-top: 3px solid var(--red); background: rgba(242,241,235,.82); box-shadow: 0 12px 36px rgba(20,20,18,.12); }
+.developing-draft--with-canon { margin-top: 68px; }
+.developing-draft .developing-canon { margin: 0 0 12px; padding: 9px 11px; background: rgba(246,245,239,.88); }
+.developing-draft .developing-canon strong { font-size: 15px; line-height: 1.45; }
+.developing-draft .developing-canon span { margin-top: 3px; font-size: 11px; }
+.developing-draft > span { color: var(--red-dark); font-size: 11px; font-weight: 900; }
+.developing-draft h1 { margin: 7px 0 10px; font-family: var(--serif); font-size: 30px; line-height: 1.16; }
+.developing-draft p { margin: 0; color: #30312e; font-family: var(--serif); font-size: 15px; line-height: 1.7; }
+.developing-draft small { display: block; margin-top: 12px; color: #555651; font-size: 11px; }
+.developing-draft em { display: flex; align-items: center; gap: 7px; margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(24,23,22,.2); color: var(--red-dark); font-size: 11px; font-style: normal; font-weight: 800; }
+.developing-draft em svg { animation: developing-spin 1.2s linear infinite; }
 .generating-screen .text-command { margin-top: auto; padding: 0; color: #4f504d; font-size: 11px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1361,8 +1375,8 @@
 .event-screen[data-layout="image-overlay"] .timeline-progress__now strong { font-size: 11px; }
 
 .event-screen[data-layout="image-overlay"][data-density="compact"] {
-  --scene-height: 310px;
-  --scene-overlap: 120px;
+  --scene-height: 294px;
+  --scene-overlap: 128px;
 }
 .event-screen[data-layout="image-overlay"][data-density="dense"] {
   --scene-height: 300px;
@@ -1397,6 +1411,13 @@
 .developing-copy p { font-size: 16px; }
 .developing-steps li { height: 50px; font-size: 14px; }
 .developing-note { font-size: 12px; line-height: 1.5; }
+.developing-canon strong { font-size: 17px; }
+.developing-canon span,
+.developing-draft > span,
+.developing-draft small,
+.developing-draft em { font-size: 13px; }
+.developing-draft h1 { font-size: 34px; }
+.developing-draft p { font-size: 17px; }
 .generating-screen .text-command { font-size: 13px; }
 .error-screen > span { font-size: 13px; }
 .error-screen h1 { font-size: 33px; }

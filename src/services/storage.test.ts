@@ -7,7 +7,7 @@ import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v12 fixed-opening single-history storage", () => {
+describe("v13 fast-path single-history storage", () => {
   it("persists the historical picker and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
@@ -75,7 +75,7 @@ describe("v12 fixed-opening single-history storage", () => {
       customActionsUsed: 0,
       request: null,
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -90,7 +90,7 @@ describe("v12 fixed-opening single-history storage", () => {
       request: null,
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
   });
 
   it("automatically resumes the posthumous report without losing twelve decisions", () => {
@@ -159,17 +159,18 @@ describe("v12 fixed-opening single-history storage", () => {
     expect(loadGameSnapshot(storage)).toMatchObject({ customActionsUsed: 9 });
   });
 
-  it("resumes a custom-action ruling without spending the chance early", () => {
+  it("resumes the next turn after a custom result was committed synchronously", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
     const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令，再请皇帝临朝" });
+    const generating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "先扣下军令，再请皇帝临朝" });
 
-    expect(saveGameSnapshot(adjudicating, storage)).toBe(true);
+    expect(saveGameSnapshot(generating, storage)).toBe(true);
     expect(loadGameSnapshot(storage)).toMatchObject({
-      phase: "adjudicating",
-      customActionsUsed: 0,
-      request: { kind: "custom-action", action: "先扣下军令，再请皇帝临朝" },
+      phase: "generating",
+      customActionsUsed: 1,
+      request: { kind: "next-turn", targetChapter: 2 },
+      playedTurns: [expect.objectContaining({ selectedChoiceLabel: "先扣下军令，再请皇帝临朝" })],
     });
   });
 
@@ -198,7 +199,7 @@ describe("v12 fixed-opening single-history storage", () => {
       currentTurn: null,
       playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
@@ -206,25 +207,14 @@ describe("v12 fixed-opening single-history storage", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
     const event = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const adjudicating = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "我成为新皇帝" });
-    const resolved = gameReducer(adjudicating, {
-      type: "CUSTOM_ACTION_RESOLVED",
-      requestId: adjudicating.request!.id,
-      resolution: {
-        declaredOutcome: "我成为新皇帝",
-        canonStatus: "玩家钦定",
-        causalMechanism: "登基诏书进入官署执行",
-        deviationClass: "rupture",
-        instantEcho: { directResult: "我成为新皇帝", unexpectedCost: "旧贵族反对", beneficiary: "新朝军民", payer: "旧宗室" },
-      },
-    });
+    const resolved = gameReducer(event, { type: "SUBMIT_CUSTOM_ACTION", action: "我成为新皇帝" });
 
     expect(saveGameSnapshot(resolved, storage)).toBe(true);
     expect(loadGameSnapshot(storage)?.playedTurns[0]).toMatchObject({
       selectedChoiceLabel: "我成为新皇帝",
       playerAuthored: true,
       canonStatus: "玩家钦定",
-      causalMechanism: "登基诏书进入官署执行",
+      causalMechanism: expect.stringContaining("继承命令"),
     });
   });
 
@@ -259,6 +249,6 @@ describe("v12 fixed-opening single-history storage", () => {
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":12');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
   });
 });

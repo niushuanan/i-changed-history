@@ -6,11 +6,10 @@ import type { DecisionChapter } from "./timelinePlan";
 import { buildCanonicalCustomResolution } from "./customCanon";
 import { getFixedOpening } from "../data/fixedOpenings";
 
-export type GamePhase = "selecting" | "generating" | "adjudicating" | "event" | "echo" | "ending" | "result" | "error";
+export type GamePhase = "selecting" | "generating" | "event" | "echo" | "ending" | "result" | "error";
 export type GameScenario = { seed: HistorySeed };
 export type RetryIntent =
   | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> }
-  | { kind: "custom-action"; action: string }
   | { kind: "ending" };
 export type RequestIntent = RetryIntent & { id: number };
 
@@ -50,7 +49,6 @@ export type GameAction =
   | { type: "START_SCENARIO"; seed: HistorySeed }
   | { type: "COMMIT_AI_CHOICE"; choiceId: "A" | "B" | "C" }
   | { type: "SUBMIT_CUSTOM_ACTION"; action: string }
-  | { type: "CUSTOM_ACTION_RESOLVED"; requestId: number; resolution: CustomActionResolution }
   | { type: "TURN_RESOLVED"; requestId: number; turn: TimelineTurn }
   | { type: "ENDING_RESOLVED"; requestId: number; ending: AlternatePresent }
   | { type: "CONTINUE_TIMELINE" }
@@ -122,21 +120,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const customAction = action.action.trim();
       if (state.phase !== "event" || !state.currentTurn) return state;
       if ([...customAction].length < 2 || [...customAction].length > 80) return state;
-      return {
-        ...state,
-        phase: "adjudicating",
-        ...withRequest(state, { kind: "custom-action", action: customAction }),
-        error: null,
-      };
-    }
-    case "CUSTOM_ACTION_RESOLVED": {
-      if (state.request?.id !== action.requestId || state.request.kind !== "custom-action" || !state.currentTurn) return state;
-      const impact = calculateDeviation(state.deviation, action.resolution.deviationClass, state.currentTurn.chapter);
       const canonicalResolution = buildCanonicalCustomResolution(
         state.currentTurn,
-        state.request.action,
-        action.resolution.deviationClass,
-        action.resolution,
+        customAction,
+        "rupture",
       );
       const canonicalOutcome = canonicalResolution.declaredOutcome;
       const canonicalEcho = canonicalResolution.instantEcho;
@@ -144,12 +131,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         turn: state.currentTurn,
         selectedChoiceId: "custom",
         selectedChoiceLabel: canonicalOutcome,
-        selectedDeviationClass: action.resolution.deviationClass,
+        selectedDeviationClass: "rupture",
         resolvedEcho: canonicalEcho,
         playerAuthored: true,
         canonStatus: canonicalResolution.canonStatus,
         causalMechanism: canonicalResolution.causalMechanism,
       };
+      const impact = calculateDeviation(state.deviation, "rupture", state.currentTurn.chapter);
       return {
         ...state,
         phase: state.currentTurn.chapter === 12 ? "ending" : "generating",
@@ -190,9 +178,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           message: action.message,
           retry: state.request.kind === "next-turn"
             ? { kind: "next-turn", targetChapter: state.request.targetChapter }
-            : state.request.kind === "custom-action"
-              ? { kind: "custom-action", action: state.request.action }
-              : { kind: state.request.kind },
+            : { kind: state.request.kind },
         },
         request: null,
         phase: state.phase === "echo" ? "echo" : "error",
@@ -203,9 +189,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         phase: state.error.retry.kind === "ending"
           ? "ending"
-          : state.error.retry.kind === "custom-action"
-            ? "adjudicating"
-            : "generating",
+          : "generating",
         ...withRequest(state, state.error.retry),
         error: null,
       };
