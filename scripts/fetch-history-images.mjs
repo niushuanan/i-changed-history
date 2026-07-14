@@ -1,7 +1,15 @@
+import { execFile, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import sharp from "sharp";
+import {
+  shouldRefreshHistoryImage,
+  validateHistoryImageManifest,
+} from "./history-image-policy.mjs";
+
+const execFileAsync = promisify(execFile);
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const source = readFileSync(join(root, "src/data/historySeeds.ts"), "utf8");
@@ -69,27 +77,62 @@ const pageTitles = {
   "chernobyl-1986": "Chernobyl disaster", "soviet-dissolution-1991": "Dissolution of the Soviet Union",
 };
 
+// Some event articles deliberately have no lead image. In those cases, use a
+// participant or ruler whose portrait is specific to the same event instead
+// of falling back to generic period artwork.
+const imagePageTitles = {
+  "sui-unification-589": "Emperor Wen of Sui",
+  "mawei-756": "Yang Guifei",
+  "chen-bridge-960": "Emperor Taizu of Song",
+  "jingkang-1127": "Emperor Qinzong",
+  "diaoyu-1259": "Möngke Khan",
+  "xiangyang-1273": "Kublai Khan",
+  "poyang-1363": "Hongwu Emperor",
+  "longqing-trade-1567": "Longqing Emperor",
+  "wuchang-1911": "Li Yuanhong",
+};
+
 const missingTitles = entries.filter(({ id }) => !pageTitles[id]);
 if (entries.length !== 100 || missingTitles.length) {
   throw new Error(`Expected 100 mapped moments; found ${entries.length}. Missing: ${missingTitles.map(({ id }) => id).join(", ")}`);
 }
 
 const chunks = (items, size = 40) => Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
-const headers = { "User-Agent": "IChangedHistoryPrototype/2.0 (local competition prototype)" };
+const userAgent = "IChangedHistoryPrototype/2.1 (local competition prototype)";
 
-async function requestJson(url) {
-  let lastError;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+function curlArguments(url, maxTime) {
+  return [
+    "-L", "--fail", "--silent", "--show-error", "--retry", "4", "--retry-all-errors",
+    "--retry-delay", "1", "--connect-timeout", "15", "--max-time", String(maxTime),
+    "-A", userAgent, url,
+  ];
+}
+
+function requestJson(url) {
+  return JSON.parse(execFileSync("curl", curlArguments(url, 60), {
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  }));
+}
+
+async function curlDownload(url, outputPath) {
+  const args = curlArguments(url, 90);
+  args.splice(args.length - 1, 0, "-o", outputPath);
+  await execFileAsync("curl", args, { maxBuffer: 2 * 1024 * 1024 });
+}
+
+async function downloadFile(url, sourceUrl, outputPath) {
+  try {
+    await curlDownload(url, outputPath);
+  } catch (directError) {
+    rmSync(outputPath, { force: true });
+    const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(sourceUrl)}&w=900&output=jpg`;
     try {
-      const response = await fetch(url, { headers });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      lastError = error;
-      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+      await curlDownload(proxyUrl, outputPath);
+    } catch (proxyError) {
+      throw new AggregateError([directError, proxyError], "Wikimedia direct and image-proxy downloads both failed");
     }
   }
-  throw lastError;
 }
 
 function apiUrl(host, parameters) {
@@ -98,11 +141,12 @@ function apiUrl(host, parameters) {
 }
 
 const articles = new Map();
+const imageArticles = new Map();
 const articleErrors = new Map();
 for (const batch of chunks(entries)) {
-  const titles = batch.map(({ id }) => pageTitles[id]);
+  const titles = [...new Set(batch.flatMap(({ id }) => [pageTitles[id], imagePageTitles[id]].filter(Boolean)))];
   try {
-    const payload = await requestJson(apiUrl("en.wikipedia.org", {
+    const payload = requestJson(apiUrl("en.wikipedia.org", {
       titles: titles.join("|"), prop: "pageimages|info", piprop: "name", inprop: "url",
     }));
     const aliases = new Map([
@@ -110,10 +154,14 @@ for (const batch of chunks(entries)) {
       ...(payload.query?.redirects ?? []).map(({ from, to }) => [from, to]),
     ]);
     const pages = new Map(Object.values(payload.query?.pages ?? {}).map((page) => [page.title, page]));
-    for (const entry of batch) {
-      let title = pageTitles[entry.id];
+    const resolvePage = (requested) => {
+      let title = requested;
       for (let hop = 0; hop < 3 && aliases.has(title); hop += 1) title = aliases.get(title);
-      articles.set(entry.id, pages.get(title));
+      return pages.get(title);
+    };
+    for (const entry of batch) {
+      articles.set(entry.id, resolvePage(pageTitles[entry.id]));
+      imageArticles.set(entry.id, resolvePage(imagePageTitles[entry.id] ?? pageTitles[entry.id]));
     }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
@@ -121,14 +169,23 @@ for (const batch of chunks(entries)) {
   }
 }
 
-const fileTitles = [...new Set(entries.map(({ id }) => articles.get(id)?.pageimage).filter(Boolean).map((name) => `File:${name}`))];
+const fileTitles = [...new Set(entries.map(({ id }) => imageArticles.get(id)?.pageimage).filter(Boolean).map((name) => `File:${name}`))];
 const files = new Map();
 for (const batch of chunks(fileTitles)) {
   try {
-    const payload = await requestJson(apiUrl("commons.wikimedia.org", {
-      titles: batch.join("|"), prop: "imageinfo|info", iiprop: "url|extmetadata", iiurlwidth: "1400", inprop: "url",
+    const payload = requestJson(apiUrl("commons.wikimedia.org", {
+      titles: batch.join("|"), prop: "imageinfo|info", iiprop: "url|extmetadata", iiurlwidth: "900", inprop: "url",
     }));
-    for (const page of Object.values(payload.query?.pages ?? {})) files.set(page.title, page);
+    const aliases = new Map([
+      ...(payload.query?.normalized ?? []).map(({ from, to }) => [from, to]),
+      ...(payload.query?.redirects ?? []).map(({ from, to }) => [from, to]),
+    ]);
+    const pages = new Map(Object.values(payload.query?.pages ?? {}).map((page) => [page.title, page]));
+    for (const requested of batch) {
+      let title = requested;
+      for (let hop = 0; hop < 3 && aliases.has(title); hop += 1) title = aliases.get(title);
+      files.set(requested, pages.get(title));
+    }
   } catch {
     // Each missing file below records a concrete fallback reason.
   }
@@ -138,58 +195,143 @@ function plain(value = "") {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+const fallbackCredits = {
+  "tone-ancient.webp": {
+    filePage: "https://commons.wikimedia.org/wiki/File:Audran.jpg",
+    artist: "Gerard Audran after Charles Le Brun",
+    license: "Public domain",
+    licenseUrl: "https://creativecommons.org/publicdomain/mark/1.0/",
+  },
+  "tone-print.webp": {
+    filePage: "https://commons.wikimedia.org/wiki/File:Gutenberg.press.jpg",
+    artist: "Wikimedia Commons contributor",
+    license: "Public domain dedication",
+    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+  },
+  "tone-revolution.webp": {
+    filePage: "https://commons.wikimedia.org/wiki/File:Eug%C3%A8ne_Delacroix_-_Liberty_Leading_the_People_(28th_July_1830)_-_WGA6177.jpg",
+    artist: "Eugène Delacroix",
+    license: "Public domain",
+    licenseUrl: "https://creativecommons.org/publicdomain/mark/1.0/",
+  },
+  "tone-industry.webp": {
+    filePage: "https://commons.wikimedia.org/wiki/File:Rain_Steam_and_Speed_the_Great_Western_Railway.jpg",
+    artist: "J. M. W. Turner",
+    license: "Public domain",
+    licenseUrl: "https://creativecommons.org/publicdomain/mark/1.0/",
+  },
+};
+
 function fallbackFor(year) {
   if (year >= 1914) return "tone-industry.webp";
   if (year >= 1750) return "tone-revolution.webp";
-  if (year >= 1450) return "stage-early-modern.webp";
+  if (year >= 1450) return "tone-print.webp";
   return "tone-ancient.webp";
+}
+
+function articleUrlFor(entry, article) {
+  return article?.fullurl ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitles[entry.id].replaceAll(" ", "_"))}`;
+}
+
+function commonsAttribution(entry, article, image, metadata) {
+  const attribution = {
+    articleUrl: articleUrlFor(entry, article),
+    filePage: image?.descriptionurl ?? "",
+    artist: plain(metadata.Artist?.value ?? metadata.Credit?.value ?? ""),
+    license: plain(metadata.LicenseShortName?.value ?? metadata.UsageTerms?.value ?? ""),
+    licenseUrl: metadata.LicenseUrl?.value ?? image?.descriptionurl ?? "",
+    sourceUrl: image?.url ?? "",
+    fallback: null,
+  };
+  validateHistoryImageManifest([{ id: entry.id, ...attribution }], [entry.id]);
+  return attribution;
+}
+
+function localFallbackAttribution(entry, article, asset, reason) {
+  const credit = fallbackCredits[asset];
+  const sourceAsset = `/assets/${asset}`;
+  return {
+    articleUrl: articleUrlFor(entry, article),
+    filePage: credit.filePage,
+    artist: credit.artist,
+    license: credit.license,
+    licenseUrl: credit.licenseUrl,
+    sourceUrl: sourceAsset,
+    fallback: {
+      sourceAsset,
+      sourceCredits: "/assets/CREDITS.md",
+      reason,
+    },
+  };
 }
 
 const manifest = [];
 let downloaded = 0;
 let cached = 0;
-for (const entry of entries) {
+
+async function processEntry(entry) {
   const article = articles.get(entry.id);
-  const file = article?.pageimage ? files.get(`File:${article.pageimage}`) : undefined;
+  const imageArticle = imageArticles.get(entry.id);
+  const file = imageArticle?.pageimage ? files.get(`File:${imageArticle.pageimage}`) : undefined;
   const image = file?.imageinfo?.[0];
   const metadata = image?.extmetadata ?? {};
   const target = join(output, `${entry.id}.webp`);
   const previous = previousManifest.get(entry.id);
-  let fallback = previous?.fallback ?? null;
-  if (existsSync(target)) {
-    cached += 1;
+  let attribution;
+  if (!shouldRefreshHistoryImage(existsSync(target), previous)) {
+    attribution = previous;
   } else {
     const temporary = `${target}.tmp-${process.pid}`;
+    const input = `${target}.source-${process.pid}`;
     try {
       if (!image?.thumburl && !image?.url) {
         const lookupError = articleErrors.get(entry.id);
         throw new Error(lookupError ? `article lookup failed: ${lookupError}` : "article has no reusable Commons image");
       }
-      const response = await fetch(image.thumburl ?? image.url, { headers });
-      if (!response.ok) throw new Error(`image HTTP ${response.status}`);
-      await sharp(Buffer.from(await response.arrayBuffer())).rotate().resize({ width: 900, withoutEnlargement: true }).webp({ quality: 82 }).toFile(temporary);
+      attribution = commonsAttribution(entry, article, image, metadata);
+      const canonicalFileName = file.title.replace(/^File:/, "");
+      const reusableImageUrl = `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(canonicalFileName)}?width=900`;
+      await downloadFile(reusableImageUrl, image.url, input);
+      await sharp(input).rotate().resize({ width: 900, withoutEnlargement: true }).webp({ quality: 82 }).toFile(temporary);
       renameSync(temporary, target);
-      downloaded += 1;
-      fallback = null;
     } catch (error) {
       rmSync(temporary, { force: true });
       const asset = fallbackFor(entry.year);
       await sharp(join(root, "public/assets", asset)).rotate().resize({ width: 900, withoutEnlargement: true }).webp({ quality: 82 }).toFile(temporary);
       renameSync(temporary, target);
-      fallback = { asset, reason: error instanceof Error ? error.message : String(error) };
+      attribution = localFallbackAttribution(entry, article, asset, error instanceof Error ? error.message : String(error));
+    } finally {
+      rmSync(input, { force: true });
     }
   }
-  manifest.push({
-    id: entry.id,
-    articleUrl: article?.fullurl ?? previous?.articleUrl ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitles[entry.id].replaceAll(" ", "_"))}`,
-    filePage: image?.descriptionurl ?? file?.fullurl ?? previous?.filePage ?? "",
-    artist: plain(metadata.Artist?.value ?? metadata.Credit?.value ?? previous?.artist ?? ""),
-    license: plain(metadata.LicenseShortName?.value ?? metadata.UsageTerms?.value ?? previous?.license ?? ""),
-    licenseUrl: metadata.LicenseUrl?.value ?? previous?.licenseUrl ?? "",
-    sourceUrl: image?.url ?? image?.thumburl ?? previous?.sourceUrl ?? "",
-    fallback,
-  });
+  return {
+    cached: shouldRefreshHistoryImage(existsSync(target), previous) ? 0 : 1,
+    downloaded: previous === attribution ? 0 : 1,
+    manifestEntry: {
+      id: entry.id,
+      articleUrl: attribution.articleUrl,
+      filePage: attribution.filePage,
+      artist: attribution.artist,
+      license: attribution.license,
+      licenseUrl: attribution.licenseUrl,
+      sourceUrl: attribution.sourceUrl,
+      fallback: attribution.fallback,
+    },
+  };
 }
+
+// Two concurrent downloads stay comfortably below the requested cap of four
+// and avoid Wikimedia's burst rate limit during a cold 100-image refresh.
+for (const batch of chunks(entries, 2)) {
+  const results = await Promise.all(batch.map(processEntry));
+  for (const result of results) {
+    manifest.push(result.manifestEntry);
+    downloaded += result.downloaded;
+    cached += result.cached;
+  }
+}
+
+validateHistoryImageManifest(manifest, entries.map(({ id }) => id));
 
 function creditsFrom(items) {
   const lines = [
@@ -199,11 +341,9 @@ function creditsFrom(items) {
   for (const item of items) {
     const eventName = entries.find(({ id }) => id === item.id)?.eventName ?? item.id;
     if (item.fallback) {
-      lines.push(`- **${eventName}**: local fallback \`${item.fallback.asset}\` (${item.fallback.reason})`);
+      lines.push(`- **${eventName}**: local fallback [source asset](${item.fallback.sourceAsset}) · [source credits](${item.fallback.sourceCredits}) · ${item.artist} · [${item.license}](${item.licenseUrl}) · ${item.fallback.reason}`);
     } else {
-      const artist = item.artist || "artist not stated";
-      const license = item.license || "license metadata unavailable";
-      lines.push(`- **${eventName}**: [article](${item.articleUrl}) · [source file](${item.filePage || item.sourceUrl || item.articleUrl}) · ${artist} · [${license}](${item.licenseUrl || item.filePage || item.articleUrl})`);
+      lines.push(`- **${eventName}**: [article](${item.articleUrl}) · [source file](${item.filePage}) · ${item.artist} · [${item.license}](${item.licenseUrl})`);
     }
   }
   return `${lines.join("\n")}\n`;

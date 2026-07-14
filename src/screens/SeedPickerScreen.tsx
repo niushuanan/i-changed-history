@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import type { HistorySeed } from "../game/types";
 import { HistoryCard } from "../components/HistoryCard";
 import { browseHistorySeeds } from "../data/historySeeds";
+import { formatHistoricalYear } from "../data/historicalYear";
 
 const CARD_STEP = 312;
 
@@ -62,13 +63,13 @@ export function SeedPickerScreen({
 
       <section className="history-time" aria-label="历史时间轴">
         <div className="history-time__readout">
-          <span>公元</span><strong>{cards[activeIndex].year}</strong>
+          <strong>{formatHistoricalYear(cards[activeIndex].year)}</strong>
           <div className="history-time__meta">
             <span className="history-time__hint">（滑动可切换不同的历史瞬间）</span>
             <small>{activeIndex + 1} / {cards.length}</small>
           </div>
         </div>
-        <nav className="history-time__track" ref={timelineRef} aria-label="五十个历史年份">
+        <nav className="history-time__track" ref={timelineRef} aria-label="一百个历史年份">
           <div className="history-time__line" aria-hidden="true" />
           {cards.map((seed, index) => (
             <button
@@ -77,11 +78,11 @@ export function SeedPickerScreen({
               type="button"
               className={index === activeIndex ? "is-active" : ""}
               aria-current={index === activeIndex ? "step" : undefined}
-              aria-label={`定位到公元 ${seed.year} 年`}
+              aria-label={`定位到${formatHistoricalYear(seed.year)}`}
               onClick={() => focusCard(index)}
             >
               <i />
-              <span>{seed.year}</span>
+              <span>{formatHistoricalYear(seed.year)}</span>
             </button>
           ))}
         </nav>

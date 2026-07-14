@@ -77,6 +77,29 @@ describe("famous historical moment deck", () => {
     });
   });
 
+  it("keeps reviewed historical anchors precise instead of importing later institutions", () => {
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "shang-yang-356bc")).toMatchObject({
+      decision: expect.stringContaining("什伍连坐与军功授爵"),
+    });
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "shang-yang-356bc")?.decision).not.toContain("县制");
+
+    const blackDeath = HISTORY_SEEDS.find((seed) => seed.id === "black-death-1347");
+    expect(`${blackDeath?.location}${blackDeath?.role}${blackDeath?.decision}`).not.toMatch(/检疫|隔离制度|港务会/);
+    expect(blackDeath?.historicalOutcome).toContain("驱逐");
+
+    const oilCrisis = HISTORY_SEEDS.find((seed) => seed.id === "oil-crisis-1973");
+    expect(oilCrisis?.decision).toContain("减产5%");
+    expect(oilCrisis?.decision).not.toContain("禁运");
+    expect(oilCrisis?.historicalOutcome).toMatch(/10月17日.*减产.*随后.*禁运/);
+  });
+
+  it("gives ceremonial and technical milestones a consequential immediate lever", () => {
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "prc-founded-1949")?.decision).toMatch(/带实弹|迎击/);
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "circumnavigation-1522")?.decision).toMatch(/抛弃.*香料|减轻吃水/);
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "un-charter-1945")?.decision).toMatch(/否决权.*拒绝签署|拒绝.*否决权/);
+    expect(HISTORY_SEEDS.find((seed) => seed.id === "sputnik-1957")?.decision).toMatch(/延长.*燃烧|稳定轨道/);
+  });
+
   it("always exposes all one hundred moments in chronological order", () => {
     const moments = browseHistorySeeds();
     expect(moments).toHaveLength(100);
