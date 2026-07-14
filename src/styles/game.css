@@ -1301,7 +1301,22 @@
 .result-actions { padding: 7px 12px 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; background: #171614; }
 .result-actions .primary-command,
 .result-actions .secondary-command { min-height: 40px; margin: 0; font-size: 13px; }
-.result-actions__status { grid-column: 1 / -1; margin: 0; color: #f2a19c; text-align: center; font-size: 12px; }
+.result-actions .primary-command { grid-column: 1; grid-row: 1; }
+.result-actions .secondary-command { grid-column: 2; grid-row: 1; }
+.result-actions__status { grid-column: 1 / -1; margin: 0; color: #d8d3ca; text-align: center; font-size: 12px; line-height: 1.4; }
+.result-actions__download {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(247, 244, 237, .32);
+  background: transparent;
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 800;
+}
 
 @media (max-width: 350px) {
   .history-carousel { padding-inline: 24px; }
