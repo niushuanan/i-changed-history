@@ -69,9 +69,9 @@ function WorldPage({ result }: { result: AlternatePresent }) {
         ))}
       </ol>
 
-      <section className="world-report__ordinary">
+      <section className="world-report__ordinary" aria-label="2026，普通人的一天">
         <h2>2026，普通人的一天</h2>
-        <ul>{result.ordinaryLife2026.map((detail) => <li key={detail}>{detail}</li>)}</ul>
+        <p aria-label="2026普通人的一天">{result.ordinaryLife2026.join("；")}</p>
       </section>
 
       <footer className="world-report__closing">

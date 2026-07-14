@@ -62,6 +62,7 @@ describe("alternate present export", () => {
     expect(screen.getByText("史臣曰 · 文言")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByText(result.worldName)).toBeVisible();
+    expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(result.ordinaryLife2026.join("；"));
     expect(screen.queryByText(/人格|第一反应/)).not.toBeInTheDocument();
   });
 });

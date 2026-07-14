@@ -250,7 +250,7 @@ export function buildWorldReportMessages(scenario: GameScenario, playedTurns: re
       requiredFields: ["worldName", "frontPageHeadline", "posthumousChronicle", "causalChains", "ordinaryLife2026", "closingPassage", "greatestGain", "hiddenPrice", "strangestDetail", "biggestBeneficiary", "biggestLoser", "rewriteLevel", "plausibilityScore", "plausibilityReason", "shareLine"],
       posthumousChronicle: "恰好四项，每项含 period、title、narrative、inheritedChange；每个字段都用短句，从主角死后到 2026 逐步拉长时间，展示遗产如何变形",
       causalChains: "恰好三项，每项含 origin、transformation、payoff",
-      ordinaryLife2026: "恰好三个具体生活细节，每项 36 字以内",
+      ordinaryLife2026: "恰好三个互不重复的具体生活细节，每项 12—18 字的完整生活短句",
       closingPassage: "180 字以内的小说式尾声，明确主角没看到 2026，但世界仍活在他的选择之后",
       plausibilityScore: "0-100 数值",
     },

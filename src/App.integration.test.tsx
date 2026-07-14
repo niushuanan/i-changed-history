@@ -98,7 +98,7 @@ describe("complete player journey", () => {
     expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(12);
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByRole("heading", { name: "公议纪元" })).toBeVisible();
-    for (const detail of endingFixture.ordinaryLife2026) expect(screen.getByText(detail)).toBeVisible();
+    expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(endingFixture.ordinaryLife2026.join("；"));
     expect(screen.getByRole("button", { name: "保存这一页" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
   });

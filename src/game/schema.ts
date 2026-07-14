@@ -322,30 +322,12 @@ function normalizeBiographyReportCandidate(value: unknown): unknown {
 function normalizeWorldReportCandidate(value: unknown): unknown {
   const report = asRecord(value);
   if (!report) return value;
-  const posthumousChronicle = Array.isArray(report.posthumousChronicle)
-    ? report.posthumousChronicle.map((entry) => {
-        const item = asRecord(entry);
-        return item ? {
-          ...item,
-          period: trimBounded(item.period, 18),
-          title: trimBounded(item.title, 22),
-          narrative: trimBounded(item.narrative, 54),
-          inheritedChange: trimBounded(item.inheritedChange, 42),
-        } : entry;
-      })
-    : report.posthumousChronicle;
-  const ordinaryLife2026 = Array.isArray(report.ordinaryLife2026)
-    ? report.ordinaryLife2026.map((item) => trimBounded(item, 36))
-    : report.ordinaryLife2026;
   const plausibilityScore = typeof report.plausibilityScore === "string"
     && report.plausibilityScore.trim() !== ""
     ? Number(report.plausibilityScore)
     : report.plausibilityScore;
   return {
     ...report,
-    posthumousChronicle,
-    ordinaryLife2026,
-    closingPassage: trimBounded(report.closingPassage, 180),
     rewriteLevel: coerceDisplayString(report.rewriteLevel),
     plausibilityScore,
   };
@@ -527,6 +509,11 @@ const causalChainSchema = z.object({
   payoff: requiredString,
 });
 
+const completeReportSentence = (max: number) => requiredString.max(max).refine((value) => {
+  const withoutPunctuation = value.replace(/[。！？!?]+$/g, "").trim();
+  return !INCOMPLETE_CHOICE_END_PATTERN.test(withoutPunctuation);
+}, "报告文案必须是完整句，不能停在连接词或未完成的动作上");
+
 const biographyFields = {
     vernacularBiography: requiredString.max(720),
     classicalBiography: requiredString.max(520),
@@ -546,14 +533,14 @@ const worldReportFields = {
     worldName: requiredString,
     frontPageHeadline: requiredString,
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
-    ordinaryLife2026: z.tuple([boundedString(36), boundedString(36), boundedString(36)]),
+    ordinaryLife2026: z.tuple([completeReportSentence(48), completeReportSentence(48), completeReportSentence(48)]),
     posthumousChronicle: z.tuple([
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(54), inheritedChange: boundedString(42) }),
+      z.object({ period: boundedString(24), title: boundedString(32), narrative: completeReportSentence(84), inheritedChange: completeReportSentence(64) }),
+      z.object({ period: boundedString(24), title: boundedString(32), narrative: completeReportSentence(84), inheritedChange: completeReportSentence(64) }),
+      z.object({ period: boundedString(24), title: boundedString(32), narrative: completeReportSentence(84), inheritedChange: completeReportSentence(64) }),
+      z.object({ period: boundedString(24), title: boundedString(32), narrative: completeReportSentence(84), inheritedChange: completeReportSentence(64) }),
     ]),
-    closingPassage: requiredString.max(180),
+    closingPassage: completeReportSentence(240),
     greatestGain: requiredString,
     hiddenPrice: requiredString,
     strangestDetail: requiredString,

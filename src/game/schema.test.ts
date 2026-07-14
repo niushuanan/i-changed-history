@@ -568,27 +568,45 @@ describe("structured timeline parsing", () => {
     ).toThrow();
   });
 
-  it("normalizes harmless ending length and scalar drift without another model call", () => {
+  it("preserves complete AI-authored report prose instead of slicing visible sentences", () => {
+    const ordinaryLife2026 = [
+      "城市居民每天通过公开驿路跨区通勤，沿途账册同步记录交通票价与发车时间并接受乘客质询。",
+      "家庭持有多语身份凭证，孩子可以在不同城市继续完成公共学校课程且学籍长期有效。",
+      "学校每周举行公开城市议事，学生会直接质询交通预算与道路修缮计划并获得答复。",
+    ] as const;
+    const closingPassage = "沈砚没有看见这个世界的清晨。".repeat(15);
+    const posthumousChronicle = endingFixture.posthumousChronicle.map((item) => ({
+      ...item,
+      narrative: `${item.narrative}它的余波又经由新的公共制度进入普通家庭，并在下一代的日常选择里继续扩散至更远的城市。`,
+      inheritedChange: `${item.inheritedChange}这条遗产仍被后人完整保留，并写入每座城市的公共章程与学校课程。`,
+    }));
     const raw = JSON.stringify({
       ...endingFixture,
       rewriteLevel: 82,
       plausibilityScore: "78",
-      closingPassage: `${"尾声仍由模型完整写成。".repeat(30)}`,
-      posthumousChronicle: endingFixture.posthumousChronicle.map((item) => ({
-        ...item,
-        narrative: `${item.narrative}${"余波".repeat(40)}`,
-        inheritedChange: `${item.inheritedChange}${"制度".repeat(30)}`,
-      })),
+      ordinaryLife2026,
+      closingPassage,
+      posthumousChronicle,
     });
 
     const report = parseWorldReport(raw);
+    ordinaryLife2026.forEach((item) => expect(item.length).toBeGreaterThan(36));
+    posthumousChronicle.forEach((item) => {
+      expect(item.narrative.length).toBeGreaterThan(54);
+      expect(item.inheritedChange.length).toBeGreaterThan(42);
+    });
     expect(report.rewriteLevel).toBe("82");
     expect(report.plausibilityScore).toBe(78);
-    expect(report.closingPassage.length).toBeLessThanOrEqual(180);
-    report.posthumousChronicle.forEach((item) => {
-      expect(item.narrative.length).toBeLessThanOrEqual(54);
-      expect(item.inheritedChange.length).toBeLessThanOrEqual(42);
-    });
+    expect(report.ordinaryLife2026).toEqual(ordinaryLife2026);
+    expect(report.closingPassage).toBe(closingPassage);
+    expect(report.posthumousChronicle).toEqual(posthumousChronicle);
+  });
+
+  it("rejects a visibly incomplete world-report sentence for field repair", () => {
+    expect(() => parseWorldReport(JSON.stringify({
+      ...endingFixture,
+      ordinaryLife2026: ["通勤者准备通过", ...endingFixture.ordinaryLife2026.slice(1)],
+    }))).toThrow(/完整句/);
   });
 
   it("rebuilds string-only ending timeline entries from authoritative played turns", () => {
