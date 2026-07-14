@@ -1,5 +1,17 @@
 # Design QA
 
+## Hundred-Moment Browser, 2026 Report And Save QA (2026-07-14)
+
+- Release captures: `.playwright-cli/hundred-release-grid-390x844.png` and `.playwright-cli/hundred-release-world-390x844.png`.
+- At 390 x 844, mode A renders 100 chronological cards and 100 year targets with a 50.25px preview of the next card; the document remains exactly 390 x 844 with no body overflow. Mode B renders `175.5px 175.5px` columns, all 100 unique local images loaded, and zero broken or pending images.
+- Real interaction moved directly to 1991, waited through smooth scrolling, switched filmstrip -> grid -> filmstrip, and returned to `公元 1991 年` at `scrollLeft=30846`. Search `苏联` plus post-1900/world/politics filters returned only `苏联解体`; switching region to China produced the explicit zero-result state, and clearing restored all 100 cards with 1991 still current.
+- The 2026 ordinary-life content is one labelled paragraph. Three 17-character pressure details render in exactly two 18px lines at 12px type. Era rows compute to `24px 82px 244px`; narrative/inherited copy is 12px/11px, closing and share copy are 14px. Biography copy reaches 1224px inside a 741px reading region and scrolls without clipping; the page body itself does not overflow.
+- Desktop browser export downloaded the current 2026 page as a 780 x 1482 PNG and the complete biography as a 780 x 2448 PNG, confirming 2x output of the full report height rather than the visible viewport. Mobile emulation reached the prepared state, displayed the compliant system-panel instruction and PNG fallback, handled unsupported sharing without losing the prepared image, and downloaded the fallback PNG.
+- The only permitted real DeepSeek long game ran once: `red-cliffs-208` completed 12/12 decisions with five unique direct rewrites and both final reports in 218.01 seconds. All 11 continuations and both ending requests succeeded on their first primary request; manual retries, invalid responses, repairs, diagnostics, and local scene/ending fallbacks were all zero.
+- Browser console: 0 errors and 0 warnings. Automated verification and the final 12-18-character ordinary-life schema regression are recorded in `PROJECT_CONTEXT.md`.
+
+final result: passed
+
 ## Mobile Readability And Image Overlay QA (2026-07-13)
 
 - Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-c6f33b48-c66b-433b-8fc6-f130258c1e34.png`.
