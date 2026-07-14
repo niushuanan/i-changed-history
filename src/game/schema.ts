@@ -125,6 +125,16 @@ function isCompleteSentenceBody(value: string): boolean {
   return !endsWithDanglingGrammar(clause) && !hasDanglingDisposalStructure(clause);
 }
 
+function finalSentenceBody(value: string): string {
+  const withoutClosing = value.replace(/[”"』」）)]*$/, "").trim();
+  const withoutTerminal = withoutClosing.replace(/[。！？!?]+$/, "").trim();
+  return withoutTerminal
+    .split(/[。！？!?]/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .at(-1) ?? withoutTerminal;
+}
+
 function isCompleteActionLabel(value: string): boolean {
   if (INCOMPLETE_CHOICE_END_PATTERN.test(value)) return false;
   if (DEPENDENT_SENTENCE_START_PATTERN.test(value) && !hasIndependentMainClause(value)) return false;
@@ -185,8 +195,11 @@ const causalLedgerEntrySchema = z.object({
   mustAffect: requiredString,
 });
 
-const richNarrativeSchema = requiredString
-  .max(160)
+const narrativeTextSchema = requiredString.refine((narrative) => [...narrative].length <= 230, {
+  message: "现场前情不能超过 230 字",
+});
+
+const richNarrativeSchema = narrativeTextSchema
   .refine((narrative) => [...narrative].length >= 80, {
     message: "现场前情至少需要 80 字",
   })
@@ -195,6 +208,12 @@ const richNarrativeSchema = requiredString
     return sentenceCount >= 2 && sentenceCount <= 7;
   }, {
     message: "现场前情需要至少两句完整叙事，并避免堆叠碎句",
+  })
+  .refine((narrative) => /[。！？!?](?:[”"』」）)])?$/.test(narrative), {
+    message: "现场前情必须以完整句结束",
+  })
+  .refine((narrative) => isCompleteSentenceBody(finalSentenceBody(narrative)), {
+    message: "现场前情最后一句必须语义完整",
   });
 
 const timelineTurnFields = {
@@ -229,7 +248,7 @@ const timelineTurnObjectSchema = z.object({
 
 const compatibleStoredTimelineTurnObjectSchema = z.object({
   ...timelineTurnFields,
-  narrative: requiredString.max(160),
+  narrative: narrativeTextSchema,
 });
 
 type TimelineTurnCandidate = z.infer<typeof timelineTurnObjectSchema>;
@@ -337,20 +356,6 @@ function joinStringArray(value: unknown): unknown {
   return Array.isArray(value) && value.every((item) => typeof item === "string")
     ? value.join("；")
     : value;
-}
-
-function trimNarrative(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const characters = [...value];
-  if (characters.length <= 160) return value;
-
-  const candidate = characters.slice(0, 160).join("");
-  const sentenceEnd = Math.max(
-    candidate.lastIndexOf("。"),
-    candidate.lastIndexOf("！"),
-    candidate.lastIndexOf("？"),
-  );
-  return sentenceEnd >= 20 ? candidate.slice(0, sentenceEnd + 1) : candidate;
 }
 
 function trimBounded(value: unknown, max: number): unknown {
@@ -614,7 +619,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     immediateObjective: trimBounded(turn.immediateObjective ?? derivedObjective, 40),
     timePressure: trimAtCompleteClause(turn.timePressure ?? derivedDeadline, 36),
     headline: turn.headline,
-    narrative: trimNarrative(turn.narrative),
+    narrative: turn.narrative,
     causalBridge: compactCompleteScanCopy(turn.causalBridge, 36),
     worldStateChange: compactCompleteScanCopy(turn.worldStateChange, 48),
     divergenceProof: normalizeDivergenceProof(turn.divergenceProof),

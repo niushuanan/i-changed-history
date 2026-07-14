@@ -113,6 +113,26 @@ describe("history developing room", () => {
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the next-step confirmation after the complete generated narrative", () => {
+    const narrative = `${"前".repeat(75)}。${"情".repeat(75)}。${"险".repeat(77)}。`;
+    render(
+      <GeneratingScreen
+        chapter={4}
+        ending={false}
+        progressStage="validating"
+        ready
+        draft={{ headline: "完整历史现场", narrative, location: "临安皇宫文德殿", role: "天策皇帝与天兵持召人" }}
+        onContinue={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const paragraph = screen.getByText(narrative);
+    const nextButton = screen.getByRole("button", { name: /下一步/ });
+    expect(paragraph.compareDocumentPosition(nextButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(paragraph).toHaveTextContent(narrative);
+  });
+
   it("keeps the exact player-authored fact visible while its consequences are generated", () => {
     render(
       <GeneratingScreen

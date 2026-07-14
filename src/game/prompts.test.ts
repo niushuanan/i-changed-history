@@ -211,7 +211,9 @@ describe("modern traveler AI prompt contract", () => {
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const protocol = buildContinuationMessages(scenario, played, 2)[1].content;
     expect(protocol).toContain("完整 JSON 控制在 900 个汉字左右");
-    expect(protocol).toContain("80-160 个汉字");
+    expect(protocol).toContain("80-180 个汉字");
+    expect(protocol).toContain("绝不超过 180 字");
+    expect(protocol).not.toContain("80-160 个汉字");
     expect(protocol).toContain("二至五句");
     expect(protocol).toContain("上一项决定如何造成当前局面");
     expect(protocol).toContain("真实人物、机构或阵营");

@@ -208,16 +208,19 @@ describe("structured timeline parsing", () => {
     expect(parsed.baselineAnchor).toHaveLength(54);
   });
 
-  it("truncates an overlong narrative instead of interrupting gameplay", () => {
-    const raw = JSON.stringify({
-      ...turnFixture,
-      narrative: `${"史".repeat(52)}。${"记".repeat(52)}。${"变".repeat(53)}。${"余波".repeat(20)}`,
-    });
-    expect(parseTimelineTurn(raw).narrative).toHaveLength(160);
+  it("preserves a complete 230-character narrative without client-side truncation", () => {
+    const narrative = `${"前".repeat(75)}。${"情".repeat(75)}。${"险".repeat(77)}。`;
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("keeps a complete three-sentence prehistory at the new visible limit", () => {
-    const narrative = `${"前".repeat(52)}。${"情".repeat(52)}。${"险".repeat(53)}。`;
+  it("rejects a narrative above the 230-character client ceiling for model repair", () => {
+    const narrative = `${"前".repeat(75)}。${"情".repeat(75)}。${"险".repeat(78)}。`;
+    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative }))).toThrow(/narrative/);
+  });
+
+  it("counts the 230-character ceiling by Unicode characters instead of UTF-16 units", () => {
+    const narrative = `${"𠀀".repeat(75)}。${"𠀁".repeat(75)}。${"𠀂".repeat(77)}。`;
+    expect([...narrative]).toHaveLength(230);
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
@@ -269,14 +272,19 @@ describe("structured timeline parsing", () => {
     expect(parsed.narrative).toBe(narrative);
   });
 
-  it("ends a trimmed narrative at a complete sentence when possible", () => {
+  it("rejects an incomplete narrative tail instead of trimming model prose", () => {
     const completeSentence = `${"前".repeat(35)}。${"因".repeat(35)}。${"险".repeat(35)}。`;
     const raw = JSON.stringify({
       ...turnFixture,
       narrative: `${completeSentence}${"下一句尚未讲完".repeat(12)}`,
     });
 
-    expect(parseTimelineTurn(raw).narrative).toBe(completeSentence);
+    expect(() => parseTimelineTurn(raw)).toThrow(/narrative/);
+  });
+
+  it("rejects a punctuated dependent final sentence for field repair", () => {
+    const narrative = `${"前情已经落地".repeat(8)}。${"双方已经列阵".repeat(8)}。如果援兵未到。`;
+    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative }))).toThrow(/narrative/);
   });
 
   it("strips harmless extra model fields", () => {

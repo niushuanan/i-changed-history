@@ -84,7 +84,7 @@ describe("clear change event screen", () => {
   });
 
   it("switches to dense layout when a continuation contains the maximum useful copy", () => {
-    const fullNarrative = "前".repeat(52) + "。" + "情".repeat(52) + "。" + "险".repeat(53) + "。";
+    const fullNarrative = "前".repeat(75) + "。" + "情".repeat(75) + "。" + "险".repeat(77) + "。";
     const fullCausalBridge = "因".repeat(36);
     const fullWorldChange = "变".repeat(36);
     const fullRealHistory = "史".repeat(48);
@@ -113,6 +113,7 @@ describe("clear change event screen", () => {
     />);
 
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
+    expect(fullNarrative).toHaveLength(230);
     expect(screen.getByText(fullNarrative)).toBeVisible();
     expect(screen.getByText(fullCausalBridge, { exact: false })).toBeVisible();
     expect(screen.getByText(fullWorldChange)).toBeVisible();
