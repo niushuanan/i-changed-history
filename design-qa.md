@@ -1,5 +1,19 @@
 # Design QA
 
+## Picker Wordmark And Unified Tool Island QA (2026-07-15)
+
+- Visual truth: `design/captures/2026-07-15-picker-header-before.png`.
+- Final implementation: `design/captures/2026-07-15-picker-header-after-full.png` at 390 x 844.
+- Combined focused comparison: `design/captures/2026-07-15-picker-header-comparison.png`.
+- The old 862px reference crop and the implemented 390px header are normalized to the same 780px comparison width. The source is a before-state rather than a target mock, so the comparison verifies the requested hierarchy change: the small title and large instructional subtitle are replaced by one prominent generated wordmark, while the three controls become one coherent right-side tool island.
+- The transparent ImageGen wordmark preserves the exact accessible name `哎！我改变了历史？`, uses warm newsprint white with one restrained vermilion brush accent, and renders at 210 x 48.65px without stretching, cropping, or overlap. `选择你要闯入的瞬间` is absent.
+- At 390 x 844, the mode group is 88 x 44px and contains two complete, unclipped 44 x 44px buttons; the audio control is 44 x 44px. The group and audio control share one baseline with an 8px gap, while the 210px wordmark remains visually separate on the left.
+- The document and game shell are exactly 390px wide with zero horizontal overflow. The 84px header preserves the existing filmstrip content below it and the next-card preview remains visible.
+- Interaction check: grid became `aria-pressed=true`, then a fresh filmstrip click restored `aria-pressed=true` for filmstrip and `false` for grid. The mode group allows each 2px offset keyboard outline to render outside its button without clipping. Audio focus preserves its absolute top-right position while showing the same yellow focus ring, and the integration regression confirms the control independently calls the audio toggle. Browser console: 0 errors and 0 warnings.
+- No remaining P0, P1, or P2 visual issue. The design keeps the existing coal, newsprint, vermilion, teal, and yellow system and introduces no CSS illustration, placeholder, or handwritten SVG substitute.
+
+final result: passed
+
 ## Hundred-Moment Browser, 2026 Report And Save QA (2026-07-14)
 
 - Release captures: `.playwright-cli/hundred-release-grid-390x844.png` and `.playwright-cli/hundred-release-world-390x844.png`.

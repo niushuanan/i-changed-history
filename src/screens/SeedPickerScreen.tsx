@@ -169,7 +169,7 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
   }, [activeIndex, context.mode, isActiveSeedVisible]);
 
   const modeControl = (
-    <div className="seed-picker__modes" role="group" aria-label="历史浏览方式">
+    <div className="seed-picker__modes picker-tool-group" role="group" aria-label="历史浏览方式">
       <button type="button" aria-pressed={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>胶片</button>
       <button type="button" aria-pressed={context.mode === "grid"} onClick={() => setMode("grid")}>网格</button>
     </div>
@@ -178,10 +178,9 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
   return (
     <main className={`seed-picker seed-picker--${context.mode}`}>
       <header className="seed-picker__brand">
-        <div>
-          <h1>哎！我改变了历史？</h1>
-          <strong>选择你要闯入的瞬间</strong>
-        </div>
+        <h1 className="seed-picker__wordmark">
+          <img src="/assets/brand/history-wordmark.png" alt="哎！我改变了历史？" />
+        </h1>
         {modeControl}
       </header>
 

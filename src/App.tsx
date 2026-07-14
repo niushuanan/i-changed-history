@@ -119,7 +119,7 @@ export function App() {
     >
       <div className="mobile-prototype game-shell">
         <button
-          className="sound-toggle icon-button"
+          className={`sound-toggle icon-button${state.phase === "selecting" ? " picker-tool" : ""}`}
           type="button"
           onClick={game.toggleMute}
           aria-label={game.muted ? "打开配乐" : "静音配乐"}

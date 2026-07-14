@@ -56,6 +56,16 @@ describe("living history browser", () => {
     expect(screen.queryByText(String(years[0]))).not.toBeInTheDocument();
   });
 
+  it("uses the artistic product wordmark without the old instructional subtitle", () => {
+    render(<PickerHarness />);
+
+    const heading = screen.getByRole("heading", { level: 1, name: "哎！我改变了历史？" });
+    expect(heading).toHaveClass("seed-picker__wordmark");
+    expect(heading.querySelector("img")).toHaveAttribute("src", "/assets/brand/history-wordmark.png");
+    expect(screen.queryByText("选择你要闯入的瞬间")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "历史浏览方式" })).toHaveClass("picker-tool-group");
+  });
+
   it("keeps the eleventh item current while switching filmstrip to grid and back", async () => {
     const user = userEvent.setup();
     const target = cards[10];

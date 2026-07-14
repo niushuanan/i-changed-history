@@ -115,6 +115,19 @@ describe("complete player journey", () => {
     await waitFor(() => expect(score.start).toHaveBeenCalledTimes(1));
   });
 
+  it("keeps audio and browsing controls independently operable in the shared toolbar", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const audio = screen.getByRole("button", { name: "静音配乐" });
+    expect(audio).toHaveClass("picker-tool");
+    await user.click(audio);
+    expect(score.toggleMuted).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "网格" }));
+    expect(screen.getByRole("button", { name: "网格" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("keeps free text inside the unlimited player-canon result action", async () => {
     const user = userEvent.setup();
     render(<App />);

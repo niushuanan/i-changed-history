@@ -9,6 +9,7 @@ When implementing from a selected generated mock, treat that image as the source
 ## Durable Product Decisions
 
 - The product title is exactly `哎！我改变了历史？`.
+- The history picker header uses the project-owned transparent calligraphic wordmark at `/assets/brand/history-wordmark.png`; keep the exact title as its accessible name and do not restore the instructional subtitle `选择你要闯入的瞬间`. The filmstrip, grid, and audio controls form one aligned 44px tool island with consistent borders, radius, and spacing rather than three mismatched floating controls.
 - The player is a modern Chinese traveler, not an abstract observer. The first screen is the complete chronological catalog of one hundred historical moments; there is no profile, personality test, MBTI label, or recommended subset before play.
 - Opening cards must be famous, concrete historical turning points, including clearly labelled BCE dates where appropriate, with an exact date, place, assigned role, immediate decision, deadline, and actual outcome.
 - The deck must include substantial Chinese history before 1840 and frame world history in language accessible to Chinese players.
