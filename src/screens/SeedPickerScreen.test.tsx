@@ -63,6 +63,7 @@ describe("living history browser", () => {
     expect(screen.getAllByRole("article")).toHaveLength(100);
     expect(screen.getByText("（滑动可切换不同的历史瞬间）")).toBeVisible();
     expect(screen.getByRole("navigation", { name: "一百个历史年份" })).toBeVisible();
+    expect(screen.getByTestId("history-time-axis")).toHaveAttribute("aria-hidden", "true");
     const years = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
     expect(years).toEqual([...years].sort((left, right) => left - right));
     expect(screen.getAllByText(formatHistoricalYear(years[0])).length).toBeGreaterThan(0);
@@ -83,8 +84,10 @@ describe("living history browser", () => {
     render(<PickerHarness />);
 
     const firstCard = screen.getAllByRole("article")[0];
+    const posterStack = within(firstCard).getByTestId("history-card-poster-stack");
     const scene = within(firstCard).getByTestId("history-card-scene");
     expect(scene.querySelectorAll("img")).toHaveLength(1);
+    expect(posterStack).toContainElement(scene);
 
     const yearRail = within(firstCard).getByTestId("history-card-year-rail");
     expect(yearRail).toHaveTextContent(cards[0].dateLabel);
@@ -100,11 +103,13 @@ describe("living history browser", () => {
     expect(dossier).toHaveTextContent(cards[0].role);
     expect(dossier).toHaveTextContent(cards[0].decision);
     expect(dossier).toHaveTextContent(cards[0].urgency);
+    expect(posterStack).toContainElement(dossier);
+    expect(scene.nextElementSibling).toBe(dossier);
 
     const action = within(firstCard).getByTestId("history-card-action");
     expect(action).toHaveAccessibleName(`闯入这一刻：${cards[0].eventName}`);
     expect(dossier).not.toContainElement(action);
-    expect(dossier.nextElementSibling).toBe(action);
+    expect(posterStack.nextElementSibling).toBe(action);
   });
 
   it("keeps the complete positive-era calendar detail visible on its year rail", () => {

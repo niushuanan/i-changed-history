@@ -290,6 +290,7 @@ export function SeedPickerScreen({
                 <small>{activeIndex + 1} / {cards.length}</small>
               </div>
             </div>
+            <span className="history-time__axis" data-testid="history-time-axis" aria-hidden="true" />
             <nav className="history-time__track" ref={timelineRef} aria-label="一百个历史年份">
               {cards.map((seed, index) => (
                 <button

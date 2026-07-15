@@ -1,5 +1,19 @@
 # Design QA
 
+## Archival Poster Fidelity V2 QA (2026-07-15)
+
+- Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-d895be3b-33c6-4890-bbcb-2dd026d1ac4a.png`.
+- Final implementation: `design/captures/2026-07-15-picker-poster-v2-390x844.png`, captured from the real in-app browser at 390 × 844. Combined full comparison: `design/captures/2026-07-15-picker-poster-v2-comparison.png`; focused scene/dossier/action comparison: `design/captures/2026-07-15-picker-poster-v2-focus.png`.
+- Timeline geometry: the dedicated visible axis is centered from x=32 to x=358 (326px long). Its center and the active node center are both exactly y=122px; every year label owns the row below the line instead of colliding with it.
+- Poster geometry: the active poster is x=48..342 (294px); the scene is 378px high, the vermilion year rail is 50px wide, and the dossier is the same 294px width with a 26px overlap. The dossier uses natural height from a 212px minimum instead of the former fixed blank block. The action is 280 × 68px and remains a distinct but visually related vermilion slab.
+- ImageGen assets: `public/assets/picker/dossier-ragged-v3.png` is a transparent warm ragged archival sheet; `public/assets/picker/action-slab-v3.png` is a transparent distressed vermilion-and-antique-gold slab. Both were generated without text or UI, chroma-keyed with soft matte and despill, alpha-trimmed, inspected at source resolution, and rendered without visible green fringe.
+- Responsive audit: 390/360/350/320px have zero document horizontal overflow, identical axis/node center coordinates, complete facts, and no dossier overflow. At 320 × 700 the page has 130px of normal vertical scroll and the CTA moves to y=550..618, fully reachable. `design/captures/2026-07-15-picker-poster-v2-320x700.png` records the narrow initial state.
+- Full-catalog audit: all 100 cards render, all local history images load, every dossier keeps the exact card width, and no dossier clips. The carousel is `clientHeight === scrollHeight === 728px`, so even the longest card remains inside the filmstrip rather than being cut by its vertical overflow boundary.
+- Browser console: 0 errors and 0 warnings. The settings menu, grid mode, 100-card data, current-node synchronization, and game entry behavior were not changed.
+- Findings: no remaining P0, P1, or P2 visual or functional issue in the requested filmstrip scope.
+
+final result: passed
+
 ## Mobile Picker Fidelity Repair QA (2026-07-15)
 
 - Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-9828c765-592d-4124-b343-2fba75e81141.png`.
