@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { browseHistorySeeds } from "../data/historySeeds";
@@ -19,13 +19,27 @@ const initialContext: PickerContext = {
   filters: EMPTY_FILTERS,
 };
 
-function PickerHarness({ onSelect = vi.fn() }: { onSelect?: (seed: HistorySeed) => void }) {
+function PickerHarness({
+  onSelect = vi.fn(),
+  onToggleMute = vi.fn(),
+  muted = false,
+}: {
+  onSelect?: (seed: HistorySeed) => void;
+  onToggleMute?: () => void;
+  muted?: boolean;
+}) {
   const [context, setContext] = useState<PickerContext>(initialContext);
 
   return (
     <>
       <output data-testid="active-seed-id">{context.activeSeedId}</output>
-      <SeedPickerScreen context={context} onContextChange={setContext} onSelect={onSelect} />
+      <SeedPickerScreen
+        context={context}
+        muted={muted}
+        onContextChange={setContext}
+        onSelect={onSelect}
+        onToggleMute={onToggleMute}
+      />
     </>
   );
 }
@@ -44,9 +58,8 @@ describe("living history browser", () => {
     expect(DEFAULT_PICKER_CONTEXT).toEqual(initialContext);
     render(<PickerHarness />);
 
-    expect(screen.getByRole("group", { name: "历史浏览方式" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "胶片" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "网格" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "首页设置" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("article")).toHaveLength(100);
     expect(screen.getByText("（滑动可切换不同的历史瞬间）")).toBeVisible();
     expect(screen.getByRole("navigation", { name: "一百个历史年份" })).toBeVisible();
@@ -63,7 +76,45 @@ describe("living history browser", () => {
     expect(heading).toHaveClass("seed-picker__wordmark");
     expect(heading.querySelector("img")).toHaveAttribute("src", "/assets/brand/history-wordmark.png");
     expect(screen.queryByText("选择你要闯入的瞬间")).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "历史浏览方式" })).toHaveClass("picker-tool-group");
+    expect(screen.getByRole("button", { name: "首页设置" })).toHaveClass("picker-tool");
+  });
+
+  it("uses the selected mobile-game card anatomy without hiding the complete entry brief", () => {
+    render(<PickerHarness />);
+
+    const firstCard = screen.getAllByRole("article")[0];
+    expect(within(firstCard).getByTestId("history-card-year-rail")).toHaveTextContent(cards[0].dateLabel);
+    const brief = within(firstCard).getByRole("region", { name: "闯入信息" });
+    expect(brief).toHaveTextContent(cards[0].eventName);
+    expect(brief).toHaveTextContent(cards[0].location);
+    expect(brief).toHaveTextContent(cards[0].role);
+    expect(brief).toHaveTextContent(cards[0].decision);
+    expect(brief).toHaveTextContent(cards[0].urgency);
+    expect(within(firstCard).getByRole("button", { name: `闯入这一刻：${cards[0].eventName}` })).toBeVisible();
+  });
+
+  it("consolidates filmstrip, grid, and audio into one dismissible settings menu", async () => {
+    const user = userEvent.setup();
+    const onToggleMute = vi.fn();
+    render(<PickerHarness onToggleMute={onToggleMute} />);
+
+    const settings = screen.getByRole("button", { name: "首页设置" });
+    await user.click(settings);
+
+    expect(settings).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menu", { name: "首页设置菜单" })).toBeVisible();
+    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("menuitemcheckbox", { name: /声音/ })).toHaveAttribute("aria-checked", "true");
+
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
+    expect(onToggleMute).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
+
+    await user.click(settings);
+    await user.keyboard("{Escape}");
+    expect(settings).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
   });
 
   it("keeps the eleventh item current while switching filmstrip to grid and back", async () => {
@@ -74,14 +125,16 @@ describe("living history browser", () => {
     await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
 
-    await user.click(screen.getByRole("button", { name: "网格" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
     const currentGridCard = screen.getByRole("button", { name: new RegExp(target.eventName) });
     expect(currentGridCard).toHaveAttribute("aria-current", "true");
     expect(currentGridCard.scrollIntoView).toHaveBeenCalled();
     expect(screen.queryAllByRole("article")).toHaveLength(0);
     expect(screen.queryByRole("navigation", { name: "一百个历史年份" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "胶片" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /胶片/ }));
     expect(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` })).toHaveAttribute("aria-current", "step");
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
   });
@@ -136,7 +189,8 @@ describe("living history browser", () => {
   it("searches and combines time, region, and theme filters with AND", async () => {
     const user = userEvent.setup();
     render(<PickerHarness />);
-    await user.click(screen.getByRole("button", { name: "网格" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
 
     expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "时间" })).toBeVisible();
@@ -165,7 +219,8 @@ describe("living history browser", () => {
     render(<PickerHarness />);
 
     await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
-    await user.click(screen.getByRole("button", { name: "网格" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
     const initiallyCurrentCard = screen.getByRole("button", { name: new RegExp(target.eventName) });
     const scrollIntoView = vi.mocked(initiallyCurrentCard.scrollIntoView);
     scrollIntoView.mockClear();
@@ -186,7 +241,8 @@ describe("living history browser", () => {
     const onSelect = vi.fn();
     const target = cards[12];
     render(<PickerHarness onSelect={onSelect} />);
-    await user.click(screen.getByRole("button", { name: "网格" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
 
     await user.click(screen.getByRole("button", { name: new RegExp(target.eventName) }));
 

@@ -1,5 +1,20 @@
 # Design QA
 
+## Mobile Picker Settings And Card Redesign QA (2026-07-15)
+
+- Source visual truth: `/Users/zhuanghongkai/.codex/generated_images/019f601d-eb24-7831-8d6b-193fc6dbb003/exec-9a2309d0-36a1-48bb-a96e-baebaa374bee.png`.
+- Intended viewport/state: 390 × 844, history picker in filmstrip mode with the settings menu, followed by the two-column table mode.
+- Implementation screenshot: unavailable. The configured in-app browser rejected the local preview URL under its URL security policy. The policy explicitly prohibited retrying through another browser surface or raw browser command, so no alternate capture path was used.
+- Full-view comparison evidence: blocked because the rendered implementation could not be captured in the permitted browser surface.
+- Focused-region comparison evidence: blocked for the same reason; typography, spacing, color, image crop, and copy fidelity cannot be honestly signed off from source code alone.
+- Implemented scope: the existing calligraphic wordmark remains the exact accessible title; the synchronized 100-year timeline stays between the header and content; the selected reference's vertical date rail, image-led scene, newsprint information sheet, complete place/role/decision/deadline rows, neighboring-card preview, and vermilion primary action are represented in the production components. Filmstrip, table, and audio controls are consolidated behind one 44px settings trigger with an accessible secondary menu.
+- Functional evidence: settings opens and closes, Escape dismisses it, menu semantics expose checked mode/audio state, audio calls the existing controller, filmstrip/table switches preserve `activeSeedId`, filters and exit restoration remain intact, and all 100 exact entry actions remain available.
+- Automated evidence: 31 Vitest files and 334 tests passed; TypeScript, Vite production build, 82-file portability scan, and `git diff --check` passed. The build retains the existing non-blocking chunk-size warning.
+- Findings: no code-level P0 or functional regression is known. Visual P0/P1/P2 assessment remains blocked until a permitted 390 × 844 rendered capture can be compared with the selected reference.
+- Comparison history: no visual iteration was possible because the first permitted capture attempt was blocked before an implementation screenshot existed.
+
+final result: blocked
+
 ## Picker Wordmark And Unified Tool Island QA (2026-07-15)
 
 - Visual truth: `design/captures/2026-07-15-picker-header-before.png`.

@@ -42,8 +42,10 @@ export function App() {
     screen = (
       <SeedPickerScreen
         context={pickerContext}
+        muted={game.muted}
         onContextChange={setPickerContext}
         onSelect={game.selectSeed}
+        onToggleMute={game.toggleMute}
       />
     );
   } else if (state.phase === "event" && state.currentTurn) {
@@ -118,15 +120,17 @@ export function App() {
       onKeyDownCapture={() => { void game.startExperience(); }}
     >
       <div className="mobile-prototype game-shell">
-        <button
-          className={`sound-toggle icon-button${state.phase === "selecting" ? " picker-tool" : ""}`}
-          type="button"
-          onClick={game.toggleMute}
-          aria-label={game.muted ? "打开配乐" : "静音配乐"}
-          title={game.muted ? "打开配乐" : "静音配乐"}
-        >
-          {game.muted ? <SpeakerSlash size={21} weight="bold" /> : <SpeakerHigh size={21} weight="bold" />}
-        </button>
+        {state.phase !== "selecting" ? (
+          <button
+            className="sound-toggle icon-button"
+            type="button"
+            onClick={game.toggleMute}
+            aria-label={game.muted ? "打开配乐" : "静音配乐"}
+            title={game.muted ? "打开配乐" : "静音配乐"}
+          >
+            {game.muted ? <SpeakerSlash size={21} weight="bold" /> : <SpeakerHigh size={21} weight="bold" />}
+          </button>
+        ) : null}
         {screen}
       </div>
     </div>

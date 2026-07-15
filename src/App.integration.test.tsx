@@ -115,17 +115,19 @@ describe("complete player journey", () => {
     await waitFor(() => expect(score.start).toHaveBeenCalledTimes(1));
   });
 
-  it("keeps audio and browsing controls independently operable in the shared toolbar", async () => {
+  it("keeps audio and browsing controls operable from the selecting settings menu", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const audio = screen.getByRole("button", { name: "静音配乐" });
-    expect(audio).toHaveClass("picker-tool");
-    await user.click(audio);
+    expect(screen.queryByRole("button", { name: "静音配乐" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
     expect(score.toggleMuted).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("button", { name: "网格" }));
-    expect(screen.getByRole("button", { name: "网格" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "true");
   });
 
   it("keeps free text inside the unlimited player-canon result action", async () => {
@@ -164,7 +166,8 @@ describe("complete player journey", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "网格" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
     const search = screen.getByRole("searchbox", { name: "搜索历史瞬间" });
     await user.type(search, "罗马大火");
     const seedCard = screen.getByRole("button", { name: /罗马大火开始蔓延/ });
@@ -174,7 +177,8 @@ describe("complete player journey", () => {
     expect(engine.generateNextTurn).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "退出本次推演" }));
 
-    expect(screen.getByRole("button", { name: "网格" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toHaveValue("罗马大火");
     expect(screen.getByRole("button", { name: /罗马大火开始蔓延/ })).toHaveAttribute("aria-current", "true");
     expect(screen.queryAllByRole("article")).toHaveLength(0);

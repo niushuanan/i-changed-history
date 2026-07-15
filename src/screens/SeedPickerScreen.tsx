@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
+import { FilmStrip, GearSix, SpeakerHigh, SpeakerSlash, SquaresFour } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { HistorySeed } from "../game/types";
 import { HistoryCard } from "../components/HistoryCard";
 import { HistoryGridCard, HISTORY_THEME_LABELS } from "../components/HistoryGridCard";
@@ -51,8 +52,10 @@ export const DEFAULT_PICKER_CONTEXT: PickerContext = {
 
 type SeedPickerScreenProps = {
   context: PickerContext;
+  muted: boolean;
   onContextChange: (context: PickerContext) => void;
   onSelect: (seed: HistorySeed) => void;
+  onToggleMute: () => void;
 };
 
 function moveScroller(element: HTMLElement, left: number) {
@@ -70,7 +73,13 @@ function hasFilters(filters: HistoryFilters): boolean {
     || filters.theme !== "all";
 }
 
-export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPickerScreenProps) {
+export function SeedPickerScreen({
+  context,
+  muted,
+  onContextChange,
+  onSelect,
+  onToggleMute,
+}: SeedPickerScreenProps) {
   const cards = HISTORY_CARDS;
   const activeIndex = Math.max(0, cards.findIndex((seed) => seed.id === context.activeSeedId));
   const activeSeed = cards[activeIndex];
@@ -85,6 +94,8 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
   const gridRef = useRef<HTMLDivElement>(null);
   const programmaticCardIndex = useRef<number | null>(null);
   const gestureSyncedIndex = useRef<number | null>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const cardStep = () => {
     const first = carouselRef.current?.children[0] as HTMLElement | undefined;
@@ -145,6 +156,7 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
 
   const setMode = (mode: HistoryBrowseMode) => {
     if (mode !== context.mode) onContextChange({ ...context, mode });
+    setSettingsOpen(false);
   };
 
   const setFilters = (patch: Partial<HistoryFilters>) => {
@@ -168,12 +180,28 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
     }
   }, [activeIndex, context.mode, isActiveSeedVisible]);
 
-  const modeControl = (
-    <div className="seed-picker__modes picker-tool-group" role="group" aria-label="历史浏览方式">
-      <button type="button" aria-pressed={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>胶片</button>
-      <button type="button" aria-pressed={context.mode === "grid"} onClick={() => setMode("grid")}>网格</button>
-    </div>
-  );
+  useEffect(() => {
+    if (!settingsOpen) return undefined;
+
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (!settingsRef.current?.contains(event.target as Node)) setSettingsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSettingsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnPointerDown);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [settingsOpen]);
+
+  const toggleAudio = () => {
+    onToggleMute();
+    setSettingsOpen(false);
+  };
 
   return (
     <main className={`seed-picker seed-picker--${context.mode}`}>
@@ -181,7 +209,36 @@ export function SeedPickerScreen({ context, onContextChange, onSelect }: SeedPic
         <h1 className="seed-picker__wordmark">
           <img src="/assets/brand/history-wordmark.png" alt="哎！我改变了历史？" />
         </h1>
-        {modeControl}
+        <div className="seed-picker__settings" ref={settingsRef}>
+          <button
+            className="seed-picker__settings-trigger picker-tool"
+            type="button"
+            aria-label="首页设置"
+            aria-haspopup="menu"
+            aria-expanded={settingsOpen}
+            aria-controls="picker-settings-menu"
+            onClick={() => setSettingsOpen((open) => !open)}
+          >
+            <GearSix size={22} weight="bold" />
+          </button>
+          {settingsOpen ? (
+            <div id="picker-settings-menu" className="seed-picker__settings-menu" role="menu" aria-label="首页设置菜单">
+              <span className="seed-picker__settings-kicker">浏览与声音</span>
+              <button type="button" role="menuitemradio" aria-checked={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>
+                <FilmStrip size={20} weight="bold" />
+                <span><strong>胶片</strong><small>左右滑动历史</small></span>
+              </button>
+              <button type="button" role="menuitemradio" aria-checked={context.mode === "grid"} onClick={() => setMode("grid")}>
+                <SquaresFour size={20} weight="bold" />
+                <span><strong>表格</strong><small>上下浏览全部</small></span>
+              </button>
+              <button type="button" role="menuitemcheckbox" aria-checked={!muted} onClick={toggleAudio}>
+                {muted ? <SpeakerSlash size={20} weight="bold" /> : <SpeakerHigh size={20} weight="bold" />}
+                <span><strong>声音</strong><small>{muted ? "已关闭" : "正在播放"}</small></span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </header>
 
       {context.mode === "filmstrip" ? (
