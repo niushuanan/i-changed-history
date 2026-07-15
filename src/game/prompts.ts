@@ -3,6 +3,7 @@ import type { DeviationClass, TimelineTurn } from "./schema";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { buildWorldCanon } from "./worldCanon";
 import { buildNarrativeContext } from "./narrativeContext";
+import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -195,11 +196,11 @@ export function buildCustomActionMessages(
     playerDeclaredOutcome: action,
     outputContract: {
       requiredFields: ["declaredOutcome", "canonStatus", "causalMechanism", "deviationClass", "instantEcho"],
-      declaredOutcome: "必须与 playerDeclaredOutcome 完全一致，2-80 个汉字，不得改写成败关系",
+      declaredOutcome: `必须与 playerDeclaredOutcome 完全一致，2-${CUSTOM_ACTION_MAX_LENGTH} 个汉字，不得改写成败关系`,
       canonStatus: "固定为 玩家钦定",
       causalMechanism: "56 个汉字以内，说明既成结果通过命令、消息、法律、市场、迁徙或其他具体媒介进入社会",
       deviationClass: "nudge/reform/rupture 之一",
-      instantEcho: "含 directResult、unexpectedCost、beneficiary、payer；directResult 必须逐字复制 playerDeclaredOutcome，可到 80 字，其余每项 24 字以内",
+      instantEcho: `含 directResult、unexpectedCost、beneficiary、payer；directResult 必须逐字复制 playerDeclaredOutcome，可到 ${CUSTOM_ACTION_MAX_LENGTH} 字，其余每项 24 字以内`,
     },
   });
 }

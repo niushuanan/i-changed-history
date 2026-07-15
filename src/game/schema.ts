@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from "./timelinePlan";
+import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
@@ -33,7 +34,7 @@ const visualToneSchema = z.enum([
 const generationSourceSchema = z.enum(["fixed", "deepseek"]);
 
 const echoSchema = z.object({
-  directResult: boundedString(80),
+  directResult: boundedString(CUSTOM_ACTION_MAX_LENGTH),
   unexpectedCost: boundedString(32),
   beneficiary: boundedString(32),
   payer: boundedString(32),
@@ -156,7 +157,7 @@ const actionSpecSchema = z.object({
 });
 
 const customActionResolutionObjectSchema = z.object({
-  declaredOutcome: z.string().trim().min(2).max(80),
+  declaredOutcome: z.string().trim().min(2).max(CUSTOM_ACTION_MAX_LENGTH),
   canonStatus: z.literal("玩家钦定"),
   causalMechanism: boundedString(56),
   deviationClass: deviationClassSchema,
@@ -195,14 +196,9 @@ const causalLedgerEntrySchema = z.object({
   mustAffect: requiredString,
 });
 
-const narrativeTextSchema = requiredString.refine((narrative) => [...narrative].length <= 230, {
-  message: "现场前情不能超过 230 字",
-});
+const narrativeTextSchema = requiredString;
 
 const richNarrativeSchema = narrativeTextSchema
-  .refine((narrative) => [...narrative].length >= 80, {
-    message: "现场前情至少需要 80 字",
-  })
   .refine((narrative) => {
     const sentenceCount = narrative.match(/[。！？!?]/g)?.length ?? 0;
     return sentenceCount >= 2 && sentenceCount <= 7;
@@ -473,7 +469,7 @@ function normalizeEcho(value: unknown): unknown {
   if (!echo) return value;
   return {
     ...echo,
-    directResult: trimBounded(echo.directResult, 80),
+    directResult: trimBounded(echo.directResult, CUSTOM_ACTION_MAX_LENGTH),
     unexpectedCost: trimBounded(echo.unexpectedCost, 32),
     beneficiary: trimBounded(echo.beneficiary, 24),
     payer: trimBounded(echo.payer, 24),
@@ -507,7 +503,7 @@ function normalizeTimelineEcho(value: unknown): unknown {
   if (!echo) return value;
   return {
     ...echo,
-    directResult: compactAiAuthoredClause(echo.directResult, 80),
+    directResult: compactAiAuthoredClause(echo.directResult, CUSTOM_ACTION_MAX_LENGTH),
     unexpectedCost: compactAiAuthoredClause(echo.unexpectedCost, 32),
     beneficiary: compactAiAuthoredClause(echo.beneficiary, 32),
     payer: compactAiAuthoredClause(echo.payer, 32),

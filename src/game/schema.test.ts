@@ -39,7 +39,7 @@ describe("structured timeline parsing", () => {
     expect(resolution).toMatchObject({ declaredOutcome: "我暗杀了皇帝且成功", canonStatus: "玩家钦定", deviationClass: "rupture" });
     expect(() => parseCustomActionResolution(JSON.stringify({
       ...resolution,
-      declaredOutcome: "改".repeat(81),
+      declaredOutcome: "改".repeat(161),
     }))).toThrow();
   });
 
@@ -64,8 +64,8 @@ describe("structured timeline parsing", () => {
     expect(parsed.instantEcho.payer.length).toBeLessThanOrEqual(24);
   });
 
-  it("carries an eighty-character canonical result into the next turn", () => {
-    const declaredOutcome = "我已经成功完成改写".repeat(8).slice(0, 80);
+  it("carries a 160-character canonical result into the next turn", () => {
+    const declaredOutcome = "我已经成功完成改写".repeat(20).slice(0, 160);
     const next = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
@@ -213,9 +213,16 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("rejects a narrative above the 230-character client ceiling for model repair", () => {
-    const narrative = `${"前".repeat(75)}。${"情".repeat(75)}。${"险".repeat(78)}。`;
-    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative }))).toThrow(/narrative/);
+  it("preserves a complete narrative above the prompt target without a client character ceiling", () => {
+    const narrative = `${"前".repeat(180)}。${"情".repeat(180)}。${"险".repeat(180)}。`;
+    expect([...narrative].length).toBeGreaterThan(500);
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
+  });
+
+  it("does not impose a client-side minimum character count on complete narrative", () => {
+    const narrative = "宫门已经关闭。援军抵达城外。";
+    expect([...narrative].length).toBeLessThan(80);
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
   it("counts the 230-character ceiling by Unicode characters instead of UTF-16 units", () => {

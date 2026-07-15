@@ -4,6 +4,7 @@ import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
+import { CUSTOM_ACTION_MAX_LENGTH } from "../game/limits";
 
 export function TimelineEventScreen({
   turn,
@@ -23,7 +24,7 @@ export function TimelineEventScreen({
   const [customOpen, setCustomOpen] = useState(false);
   const [customAction, setCustomAction] = useState("");
   const actionLength = [...customAction.trim()].length;
-  const canSubmitCustom = actionLength >= 2 && actionLength <= 80;
+  const canSubmitCustom = actionLength >= 2 && actionLength <= CUSTOM_ACTION_MAX_LENGTH;
   const visibleCopyLength = [
     turn.headline,
     turn.narrative,
@@ -128,11 +129,11 @@ export function TimelineEventScreen({
               autoFocus
               aria-label="你要写入的历史结果"
               value={customAction}
-              maxLength={80}
+              maxLength={CUSTOM_ACTION_MAX_LENGTH}
               placeholder="例如：我暗杀了皇帝且成功，摄政会议接受了我伪造的遗诏"
               onChange={(event) => setCustomAction(event.target.value)}
             />
-            <div className="custom-action-meta"><strong>{actionLength}/80</strong></div>
+            <div className="custom-action-meta"><strong>{actionLength}/{CUSTOM_ACTION_MAX_LENGTH}</strong></div>
             <button className="custom-action-submit" type="button" disabled={!canSubmitCustom} onClick={submitCustom}>写入时间线 <ArrowRight size={18} weight="bold" /></button>
           </section>
         </div>

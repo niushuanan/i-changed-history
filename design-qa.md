@@ -1,5 +1,16 @@
 # Design QA
 
+## Unbounded Ready Scene And 160-Character Rewrite QA (2026-07-15)
+
+- Contract: the model prompt still targets 80-180 Chinese characters, but the client has no narrative character minimum or maximum. Complete AI prose is preserved verbatim; sentence completeness and structure remain validated.
+- Root cause: the previous ready page had `overflow-y:auto` on a content-sized element. It grew to roughly 932px and was then clipped by the fixed 844px product shell, so it never owned usable overflow. The former 80-character rewrite limit was duplicated across UI, reducer, schema, canon construction, fallback receipt, and prompt copy.
+- Final geometry at 390 × 844 with the saved 198-character scene: `.generating-screen--ready` is exactly 844px high with `scrollHeight=916`, `overflow-y=auto`, and 72px of reachable vertical travel. At the bottom, `下一步` is fully visible at y=703.9..747.9 and remains after all narrative and metadata in normal flow.
+- Rewrite boundary: the real dialog reports `maxlength=160` and `160/160`; a 160-character value leaves `写入时间线` enabled. One shared constant now drives every client and prompt path, and schema/reducer tests preserve all 160 characters exactly.
+- Overlay readability: the event remains legible through `rgba(0,0,0,.5)` instead of the former 72% blackout. The retained sheet shadow is reduced from 45% to 32%, preserving depth without making the rest of the page disappear.
+- Regression evidence: focused TDD first reproduced seven failures for narrative ceilings, ready scrolling, 80-character canon truncation, and old overlay values. The focused suite then passed 127/127; final verification passed 31 files and 340/340 tests, typecheck, portability, production build, and diff whitespace checks.
+
+final result: passed
+
 ## Ready Scene Vertical Gap QA (2026-07-15)
 
 - Source finding: the first marked blank region was exactly the generating screen's 72px top padding; the second was exactly the 68px margin above a draft containing the player-authored canon receipt.

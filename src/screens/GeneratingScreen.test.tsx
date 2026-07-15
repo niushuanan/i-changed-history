@@ -156,7 +156,7 @@ describe("history developing room", () => {
 
     expect(readyScreen).toHaveClass("generating-screen--ready");
     expect(draft).toHaveClass("developing-draft--with-canon");
-    expect(gameStyles).toContain(".generating-screen--ready { padding-top: 0; }");
+    expect(gameStyles).toContain(".generating-screen--ready { height: 100%; min-height: 0; padding-top: 0; overflow-y: auto; overscroll-behavior: contain; }");
     expect(gameStyles).toContain(".developing-draft--with-canon { margin-top: 34px; }");
   });
 

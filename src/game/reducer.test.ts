@@ -101,16 +101,16 @@ describe("single-life choice-only game reducer", () => {
   it("writes a player-declared outcome into canon and starts the next turn without adjudication", () => {
     const selecting = createInitialGameState();
     const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
-    const resolved = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: "我暗杀了皇帝且成功" });
+    const declaredOutcome = "我已经完成这一项不可逆的历史改写".repeat(10).slice(0, 160);
+    const resolved = gameReducer(started, { type: "SUBMIT_CUSTOM_ACTION", action: declaredOutcome });
 
     expect(resolved.customActionsUsed).toBe(1);
     expect(resolved.playedTurns[0]).toMatchObject({
       selectedChoiceId: "custom",
-      selectedChoiceLabel: "我暗杀了皇帝且成功",
+      selectedChoiceLabel: declaredOutcome,
       playerAuthored: true,
       canonStatus: "玩家钦定",
-      causalMechanism: expect.stringContaining("宫门口令"),
-      resolvedEcho: expect.objectContaining({ directResult: "我暗杀了皇帝且成功" }),
+      resolvedEcho: expect.objectContaining({ directResult: declaredOutcome }),
       selectedDeviationClass: "rupture",
     });
     expect(resolved.phase).toBe("generating");

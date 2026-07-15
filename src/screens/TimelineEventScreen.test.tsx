@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTimelineTurn } from "../game/schema";
 import { turnFixture } from "../test/fixtures";
 import { TimelineEventScreen } from "./TimelineEventScreen";
+
+const gameStyles = readFileSync("src/styles/game.css", "utf8");
 
 describe("clear change event screen", () => {
   afterEach(() => cleanup());
@@ -66,6 +69,28 @@ describe("clear change event screen", () => {
     expect(screen.getByText("请写下已经发生的结果。提交后，这句话不会被推翻。")).toBeVisible();
     expect(screen.queryByText(/AI|传播|受益者|隐藏代价/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "写入时间线" })).toBeDisabled();
+
+    const textarea = screen.getByRole("textbox", { name: "你要写入的历史结果" });
+    const fullRewrite = "改".repeat(160);
+    expect(textarea).toHaveAttribute("maxlength", "160");
+    fireEvent.change(textarea, { target: { value: fullRewrite } });
+    expect(screen.getByText("160/160")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "写入时间线" }));
+    expect(onCustomAction).toHaveBeenCalledWith(fullRewrite);
+  });
+
+  it("keeps the event visible behind the custom rewrite sheet", () => {
+    render(<TimelineEventScreen
+      turn={openingTurn}
+      deviation={0}
+      onChoose={vi.fn()}
+      onCustomAction={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    fireEvent.click(screen.getByRole("button", { name: /直接改写结果/ }));
+    expect(gameStyles).toContain("background: rgba(0,0,0,.5)");
+    expect(gameStyles).toContain("box-shadow: 0 -16px 40px rgba(0,0,0,.32)");
   });
 
   it("renders event time and location as separate caption rows", () => {

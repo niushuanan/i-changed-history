@@ -5,6 +5,7 @@ import type { HistorySeed } from "./types";
 import type { DecisionChapter } from "./timelinePlan";
 import { buildCanonicalCustomResolution } from "./customCanon";
 import { getFixedOpening } from "../data/fixedOpenings";
+import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
 
 export type GamePhase = "selecting" | "generating" | "event" | "echo" | "ending" | "result" | "error";
 export type GameScenario = { seed: HistorySeed };
@@ -120,7 +121,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "SUBMIT_CUSTOM_ACTION": {
       const customAction = action.action.trim();
       if (state.phase !== "event" || !state.currentTurn) return state;
-      if ([...customAction].length < 2 || [...customAction].length > 80) return state;
+      if ([...customAction].length < 2 || [...customAction].length > CUSTOM_ACTION_MAX_LENGTH) return state;
       const canonicalResolution = buildCanonicalCustomResolution(
         state.currentTurn,
         customAction,

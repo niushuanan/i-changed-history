@@ -1,4 +1,5 @@
 import type { CustomActionResolution, TimelineTurn } from "./schema";
+import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
 
 function causalMechanism(outcome: string, turn: TimelineTurn): string {
   const channels: string[] = [];
@@ -35,7 +36,7 @@ export function buildCanonicalCustomResolution(
   deviationClass: CustomActionResolution["deviationClass"],
   modelResolution?: CustomActionResolution,
 ): CustomActionResolution {
-  const declaredOutcome = [...outcome.trim()].slice(0, 80).join("");
+  const declaredOutcome = [...outcome.trim()].slice(0, CUSTOM_ACTION_MAX_LENGTH).join("");
   const modelDetail = modelResolution
     ? `${modelResolution.causalMechanism}${modelResolution.instantEcho.unexpectedCost}${modelResolution.instantEcho.beneficiary}${modelResolution.instantEcho.payer}`
     : "";
