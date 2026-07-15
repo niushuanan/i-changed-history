@@ -1,5 +1,15 @@
 # Design QA
 
+## Ready Scene Vertical Gap QA (2026-07-15)
+
+- Source finding: the first marked blank region was exactly the generating screen's 72px top padding; the second was exactly the 68px margin above a draft containing the player-authored canon receipt.
+- Scope: only the validated `ready` state receives the compact top layout. The still-generating copy, progress track, and archival motion keep their existing spacing.
+- Final geometry at 390 × 844: top gap `72px -> 0`; canon-to-scene gap `68px -> 34px`; the complete content moves upward by 106px without shrinking or clipping the AI-authored narrative.
+- Button reachability: `下一步` renders at y=791.9..835.9, fully inside the 844px viewport in normal document flow. It remains after the complete narrative and metadata rather than floating over them.
+- Regression evidence: the generating-screen test requires the ready-state class plus exact `0px` and `34px` layout contracts; the focused suite observed the old layout fail before the implementation passed.
+
+final result: passed
+
 ## Filmstrip Container And Active-Card Sync QA (2026-07-15)
 
 - Reproduced failure: inside a 390px desktop product shell, the carousel and timeline expanded to 986px because their centering padding used the outer `100vw`. The shell then clipped the oversized content. A long smooth programmatic scroll also exposed the new active year before its poster reached the viewport.

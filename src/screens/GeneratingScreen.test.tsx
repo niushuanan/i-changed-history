@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeneratingScreen } from "./GeneratingScreen";
+
+const gameStyles = readFileSync("src/styles/game.css", "utf8");
 
 describe("history developing room", () => {
   afterEach(() => {
@@ -131,6 +134,30 @@ describe("history developing room", () => {
     const nextButton = screen.getByRole("button", { name: /下一步/ });
     expect(paragraph.compareDocumentPosition(nextButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(paragraph).toHaveTextContent(narrative);
+  });
+
+  it("removes the ready-page top gap and halves the canon-to-scene gap", () => {
+    render(
+      <GeneratingScreen
+        chapter={4}
+        ending={false}
+        customAction
+        customCanonText="我已自立为王"
+        progressStage="validating"
+        ready
+        draft={{ headline: "秦陇震动", narrative: "新的历史现场已经写成。" }}
+        onContinue={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const readyScreen = screen.getByRole("main");
+    const draft = screen.getByRole("region", { name: "正在写成的历史现场" });
+
+    expect(readyScreen).toHaveClass("generating-screen--ready");
+    expect(draft).toHaveClass("developing-draft--with-canon");
+    expect(gameStyles).toContain(".generating-screen--ready { padding-top: 0; }");
+    expect(gameStyles).toContain(".developing-draft--with-canon { margin-top: 34px; }");
   });
 
   it("keeps the exact player-authored fact visible while its consequences are generated", () => {
