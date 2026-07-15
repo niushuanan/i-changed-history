@@ -83,14 +83,44 @@ describe("living history browser", () => {
     render(<PickerHarness />);
 
     const firstCard = screen.getAllByRole("article")[0];
-    expect(within(firstCard).getByTestId("history-card-year-rail")).toHaveTextContent(cards[0].dateLabel);
-    const brief = within(firstCard).getByRole("region", { name: "闯入信息" });
-    expect(brief).toHaveTextContent(cards[0].eventName);
-    expect(brief).toHaveTextContent(cards[0].location);
-    expect(brief).toHaveTextContent(cards[0].role);
-    expect(brief).toHaveTextContent(cards[0].decision);
-    expect(brief).toHaveTextContent(cards[0].urgency);
-    expect(within(firstCard).getByRole("button", { name: `闯入这一刻：${cards[0].eventName}` })).toBeVisible();
+    const scene = within(firstCard).getByTestId("history-card-scene");
+    expect(scene.querySelectorAll("img")).toHaveLength(1);
+
+    const yearRail = within(firstCard).getByTestId("history-card-year-rail");
+    expect(yearRail).toHaveTextContent(cards[0].dateLabel);
+    expect(within(yearRail).getByTestId("history-card-year-era")).toHaveTextContent(cards[0].year < 0 ? "公元前" : "公元");
+    expect(within(yearRail).getByTestId("history-card-year-number")).toHaveTextContent(String(Math.abs(cards[0].year)));
+    expect(within(yearRail).getByTestId("history-card-year-suffix")).toHaveTextContent("年");
+    expect(within(firstCard).getByTestId("history-card-position")).toHaveTextContent(`1 / ${cards.length}`);
+
+    const dossier = within(firstCard).getByTestId("history-card-dossier");
+    expect(dossier).toHaveAttribute("aria-label", "闯入信息");
+    expect(dossier).toHaveTextContent(cards[0].eventName);
+    expect(dossier).toHaveTextContent(cards[0].location);
+    expect(dossier).toHaveTextContent(cards[0].role);
+    expect(dossier).toHaveTextContent(cards[0].decision);
+    expect(dossier).toHaveTextContent(cards[0].urgency);
+
+    const action = within(firstCard).getByTestId("history-card-action");
+    expect(action).toHaveAccessibleName(`闯入这一刻：${cards[0].eventName}`);
+    expect(dossier).not.toContainElement(action);
+    expect(dossier.nextElementSibling).toBe(action);
+  });
+
+  it("keeps the complete positive-era calendar detail visible on its year rail", () => {
+    const detailedCardIndex = cards.findIndex((seed) => (
+      seed.year > 0
+      && seed.dateLabel.startsWith(`${seed.year}年`)
+      && seed.dateLabel !== `${seed.year}年`
+    ));
+    expect(detailedCardIndex).toBeGreaterThanOrEqual(0);
+    render(<PickerHarness />);
+
+    const detailedSeed = cards[detailedCardIndex];
+    const year = within(screen.getAllByRole("article")[detailedCardIndex]).getByTestId("history-card-year");
+    expect(year).toHaveTextContent(detailedSeed.dateLabel);
+    expect(year.tagName).toBe("DIV");
+    expect(year).not.toHaveAttribute("datetime");
   });
 
   it("consolidates filmstrip, grid, and audio into one dismissible settings menu", async () => {
@@ -107,13 +137,43 @@ describe("living history browser", () => {
     expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("menuitemcheckbox", { name: /声音/ })).toHaveAttribute("aria-checked", "true");
 
-    await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
+    const filmstripItem = screen.getByRole("menuitemradio", { name: /胶片/ });
+    const gridItem = screen.getByRole("menuitemradio", { name: /表格/ });
+    const audioItem = screen.getByRole("menuitemcheckbox", { name: /声音/ });
+    expect(filmstripItem).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(gridItem).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(audioItem).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(filmstripItem).toHaveFocus();
+
+    await user.click(audioItem);
     expect(onToggleMute).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
 
     await user.click(settings);
+    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveFocus();
     await user.keyboard("{Escape}");
     expect(settings).toHaveAttribute("aria-expanded", "false");
+    expect(settings).toHaveFocus();
+    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
+  });
+
+  it("dismisses the settings menu when keyboard focus tabs away", async () => {
+    const user = userEvent.setup();
+    render(<PickerHarness />);
+
+    const settings = screen.getByRole("button", { name: "首页设置" });
+    await user.click(settings);
+    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveFocus();
+    await user.tab();
+    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
+    expect(settings).not.toHaveFocus();
+
+    await user.click(settings);
+    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveFocus();
+    await user.tab({ shift: true });
     expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
   });
 

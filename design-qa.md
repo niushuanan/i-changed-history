@@ -1,19 +1,20 @@
 # Design QA
 
-## Mobile Picker Settings And Card Redesign QA (2026-07-15)
+## Mobile Picker Fidelity Repair QA (2026-07-15)
 
-- Source visual truth: `/Users/zhuanghongkai/.codex/generated_images/019f601d-eb24-7831-8d6b-193fc6dbb003/exec-9a2309d0-36a1-48bb-a96e-baebaa374bee.png`.
-- Intended viewport/state: 390 × 844, history picker in filmstrip mode with the settings menu, followed by the two-column table mode.
-- Implementation screenshot: unavailable. The configured in-app browser rejected the local preview URL under its URL security policy. The policy explicitly prohibited retrying through another browser surface or raw browser command, so no alternate capture path was used.
-- Full-view comparison evidence: blocked because the rendered implementation could not be captured in the permitted browser surface.
-- Focused-region comparison evidence: blocked for the same reason; typography, spacing, color, image crop, and copy fidelity cannot be honestly signed off from source code alone.
-- Implemented scope: the existing calligraphic wordmark remains the exact accessible title; the synchronized 100-year timeline stays between the header and content; the selected reference's vertical date rail, image-led scene, newsprint information sheet, complete place/role/decision/deadline rows, neighboring-card preview, and vermilion primary action are represented in the production components. Filmstrip, table, and audio controls are consolidated behind one 44px settings trigger with an accessible secondary menu.
-- Functional evidence: settings opens and closes, Escape dismisses it, menu semantics expose checked mode/audio state, audio calls the existing controller, filmstrip/table switches preserve `activeSeedId`, filters and exit restoration remain intact, and all 100 exact entry actions remain available.
-- Automated evidence: 31 Vitest files and 334 tests passed; TypeScript, Vite production build, 82-file portability scan, and `git diff --check` passed. The build retains the existing non-blocking chunk-size warning.
-- Findings: no code-level P0 or functional regression is known. Visual P0/P1/P2 assessment remains blocked until a permitted 390 × 844 rendered capture can be compared with the selected reference.
-- Comparison history: no visual iteration was possible because the first permitted capture attempt was blocked before an implementation screenshot existed.
+- Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-9828c765-592d-4124-b343-2fba75e81141.png`.
+- Final implementation: `design/captures/2026-07-15-picker-fidelity-390x844.png`, captured from the real in-app browser at 390 × 844 on the same `马拉松战役 / 公元前 490 年` state.
+- Combined comparison: `design/captures/2026-07-15-picker-fidelity-comparison.png`; the reference and final browser capture were normalized to the same 390 × 844 size and inspected together. The retained timeline and the single settings button are deliberate later product decisions; every other card hierarchy follows the selected reference.
+- The former flat card is replaced by the complete poster anatomy: generated archival stage, one scene image, textured vermilion year rail, visible position counter, overlapping generated paper dossier, all four complete facts, detached textured vermilion action, and dark neighboring previews. The counter now clears the paper overlap instead of hiding beneath it.
+- ImageGen assets: `public/assets/picker/archive-stage-v2.webp`, `dossier-paper-v2.webp`, and `vermilion-cloth-v2.webp`. All three were inspected at source resolution and contain no UI, text, watermark, placeholder, or fake CSS illustration.
+- Settings evidence: `design/captures/2026-07-15-picker-settings-open.png`; the exact 44px gear opens one secondary menu containing filmstrip, table, and sound with checked semantics. Opening moves focus to the first item, Arrow Up/Down and Home/End move within the menu, Escape closes it and returns focus to the gear, and Tab/Shift+Tab dismiss it without trapping focus. Grid evidence: `design/captures/2026-07-15-picker-grid-390x844.png`; the real page shows 100 cards in two 178.5px columns with search and three filters and no horizontal overflow.
+- Layout audit: all 100 filmstrip cards have `scrollHeight === clientHeight` for the card, dossier, facts, and action; every exact date detail remains visible, including positive-era month/day copy, and the visible picker minimum is 11px. Historical labels use an ordinary text container rather than an invalid machine-date `time` value. At 390/360/350/320px widths the active card is 306/276/266/236px, the next-card preview remains 24.6–25.9px, and body horizontal overflow remains zero. At 390/360/350/320 × 700 the 68px CTA is fully visible after normal page scrolling with 7/16/16/16px bottom safety; the 390px evidence is `design/captures/2026-07-15-picker-fidelity-short-top-390x700.png`.
+- Real experience: exactly one fresh `周平王东迁` run completed all 12 decisions, including the full-label confirmation path, all 11 DeepSeek continuation scenes, the protagonist's death, `许闻列传`, and the separate `九鼎归秦` 2026 report. The completed run returned to the 100-card filmstrip; no second run or soak suite was started.
+- Automated evidence: 31 Vitest files and 336 tests passed; TypeScript, Vite production build, the 82-file portability scan, and `git diff --check` passed. The build retains only the non-blocking 515.82kB chunk-size notice.
+- Comparison history: the first implementation exposed an unrelated print image behind the dossier, hid the card counter, mixed image and information layers, used a weak embedded CTA, and clipped the short-screen bottom edge. The final pass removes the unrelated image, restores the three physical layers, moves the counter clear of the overlap, enlarges and separates the CTA, and gives short screens enough scroll range.
+- Findings: no remaining P0, P1, or P2 visual or functional issue in the requested picker scope.
 
-final result: blocked
+final result: passed
 
 ## Picker Wordmark And Unified Tool Island QA (2026-07-15)
 

@@ -95,6 +95,7 @@ export function SeedPickerScreen({
   const programmaticCardIndex = useRef<number | null>(null);
   const gestureSyncedIndex = useRef<number | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const cardStep = () => {
@@ -156,6 +157,7 @@ export function SeedPickerScreen({
 
   const setMode = (mode: HistoryBrowseMode) => {
     if (mode !== context.mode) onContextChange({ ...context, mode });
+    settingsTriggerRef.current?.focus();
     setSettingsOpen(false);
   };
 
@@ -183,11 +185,16 @@ export function SeedPickerScreen({
   useEffect(() => {
     if (!settingsOpen) return undefined;
 
+    settingsRef.current?.querySelector<HTMLButtonElement>('[role^="menuitem"]')?.focus();
+
     const closeOnPointerDown = (event: PointerEvent) => {
       if (!settingsRef.current?.contains(event.target as Node)) setSettingsOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSettingsOpen(false);
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      settingsTriggerRef.current?.focus();
+      setSettingsOpen(false);
     };
 
     document.addEventListener("pointerdown", closeOnPointerDown);
@@ -200,6 +207,30 @@ export function SeedPickerScreen({
 
   const toggleAudio = () => {
     onToggleMute();
+    settingsTriggerRef.current?.focus();
+    setSettingsOpen(false);
+  };
+
+  const moveSettingsFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Tab") {
+      window.setTimeout(() => setSettingsOpen(false), 0);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]'));
+    if (items.length === 0) return;
+    event.preventDefault();
+    const currentIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : (currentIndex + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+    items[nextIndex].focus();
+  };
+
+  const closeSettingsWhenFocusLeaves = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
     setSettingsOpen(false);
   };
 
@@ -211,6 +242,7 @@ export function SeedPickerScreen({
         </h1>
         <div className="seed-picker__settings" ref={settingsRef}>
           <button
+            ref={settingsTriggerRef}
             className="seed-picker__settings-trigger picker-tool"
             type="button"
             aria-label="首页设置"
@@ -222,17 +254,24 @@ export function SeedPickerScreen({
             <GearSix size={22} weight="bold" />
           </button>
           {settingsOpen ? (
-            <div id="picker-settings-menu" className="seed-picker__settings-menu" role="menu" aria-label="首页设置菜单">
+            <div
+              id="picker-settings-menu"
+              className="seed-picker__settings-menu"
+              role="menu"
+              aria-label="首页设置菜单"
+              onBlur={closeSettingsWhenFocusLeaves}
+              onKeyDown={moveSettingsFocus}
+            >
               <span className="seed-picker__settings-kicker">浏览与声音</span>
-              <button type="button" role="menuitemradio" aria-checked={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>
+              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>
                 <FilmStrip size={20} weight="bold" />
                 <span><strong>胶片</strong><small>左右滑动历史</small></span>
               </button>
-              <button type="button" role="menuitemradio" aria-checked={context.mode === "grid"} onClick={() => setMode("grid")}>
+              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "grid"} onClick={() => setMode("grid")}>
                 <SquaresFour size={20} weight="bold" />
                 <span><strong>表格</strong><small>上下浏览全部</small></span>
               </button>
-              <button type="button" role="menuitemcheckbox" aria-checked={!muted} onClick={toggleAudio}>
+              <button type="button" role="menuitemcheckbox" tabIndex={-1} aria-checked={!muted} onClick={toggleAudio}>
                 {muted ? <SpeakerSlash size={20} weight="bold" /> : <SpeakerHigh size={20} weight="bold" />}
                 <span><strong>声音</strong><small>{muted ? "已关闭" : "正在播放"}</small></span>
               </button>
@@ -282,6 +321,8 @@ export function SeedPickerScreen({
               <div key={seed.id} className={index === activeIndex ? "is-active" : ""} onFocus={() => focusCard(index)}>
                 <HistoryCard
                   seed={seed}
+                  position={index + 1}
+                  total={cards.length}
                   onSelect={() => {
                     onContextChange({ ...context, activeSeedId: seed.id });
                     onSelect(seed);
