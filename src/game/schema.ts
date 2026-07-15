@@ -34,10 +34,10 @@ const visualToneSchema = z.enum([
 const generationSourceSchema = z.enum(["fixed", "deepseek"]);
 
 const echoSchema = z.object({
-  directResult: boundedString(CUSTOM_ACTION_MAX_LENGTH),
-  unexpectedCost: boundedString(32),
-  beneficiary: boundedString(32),
-  payer: boundedString(32),
+  directResult: requiredString,
+  unexpectedCost: requiredString,
+  beneficiary: requiredString,
+  payer: requiredString,
 });
 
 const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
@@ -45,9 +45,6 @@ const INCOMPLETE_CHOICE_END_PATTERN = /(?:的|同时|随后|转而|改为|试图
 const DEPENDENT_SENTENCE_START_PATTERN = /^(?:因为|由于|为了|为使|随着|如果|若(?:是|非)?|只要|除非|一旦|当(?!场|即|众|面)|待(?!命)|等到|尽管|虽然|即使|纵然)/;
 const DEPENDENT_CLAUSE_START_PATTERN = /^(?:如果|若(?:是|非)?|只要|除非|一旦|当|待|等到|由于|因为|为了|为使|尽管|虽然|即使|纵然|随着|通过|凭借|依靠)/;
 const LEADING_CONNECTOR_PATTERN = /^(?:并|但|而|且|以及|并且|同时|随后|然后|于是|因此|所以|从而|则|便|才|却)/;
-const INCOMPLETE_CLAUSE_END_PATTERN = /(?:的|之|与|和|及|或|并|但|而|且|把|将|向|对|以|从|由|被|让|使|为|在|于|通过)$/;
-const DISPENSABLE_SCAN_MODIFIER_PATTERN = /已经|随即|立即|正式|开始|正在|进一步|由此|从而|最终|当前|这项|整个/g;
-const COORDINATE_CLAUSE_SPLIT_PATTERN = /[，,。！？!?；;：:]|从而|进而|继而|并(?=已|将|使|令|迫使|导致|引发|改变|进入|形成|成为|失去|获得|转向|倒向|公开|开始|停止|完成|执行|控制|接管|改组|重组|封锁|解除)/;
 const ALTERNATE_TIMELINE_IN_BASELINE_PATTERN = /当前(?:时间)?线|本线|架空线|改变后|玩家(?:的)?选择|你(?:的)?决定/;
 const PRE_MODERN_LOCATION_PATTERN = /议事厅|会议室|办公室|指挥中心|新闻中心|发布厅|报告厅|展览厅|作战室|控制室|调度室/;
 const WORD_SEGMENTER = new Intl.Segmenter("zh-CN", { granularity: "word" });
@@ -150,16 +147,16 @@ const preModernLocationSchema = z.object({
 });
 
 const actionSpecSchema = z.object({
-  actor: boundedString(20),
-  action: boundedString(28),
-  target: boundedString(28),
-  deadline: boundedString(20),
+  actor: requiredString,
+  action: requiredString,
+  target: requiredString,
+  deadline: requiredString,
 });
 
 const customActionResolutionObjectSchema = z.object({
   declaredOutcome: z.string().trim().min(2).max(CUSTOM_ACTION_MAX_LENGTH),
   canonStatus: z.literal("玩家钦定"),
-  causalMechanism: boundedString(56),
+  causalMechanism: requiredString,
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
 });
@@ -169,15 +166,15 @@ export const customActionResolutionSchema = z.preprocess(
   customActionResolutionObjectSchema,
 );
 
-const choiceLabelSchema = boundedString(160).refine((label) => {
+const choiceLabelSchema = requiredString.refine((label) => {
   const withoutPunctuation = label.replace(/[。！？!?]+$/g, "").trim();
   return isCompleteActionLabel(withoutPunctuation);
 }, "行动必须是完整句，不能停在连接词、意图或缺少对象的动词上");
 
 const choiceFields = {
   label: choiceLabelSchema,
-  displayLabel: boundedString(36),
-  intent: boundedString(40),
+  displayLabel: requiredString,
+  intent: requiredString,
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
   usesModernKnowledge: z.boolean(),
@@ -197,11 +194,15 @@ const causalLedgerEntrySchema = z.object({
 });
 
 const narrativeTextSchema = requiredString;
+const factualScanString = requiredString.refine(
+  (value) => !DEPENDENT_SENTENCE_START_PATTERN.test(value),
+  "字段必须直接陈述已经发生或明确迫近的事实，不能以条件从句开头",
+);
 
 const richNarrativeSchema = narrativeTextSchema
   .refine((narrative) => {
     const sentenceCount = narrative.match(/[。！？!?]/g)?.length ?? 0;
-    return sentenceCount >= 2 && sentenceCount <= 7;
+    return sentenceCount >= 2;
   }, {
     message: "现场前情需要至少两句完整叙事，并避免堆叠碎句",
   })
@@ -219,16 +220,16 @@ const timelineTurnFields = {
     protagonistAge: z.number().int().min(14).max(90),
     lifeStage: lifeStageSchema,
     yearLabel: requiredString,
-    location: boundedString(28),
-    role: boundedString(32),
-    causalBridge: boundedString(36),
-    worldStateChange: boundedString(48),
-    divergenceProof: boundedString(64),
-    immediateObjective: boundedString(40),
-    timePressure: boundedString(36),
-    headline: boundedString(22),
-    baselineAnchor: boundedString(54),
-    historicalAnchors: z.array(boundedString(40)).min(2).max(4),
+    location: requiredString,
+    role: requiredString,
+    causalBridge: factualScanString,
+    worldStateChange: requiredString,
+    divergenceProof: requiredString,
+    immediateObjective: requiredString,
+    timePressure: factualScanString,
+    headline: requiredString,
+    baselineAnchor: requiredString,
+    historicalAnchors: z.array(requiredString).min(2).max(4),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
     memorySummary: requiredString,
@@ -354,10 +355,6 @@ function joinStringArray(value: unknown): unknown {
     : value;
 }
 
-function trimBounded(value: unknown, max: number): unknown {
-  return typeof value === "string" ? [...value].slice(0, max).join("") : value;
-}
-
 function compactAiAuthoredClause(value: unknown, max: number): unknown {
   if (typeof value !== "string" || [...value].length <= max) return value;
 
@@ -372,62 +369,6 @@ function compactAiAuthoredClause(value: unknown, max: number): unknown {
   const standalone = candidates.filter((clause) => !/^(?:并|但|而|且|以及|并且|同时|随后|然后|以)/.test(clause));
   const pool = standalone.length > 0 ? standalone : candidates;
   return [...pool].sort((left, right) => [...right].length - [...left].length)[0] ?? value;
-}
-
-function trimAtCompleteClause(value: unknown, max: number): unknown {
-  if (typeof value !== "string") return value;
-  const characters = [...value];
-  if (characters.length <= max) return value;
-
-  const candidate = characters.slice(0, max);
-  let boundaryIndex = -1;
-  for (let index = 0; index < candidate.length; index += 1) {
-    if ("。！？!?；;".includes(candidate[index])) boundaryIndex = index;
-  }
-  if (boundaryIndex < 4) return value;
-
-  const boundary = candidate[boundaryIndex];
-  if ("。！？!?".includes(boundary)) {
-    return candidate.slice(0, boundaryIndex + 1).join("");
-  }
-  return `${candidate.slice(0, boundaryIndex).join("").trim()}。`;
-}
-
-function compactCompleteScanCopy(value: unknown, max: number): unknown {
-  if (typeof value !== "string" || [...value].length <= max) return value;
-  if (DEPENDENT_CLAUSE_START_PATTERN.test(value.trim())) return value;
-
-  const isIndependent = (candidate: string) => {
-    const text = candidate.replace(/[。！？!?；;]+$/g, "").trim();
-    return [...text].length >= 6
-      && !DEPENDENT_CLAUSE_START_PATTERN.test(text)
-      && !LEADING_CONNECTOR_PATTERN.test(text)
-      && !INCOMPLETE_CHOICE_END_PATTERN.test(text)
-      && !INCOMPLETE_CLAUSE_END_PATTERN.test(text);
-  };
-  const closeSentence = (candidate: string) => {
-    const text = candidate.replace(/[。！？!?；;]+$/g, "").trim();
-    return `${text}。`;
-  };
-
-  const completeSentences = value.match(/[^。！？!?；;]+[。！？!?；;]/g) ?? [];
-  const sentence = completeSentences.find((candidate) => (
-    [...closeSentence(candidate)].length <= max && isIndependent(candidate)
-  ));
-  if (sentence) return closeSentence(sentence);
-
-  const clause = value
-    .split(COORDINATE_CLAUSE_SPLIT_PATTERN)
-    .map((candidate) => candidate.trim())
-    .find((candidate) => (
-      [...candidate].length + 1 <= max && isIndependent(candidate)
-    ));
-  if (clause) return closeSentence(clause);
-
-  const compressed = value.replace(DISPENSABLE_SCAN_MODIFIER_PATTERN, "");
-  return [...compressed].length <= max && isIndependent(compressed)
-    ? closeSentence(compressed)
-    : value;
 }
 
 function coerceDisplayString(value: unknown): unknown {
@@ -461,53 +402,11 @@ function normalizeAlternatePresentCandidate(value: unknown): unknown {
 
 function normalizeDivergenceProof(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  return trimAtCompleteClause(value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, ""), 64);
-}
-
-function normalizeEcho(value: unknown): unknown {
-  const echo = asRecord(value);
-  if (!echo) return value;
-  return {
-    ...echo,
-    directResult: trimBounded(echo.directResult, CUSTOM_ACTION_MAX_LENGTH),
-    unexpectedCost: trimBounded(echo.unexpectedCost, 32),
-    beneficiary: trimBounded(echo.beneficiary, 24),
-    payer: trimBounded(echo.payer, 24),
-  };
+  return value.replace(/^\s*真实历史中\s*[，,:：]?\s*/, "");
 }
 
 function normalizeCustomActionResolutionCandidate(value: unknown): unknown {
-  const resolution = asRecord(value);
-  if (!resolution) return value;
-  return {
-    ...resolution,
-    causalMechanism: trimBounded(resolution.causalMechanism, 56),
-    instantEcho: normalizeEcho(resolution.instantEcho),
-  };
-}
-
-function normalizeActionSpec(value: unknown): unknown {
-  const spec = asRecord(value);
-  if (!spec) return value;
-  return {
-    ...spec,
-    actor: trimBounded(spec.actor, 20),
-    action: trimBounded(spec.action, 28),
-    target: trimBounded(spec.target, 28),
-    deadline: trimBounded(spec.deadline, 20),
-  };
-}
-
-function normalizeTimelineEcho(value: unknown): unknown {
-  const echo = asRecord(value);
-  if (!echo) return value;
-  return {
-    ...echo,
-    directResult: compactAiAuthoredClause(echo.directResult, CUSTOM_ACTION_MAX_LENGTH),
-    unexpectedCost: compactAiAuthoredClause(echo.unexpectedCost, 32),
-    beneficiary: compactAiAuthoredClause(echo.beneficiary, 32),
-    payer: compactAiAuthoredClause(echo.payer, 32),
-  };
+  return value;
 }
 
 function displayLabelForChoice(label: unknown, actionSpec: unknown): unknown {
@@ -565,11 +464,11 @@ function normalizeChoice(value: unknown, index: number): unknown {
     // label is preserved while the compact derivative stays display-only.
     label: typeof label === "string" ? label.trim() : label,
     displayLabel: displayLabelForChoice(label, choice.actionSpec),
-    intent: trimBounded(normalizedIntent, 24),
+    intent: typeof normalizedIntent === "string" ? normalizedIntent.trim() : normalizedIntent,
     deviationClass: DEVIATION_CLASSES[index],
     usesModernKnowledge: choice.usesModernKnowledge,
-    actionSpec: normalizeActionSpec(choice.actionSpec),
-    instantEcho: normalizeTimelineEcho(choice.instantEcho),
+    actionSpec: choice.actionSpec,
+    instantEcho: choice.instantEcho,
   };
 }
 
@@ -611,18 +510,16 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     protagonistAge: turn.protagonistAge ?? 24,
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
     location: turn.location,
-    role: compactAiAuthoredClause(turn.role, 32),
-    immediateObjective: trimBounded(turn.immediateObjective ?? derivedObjective, 40),
-    timePressure: trimAtCompleteClause(turn.timePressure ?? derivedDeadline, 36),
+    role: turn.role,
+    immediateObjective: turn.immediateObjective ?? derivedObjective,
+    timePressure: turn.timePressure ?? derivedDeadline,
     headline: turn.headline,
     narrative: turn.narrative,
-    causalBridge: compactCompleteScanCopy(turn.causalBridge, 36),
-    worldStateChange: compactCompleteScanCopy(turn.worldStateChange, 48),
+    causalBridge: turn.causalBridge,
+    worldStateChange: turn.worldStateChange,
     divergenceProof: normalizeDivergenceProof(turn.divergenceProof),
-    baselineAnchor: trimBounded(joinStringArray(turn.baselineAnchor ?? derivedBaseline), 54),
-    historicalAnchors: Array.isArray(turn.historicalAnchors)
-      ? turn.historicalAnchors.map((anchor) => compactAiAuthoredClause(anchor, 40))
-      : turn.historicalAnchors,
+    baselineAnchor: joinStringArray(turn.baselineAnchor ?? derivedBaseline),
+    historicalAnchors: turn.historicalAnchors,
     previousEcho:
       turn.previousEcho == null && Number(turn.chapter ?? 1) === 1
         ? null

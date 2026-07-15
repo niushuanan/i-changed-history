@@ -1,5 +1,16 @@
 # Design QA
 
+## AI Timeline Length-Ceiling Recovery QA (2026-07-16)
+
+- User-visible failure: the terminal page said the AI's scene structure was still incomplete after the primary response, field patch, and high-reasoning recovery. Code tracing showed that this message did not distinguish missing structure from an otherwise complete text field exceeding a client character ceiling.
+- One-run evidence: exactly one existing run was continued from chapter 3 through chapter 12 and both ending pages. All nine newly requested timeline scenes passed on their primary response. The world-report request then demonstrated the same response pattern: its three complete 2026 details exceeded the intentionally retained 18-character ending contract, so primary and patch validation failed before recovery succeeded. No second game or soak run was started.
+- Root repair: every AI-authored timeline field now treats prompt lengths as writing targets only. Headline, place, role, objective, pressure, causal bridge, world state, proof, historical baseline/anchors, labels, action specifications, intent, and instant echoes are accepted and preserved without character truncation, clause selection, modifier deletion, or length-only rejection.
+- Safety retained: missing/invalid structure, incomplete sentences, conditional prefixes presented as established facts, era-inappropriate locations, continuity, fixed A/B/C roles, and historical-anchor cardinality still fail validation. Player-authored rewrites remain capped at 160 characters; the intentionally separate 2026 detail schema remains 12-18 characters and continues to repair invalid details.
+- Choice display: a compact `displayLabel` is best effort. When no complete phrase fits the 36-character mobile target, the UI preserves the full label and requires the existing explicit full-text confirmation rather than failing the entire scene.
+- Regression evidence: focused TDD observed 13 failures against the old schema and now passes 97/97 schema tests. Full verification passes 31 Vitest files and 340/340 tests, TypeScript, the 83-file portability scan, production build, and whitespace checks. The build retains only the existing non-blocking 500kB chunk-size notice.
+
+final result: passed
+
 ## Unbounded Ready Scene And 160-Character Rewrite QA (2026-07-15)
 
 - Contract: the model prompt still targets 80-180 Chinese characters, but the client has no narrative character minimum or maximum. Complete AI prose is preserved verbatim; sentence completeness and structure remain validated.

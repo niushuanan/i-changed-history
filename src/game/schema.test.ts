@@ -43,7 +43,7 @@ describe("structured timeline parsing", () => {
     }))).toThrow();
   });
 
-  it("trims harmless custom adjudication overflow without changing the declared result", () => {
+  it("preserves harmless custom adjudication overflow without changing the declared result", () => {
     const declaredOutcome = "我已经建立全国公开账册制度";
     const parsed = parseCustomActionResolution(JSON.stringify({
       declaredOutcome,
@@ -59,9 +59,9 @@ describe("structured timeline parsing", () => {
     }));
 
     expect(parsed.declaredOutcome).toBe(declaredOutcome);
-    expect(parsed.causalMechanism.length).toBeLessThanOrEqual(56);
+    expect(parsed.causalMechanism).toBe("传播".repeat(40));
     expect(parsed.instantEcho).toMatchObject({ directResult: declaredOutcome });
-    expect(parsed.instantEcho.payer.length).toBeLessThanOrEqual(24);
+    expect(parsed.instantEcho.payer).toBe("失去隐匿空间的旧官员".repeat(3));
   });
 
   it("carries a 160-character canonical result into the next turn", () => {
@@ -158,7 +158,7 @@ describe("structured timeline parsing", () => {
     }))).toThrow(/真实历史/);
   });
 
-  it("compacts the causal bridge at a complete AI-authored clause while preserving the other proofs", () => {
+  it("preserves complete causal and comparison fields beyond their prompt targets", () => {
     const causalBridge = "玩家命令先经驿站传到边军。粮仓账册又把影响带回朝堂，三地因此同时改变部署。";
     const worldStateChange = "三座城已经共同执行新法，地方官署和驻军都公开承认这项改变。";
     const divergenceProof = "正史里的边军并未收到这道命令，粮仓仍由旧官署掌管，朝堂也没有因此提前改组。";
@@ -169,43 +169,43 @@ describe("structured timeline parsing", () => {
       divergenceProof,
     }));
 
-    expect([...parsed.causalBridge].length).toBeLessThanOrEqual(36);
-    expect(parsed.causalBridge).toMatch(/。$/);
-    expect(causalBridge.startsWith(parsed.causalBridge.replace(/。$/, ""))).toBe(true);
+    expect(parsed.causalBridge).toBe(causalBridge);
     expect(parsed.worldStateChange).toBe(worldStateChange);
     expect(parsed.divergenceProof).toBe(divergenceProof);
   });
 
-  it("shortens an overlong visible proof only at a complete AI-authored clause", () => {
+  it("does not shorten complete visible proof fields in client code", () => {
+    const causalBridge = "第一层因果已经通过驿站传到前线。第二层影响也由地方官署公开确认，后面这段冗长补充不应被截成半句话，这句更长的重复说明绝不应在客户端丢失。";
+    const worldStateChange = "第一项改变已经落地。第二项改变也已被官署确认，后面这段冗长补充不应被截成半句话，这句更长的重复说明绝不应在客户端丢失。";
+    const divergenceProof = "正史中的第一次结果有明确记录。第二次结果也见于同时代档案，后面这段冗长补充不应被截成半句话而留在界面上，这句更长的重复说明绝不应在客户端丢失。";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      causalBridge: "第一层因果已经通过驿站传到前线。第二层影响也由地方官署公开确认，后面这段冗长补充不应被截成半句话，这句更长的重复说明绝不应出现在界面上",
-      worldStateChange: "第一项改变已经落地。第二项改变也已被官署确认，后面这段冗长补充不应被截成半句话，这句更长的重复说明绝不应出现在界面上",
-      divergenceProof: "正史中的第一次结果有明确记录。第二次结果也见于同时代档案，后面这段冗长补充不应被截成半句话而留在界面上，这句更长的重复说明绝不应出现在界面上",
+      causalBridge,
+      worldStateChange,
+      divergenceProof,
     }));
 
-    expect(parsed.causalBridge).toMatch(/。$/);
-    expect(parsed.worldStateChange).toMatch(/。$/);
-    expect(parsed.divergenceProof).toMatch(/。$/);
-    expect(parsed.causalBridge).not.toContain("重复说明");
-    expect(parsed.worldStateChange).not.toContain("重复说明");
-    expect(parsed.divergenceProof).not.toContain("重复说明");
+    expect(parsed.causalBridge).toBe(causalBridge);
+    expect(parsed.worldStateChange).toBe(worldStateChange);
+    expect(parsed.divergenceProof).toBe(divergenceProof);
   });
 
-  it("rejects unpunctuated visible overflow so the engine can ask the model to rewrite it", () => {
-    expect(() => parseTimelineTurn(JSON.stringify({
+  it("does not use character count alone to reject an unpunctuated scan field", () => {
+    const causalBridge = "因".repeat(90);
+    expect(parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      causalBridge: "因".repeat(90),
-    }))).toThrow(/causalBridge/);
+      causalBridge,
+    }))).toMatchObject({ causalBridge });
   });
 
-  it("trims an overlong history anchor without discarding the scene", () => {
+  it("preserves an overlong history anchor without discarding copy", () => {
+    const baselineAnchor = "史".repeat(70);
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      baselineAnchor: "史".repeat(70),
+      baselineAnchor,
     }));
 
-    expect(parsed.baselineAnchor).toHaveLength(54);
+    expect(parsed.baselineAnchor).toBe(baselineAnchor);
   });
 
   it("preserves a complete 230-character narrative without client-side truncation", () => {
@@ -231,11 +231,12 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative })).narrative).toBe(narrative);
   });
 
-  it("accepts the prompted sentence range and tolerates two extra punctuation-delimited clauses", () => {
+  it("uses sentence count as a prompt target rather than a client ceiling", () => {
     const twoSentences = `${"前".repeat(44)}。${"险".repeat(44)}。`;
     const fourSentences = `${"前".repeat(24)}。${"因".repeat(24)}。${"争".repeat(24)}。${"险".repeat(24)}。`;
     const fiveSentences = `${"前".repeat(18)}。${"因".repeat(18)}。${"争".repeat(18)}。${"变".repeat(18)}。${"险".repeat(18)}。`;
     const sevenClauses = `${"前".repeat(12)}。${"因".repeat(12)}。${"争".repeat(12)}。${"变".repeat(12)}。${"险".repeat(12)}。${"得".repeat(12)}。${"失".repeat(12)}。`;
+    const tenSentences = Array.from({ length: 10 }, (_, index) => `第${index + 1}项局势已经发生变化。`).join("");
 
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: twoSentences })).narrative)
       .toBe(twoSentences);
@@ -245,6 +246,8 @@ describe("structured timeline parsing", () => {
       .toBe(fiveSentences);
     expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: sevenClauses })).narrative)
       .toBe(sevenClauses);
+    expect(parseTimelineTurn(JSON.stringify({ ...turnFixture, narrative: tenSentences })).narrative)
+      .toBe(tenSentences);
   });
 
   it("rejects a newly generated prehistory without enough complete context", () => {
@@ -363,7 +366,7 @@ describe("structured timeline parsing", () => {
     expect(normalized.choices[0].usesModernKnowledge).toBe(true);
   });
 
-  it("normalizes positional choice authority and trims non-visible nested action copy", () => {
+  it("normalizes positional choice authority without trimming nested action copy", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: turnFixture.choices.map((choice) => ({
@@ -385,9 +388,9 @@ describe("structured timeline parsing", () => {
       ["A", "nudge"], ["B", "reform"], ["C", "rupture"],
     ]);
     expect(parsed.choices[0].label).toBe(turnFixture.choices[0].label);
-    expect(parsed.choices[0].intent.length).toBeLessThanOrEqual(24);
+    expect(parsed.choices[0].intent).toBe("因".repeat(50));
     expect(parsed.choices[0].actionSpec).toMatchObject({
-      actor: "人".repeat(20), action: "做".repeat(28), target: "物".repeat(28), deadline: "时".repeat(20),
+      actor: "人".repeat(30), action: "做".repeat(40), target: "物".repeat(40), deadline: "时".repeat(30),
     });
   });
 
@@ -460,11 +463,11 @@ describe("structured timeline parsing", () => {
     expect(parsed.choices[0].label).toBe(label);
   });
 
-  it("repairs an oversized choice when no complete compact display label can be derived", () => {
+  it("accepts an oversized canonical choice when no compact display label can be derived", () => {
     const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们重新宣誓效忠否则立即解除兵权";
     expect([...canonical].length).toBeGreaterThan(36);
 
-    expect(() => parseTimelineTurn(JSON.stringify({
+    const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: turnFixture.choices.map((choice, index) => index === 0 ? {
         ...choice,
@@ -476,10 +479,13 @@ describe("structured timeline parsing", () => {
           deadline: "日落前",
         },
       } : choice),
-    }))).toThrow(/displayLabel/);
+    }));
+
+    expect(parsed.choices[0].label).toBe(canonical);
+    expect(parsed.choices[0].displayLabel).toBe(canonical);
   });
 
-  it("keeps a complete AI-authored clause from an oversized choice consequence", () => {
+  it("preserves a complete oversized choice consequence", () => {
     const unexpectedCost = "元老院书记官封存全部供水账册导致听证中断，前线居民随后失去补给并公开抗议";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
@@ -490,8 +496,7 @@ describe("structured timeline parsing", () => {
       )),
     }));
 
-    expect(parsed.choices[1].instantEcho.unexpectedCost)
-      .toBe("元老院书记官封存全部供水账册导致听证中断");
+    expect(parsed.choices[1].instantEcho.unexpectedCost).toBe(unexpectedCost);
   });
 
   it("requires a null first-turn echo and accepts all twelve decision chapters", () => {
@@ -583,26 +588,33 @@ describe("structured timeline parsing", () => {
       .toBe(payer);
   });
 
-  it("rejects oversized player-facing headings, roles, locations, and canonical choices", () => {
-    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, headline: "过".repeat(23) })))
-      .toThrow();
-    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, role: "身份".repeat(17) })))
-      .toThrow();
-    expect(() => parseTimelineTurn(JSON.stringify({ ...turnFixture, location: "地点".repeat(15) })))
-      .toThrow();
-    expect(() => parseTimelineTurn(JSON.stringify({
+  it("preserves oversized player-facing scene fields and canonical choices", () => {
+    const headline = "完整标题".repeat(20);
+    const role = "完整身份".repeat(20);
+    const location = "具体地点".repeat(20);
+    const label = "召集全部守军公开核验军令并在日落前完成换防".repeat(5);
+    const action = "公开核验军令来源并重新编组沿江守军".repeat(4);
+    const target = "仍然忠于朝廷的边军将领与粮仓守吏".repeat(4);
+    const deadline = "日落前完成全部交接".repeat(4);
+    const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
+      headline,
+      role,
+      location,
       choices: [{
         ...turnFixture.choices[0],
-        label: "选".repeat(161),
+        label,
         actionSpec: {
           actor: "你",
-          action: "行".repeat(28),
-          target: "目".repeat(28),
-          deadline: "日落前",
+          action,
+          target,
+          deadline,
         },
       }, turnFixture.choices[1], turnFixture.choices[2]],
-    }))).toThrow();
+    }));
+
+    expect(parsed).toMatchObject({ headline, role, location });
+    expect(parsed.choices[0]).toMatchObject({ label, actionSpec: { action, target, deadline } });
   });
 
   it("uses the selected choice echo as the authoritative continuation callback", () => {
@@ -634,7 +646,7 @@ describe("structured timeline parsing", () => {
     expect(parseTimelineTurn(raw, { expectedYearLabel: "1700年" }).yearLabel).toBe("1700年");
   });
 
-  it("keeps compact causal fields within the mobile layout contract", () => {
+  it("keeps complete causal fields even when the page must scroll", () => {
     const causalBridge = "玩家决定已经通过驿站进入各州粮食制度。守军与商帮随后被迫公开每一笔军粮去向。";
     const timePressure = "三日后第一批赈济船抵达。元老院必须在此前完成公开表决并派出执行官。城门随后关闭。";
     expect([...causalBridge].length).toBeGreaterThan(36);
@@ -646,48 +658,48 @@ describe("structured timeline parsing", () => {
       timePressure,
     }));
 
-    expect([...parsed.causalBridge].length).toBeLessThanOrEqual(36);
-    expect([...parsed.timePressure].length).toBeLessThanOrEqual(36);
-    expect(causalBridge.startsWith(parsed.causalBridge.replace(/。$/, ""))).toBe(true);
-    expect(timePressure.startsWith(parsed.timePressure.replace(/。$/, ""))).toBe(true);
+    expect(parsed.causalBridge).toBe(causalBridge);
+    expect(parsed.timePressure).toBe(timePressure);
   });
 
-  it("compacts an overlong causal bridge to an independent AI-authored clause", () => {
+  it("preserves an overlong causal bridge as authored", () => {
+    const causalBridge = "玩家命令已通过驿站传入边军，粮仓账册随即迫使三地守军公开部署并重新确认军令来源。";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      causalBridge: "玩家命令已通过驿站传入边军，粮仓账册随即迫使三地守军公开部署并重新确认军令来源。",
+      causalBridge,
     }));
 
-    expect(parsed.causalBridge).toBe("玩家命令已通过驿站传入边军。");
+    expect(parsed.causalBridge).toBe(causalBridge);
   });
 
-  it("compacts a coordinated causal sentence without inventing a replacement", () => {
+  it("preserves a coordinated causal sentence without inventing a replacement", () => {
+    const causalBridge = "玩家命令经驿站传入各州粮仓并迫使边军公开全部账册并重新确认军粮去向并持续封锁沿江渡口。";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      causalBridge: "玩家命令经驿站传入各州粮仓并迫使边军公开全部账册并重新确认军粮去向并持续封锁沿江渡口。",
+      causalBridge,
     }));
 
-    expect(parsed.causalBridge).toBe("玩家命令经驿站传入各州粮仓。");
+    expect(parsed.causalBridge).toBe(causalBridge);
   });
 
-  it("compacts an overlong world change to one complete authored fact", () => {
+  it("preserves an overlong world change as one complete authored fact", () => {
+    const worldStateChange = "三座城已经共同执行新法并迫使地方官署公开承认这项改变，旧军粮体系也随之停止运转，各州守军重新登记全部粮仓。";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      worldStateChange: "三座城已经共同执行新法并迫使地方官署公开承认这项改变，旧军粮体系也随之停止运转，各州守军重新登记全部粮仓。",
+      worldStateChange,
     }));
 
-    expect(parsed.worldStateChange).toBe("三座城已经共同执行新法。");
-    expect([...parsed.worldStateChange].length).toBeLessThanOrEqual(48);
+    expect(parsed.worldStateChange).toBe(worldStateChange);
   });
 
-  it("removes only dispensable aspect words from a slightly overlong complete causal sentence", () => {
+  it("keeps aspect words in a slightly overlong complete causal sentence", () => {
+    const causalBridge = "玩家的决定已经通过整个州县驿站正式传入边军并进一步改变当前这项三地军粮部署。";
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      causalBridge: "玩家的决定已经通过整个州县驿站正式传入边军并进一步改变当前这项三地军粮部署。",
+      causalBridge,
     }));
 
-    expect(parsed.causalBridge).toBe("玩家的决定通过州县驿站传入边军并改变三地军粮部署。");
-    expect(parsed.causalBridge).toMatch(/。$/);
+    expect(parsed.causalBridge).toBe(causalBridge);
   });
 
   it("keeps the full canonical choice when using a shorter action specification for display", () => {
