@@ -926,7 +926,7 @@
 .history-time__track button.is-active span { opacity: 1; }
 
 .history-carousel {
-  --history-card-width: clamp(252px, 75.4vw, 294px);
+  --history-card-width: clamp(252px, 75.4%, 294px);
   position: relative;
   z-index: 2;
   min-height: 626px;
@@ -934,13 +934,13 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  padding: 10px calc((100vw - var(--history-card-width)) / 2) 18px;
+  padding: 10px 0 18px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   scroll-snap-type: x mandatory;
   overscroll-behavior-inline: contain;
 }
@@ -954,6 +954,8 @@
   transition: opacity .22s ease, filter .22s ease, transform .22s ease;
   scroll-snap-align: center;
 }
+.history-carousel > div:first-child { margin-left: calc((100% - var(--history-card-width)) / 2); }
+.history-carousel > div:last-child { margin-right: calc((100% - var(--history-card-width)) / 2); }
 .history-carousel > div.is-active { z-index: 2; opacity: 1; filter: none; transform: scale(1); }
 
 .history-grid-browser {

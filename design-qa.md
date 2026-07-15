@@ -1,5 +1,16 @@
 # Design QA
 
+## Filmstrip Container And Active-Card Sync QA (2026-07-15)
+
+- Reproduced failure: inside a 390px desktop product shell, the carousel and timeline expanded to 986px because their centering padding used the outer `100vw`. The shell then clipped the oversized content. A long smooth programmatic scroll also exposed the new active year before its poster reached the viewport.
+- Desktop repair evidence: at a 718px browser width, `.mobile-prototype`, `.seed-picker`, `.history-time`, `.history-time__track`, and `.history-carousel` all compute to exactly 390px; document width remains 718px. The first 294px poster is centered at x=212..506 inside the shell and the next poster is visibly previewed.
+- Cross-era interaction: clicking `定位到公元 9 年` changes the readout to `公元 9 年`, centers the 12th poster `王莽建新`, and leaves the active-card center exactly equal to the carousel center (`centerDelta=0`, `scrollLeft=3366`) in the same rendered frame.
+- Mobile repair evidence: at 390 × 844 the poster is 294px at x=48..342. At 320 × 700 it is 252px at x=34..286, document horizontal overflow is false, and the 878px picker content scrolls inside the 700px shell so the action remains reachable.
+- Regression coverage: the selector test now stubs real container/card offsets and requires an atomic `{ behavior: "auto" }` centered jump; a second test confirms touch/trackpad synchronization resumes after the programmatic destination is reached.
+- Findings: the blank/offset state from both user screenshots is removed without changing the selected archival-poster anatomy, visible neighbor preview, 100-card data, grid mode, or game flow.
+
+final result: passed
+
 ## Archival Poster Fidelity V2 QA (2026-07-15)
 
 - Source visual truth: `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-d895be3b-33c6-4890-bbcb-2dd026d1ac4a.png`.

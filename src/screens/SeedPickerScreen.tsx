@@ -60,7 +60,7 @@ type SeedPickerScreenProps = {
 
 function moveScroller(element: HTMLElement, left: number) {
   if (typeof element.scrollTo === "function") {
-    element.scrollTo({ left, behavior: "smooth" });
+    element.scrollTo({ left, behavior: "auto" });
   } else {
     element.scrollLeft = left;
   }
@@ -120,7 +120,10 @@ export function SeedPickerScreen({
   const scrollCardsTo = (index: number) => {
     const carousel = carouselRef.current;
     if (!carousel) return;
-    const targetLeft = index * cardStep();
+    const targetCard = carousel.children[index] as HTMLElement | undefined;
+    const targetLeft = targetCard
+      ? Math.max(0, targetCard.offsetLeft - (carousel.clientWidth - targetCard.clientWidth) / 2)
+      : index * cardStep();
     if (Math.abs(carousel.scrollLeft - targetLeft) <= 1) {
       programmaticCardIndex.current = null;
       return;
@@ -138,7 +141,12 @@ export function SeedPickerScreen({
   };
 
   const syncFromCards = () => {
-    const index = Math.max(0, Math.min(cards.length - 1, Math.round((carouselRef.current?.scrollLeft ?? 0) / cardStep())));
+    const carousel = carouselRef.current;
+    const firstCard = carousel?.children[0] as HTMLElement | undefined;
+    const firstCenteredLeft = carousel && firstCard
+      ? Math.max(0, firstCard.offsetLeft - (carousel.clientWidth - firstCard.clientWidth) / 2)
+      : 0;
+    const index = Math.max(0, Math.min(cards.length - 1, Math.round(((carousel?.scrollLeft ?? 0) - firstCenteredLeft) / cardStep())));
     const targetIndex = programmaticCardIndex.current;
     if (targetIndex !== null) {
       if (index === targetIndex) programmaticCardIndex.current = null;

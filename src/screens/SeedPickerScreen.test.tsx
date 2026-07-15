@@ -214,7 +214,29 @@ describe("living history browser", () => {
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(cards[20].id);
   });
 
-  it("preserves a clicked timeline target throughout smooth scrolling, then resumes gesture sync", async () => {
+  it("centers a clicked card from its rendered container offsets without exposing an intermediate active state", async () => {
+    const user = userEvent.setup();
+    const targetIndex = 11;
+    const target = cards[targetIndex];
+    render(<PickerHarness />);
+
+    const carousel = screen.getByLabelText("按时间排列的历史瞬间");
+    const renderedCards = Array.from(carousel.children) as HTMLElement[];
+    Object.defineProperty(carousel, "clientWidth", { configurable: true, value: 390 });
+    Object.defineProperty(renderedCards[0], "offsetLeft", { configurable: true, value: 493 });
+    Object.defineProperty(renderedCards[1], "offsetLeft", { configurable: true, value: 799 });
+    Object.defineProperty(renderedCards[targetIndex], "offsetLeft", { configurable: true, value: 493 + targetIndex * 306 });
+    Object.defineProperty(renderedCards[targetIndex], "clientWidth", { configurable: true, value: 294 });
+    const scrollTo = vi.fn();
+    Object.defineProperty(carousel, "scrollTo", { configurable: true, value: scrollTo });
+
+    await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
+
+    expect(scrollTo).toHaveBeenCalledWith({ left: 3811, behavior: "auto" });
+    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
+  });
+
+  it("resumes gesture sync after the programmatic card jump reaches its target", async () => {
     const user = userEvent.setup();
     const target = cards.at(-1)!;
     render(<PickerHarness />);
@@ -227,11 +249,6 @@ describe("living history browser", () => {
 
     await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
     expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-
-    for (const intermediateIndex of [20, 60, 90]) {
-      fireEvent.scroll(carousel, { target: { scrollLeft: 312 * intermediateIndex } });
-      expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-    }
 
     fireEvent.scroll(carousel, { target: { scrollLeft: 312 * (cards.length - 1) } });
     fireEvent.pointerDown(carousel);
