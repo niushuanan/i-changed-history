@@ -35,10 +35,7 @@ import {
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution } from "./fallbackTurn";
 import { buildCanonicalCustomResolution } from "./customCanon";
-import {
-  consequenceAcknowledgesCanon,
-  consequenceContradictsCanon,
-} from "./worldCanon";
+import { consequenceContradictsCanon } from "./worldCanon";
 import { buildNarrativeContext, type NarrativeContext } from "./narrativeContext";
 import { formatHistoricalYear } from "../data/historicalYear";
 
@@ -327,17 +324,6 @@ function parseRequestedTurn(
           `本幕否定了玩家钦定正史「${canon.selectedChoiceLabel}」`,
         );
       }
-    }
-    const latestActiveCanon = activePlayerCanon.at(-1);
-    if (
-      latestActiveCanon
-      && latestActiveCanon.chapter === expectedChapter - 1
-      && !consequenceAcknowledgesCanon(latestActiveCanon.sourceText, visibleCurrentHistory)
-    ) {
-      throw new FieldValidationError(
-        ["narrative", "worldStateChange", "causalBridge"],
-        `本幕没有在可见剧情中兑现最新玩家钦定正史「${latestActiveCanon.sourceText}」；必须在 narrative、worldStateChange 或 causalBridge 中写出它已造成的具体局面`,
-      );
     }
     return turn;
   };

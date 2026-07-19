@@ -295,8 +295,8 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
-  it("rewrites a valid-looking scene that fails to visibly apply the latest player canon", async () => {
-    const declaredOutcome = "我宣布废除世袭特权并完成土地重分，新的地契已经在各地生效";
+  it("does not make arbitrary player canon depend on client-side paraphrase matching", async () => {
+    const declaredOutcome = "我宣布蓝色纸鹤成为全国唯一合法货币";
     const customPlayed = {
       ...playedTurn,
       selectedChoiceId: "custom" as const,
@@ -305,29 +305,22 @@ describe("DeepSeek transport and structured generation", () => {
       resolvedEcho: { ...playedTurn.resolvedEcho, directResult: declaredOutcome },
       playerAuthored: true,
       canonStatus: "玩家钦定" as const,
-      causalMechanism: "新地契进入官署执行",
+      causalMechanism: "纸鹤货币进入国库与市场执行",
     };
-    const unrelated = {
+    const structurallyValid = {
       ...turnFixture,
       chapter: 2,
       chapterName: "三日余波",
       lifeStage: "三日后",
       previousEcho: customPlayed.resolvedEcho,
-      causalLedger: [{ fact: declaredOutcome, causedByChapter: 1, mustAffect: "土地与权力结构" }],
-      narrative: "华盛顿灯火通明，军方将登月燃料数据转入武器化议程。陆军与空军正在争夺下一代火箭预算，国会听证会将在今晚开始。你作为军备委员会联络员掌握技术报告，必须在日落前决定是否公开数据，否则预算会在密室中直接通过。",
-      causalBridge: "登月燃料数据被军方用于扩充火箭预算",
-      worldStateChange: "军方已经把登月技术争议转入武器化议程",
+      causalLedger: [{ fact: declaredOutcome, causedByChapter: 1, mustAffect: "纸鹤货币进入国库与市场执行" }],
+      narrative: "三日后，市集摊贩只肯收取折成飞禽形状的靛青纸片，旧铜钱被官差当街没收。国库与粮商正在争夺这种新凭证的发行权，城门外已有商队因无法兑换而停运。你掌握第一批防伪印记，必须在日落前决定由谁继续印发，否则粮价将在今晚失控。",
+      causalBridge: "国库的新折纸凭证排挤旧币，引发商路挤兑",
+      worldStateChange: "旧币退出交易，靛青飞禽纸片控制税赋与粮价",
     };
-    const repaired = {
-      ...unrelated,
-      headline: "新地契引爆军方土地争夺",
-      narrative: "新地契已经在三州完成登记，原军方世袭庄园被重新分给佃农。五角大楼与地方官署正在争夺基地土地和补偿预算，门外已有退伍军人要求兑现地契。你作为军备委员会联络员掌握基地清册，必须在日落前决定如何执行，否则军方将拒绝交地。",
-      causalBridge: "土地重分通过基地清册进入军方预算争夺",
-      worldStateChange: "新地契已覆盖三州军方庄园，旧特权正式失效",
-    };
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(completion(JSON.stringify(unrelated)))
-      .mockResolvedValueOnce(completion(JSON.stringify(repaired)));
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(
+      completion(JSON.stringify(structurallyValid)),
+    ));
     vi.stubGlobal("fetch", fetcher);
     const diagnostics: Array<{ stage: string; errors: readonly string[]; repairFields?: readonly string[] }> = [];
 
@@ -335,11 +328,14 @@ describe("DeepSeek transport and structured generation", () => {
       onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
     });
 
-    expect(result.worldStateChange).toContain("新地契");
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(diagnostics[0]).toMatchObject({ stage: "primary_invalid" });
-    expect(diagnostics[0].errors.join(" ")).toContain("没有在可见剧情中兑现");
-    expect(diagnostics[0].repairFields).toEqual(["narrative", "worldStateChange", "causalBridge"]);
+    expect(result.causalLedger).toContainEqual({
+      fact: declaredOutcome,
+      causedByChapter: 1,
+      mustAffect: "纸鹤货币进入国库与市场执行",
+    });
+    expect(fetcher.mock.calls[0][1].body).toContain(declaredOutcome);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(diagnostics).toEqual([]);
   });
 
   it("repairs only the stale opening role after chapter three", async () => {

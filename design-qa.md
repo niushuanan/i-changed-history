@@ -1,5 +1,15 @@
 # Design QA
 
+## Arbitrary Player Canon Continuity QA (2026-07-19)
+
+- Failure evidence: the saved chapter-2 rewrite was `我把桥炸了`. Primary, field patch, and high-reasoning recovery all produced visible prose that said the bridge was blown up and changed the motorcade, yet all three were rejected by an extra client-side “latest player canon was not acknowledged” gate.
+- Product boundary: player-authored canon is arbitrary natural language, so the browser cannot safely decide whether a generated scene semantically entails it by comparing characters, words, bigrams, handcrafted synonyms, or known historical concept groups. Adding a bridge/action exception would only move the false rejection to the next unseen player expression.
+- General repair: the exact player text remains client-owned and immutable in the visible receipt, active mandate, causal ledger, and model request. The model prompt still requires the next scene to visibly extrapolate it. The client no longer uses positive lexical acknowledgment as a terminal gate; it only repairs invalid structure or an explicit contradiction anchored to the player fact.
+- Browser proof: after a full reload loaded the fixed module rather than the HMR-preserved old generation closure, the same saved run rendered the exact receipt `我把桥炸了`, accepted the model's natural paraphrase, and showed `现场已经写成`, `场景已经完成`, and an enabled `下一步` in normal flow.
+- Test proof: a deliberately unfamiliar canon `我宣布蓝色纸鹤成为全国唯一合法货币` first reproduced the old three-attempt terminal failure, then passed in one request while remaining exact in the request and authoritative ledger. A separate arbitrary-fact test still rejects the explicit contradiction `蓝色纸鹤并未成为合法货币`. Final verification passed 31 Vitest files and 340/340 tests, TypeScript, the 83-file portability scan, production build, and whitespace checks; the build retains only the existing non-blocking 500kB chunk-size notice.
+
+final result: passed
+
 ## AI Timeline Length-Ceiling Recovery QA (2026-07-16)
 
 - User-visible failure: the terminal page said the AI's scene structure was still incomplete after the primary response, field patch, and high-reasoning recovery. Code tracing showed that this message did not distinguish missing structure from an otherwise complete text field exceeding a client character ceiling.
