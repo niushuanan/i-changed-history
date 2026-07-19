@@ -112,6 +112,8 @@ npm run build
 
 `check:portability` 会扫描运行时文件并拒绝开发者个人目录。GitHub Actions 会在 Windows 和 Linux 上执行 `npm ci`、测试、类型检查和生产构建。
 
+需要真实验证十二节点、直接改写和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。该命令会真实调用模型并把脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行。
+
 ## 密钥与部署
 
 `.env.local` 已加入 `.gitignore`，不会提交到 GitHub。但这是纯前端比赛原型，`VITE_*` 变量最终会进入浏览器代码，因此浏览器使用者能够查看 API Key。

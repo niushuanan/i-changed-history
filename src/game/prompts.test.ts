@@ -118,6 +118,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(worldReport).toContain("恰好三个互不重复");
     expect(worldReport).toContain("每项 12—18 字");
     expect(worldReport).toContain("完整生活短句");
+    expect(worldReport).toContain("优先写成 12—16 字");
+    expect(worldReport).toContain("孩子每天用纸鹤支付早餐费。");
+    expect(worldReport).toContain("身后时代 narrative 优先写成 35—88 字");
   });
 
   it("forces one aging protagonist through butterfly-effect topic changes", () => {
@@ -146,6 +149,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("causalBridge");
     expect(protocol).toContain("议事厅");
     expect(protocol).toContain("时代真实称谓");
+    expect(continuation).toContain("submissionChecklist");
+    expect(continuation).toContain('"choiceIds":["A","B","C"]');
+    expect(continuation).toContain("最后一句拥有明确主语、动作与对象");
   });
 
   it("treats every continuation as a major turning point with a visible alternate-world payoff", () => {

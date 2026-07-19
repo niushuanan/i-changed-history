@@ -1,5 +1,15 @@
 # Design QA
 
+## Three-Start All-Custom Stability QA (2026-07-19)
+
+- Browser interaction: used the real local product at `http://127.0.0.1:4174/` to enter Red Cliffs, the Great Fire of Rome, and Apollo 11. Each opening received a different deliberately unconventional direct rewrite. All three exact player texts became visible canon and produced a complete chapter-2 scene with an enabled `下一步`; the scenes preserved every simultaneous fact instead of reducing them to a known keyword pattern.
+- Statistical gate: extended the existing production-path soak harness with named-case selection, a twelve-of-twelve all-custom mode, a configurable minimum success rate, and optional latency enforcement. The selected premodern Chinese, ancient-world, and modern-world runs generated 36 unique 24-160-character player facts, 33 DeepSeek continuation scenes, and three dual-report endings. Test artifacts remain under ignored `tmp/soak/`.
+- First batch evidence: all three games and all 33 continuations completed, but the gate intentionally failed because five timeline primaries required repair (`15.15%`, above the `10%` ceiling). The failures were general output-shape drift: one missing historical anchor, one missing choice, one dangling choice label, one incomplete narrative, and one era-inappropriate location. Red Cliffs also needed one ending retry; next-turn P50/P90 were already `13.56s / 18.10s`.
+- General repair: added compact submission checklists to the continuation and world-report prompts. They reassert exact A/B/C cardinality, 2-4 anchors, era-valid location vocabulary, complete final sentence/action grammar, and margin-safe report targets. The client schema, arbitrary player canon, output ceiling, and repair safety were not weakened.
+- Passing batch evidence: `3/3` games, `36/36` unique custom facts, and `33/33` generated turns completed (`100%`, above the configured `95%`). Timeline primary invalids fell from `5/33` to `0/33`. Next-turn P50/P90 were `13.77s / 17.21s`; first-readable P50/P90 were `3.64s / 4.57s`; full-run P50 was `207.62s`, 5.6% faster than the first batch; the slowest ending fell from `161.47s` to `75.03s`. The enforced soak test exited successfully.
+
+final result: passed
+
 ## Arbitrary Player Canon Continuity QA (2026-07-19)
 
 - Failure evidence: the saved chapter-2 rewrite was `我把桥炸了`. Primary, field patch, and high-reasoning recovery all produced visible prose that said the bridge was blown up and changed the motorcade, yet all three were rejected by an extra client-side “latest player canon was not acknowledged” gate.

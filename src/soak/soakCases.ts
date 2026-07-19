@@ -20,6 +20,31 @@ export const LONG_RUN_SOAK_CASES: readonly LongRunSoakCase[] = [
   { id: "world-apollo", seedId: "apollo-11-1969", customChapters: [2, 5, 8, 10] },
 ] as const;
 
+const ALL_CUSTOM_CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+
+export function selectLongRunSoakCases({
+  caseIds = [],
+  limit = LONG_RUN_SOAK_CASES.length,
+  allCustom = false,
+}: {
+  caseIds?: readonly string[];
+  limit?: number;
+  allCustom?: boolean;
+} = {}): LongRunSoakCase[] {
+  const candidates = caseIds.length > 0
+    ? caseIds.map((id) => {
+        const match = LONG_RUN_SOAK_CASES.find((item) => item.id === id);
+        if (!match) throw new Error(`Unknown soak case: ${id}`);
+        return match;
+      })
+    : [...LONG_RUN_SOAK_CASES];
+  const boundedLimit = Math.max(1, Math.min(candidates.length, limit));
+  return candidates.slice(0, boundedLimit).map((item) => ({
+    ...item,
+    ...(allCustom ? { customChapters: ALL_CUSTOM_CHAPTERS } : {}),
+  }));
+}
+
 function clip(value: string, max: number): string {
   return [...value].slice(0, max).join("");
 }
@@ -37,6 +62,27 @@ const OUTCOME_BUILDERS = [
   () => "我设立跨地区医院和防疫体系，免费治疗与隔离规则已经开始执行",
 ] as const;
 
+const WILD_OUTCOME_FOUNDATIONS = [
+  () => "我宣布蓝色纸鹤成为唯一通行货币，旧币已由沿途粮站全部回收",
+  () => "我用巨型风筝铺成跨城信号网，任何命令与求救都能在一刻钟内公开传递",
+  () => "我让居民把屋瓦磨成镜面，以日光和火光向四方城镇连续广播现场消息",
+  () => "我开放所有官仓为昼夜公民食堂，军粮与民粮按同一份公开名册领取",
+  () => "我把车队改造成移动医院，敌我伤员都能凭伤情而非身份获得救治",
+  () => "我熔掉宫门前全部礼仪兵器铸成农具，并当场废除武职世袭",
+  () => "我把缴获的战马和运输权全部交给女兵营，后勤军令从此由她们公开签发",
+  (turn: TimelineTurn) => `我把${clip(turn.headline, 8)}涉及的全部技术图纸开源，任何工匠都可复制改进`,
+  () => "我用抽签建立跨阶层公民议会，重大军政命令必须经陌生人陪审团公开表决",
+  () => "我释放辖区所有奴隶与债役者，并让他们组成拥有选举权的公民消防军",
+  () => "我让每艘船和每座驿站免费递送私人书信，秘密命令已无法垄断消息",
+  () => "我把水钟、星表与粮价接成公共预警网，所有人每天都能核对官府预测",
+] as const;
+
+const WILD_OUTCOME_RIPPLES = [
+  "儿童巡查队同时接管账目复核，所有收支刻在城门石碑上",
+  "旧债当场清零，争议统一交给由平民与士兵混合组成的公开法庭",
+  "港口向流亡者开放，地图与航路被免费印发给每一支商队",
+] as const;
+
 export function buildSoakCustomOutcome(
   soakCase: LongRunSoakCase,
   runIndex: number,
@@ -49,4 +95,18 @@ export function buildSoakCustomOutcome(
   const base = builder(turn);
   const uniqueMarker = `${clip(seed.eventName, 8)}第${turn.chapter}令`;
   return `${clip(base, 58)}，史官称为“${uniqueMarker}”`;
+}
+
+export function buildWildSoakCustomOutcome(
+  soakCase: LongRunSoakCase,
+  runIndex: number,
+  customIndex: number,
+  turn: TimelineTurn,
+  seed: HistorySeed,
+): string {
+  const combinationIndex = runIndex * 12 + customIndex;
+  const foundation = WILD_OUTCOME_FOUNDATIONS[combinationIndex % WILD_OUTCOME_FOUNDATIONS.length];
+  const ripple = WILD_OUTCOME_RIPPLES[Math.floor(combinationIndex / WILD_OUTCOME_FOUNDATIONS.length) % WILD_OUTCOME_RIPPLES.length];
+  const uniqueMarker = `${clip(seed.eventName, 7)}·${soakCase.id.slice(-6)}·第${turn.chapter}令`;
+  return `${foundation(turn)}；${ripple}，史官称为“${uniqueMarker}”`;
 }

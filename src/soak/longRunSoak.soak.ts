@@ -15,7 +15,12 @@ import type { GameScenario } from "../game/reducer";
 import type { AlternatePresent, TimelineTurn } from "../game/schema";
 import type { DecisionChapter } from "../game/timelinePlan";
 import type { DeepSeekPartialDraft, DeepSeekRequestMetrics } from "../services/deepseek";
-import { buildSoakCustomOutcome, LONG_RUN_SOAK_CASES, type LongRunSoakCase } from "./soakCases";
+import {
+  buildSoakCustomOutcome,
+  buildWildSoakCustomOutcome,
+  selectLongRunSoakCases,
+  type LongRunSoakCase,
+} from "./soakCases";
 
 type SanitizedError = Readonly<{
   name: string;
@@ -71,8 +76,16 @@ type RunResult = {
 const OUTPUT_ROOT = path.resolve("tmp", "soak");
 const SOAK_LIMIT = Math.max(1, Math.min(10, Number(process.env.SOAK_LIMIT ?? 10)));
 const SOAK_CONCURRENCY = Math.max(1, Math.min(3, Number(process.env.SOAK_CONCURRENCY ?? 2)));
+const SOAK_CASE_IDS = (process.env.SOAK_CASE_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+const SOAK_ALL_CUSTOM = process.env.SOAK_ALL_CUSTOM === "1";
+const SOAK_ENFORCE_LATENCY = process.env.SOAK_ENFORCE_LATENCY === "1";
+const SOAK_MIN_SUCCESS_RATE = Math.max(0.5, Math.min(1, Number(process.env.SOAK_MIN_SUCCESS_RATE ?? 0.9)));
 const BATCH_ID = process.env.SOAK_BATCH?.trim() || new Date().toISOString().replace(/[:.]/g, "-");
-const selectedCases = LONG_RUN_SOAK_CASES.slice(0, SOAK_LIMIT);
+const selectedCases = selectLongRunSoakCases({
+  caseIds: SOAK_CASE_IDS,
+  limit: SOAK_LIMIT,
+  allCustom: SOAK_ALL_CUSTOM,
+});
 const usedCustomOutcomes = new Set<string>();
 
 function sanitizedError(error: unknown): SanitizedError {
@@ -192,8 +205,10 @@ async function runGame(
 
       if (isCustom) {
         const customIndex = soakCase.customChapters.indexOf(chapter);
-        const outcome = buildSoakCustomOutcome(soakCase, runIndex, customIndex, currentTurn, seed);
-        expect([...outcome].length).toBeLessThanOrEqual(80);
+        const outcome = SOAK_ALL_CUSTOM
+          ? buildWildSoakCustomOutcome(soakCase, runIndex, customIndex, currentTurn, seed)
+          : buildSoakCustomOutcome(soakCase, runIndex, customIndex, currentTurn, seed);
+        expect([...outcome].length).toBeLessThanOrEqual(160);
         expect(usedCustomOutcomes.has(outcome)).toBe(false);
         usedCustomOutcomes.add(outcome);
         run.customOutcomes.push(outcome);
@@ -298,7 +313,7 @@ function latencySummary(values: readonly number[]) {
 }
 
 describe("real DeepSeek twelve-node long-run stability", () => {
-  it("completes at least ninety percent of rewrite-heavy games", async () => {
+  it("meets the configured success, continuity, and latency thresholds", async () => {
     const outputDirectory = path.join(OUTPUT_ROOT, BATCH_ID);
     await mkdir(outputDirectory, { recursive: true });
     const results = new Array<RunResult>(selectedCases.length);
@@ -338,7 +353,14 @@ describe("real DeepSeek twelve-node long-run stability", () => {
       0,
     );
     const generatedTurns = successfulResults.reduce((sum, result) => sum + Math.max(0, result.completedChapters - 1), 0);
+    const plannedGeneratedTurns = selectedCases.length * 11;
+    const completedGeneratedTurns = results.reduce(
+      (sum, result) => sum + Math.max(0, result.completedChapters - 1),
+      0,
+    );
     const acceptance = {
+      runSuccessRateTarget: SOAK_MIN_SUCCESS_RATE,
+      generatedTurnSuccessRateTarget: SOAK_MIN_SUCCESS_RATE,
       runP50TargetMs: 326_000,
       turnP50TargetMs: 22_000,
       turnP90TargetMs: 35_000,
@@ -352,7 +374,11 @@ describe("real DeepSeek twelve-node long-run stability", () => {
       runs: results.length,
       successes,
       successRate: successes / results.length,
-      requiredSuccesses: Math.ceil(results.length * 0.9),
+      requiredSuccesses: Math.ceil(results.length * SOAK_MIN_SUCCESS_RATE),
+      allCustom: SOAK_ALL_CUSTOM,
+      plannedGeneratedTurns,
+      completedGeneratedTurns,
+      generatedTurnSuccessRate: completedGeneratedTurns / plannedGeneratedTurns,
       plannedCustomOutcomes,
       totalCustomOutcomes,
       successfulRunCustomOutcomes,
@@ -393,8 +419,12 @@ describe("real DeepSeek twelve-node long-run stability", () => {
 
     expect(new Set(selectedCases.map((item) => item.seedId)).size).toBe(selectedCases.length);
     selectedCases.forEach((item) => {
-      expect(item.customChapters.length).toBeGreaterThanOrEqual(4);
-      expect(item.customChapters.length).toBeLessThanOrEqual(5);
+      if (SOAK_ALL_CUSTOM) {
+        expect(item.customChapters).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      } else {
+        expect(item.customChapters.length).toBeGreaterThanOrEqual(4);
+        expect(item.customChapters.length).toBeLessThanOrEqual(5);
+      }
     });
     results.filter((result) => result.success).forEach((result) => {
       const soakCase = selectedCases.find((item) => item.id === result.id)!;
@@ -402,9 +432,10 @@ describe("real DeepSeek twelve-node long-run stability", () => {
     });
     expect(usedCustomOutcomes.size).toBe(totalCustomOutcomes);
     expect(successes).toBeGreaterThanOrEqual(summary.requiredSuccesses);
+    expect(summary.generatedTurnSuccessRate).toBeGreaterThanOrEqual(SOAK_MIN_SUCCESS_RATE);
     expect(actionDurations.every((duration) => duration < 50)).toBe(true);
     expect(requestMetrics.every((metric) => !metric.requestKind.includes("custom"))).toBe(true);
-    if (selectedCases.length === 10 && successes >= summary.requiredSuccesses) {
+    if ((SOAK_ENFORCE_LATENCY || selectedCases.length === 10) && successes >= summary.requiredSuccesses) {
       expect(summary.latency.fullRun.p50Ms).toBeLessThanOrEqual(acceptance.runP50TargetMs);
       expect(summary.latency.nextTurn.p50Ms).toBeLessThanOrEqual(acceptance.turnP50TargetMs);
       expect(summary.latency.nextTurn.p90Ms).toBeLessThanOrEqual(acceptance.turnP90TargetMs);

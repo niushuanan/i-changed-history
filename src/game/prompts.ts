@@ -171,6 +171,13 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
       requiredHistoricalAnchors: 2,
       recentScenesToAvoidRepeating: narrativeContext.recentScenes,
     },
+    submissionChecklist: {
+      narrative: "必须以句号、问号或叹号结束，最后一句拥有明确主语、动作与对象，不得停在把、将、让、为、向等未完成结构",
+      location: "若目标年份早于 1900 年，再检查一次地点中没有议事厅、会议室、办公室、指挥中心、控制室等现代通用空间名",
+      historicalAnchors: "数组必须有 2—4 项，且每一项都在本幕正文真实出现或被明确指向",
+      choiceIds: ["A", "B", "C"],
+      choices: "必须恰好三个完整对象；每个 label 都以具体对象或已完成结果收尾，禁止省略第三项或用悬空动词结尾",
+    },
   });
 }
 
@@ -257,6 +264,16 @@ export function buildWorldReportMessages(scenario: GameScenario, playedTurns: re
       plausibilityScore: "0-100 数值",
       plausibilityReason: "用完整句解释可信度，并以句号、问号或叹号收尾",
       shareLine: "用第一人称完整句概括这次改史，并以句号、问号或叹号收尾",
+    },
+    submissionChecklist: {
+      ordinaryLife2026: "硬边界仍是每项 12—18 字；为避免标点和计数误差，优先写成 12—16 字，逐项按汉字与句末标点计数后再提交",
+      ordinaryLife2026Examples: [
+        "孩子每天用纸鹤支付早餐费。",
+        "社区移动医院今晚免费接诊。",
+        "工人下班后公开核对粮仓账目。",
+      ],
+      posthumousChronicle: "身后时代 narrative 优先写成 35—88 字，保留完整句并为 96 字提示目标留出余量",
+      exactCounts: "posthumousChronicle 恰好四项，causalChains 恰好三项，ordinaryLife2026 恰好三项",
     },
   });
 }
