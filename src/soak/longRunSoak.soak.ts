@@ -370,7 +370,7 @@ describe("real DeepSeek twelve-node long-run stability", () => {
     };
     const summary = {
       batchId: BATCH_ID,
-      model: import.meta.env.VITE_DEEPSEEK_MODEL || "deepseek-v4-flash",
+      model: process.env.DEEPSEEK_MODEL || process.env.VITE_DEEPSEEK_MODEL || "deepseek-v4-flash",
       runs: results.length,
       successes,
       successRate: successes / results.length,

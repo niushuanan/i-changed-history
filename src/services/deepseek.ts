@@ -3,8 +3,9 @@
 import type { ChatMessage } from "../game/prompts";
 import { OBJ, parse as parsePartialJson } from "partial-json";
 
-const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
-const DEEPSEEK_MODEL = import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || "deepseek-v4-flash";
+const DEEPSEEK_PROXY_ENDPOINT = "/api/deepseek/completions";
+const DEEPSEEK_DIRECT_ENDPOINT = "https://api.deepseek.com/chat/completions";
+const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [800, 1_800] as const;
 const MAX_RETRY_DELAY_MS = 8_000;
@@ -73,6 +74,7 @@ export class DeepSeekError extends Error {
     message: string,
     public readonly status?: number,
     public readonly retryAfterMs?: number,
+    public readonly retryable = true,
   ) {
     super(message);
   }
@@ -91,15 +93,19 @@ export type CompletionOptions = {
 export type DeepSeekProgressStage = "connected" | "reasoning" | "writing" | "validating" | "repairing";
 export type DeepSeekProgress = { stage: DeepSeekProgressStage };
 
-function apiKey(): string {
-  const key = import.meta.env.VITE_DEEPSEEK_API_KEY?.trim();
-  if (!key) throw new DeepSeekError("missing_api_key", "未配置 DeepSeek API 密钥。");
-  return key;
+function nodeEnvironmentValue(name: string): string | undefined {
+  if (typeof process === "undefined") return undefined;
+  const value = process.env[name]?.trim();
+  return value || undefined;
 }
 
-function requestBody(messages: readonly ChatMessage[], reasoning: DeepSeekReasoning) {
+function directRequestBody(
+  messages: readonly ChatMessage[],
+  reasoning: DeepSeekReasoning,
+  model: string,
+) {
   const shared = {
-    model: DEEPSEEK_MODEL,
+    model,
     messages,
     response_format: { type: "json_object" },
     stream: true,
@@ -114,6 +120,55 @@ function requestBody(messages: readonly ChatMessage[], reasoning: DeepSeekReason
         reasoning_effort: "high",
         max_tokens: 8192,
       } as const;
+}
+
+function isBrowserTransport(): boolean {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+}
+
+function proxyRequestBody(
+  messages: readonly ChatMessage[],
+  options: CompletionOptions,
+  reasoning: DeepSeekReasoning,
+  requestKind: DeepSeekRequestKind,
+) {
+  return {
+    version: 1,
+    phase: options.phase,
+    requestKind,
+    reasoning,
+    messages,
+  } as const;
+}
+
+function transportRequest(
+  messages: readonly ChatMessage[],
+  options: CompletionOptions,
+  reasoning: DeepSeekReasoning,
+  requestKind: DeepSeekRequestKind,
+) {
+  if (isBrowserTransport()) {
+    return {
+      endpoint: DEEPSEEK_PROXY_ENDPOINT,
+      headers: { "Content-Type": "application/json" } as Record<string, string>,
+      body: proxyRequestBody(messages, options, reasoning, requestKind),
+    } as const;
+  }
+
+  const key = nodeEnvironmentValue("DEEPSEEK_API_KEY")
+    ?? nodeEnvironmentValue("VITE_DEEPSEEK_API_KEY");
+  if (!key) throw new DeepSeekError("missing_api_key", "未配置 DeepSeek API 密钥。");
+  const model = nodeEnvironmentValue("DEEPSEEK_MODEL")
+    ?? nodeEnvironmentValue("VITE_DEEPSEEK_MODEL")
+    ?? DEFAULT_DEEPSEEK_MODEL;
+  return {
+    endpoint: DEEPSEEK_DIRECT_ENDPOINT,
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    } as Record<string, string>,
+    body: directRequestBody(messages, reasoning, model),
+  } as const;
 }
 
 function clockNow(): number {
@@ -164,11 +219,13 @@ function errorForResponse(response: Response): DeepSeekError {
     return new DeepSeekError("forbidden", "当前 DeepSeek API 密钥没有调用权限。", status);
   }
   if (status === 429) {
+    const quotaReached = response.headers.get("X-History-Rate-Limit") === "quota";
     return new DeepSeekError(
       "rate_limited",
       "请求过于频繁，请稍后重新推演。",
       status,
       retryAfterMs,
+      !quotaReached,
     );
   }
   if (status >= 500) {
@@ -185,6 +242,7 @@ function errorForResponse(response: Response): DeepSeekError {
 function isRetryable(error: unknown): error is DeepSeekError {
   return (
     error instanceof DeepSeekError &&
+    error.retryable &&
     ["rate_limited", "service_unavailable", "network"].includes(error.code)
   );
 }
@@ -424,7 +482,6 @@ async function readCompletion(
 
 async function performRequest(
   messages: readonly ChatMessage[],
-  key: string,
   options: CompletionOptions,
   attempt: number,
 ): Promise<string> {
@@ -436,6 +493,7 @@ async function performRequest(
   const reasoning = options.reasoning ?? "high";
   const requestKind = options.requestKind
     ?? (options.phase === "ending" ? "ending-primary" : "turn-primary");
+  const transport = transportRequest(messages, options, reasoning, requestKind);
   const startedAt = clockNow();
   let responseHeadersMs: number | undefined;
   let responseStatus: number | undefined;
@@ -451,13 +509,10 @@ async function performRequest(
   try {
     let response: Response;
     try {
-      response = await fetch(DEEPSEEK_ENDPOINT, {
+      response = await fetch(transport.endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody(messages, reasoning)),
+        headers: transport.headers,
+        body: JSON.stringify(transport.body),
         signal: controller.signal,
       });
       responseHeadersMs = clockNow() - startedAt;
@@ -541,11 +596,9 @@ export async function requestCompletion(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
 ): Promise<string> {
-  const key = apiKey();
-
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await performRequest(messages, key, options, attempt + 1);
+      return await performRequest(messages, options, attempt + 1);
     } catch (error) {
       if (attempt < MAX_ATTEMPTS - 1 && isRetryable(error)) {
         await waitBeforeRetry(attempt + 1, error.retryAfterMs, options.signal);

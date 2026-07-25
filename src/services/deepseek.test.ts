@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { adjudicateCustomAction, generateEnding, generateNextTurn, StructuredGenerationError } from "../game/engine";
 import { parseTimelineTurn } from "../game/schema";
@@ -39,16 +39,23 @@ function streamedBytes(chunks: readonly Uint8Array[]) {
 }
 
 describe("DeepSeek transport and structured generation", () => {
-  beforeEach(() => { vi.stubEnv("VITE_DEEPSEEK_API_KEY", "test-key"); vi.stubEnv("VITE_DEEPSEEK_MODEL", "deepseek-v4-flash"); });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-  it("uses DeepSeek V4 Flash streaming JSON mode", async () => {
+  it("uses the versioned same-origin history proxy without exposing a bearer key", async () => {
     const fetcher = vi.fn().mockResolvedValue(completion()); vi.stubGlobal("fetch", fetcher);
     await expect(requestCompletion(messages, { phase: "turn" })).resolves.toBe('{"ok":true}');
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
-    expect(body).toMatchObject({ model: "deepseek-v4-flash", thinking: { type: "enabled" }, reasoning_effort: "high", response_format: { type: "json_object" }, stream: true, stream_options: { include_usage: true } });
-    expect(body.max_tokens).toBe(8192);
-    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer test-key");
+    expect(fetcher.mock.calls[0][0]).toBe("/api/deepseek/completions");
+    expect(body).toMatchObject({
+      version: 1,
+      phase: "turn",
+      requestKind: "turn-primary",
+      reasoning: "high",
+      messages,
+    });
+    expect(body).not.toHaveProperty("model");
+    expect(body).not.toHaveProperty("max_tokens");
+    expect(fetcher.mock.calls[0][1].headers).not.toHaveProperty("Authorization");
   });
 
   it("uses a real non-thinking fast path for playable continuation requests", async () => {
@@ -58,9 +65,9 @@ describe("DeepSeek transport and structured generation", () => {
     await requestCompletion(messages, { phase: "turn", reasoning: "fast", requestKind: "turn-primary" });
 
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
-    expect(body.thinking).toEqual({ type: "disabled" });
-    expect(body).not.toHaveProperty("reasoning_effort");
-    expect(body.max_tokens).toBe(8192);
+    expect(body.reasoning).toBe("fast");
+    expect(body.requestKind).toBe("turn-primary");
+    expect(body).not.toHaveProperty("thinking");
   });
 
   it("recovers from a short 503 window with jittered backoff", async () => {
@@ -94,6 +101,21 @@ describe("DeepSeek transport and structured generation", () => {
 
     await expect(pending).resolves.toBe('{"ok":true}');
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a hard quota response from the history proxy", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, {
+      status: 429,
+      headers: {
+        "Retry-After": "3600",
+        "X-History-Rate-Limit": "quota",
+      },
+    }));
+    vi.stubGlobal("fetch", fetcher);
+
+    await expect(requestCompletion(messages, { phase: "turn", reasoning: "fast" }))
+      .rejects.toMatchObject({ code: "rate_limited", status: 429, retryable: false });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry a non-transient client error", async () => {
@@ -175,7 +197,11 @@ describe("DeepSeek transport and structured generation", () => {
   it("enables high effort reasoning for the final alternate present", async () => {
     const fetcher = vi.fn().mockResolvedValue(completion()); vi.stubGlobal("fetch", fetcher);
     await requestCompletion(messages, { phase: "ending" });
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ thinking: { type: "enabled" }, reasoning_effort: "high", max_tokens: 8192 });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
+      phase: "ending",
+      requestKind: "ending-primary",
+      reasoning: "high",
+    });
   });
 
   it("generates the requested continuation with authoritative previous echo", async () => {
@@ -243,9 +269,9 @@ describe("DeepSeek transport and structured generation", () => {
     expect(diagnostics[0].errors.join(" ")).toContain("headline");
     expect(JSON.stringify(diagnostics)).not.toContain(second.narrative);
     const bodies = fetcher.mock.calls.map((call) => JSON.parse(call[1].body));
-    expect(bodies[0].thinking).toEqual({ type: "disabled" });
-    expect(bodies[1].thinking).toEqual({ type: "disabled" });
-    expect(bodies[2]).toMatchObject({ thinking: { type: "enabled" }, reasoning_effort: "high" });
+    expect(bodies[0].reasoning).toBe("fast");
+    expect(bodies[1].reasoning).toBe("fast");
+    expect(bodies[2]).toMatchObject({ reasoning: "high" });
   });
 
   it("reports a terminal recovery failure without inventing a local scene", async () => {

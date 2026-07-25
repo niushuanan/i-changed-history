@@ -2,7 +2,13 @@
 .superpowers/
 node_modules/
 dist/
+.next/
+.vinext/
+.wrangler/
 .env.local
+.env
+.env.*
+!.env.example
 playwright-report/
 .playwright-mcp/
 .playwright-cli/

@@ -5,14 +5,18 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT_FILES = [
   ".env.example",
+  ".openai/hosting.json",
   ".npmrc",
-  "index.html",
+  "drizzle.config.ts",
+  "next.config.ts",
   "package.json",
   "package-lock.json",
   "tsconfig.json",
-  "vite.config.mjs",
+  "vite.config.ts",
+  "vitest.config.mjs",
+  "vitest.soak.config.mjs",
 ];
-const SOURCE_DIRECTORIES = [".github", "src", "scripts"];
+const SOURCE_DIRECTORIES = [".github", "app", "build", "db", "src", "scripts", "worker"];
 const TEXT_EXTENSIONS = new Set([".css", ".html", ".js", ".json", ".jsx", ".mjs", ".ts", ".tsx", ".yml", ".yaml"]);
 
 const machinePathPatterns = [

@@ -4,7 +4,7 @@
 
 《哎！我改变了历史？》是一款可玩的移动端 AI 穿越历史游戏。玩家从按年份排列的 100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）选择入口；中国节点全部早于 1949 年，不包含 1949 年及以后发生在中国的事件，也不包含以中国共产党、中华人民共和国或“新中国”为主题的政治题材，苏联史仍属于允许的世界史范围。玩家可在横向时间胶片与纵向两列网格间切换，并在网格中搜索或按年代、地域、主题筛选。进入节点后立即装载该卡片固定且经过 schema 校验的第一幕；完成第一次决定后，DeepSeek 在同一个有固定姓名和身体的历史主角一生中实时生成第 2 至第 12 次重大决策。第 12 次选择后主角死亡，游戏生成两份互补结局：贯穿十二节点的《史记》式人物列传（白话与文言），以及延伸至 2026 的小说式蝴蝶效应报告。每个节点都可不限次数打开“直接改写”，最终提交的一次完成结果立即成为该节点正史。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
 
-当前版本是本地纯前端应用：在浏览器直接调用 DeepSeek `deepseek-v4-flash`，用 Zod 校验结构化输出，用前端公式计算历史偏离度，用本地音频构建史诗氛围，并可将两页结局按完整滚动尺寸导出为 2x PNG；桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。密钥只放在被 Git 忽略的 `.env.local`。
+当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，原样流式转发 SSE，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子限额；浏览器产物不再包含 API Key。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地音频继续构建史诗氛围；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。游戏存档仍按设备和站点域名保存在浏览器 `localStorage`。
 
 ## 2. 代码结构是什么
 
@@ -12,6 +12,10 @@
 - `src/game/`：游戏领域层，包含单一主角一生 12 决策时间计划、不可撤销世界正史、重大节点编排、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
 - `src/hooks/`：`useGame.ts` 负责请求取消、预生成、即时回响、存储、音频和重试编排。
 - `src/services/`：DeepSeek 传输、版本化本地存储、史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
+- `app/`：vinext App Router 页面、中文 metadata，以及禁止服务端预渲染现有浏览器游戏的 client-only 边界。
+- `worker/`：Sites Cloudflare Worker 入口、固定协议校验、D1 用量限制、DeepSeek 服务端密钥注入和透明 SSE 转发。
+- `db/` 与 `drizzle/`：AI 请求限额表定义及 Sites 部署迁移。
+- `build/` 与 `.openai/hosting.json`：Sites 构建元数据打包和 D1 / R2 逻辑绑定。
 - `src/screens/` 和 `src/components/`：从历史档案选择、同一主角一生决策到死亡与 2026 身后历史报告的完整界面。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
@@ -20,12 +24,14 @@
 - `public/assets/` 与 `public/audio/`：历史场景图、CC0 史诗配乐及授权记录。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
-实际数据流是：在胶片或筛选网格中选择真实历史卡 -> 客户端同步装载该卡固定第一幕与固定主角 -> 玩家选择行动或直接写入正史 -> 客户端把姓名、年龄、人生阶段和全部决定固化为不可撤销 `WorldCanon` -> 从第 2 幕起，客户端把全部决定压成分层叙事上下文，DeepSeek 通过 SSE 开放推演同一主角下一次重大冲突 -> 本地只注入客户端权威字段并归一无害格式漂移，Zod 校验人物连续性与因果账本；缺失可见文案时仅让 AI 补回失败字段 -> 前端展示“你的时间线 / 正史原本 / 为何改变”三行历史对照 -> 第 12 次决定 -> 主角死亡 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 客户端合并 -> 当前报告完整 2x PNG。
+实际数据流是：在胶片或筛选网格中选择真实历史卡 -> 客户端同步装载该卡固定第一幕与固定主角 -> 玩家选择行动或直接写入正史 -> 客户端把姓名、年龄、人生阶段和全部决定固化为不可撤销 `WorldCanon` -> 从第 2 幕起，客户端把全部决定压成分层叙事上下文并提交同源固定协议 -> Worker 校验协议与用量后向 DeepSeek 发起 SSE 开放推演 -> 浏览器继续按原流式解析器呈现真实进度 -> 本地只注入客户端权威字段并归一无害格式漂移，Zod 校验人物连续性与因果账本；缺失可见文案时仅让 AI 补回失败字段 -> 前端展示“你的时间线 / 正史原本 / 为何改变”三行历史对照 -> 第 12 次决定 -> 主角死亡 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 客户端合并 -> 当前报告完整 2x PNG。
 
 ## 3. 关键入口在哪里
 
-- `index.html`：Vite 页面入口。
-- `src/main.tsx`：React 挂载入口。
+- `app/page.tsx` 与 `app/game-client.tsx`：Sites 页面入口；用 `next/dynamic(..., { ssr: false })` 保证现有游戏只在浏览器挂载。
+- `app/layout.tsx`：中文根布局、站点 metadata 和两份全局样式入口。
+- `worker/index.ts`：Cloudflare Worker 总入口。
+- `worker/deepseek-proxy.ts`：固定游戏协议、DeepSeek 服务端代理、SSE 透传、取消和 D1 用量保护入口。
 - `src/App.tsx`：根组件，负责历史胶片入口、游戏 phase 切换和结局导出。
 - `src/hooks/useGame.ts`：运行时编排入口。
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
@@ -34,12 +40,22 @@
 - `src/data/historySeeds.ts`：历史卡牌数据入口。
 - `src/data/historyCatalog.ts`：历史网格的搜索、年代、地域与主题筛选入口。
 - `src/services/share.ts`：完整报告图片准备、移动系统分享、桌面下载和 object URL 回收入口。
-- `vite.config.mjs`：开发服务器和 Vitest jsdom 配置。
-- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 命令入口。
+- `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
+- `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测继续读取服务端变量直连模型。
+- `.openai/hosting.json`：Sites 项目 ID 与 D1 / R2 逻辑绑定，绝不保存运行时密钥。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 和 `npm run db:generate` 命令入口。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-25 11:41 - 将完整游戏迁入可公开分享的 Sites 托管架构
+
+- 本次任务：把现有《哎！我改变了历史？》完整创建为可分享网站，不牺牲 100 卡浏览、固定第一幕、十二次决策、玩家正史、流式 AI、刷新恢复、配乐、双报告和 PNG 分享能力。
+- 改了哪些文件：新增 `app/`、`worker/`、`build/`、`db/`、`drizzle/`、`.openai/hosting.json`、`vite.config.ts`、`vitest.config.mjs`、`next.config.ts` 与 `scripts/clean-build.mjs`；修改 `package.json`、`package-lock.json`、`tsconfig.json`、`.env.example`、`.gitignore`、`src/game/{deepseekProtocol,prompts}.ts`、`src/services/{deepseek,deepseek.test}.ts`、`src/soak/longRunSoak.soak.ts`、`vitest.soak.config.mjs`、`scripts/check-portability.mjs`、`README.md` 与 `PROJECT_CONTEXT.md`；删除旧 `vite.config.mjs`。
+- 改了什么：在 vinext App Router 外壳中用真正 `ssr:false` 的 client-only 边界复用整个现有 React 游戏；把浏览器直连 DeepSeek 改成版本化同源协议，由 Worker 固定重建模型、流式 JSON、8192 token 与 thinking 参数并注入运行时 secret；原样透传 SSE、状态、`Retry-After` 和取消；新增 D1 分钟突发、匿名会话、IP 与全站日用量限制，硬额度 429 不再被客户端重复重试；Node soak 继续使用服务端变量直连官方端点；构建前强制清理旧 `dist`，避免历史 Vite bundle 把旧 Key 混入发布包。Sites 项目 ID 已固化在 `.openai/hosting.json`，访问模式设为公开，DeepSeek Key 与限额盐值只写入 Sites 生产环境 secret。普通回归的单用例超时提高到 15 秒，使完整十二幕 jsdom 路径在共享 CI 资源上不会因略超 5 秒被误判，同时不改变任何产品等待或网络时限。
+- 为什么这样改：原纯前端结构在本地可用，但公开分享会让任何访问者从浏览器 bundle 读取并消耗 DeepSeek Key；直接让现有 Client Component 参与服务端预渲染又会撞上 `localStorage`、`navigator` 与 `document`。本次只替换托管边界与网络出口，既保护密钥和额度，也避免重写成熟状态机造成玩法回归。
+- 影响了哪些模块：影响正式页面入口、构建与部署、DeepSeek transport、运行时密钥、用量保护、长测环境加载和维护文档；不改变历史牌库、固定开场、玩家正史、prompt 内容、schema、reducer、十二节点节奏、视觉、配乐、浏览器存档、双报告或导出交互。迁移后 32 个 Vitest 文件 347/347 通过，TypeScript、96 个运行时文件可移植性扫描、Sites 生产构建和 `git diff --check` 通过；`dist/server/index.js`、D1 migration、100 张历史 WebP、音频和 wordmark 全部存在，完整构建产物扫描确认没有真实 DeepSeek Key；本地 Worker 实测返回 200 SSE，并在完整响应结束前收到首个流式字节。
 
 ### 2026-07-19 16:42 - 三历史十二轮全自定义稳定性与提速验收
 

@@ -1,4 +1,10 @@
 import { defineConfig } from "vitest/config";
+import { loadEnv } from "vite";
+
+const loadedEnvironment = loadEnv("test", process.cwd(), "");
+for (const [key, value] of Object.entries(loadedEnvironment)) {
+  process.env[key] ??= value;
+}
 
 export default defineConfig({
   test: {
@@ -9,4 +15,3 @@ export default defineConfig({
     maxConcurrency: 1,
   },
 });
-

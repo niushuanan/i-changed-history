@@ -37,8 +37,9 @@
 
 ## 技术结构
 
-- React 19 + TypeScript + Vite
-- DeepSeek Chat Completions，SSE 流式响应、高推理模式、8192 token 输出上限
+- React 19 + TypeScript + vinext（Next App Router / Vite）
+- Sites / Cloudflare Worker 同源代理 DeepSeek Chat Completions，SSE 流式响应、高推理模式、8192 token 输出上限
+- D1 匿名会话、IP 与全站三层用量限制；浏览器永远拿不到 DeepSeek API Key
 - Zod 结构校验与字段级 AI 修复
 - reducer 驱动的可恢复游戏状态机
 - localStorage 存档、Web Audio 配乐、完整滚动尺寸的 2x PNG 结局导出
@@ -47,6 +48,8 @@
 
 主要入口：
 
+- `app/page.tsx` 与 `app/game-client.tsx`：Sites 页面入口与纯浏览器游戏边界
+- `worker/index.ts` 与 `worker/deepseek-proxy.ts`：Cloudflare Worker、透明流式模型代理和用量保护
 - `src/data/historySeeds.ts`：100 张历史卡（中国 58 / 世界 42；中国节点全部早于 1949 年，并排除中共、中华人民共和国与“新中国”政治题材；苏联史保留在世界史中）
 - `src/data/historyCatalog.ts`：网格搜索、年代、地域和主题筛选
 - `src/screens/SeedPickerScreen.tsx`：横向胶片与两列网格的共享节点浏览器
@@ -54,7 +57,7 @@
 - `src/game/reducer.ts`：游戏状态机
 - `src/game/prompts.ts`：续幕、自由改写和结局提示协议
 - `src/game/engine.ts`：模型生成、校验和修复
-- `src/services/deepseek.ts`：唯一 DeepSeek 网络出口
+- `src/services/deepseek.ts`：浏览器同源代理传输、SSE 解析与 Node 长测直连传输
 - `src/services/share.ts`：完整报告图片准备、移动系统分享与桌面下载
 - `src/hooks/useGame.ts`：请求、存档、音频与恢复编排
 
@@ -62,7 +65,7 @@
 
 准备环境：
 
-- Node.js 20、22，或 24 及以上版本
+- Node.js 22.13 或更高版本
 - npm 10 及以上版本
 - 可用的 DeepSeek API Key
 
@@ -78,8 +81,10 @@ cp .env.example .env.local
 编辑 `.env.local`：
 
 ```dotenv
-VITE_DEEPSEEK_API_KEY=你的_DeepSeek_API_Key
-VITE_DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_API_KEY=你的_DeepSeek_API_Key
+DEEPSEEK_MODEL=deepseek-v4-flash
+RATE_LIMIT_SALT=一段只放在服务端的随机长字符串
+DEEPSEEK_GLOBAL_DAILY_LIMIT=1000
 ```
 
 启动：
@@ -99,7 +104,7 @@ notepad .env.local
 npm run dev
 ```
 
-Vite 会在终端显示访问地址，默认通常为 `http://localhost:5173/`。项目不依赖作者电脑的绝对路径，可以放在任意普通目录、中文目录或带空格目录中运行。
+vinext 会在终端显示访问地址，默认通常为 `http://localhost:3000/`。项目不依赖作者电脑的绝对路径，可以放在任意普通目录、中文目录或带空格目录中运行。
 
 ## 验证
 
@@ -112,13 +117,13 @@ npm run build
 
 `check:portability` 会扫描运行时文件并拒绝开发者个人目录。GitHub Actions 会在 Windows 和 Linux 上执行 `npm ci`、测试、类型检查和生产构建。
 
-需要真实验证十二节点、直接改写和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。该命令会真实调用模型并把脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行。
+需要真实验证十二节点、直接改写和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。长测在 Node 环境读取同一组服务端变量并直连 DeepSeek，把脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行。
 
 ## 密钥与部署
 
-`.env.local` 已加入 `.gitignore`，不会提交到 GitHub。但这是纯前端比赛原型，`VITE_*` 变量最终会进入浏览器代码，因此浏览器使用者能够查看 API Key。
+`.env.local` 已加入 `.gitignore`，不会提交到 GitHub。DeepSeek Key 只由 Worker 在请求时读取；浏览器只访问同源 `/api/deepseek/completions`，不会携带或下载 Bearer Key。构建前会清空旧产物，避免历史 Vite bundle 把旧 Key 带进发布包。
 
-本地试玩请使用限额测试 Key。若要公开部署，必须把 DeepSeek 调用迁移到服务端代理，并在服务端增加鉴权、限流、用量控制和密钥轮换。
+Sites 部署通过运行时环境变量保存 Key 和限额盐值，不把秘密写进 `.openai/hosting.json`。代理只接受本游戏的固定协议，保留 SSE、取消、上游状态与 `Retry-After`，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子计数。公开分享仍建议使用单独的低预算 Key，并在 DeepSeek 账户侧设置余额上限和告警。
 
 ## License
 

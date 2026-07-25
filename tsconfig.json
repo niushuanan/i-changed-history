@@ -16,5 +16,19 @@
     "target": "ES2022",
     "types": ["vitest/globals"]
   },
-  "include": ["src", "vite.config.mjs"]
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "app",
+    "build",
+    "db",
+    "src",
+    "worker",
+    "drizzle.config.ts",
+    "next.config.ts",
+    "vite.config.ts",
+    "vitest.config.mjs",
+    "vitest.soak.config.mjs"
+  ],
+  "exclude": ["node_modules", "dist"]
 }
