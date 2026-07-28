@@ -2,6 +2,31 @@
 
 import type { ChatMessage } from "../game/prompts";
 import { OBJ, parse as parsePartialJson } from "partial-json";
+import {
+  DeepSeekError,
+  type CompletionOptions,
+  type DeepSeekErrorCode,
+  type DeepSeekPartialDraft,
+  type DeepSeekProgress,
+  type DeepSeekProgressStage,
+  type DeepSeekReasoning,
+  type DeepSeekRequestKind,
+  type DeepSeekRequestMetrics,
+  type DeepSeekUsage,
+} from "./deepseek-contract";
+
+export { DeepSeekError } from "./deepseek-contract";
+export type {
+  CompletionOptions,
+  DeepSeekErrorCode,
+  DeepSeekPartialDraft,
+  DeepSeekProgress,
+  DeepSeekProgressStage,
+  DeepSeekReasoning,
+  DeepSeekRequestKind,
+  DeepSeekRequestMetrics,
+  DeepSeekUsage,
+} from "./deepseek-contract";
 
 const DEEPSEEK_PROXY_ENDPOINT = "/api/deepseek/completions";
 const DEEPSEEK_DIRECT_ENDPOINT = "https://api.deepseek.com/chat/completions";
@@ -10,88 +35,6 @@ const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [800, 1_800] as const;
 const MAX_RETRY_DELAY_MS = 8_000;
 const MAX_ATTEMPTS = RETRY_BASE_DELAYS_MS.length + 1;
-
-type DeepSeekPhase = "turn" | "ending";
-export type DeepSeekReasoning = "fast" | "high";
-export type DeepSeekRequestKind =
-  | "turn-primary"
-  | "turn-repair"
-  | "turn-recovery"
-  | "ending-primary"
-  | "ending-repair"
-  | "ending-recovery";
-
-export type DeepSeekPartialDraft = Readonly<Partial<{
-  headline: string;
-  narrative: string;
-  location: string;
-  role: string;
-  immediateObjective: string;
-  timePressure: string;
-}>>;
-
-export type DeepSeekUsage = Readonly<{
-  promptTokens?: number;
-  promptCacheHitTokens?: number;
-  promptCacheMissTokens?: number;
-  completionTokens?: number;
-  reasoningTokens?: number;
-  totalTokens?: number;
-}>;
-
-export type DeepSeekRequestMetrics = Readonly<{
-  phase: DeepSeekPhase;
-  requestKind: DeepSeekRequestKind;
-  reasoning: DeepSeekReasoning;
-  attempt: number;
-  outcome: "success" | "error";
-  responseHeadersMs?: number;
-  firstReasoningTokenMs?: number;
-  firstContentTokenMs?: number;
-  totalMs: number;
-  status?: number;
-  usage?: DeepSeekUsage;
-  errorCode?: DeepSeekErrorCode;
-}>;
-
-export type DeepSeekErrorCode =
-  | "missing_api_key"
-  | "unauthorized"
-  | "forbidden"
-  | "rate_limited"
-  | "service_unavailable"
-  | "network"
-  | "timeout"
-  | "aborted"
-  | "invalid_response"
-  | "request_failed";
-
-export class DeepSeekError extends Error {
-  readonly name = "DeepSeekError";
-
-  constructor(
-    public readonly code: DeepSeekErrorCode,
-    message: string,
-    public readonly status?: number,
-    public readonly retryAfterMs?: number,
-    public readonly retryable = true,
-  ) {
-    super(message);
-  }
-}
-
-export type CompletionOptions = {
-  phase: DeepSeekPhase;
-  reasoning?: DeepSeekReasoning;
-  requestKind?: DeepSeekRequestKind;
-  signal?: AbortSignal;
-  onProgress?: (progress: DeepSeekProgress) => void;
-  onPartial?: (draft: DeepSeekPartialDraft) => void;
-  onMetrics?: (metrics: DeepSeekRequestMetrics) => void;
-};
-
-export type DeepSeekProgressStage = "connected" | "reasoning" | "writing" | "validating" | "repairing";
-export type DeepSeekProgress = { stage: DeepSeekProgressStage };
 
 function nodeEnvironmentValue(name: string): string | undefined {
   if (typeof process === "undefined") return undefined;

@@ -144,7 +144,9 @@ function mergeAiFieldPatch(originalRaw: string, patchRaw: string, fields: readon
   const originalRecord = original as Record<string, unknown>;
   const patchRecord = patch as Record<string, unknown>;
   const acceptedPatch = Object.fromEntries(
-    fields.filter((field) => Object.hasOwn(patchRecord, field)).map((field) => [field, patchRecord[field]]),
+    fields
+      .filter((field) => Object.prototype.hasOwnProperty.call(patchRecord, field))
+      .map((field) => [field, patchRecord[field]]),
   );
   return JSON.stringify({ ...originalRecord, ...acceptedPatch });
 }
@@ -340,7 +342,7 @@ function expectedYearLabel(scenario: GameScenario, chapter: DecisionChapter): st
 function expectedPreviousEcho(
   playedTurns: readonly PlayedTurn[],
 ): NonNullable<TimelineTurn["previousEcho"]> | undefined {
-  const previous = playedTurns.at(-1);
+  const previous = playedTurns[playedTurns.length - 1];
   if (!previous) return undefined;
   return previous.resolvedEcho;
 }
@@ -439,7 +441,7 @@ export async function generateEnding(
     playerAuthored: playedTurn.playerAuthored === true || playedTurn.selectedChoiceId === "custom",
   }));
   const firstTurn = playedTurns[0]?.turn;
-  const finalTurn = playedTurns.at(-1)?.turn;
+  const finalTurn = playedTurns[playedTurns.length - 1]?.turn;
   if (!firstTurn || !finalTurn || playedTurns.length !== 12) {
     throw new StructuredGenerationError("biography_report", new Error("结局需要完整的十二次决定"));
   }

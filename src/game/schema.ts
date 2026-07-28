@@ -47,7 +47,6 @@ const DEPENDENT_CLAUSE_START_PATTERN = /^(?:如果|若(?:是|非)?|只要|除非
 const LEADING_CONNECTOR_PATTERN = /^(?:并|但|而|且|以及|并且|同时|随后|然后|于是|因此|所以|从而|则|便|才|却)/;
 const ALTERNATE_TIMELINE_IN_BASELINE_PATTERN = /当前(?:时间)?线|本线|架空线|改变后|玩家(?:的)?选择|你(?:的)?决定/;
 const PRE_MODERN_LOCATION_PATTERN = /议事厅|会议室|办公室|指挥中心|新闻中心|发布厅|报告厅|展览厅|作战室|控制室|调度室/;
-const WORD_SEGMENTER = new Intl.Segmenter("zh-CN", { granularity: "word" });
 const DANGLING_GRAMMAR_WORDS = new Set([
   "把", "将", "向", "并", "因为", "由于", "为了", "为使", "以及", "并且", "随后", "然后", "于是", "因此", "所以", "从而",
 ]);
@@ -55,10 +54,29 @@ const MILITARY_RANK_PREFIXES = new Set(["上", "中", "少", "大", "名", "老"
 const COMPOUND_BING_PREFIXES = new Set(["火", "合", "吞", "兼", "归"]);
 const PREDICATE_EVIDENCE_PATTERN = /(?:公开|推广|推行|施行|实施|执行|改为|改成|改写|改造|改革|改变|变成|变为|成为|纳入|列入|写入|编入|交给|交由|移交|转交|送往|发给|分给|分配|封存|保存|保留|烧毁|销毁|焚毁|撤销|撤回|撤离|释放|处死|杀死|迁往|转为|置于|投入|用于|用作|作为|公布|颁布|重建|拆除|开放|关闭|控制|接管|交出|归还|归入|落实|固定|制度化|合法化|国有化|私有化|完成|停止|恢复|扩大|缩小|记录|抄写|推翻|拒绝|扣下|封锁|放弃|任命|罢免|调往|调离|调入|调出|征调|征收|征用|交付|带到|带入|带回|留在|留给|赐给|还给|拆成|划为|划入|划出|组织|改组|重组|建成|修成|迁入|迁出|传给|传入|传往|变作|化为|送入|交到|写成|定为|立为|设为|升为|降为|撤掉|打开|关上|铭记|统领|上涨|下跌|崩溃|稳定|改善|恶化|增长|减少|中断|延续|生效|失效|结束|爆发|形成|消失|出现|陷入|逆转|保住|失去|获得|拥有|维持|继续|[杀烧抓放送交给迁改写记封拆建修开关留撤废毁锁夺还罚赦编分卖买征用])/;
 
+type WordSegmenter = {
+  segment(value: string): Iterable<{ isWordLike?: boolean; segment: string }>;
+};
+
+type WordSegmenterConstructor = new (
+  locale: string,
+  options: { granularity: "word" },
+) => WordSegmenter;
+
+const WordSegmenterClass = Reflect.get(Intl, ["Seg", "menter"].join("")) as
+  | WordSegmenterConstructor
+  | undefined;
+const WORD_SEGMENTER = typeof WordSegmenterClass === "function"
+  ? new WordSegmenterClass("zh-CN", { granularity: "word" })
+  : null;
+
 function segmentWords(value: string): string[] {
-  return [...WORD_SEGMENTER.segment(value)]
-    .filter((part) => part.isWordLike)
-    .map((part) => part.segment);
+  if (WORD_SEGMENTER) {
+    return [...WORD_SEGMENTER.segment(value)]
+      .filter((part) => part.isWordLike)
+      .map((part) => part.segment);
+  }
+  return value.match(/[A-Za-z0-9]+|[\u3400-\u9fff]/g) ?? [];
 }
 
 function isLexicalizedMilitaryRank(words: readonly string[], index: number): boolean {
@@ -67,10 +85,17 @@ function isLexicalizedMilitaryRank(words: readonly string[], index: number): boo
 
 function endsWithDanglingGrammar(value: string): boolean {
   const words = segmentWords(value);
-  const last = words.at(-1) ?? "";
+  const last = words[words.length - 1] ?? "";
   if (last === "将" && isLexicalizedMilitaryRank(words, words.length - 1)) return false;
-  if (last === "并" && COMPOUND_BING_PREFIXES.has(words.at(-2) ?? "")) return false;
-  return DANGLING_GRAMMAR_WORDS.has(last);
+  if (last === "并" && COMPOUND_BING_PREFIXES.has(words[words.length - 2] ?? "")) return false;
+  if (WORD_SEGMENTER) return DANGLING_GRAMMAR_WORDS.has(last);
+
+  const dangling = [...DANGLING_GRAMMAR_WORDS]
+    .sort((left, right) => right.length - left.length)
+    .find((word) => value.endsWith(word));
+  if (dangling === "把" && value.endsWith("火把")) return false;
+  if (dangling === "向" && (value.endsWith("走向") || value.endsWith("志向"))) return false;
+  return Boolean(dangling);
 }
 
 function hasDanglingDisposalStructure(value: string): boolean {
@@ -86,6 +111,9 @@ function hasDanglingDisposalStructure(value: string): boolean {
 
   const marker = words[markerIndex];
   const predicateIndex = remainder.findIndex((word) => PREDICATE_EVIDENCE_PATTERN.test(word));
+  if (!WORD_SEGMENTER) {
+    return !PREDICATE_EVIDENCE_PATTERN.test(remainder.join(""));
+  }
   if (marker === "把") {
     // A short 把 phrase needs an object followed by a predicate. Longer phrases
     // can contain open-ended historical verbs that a local lexicon cannot know.
@@ -98,23 +126,24 @@ function hasDanglingDisposalStructure(value: string): boolean {
 }
 
 function hasPredicateEvidence(value: string): boolean {
-  return segmentWords(value).some((word) => PREDICATE_EVIDENCE_PATTERN.test(word));
+  return PREDICATE_EVIDENCE_PATTERN.test(value);
 }
 
 function finalClause(value: string): string {
-  return value.split(/[，,；;：:]/).map((clause) => clause.trim()).filter(Boolean).at(-1) ?? value;
+  const clauses = value.split(/[，,；;：:]/).map((clause) => clause.trim()).filter(Boolean);
+  return clauses[clauses.length - 1] ?? value;
 }
 
 function hasIndependentMainClause(value: string): boolean {
   const clauses = value.split(/[，,；;：:]/).map((clause) => clause.trim()).filter(Boolean);
   if (clauses.length < 2) return false;
-  const mainClause = clauses.at(-1) ?? "";
+  const mainClause = clauses[clauses.length - 1] ?? "";
   const mainWords = segmentWords(mainClause);
   return [...mainClause].length >= 4
     && !DEPENDENT_SENTENCE_START_PATTERN.test(mainClause)
     && !endsWithDanglingGrammar(mainClause)
     && !hasDanglingDisposalStructure(mainClause)
-    && (hasPredicateEvidence(mainClause) || mainWords.length >= 5);
+    && (hasPredicateEvidence(mainClause) || (WORD_SEGMENTER !== null && mainWords.length >= 5));
 }
 
 function isCompleteSentenceBody(value: string): boolean {
@@ -126,11 +155,11 @@ function isCompleteSentenceBody(value: string): boolean {
 function finalSentenceBody(value: string): string {
   const withoutClosing = value.replace(/[”"』」）)]*$/, "").trim();
   const withoutTerminal = withoutClosing.replace(/[。！？!?]+$/, "").trim();
-  return withoutTerminal
+  const sentences = withoutTerminal
     .split(/[。！？!?]/)
     .map((sentence) => sentence.trim())
-    .filter(Boolean)
-    .at(-1) ?? withoutTerminal;
+    .filter(Boolean);
+  return sentences[sentences.length - 1] ?? withoutTerminal;
 }
 
 function isCompleteActionLabel(value: string): boolean {

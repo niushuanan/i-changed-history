@@ -2,6 +2,8 @@
 .superpowers/
 node_modules/
 dist/
+dist-interactive/
+release/
 .next/
 .vinext/
 .wrangler/

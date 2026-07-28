@@ -49,6 +49,14 @@
 
 ## 4. 最近改了什么
 
+### 2026-07-28 21:05 - 新增互动空间专用离线构建与平台 AI 传输
+
+- 本次任务：在独立 `codex/interactive-space-adaptation` worktree 中，把完整《哎！我改变了历史？》适配为抖音互动空间可上传作品；工作人员已明确无需删减内容节点、无需限制文字录入且允许包体超过 8MB，因此保留全部 100 个历史入口、直接改写、十二次决定、完整双报告、音乐和本地历史美术。
+- 改了哪些文件：新增 `vite.interactive.config.ts`、`.trae/mcp.json`、`src/services/{deepseek-contract,deepseek.interactive,deepseek.interactive.test,htmlToImage.interactive}.ts`、`scripts/{prepare-interactive-build,create-interactive-icon}.mjs`；修改 `package.json`、`.gitignore`、`index.html`、`scripts/check-portability.mjs`、`src/services/deepseek.ts`、`src/App.tsx`、`src/data/fixedOpenings.ts`、`src/game/{engine,narrativeContext,prompts,schema,worldCanon}.ts` 与 `AGENTS.md`。
+- 改了什么：新增完全相对路径的 `dist-interactive` 构建目标，通过别名只在互动空间包中把原同源 HTTP/SSE 传输替换为 `tt.callAIChatCompletion`，固定调用用户确认的 `deepseek-v4-flash`、8192 token、平台 SSE 增量解析、90 秒超时、有限重试、取消、刷新恢复和字段修复；把 DeepSeek 类型契约抽成共享模块，原 Sites / Worker 传输逻辑保持不变。互动空间包不含任何 API Key、远程 URL、普通网络请求或外部资源；报告图片改用本地 DOM/SVG/Canvas 渲染，并先把已加载的本地图片和 CSS 背景在内存中嵌入，避免 `foreignObject` 让 Canvas 误判跨域，仍导出完整 2x PNG。补充 Safari 13.4 不支持的 `.at`、`Object.hasOwn` 与 `Intl.Segmenter` 兼容路径，构建后移除非运行时授权清单并只把根资源路径改成相对路径。项目和 Codex 全局均已写入比赛方要求的 `interative_content_mcp`；发布 ZIP 和 300×300 项目字标图标已生成到被 Git 忽略的 `release/`。
+- 为什么这样改：互动空间要求作品资源完全内置、禁止普通网络与外链，并只能通过容器注入的 `tt.*` 能力调用 AI；同时现有 Web / Sites 版已经稳定，不能为比赛发布破坏其服务端密钥、限额、流式体验或公开托管能力。因此采用同一领域层与 UI、两种构建时传输适配器的边界，避免复制玩法或在运行时猜测环境。
+- 影响了哪些模块：新增互动空间打包、平台 AI 调用、离线报告导出、MCP 发布配置和兼容性分支；历史牌库、固定开场、玩家逐字正史、主角连续性、十二节点节奏、AI prompt/schema、存档、音乐、双报告、Sites Worker 及默认构建均保持。全量 Vitest 33 文件 350/350、TypeScript、默认 vinext 构建、互动空间 Vite 构建、可移植性与 `git diff --check` 通过；互动空间官方校验器对目录和 21MB ZIP 的必需文件、单文件大小、动态代码、网络、跳转、外链、内联事件、XSS、不支持/废弃 API 和浏览器兼容性全部通过。390×844 真实浏览器已验证胶片、百卡网格/筛选、固定开场、直接改写、断网兜底、刷新恢复及模拟平台 SSE 生成第 2 幕，控制台 0 错误、0 警告，非静态请求为 0；带真实本地历史图、完整中文文案和朱砂样式的 320×720 报告样本成功导出为 640×1440 PNG，图片像素和品牌色均真实存在。真实十局 soak 已尝试，但现有本地旧 DeepSeek 直连密钥统一返回 401，未收到任何模型正文；这属于旧 Web 直连凭证，不会写入互动空间包，平台账号的真实 AI 调用仍需在 MCP 认证和互动空间 AI 服务配置完成后做最终在线验证。
+
 ### 2026-07-28 14:04 - 收敛海报年份轨并固定竖排字序
 
 - 本次任务：修复历史海报红色年份轨把月日等精确日期塞入窄栏后出现字符拆散、遮挡，以及四位数公元年份可能把“公元”显示成“元公”的格式问题。

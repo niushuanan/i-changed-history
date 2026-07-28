@@ -61,10 +61,10 @@ function lifeEntry(played: PlayedTurn): LifeIndexEntry {
 
 export function buildNarrativeContext(
   playedTurns: readonly PlayedTurn[],
-  targetChapter = (playedTurns.at(-1)?.turn.chapter ?? 0) + 1,
+  targetChapter = (playedTurns[playedTurns.length - 1]?.turn.chapter ?? 0) + 1,
 ): NarrativeContext {
   const lifeIndex = playedTurns.map(lifeEntry);
-  const latest = playedTurns.at(-1);
+  const latest = playedTurns[playedTurns.length - 1];
   const activePlayerCanon = buildWorldCanon(playedTurns, targetChapter).activeMandates.map((mandate) => ({
     chapter: mandate.sourceChapter,
     sourceText: mandate.sourceText,

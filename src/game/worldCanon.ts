@@ -59,7 +59,7 @@ function toImmutableFact(turn: CanonicalPlayedTurn): ImmutableFact {
 
 export function buildWorldCanon(
   playedTurns: readonly CanonicalPlayedTurn[],
-  targetChapter = (playedTurns.at(-1)?.turn.chapter ?? 0) + 1,
+  targetChapter = (playedTurns[playedTurns.length - 1]?.turn.chapter ?? 0) + 1,
 ): WorldCanon {
   const immutableFacts = playedTurns.map(toImmutableFact);
   const activeMandates = playedTurns
@@ -78,13 +78,15 @@ export function buildWorldCanon(
       beneficiary: turn.resolvedEcho.beneficiary,
       payer: turn.resolvedEcho.payer,
     }));
-  const latestTurn = playedTurns.at(-1);
+  const latestTurn = playedTurns[playedTurns.length - 1];
+  const latestDecision = immutableFacts[immutableFacts.length - 1] ?? null;
+  const customCanon = immutableFacts.filter((fact) => fact.playerAuthored);
 
   return {
     immutableFacts,
     activeMandates,
-    latestDecision: immutableFacts.at(-1) ?? null,
-    recentCustomCanon: immutableFacts.filter((fact) => fact.playerAuthored).at(-1) ?? null,
+    latestDecision,
+    recentCustomCanon: customCanon[customCanon.length - 1] ?? null,
     historicalDebt: latestTurn
       ? {
           causedByChapter: latestTurn.turn.chapter,

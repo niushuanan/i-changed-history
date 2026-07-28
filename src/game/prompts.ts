@@ -138,12 +138,19 @@ function turnMessages(payload: unknown): ChatMessage[] {
 export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
   const narrativeContext = buildNarrativeContext(playedTurns, chapter);
   const protagonist = playedTurns[0]?.turn;
-  const latestPlayerFact = narrativeContext.activePlayerCanon.at(-1);
+  const latestPlayerFact = narrativeContext.activePlayerCanon[
+    narrativeContext.activePlayerCanon.length - 1
+  ];
   return turnMessages({
     task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的最近三幕玩家正史：worldStateChange 必须展示最近玩家正史已经造成的局面，causalBridge 必须写清它通过什么媒介抵达当前冲突；若 activePlayerCanon 非空，最新一条必须在 narrative、worldStateChange 或 causalBridge 中至少逐字写出一个核心人物、制度、地点、器物或动作名，不能只写“产生影响”；不要在 causalLedger 中机械抄写，客户端会权威注入原文。更早的玩家正史继续成立，但无需每幕重复点名。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务；本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors，并核对它们在 authoritativeTimelineNode.targetYear 仍在世、在任或确实存在；如果玩家正史改变了其命运，必须在 narrative 中交代。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。输出前逐项确认 requiredFields 全部存在，尤其不得遗漏 timePressure、historicalAnchors 与三个 choices。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
-    authoritativeProtagonist: { name: protagonist?.protagonistName, sameBodyThroughAllTwelveNodes: true, previousAge: playedTurns.at(-1)?.turn.protagonistAge, previousRole: playedTurns.at(-1)?.turn.role },
+    authoritativeProtagonist: {
+      name: protagonist?.protagonistName,
+      sameBodyThroughAllTwelveNodes: true,
+      previousAge: playedTurns[playedTurns.length - 1]?.turn.protagonistAge,
+      previousRole: playedTurns[playedTurns.length - 1]?.turn.role,
+    },
     narrativeContext,
     latestPlayerFactForThisScene: latestPlayerFact ? {
       status: "已经发生，不可否认或弱化",

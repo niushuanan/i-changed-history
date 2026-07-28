@@ -12,6 +12,7 @@ const ROOT_FILES = [
   "package.json",
   "package-lock.json",
   "tsconfig.json",
+  "vite.interactive.config.ts",
   "vite.config.ts",
   "vitest.config.mjs",
   "vitest.soak.config.mjs",

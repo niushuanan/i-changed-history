@@ -91,7 +91,7 @@ export function App() {
       />
     );
   } else {
-    const latestPlayed = state.playedTurns.at(-1);
+    const latestPlayed = state.playedTurns[state.playedTurns.length - 1];
     const customCanonText = latestPlayed?.playerAuthored && (state.request?.kind === "next-turn" || Boolean(state.pendingTurn))
       ? latestPlayed.selectedChoiceLabel
       : undefined;

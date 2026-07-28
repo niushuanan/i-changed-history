@@ -35,7 +35,7 @@ function compactCompleteClause(value: string, max: number, fallback: string): st
       && [...clause].length <= max
       && !DANGLING_CLAUSE_END_PATTERN.test(clause)
     ));
-  return clauses.at(-1) ?? fallback;
+  return clauses[clauses.length - 1] ?? fallback;
 }
 
 function decisionAction(seed: HistorySeed): string {
