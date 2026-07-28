@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import "../src/styles.css";
-import "../src/styles/game.css";
 
 const TITLE = "哎！我改变了历史？";
 const DESCRIPTION = "从一百个真实历史转折点出发，亲手写下十二次决定，让 AI 推演同一个穿越者的一生与被改变的 2026。";

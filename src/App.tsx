@@ -16,6 +16,7 @@ import {
 } from "./services/share";
 import type { ResultReportPage } from "./components/ResultFrontPage";
 import { historyAssetForSeed, visualAssetForTurn } from "./data/visualAssets";
+import "./styles/game.css";
 
 export function App() {
   const game = useGame();
