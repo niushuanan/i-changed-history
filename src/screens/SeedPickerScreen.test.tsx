@@ -62,7 +62,7 @@ describe("living history browser", () => {
     expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("article")).toHaveLength(100);
     expect(screen.getByText("（滑动可切换不同的历史瞬间）")).toBeVisible();
-    expect(screen.getByRole("navigation", { name: "一百个历史年份" })).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "历史年份，共 100 个节点" })).toBeVisible();
     expect(screen.getByTestId("history-time-axis")).toHaveAttribute("aria-hidden", "true");
     const years = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
     expect(years).toEqual([...years].sort((left, right) => left - right));
@@ -204,7 +204,7 @@ describe("living history browser", () => {
     expect(currentGridCard).toHaveAttribute("aria-current", "true");
     expect(currentGridCard.scrollIntoView).toHaveBeenCalled();
     expect(screen.queryAllByRole("article")).toHaveLength(0);
-    expect(screen.queryByRole("navigation", { name: "一百个历史年份" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "历史年份，共 100 个节点" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitemradio", { name: /胶片/ }));

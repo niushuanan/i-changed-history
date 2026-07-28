@@ -299,7 +299,7 @@ export function SeedPickerScreen({
               </div>
             </div>
             <span className="history-time__axis" data-testid="history-time-axis" aria-hidden="true" />
-            <nav className="history-time__track" ref={timelineRef} aria-label="一百个历史年份">
+            <nav className="history-time__track" ref={timelineRef} aria-label={`历史年份，共 ${cards.length} 个节点`}>
               {cards.map((seed, index) => (
                 <button
                   key={seed.id}

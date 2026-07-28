@@ -6,12 +6,13 @@
 
 当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，原样流式转发 SSE，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子限额；浏览器产物不再包含 API Key。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地音频继续构建史诗氛围；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。游戏存档仍按设备和站点域名保存在浏览器 `localStorage`。
 
-同一份完整产品另有抖音互动空间比赛构建：AI 传输在构建时替换为 `tt.callAIChatCompletion`，移动端运行资源保持全部本地化，并只在该产物中压缩到真实上传接口要求的 8MB 以内。当前平台 AppID 为 `ttbb15cda8243f100b21`，名称仍为 `哎！我改变了历史？`，竖屏和 AI 能力均已开启，状态为审核中。
+项目只维护 `main` 上这一份完整 100 剧本源码，不再维护独立的审核精简版本。抖音互动空间审核包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为 `tt.callAIChatCompletion`，历史入口只打包古腾堡印刷、伽利略《星空使者》和阿波罗 11 号三个低敏剧本，其他 97 个剧本仍完整保留在源码和普通产品中但不得进入审核 ZIP；脚本同时删除非白名单历史图、扫描最终 JS 的剧本 ID 泄漏、优化移动资源、执行 8MB ZIP 闸门并生成待上传文件。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
 
 ## 2. 代码结构是什么
 
 - `src/data/`：100 张著名历史转折点、与其一一对应的固定第一幕、搜索筛选目录，以及按年份/阶段选取的视觉资产映射。
 - `src/data/historySeeds/`：历史剧本模块边界；`scripts/<seed-id>/index.ts` 每个目录只拥有一个剧本，`shared.ts` 提供公共构造器与标签，`index.ts` 显式维护完整 100 节点的唯一聚合顺序。
+- `src/data/historySeeds/interactive.ts`：只供互动空间构建别名使用的三个低敏剧本聚合；普通产品和测试默认不经过该入口。
 - `src/game/`：游戏领域层，包含单一主角一生 12 决策时间计划、不可撤销世界正史、重大节点编排、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
 - `src/hooks/`：`useGame.ts` 负责请求取消、预生成、即时回响、存储、音频和重试编排。
 - `src/services/`：DeepSeek 传输、版本化本地存储、史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
@@ -25,7 +26,7 @@
 - `src/soak/`：显式运行的真实 DeepSeek 十二节点长局压力测试；默认覆盖十个不同开局、每局四到五次唯一直接改写，也支持指定多个历史节点、十二幕全自定义、最低成功率与强制延迟门槛，结果只写入被忽略的 `tmp/soak/`。
 - `design/`：三套 ImageGen 首屏方向、选定的 `redaction-room.png` 和真实浏览器截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、CC0 史诗配乐及授权记录。
-- `scripts/prepare-interactive-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：清理互动空间非运行时文件、改写相对资源路径，并只在比赛产物中重采样移动端图片、转换透明纹理和执行 7.5MB 未压缩体积闸门；Sites 正式版继续使用原始资源。
+- `scripts/package-interactive-review.mjs`、`scripts/interactive-review-catalog.mjs`、`scripts/prepare-interactive-build.mjs`、`scripts/verify-interactive-review-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：定义三个审核剧本、构建平台运行时、删除其他历史图、扫描非白名单剧本泄漏、优化移动资源、执行未压缩与 ZIP 双体积闸门，并生成唯一待提交 ZIP；Sites 正式版继续使用全部 100 剧本和原始资源。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
 实际数据流是：在胶片或筛选网格中选择真实历史卡 -> 客户端同步装载该卡固定第一幕与固定主角 -> 玩家选择行动或直接写入正史 -> 客户端把姓名、年龄、人生阶段和全部决定固化为不可撤销 `WorldCanon` -> 从第 2 幕起，客户端把全部决定压成分层叙事上下文并提交同源固定协议 -> Worker 校验协议与用量后向 DeepSeek 发起 SSE 开放推演 -> 浏览器继续按原流式解析器呈现真实进度 -> 本地只注入客户端权威字段并归一无害格式漂移，Zod 校验人物连续性与因果账本；缺失可见文案时仅让 AI 补回失败字段 -> 主事件页通过二级入口打开“你的时间线 / 正史原本 / 为何改变”完整历史对照 -> 第 12 次决定 -> 主角死亡 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 客户端合并 -> 当前报告完整 2x PNG。
@@ -42,6 +43,7 @@
 - `src/data/fixedOpenings.ts`：100 张卡片的固定第一幕构建与严格 schema 校验入口。
 - `src/game/worldCanon.ts`：把玩家决定固化为世界正史，并生成下一幕的重大节点编排约束。
 - `src/data/historySeeds/index.ts`：100 个单剧本模块的显式聚合与历史卡牌数据入口。
+- `src/data/historySeeds/interactive.ts`：互动空间构建专用三剧本入口；由 Vite 别名替换普通聚合，不改变源码主卡组。
 - `src/data/historyCatalog.ts`：历史网格的搜索、年代、地域与主题筛选入口。
 - `src/services/share.ts`：完整报告图片准备、移动系统分享、桌面下载和 object URL 回收入口。
 - `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
@@ -49,11 +51,20 @@
 - `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测继续读取服务端变量直连模型。
 - `.openai/hosting.json`：Sites 项目 ID 与 D1 / R2 逻辑绑定，绝不保存运行时密钥。
 - `.trae/mcp.json`：比赛方 `interative_content_mcp` 的项目级发布配置。
-- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run db:generate` 命令入口。
+- `scripts/package-interactive-review.mjs`：抖音提审前唯一允许的打包入口，最终输出 `release/i-changed-history-interactive-space.zip`。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run db:generate` 命令入口；其中 `build:interactive` 已固定为三剧本审核打包链路。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-29 00:57 - 收敛为单一 main 并固定三剧本审核打包
+
+- 本次任务：取消完整 100 剧本版与 10 剧本审核版的双分支维护，在唯一 `main` 中保留完整剧本源码，并让每次抖音互动空间提审打包自动只包含三个低敏剧本。
+- 改了哪些文件：新增 `src/data/historySeeds/interactive.ts`、`src/data/historySeeds.interactive.test.ts`、`scripts/{interactive-review-catalog,verify-interactive-review-build,package-interactive-review}.mjs`；修改 `vite.interactive.config.ts`、`scripts/prepare-interactive-build.mjs`、`package.json`、`package-lock.json`、`src/screens/{SeedPickerScreen,SeedPickerScreen.test}.tsx`、`AGENTS.md`、`README.md` 与 `PROJECT_CONTEXT.md`；本地删除四个旧 worktree 与对应 `codex/*` 分支，只保留 `main`。
+- 改了什么：普通产品继续从 `historySeeds/index.ts` 聚合全部 100 个独立剧本；互动空间 Vite 构建通过精确别名改用只导入古腾堡印刷、伽利略《星空使者》和阿波罗 11 号的聚合入口。统一脚本随后删除其他 97 张历史图，扫描最终文本产物中全部 97 个非审核 ID，发现任何泄漏即失败；完成资源优化后用跨平台 ZIP 库生成根级 `index.html` 包，并再次检查 8MB 上限。时间轴无障碍名称改为动态节点数，审核包不再残留“一百个历史年份”。本地主工作区快进吸收完整互动空间适配和 100 剧本模块化提交，旧 10 节点审核分支没有合入。
+- 为什么这样改：产品功能与剧本只应有一个事实来源；长期维护两份卡组会让修复、测试和审核规则逐渐分叉。审核差异属于可重复的构建约束，应由脚本自动选择、删除和验证，不能依赖人工从 100 个剧本中手工复制或压缩。
+- 影响了哪些模块：影响本地 Git 协作边界、互动空间卡组别名、历史图片清理、审核 ZIP 生成、包体与剧本泄漏门禁、时间轴无障碍文案和维护文档；不改变普通产品的 100 个剧本、顺序、内容、固定第一幕、AI 协议、直接改写、十二节点、双结局或 Sites 构建。本地仅剩 `main` 一个工作树和一个本地分支，远端旧分支未删除。全量 Vitest 35 文件 354/354、TypeScript、212 个运行时文件可移植性、vinext 完整产品构建与 `git diff --check` 通过；审核产物源码基线 100、实际剧本 3、历史图 3、非白名单 ID 泄漏 0，未压缩 2,782,308 字节，ZIP 2,397,813 字节，MD5 `56a2547cad20e0a5defef6143ff15338`。390×844 真实浏览器确认 `1 / 3`、三个年份节点、三张卡和阿波罗图片正常，控制台 0 错误、0 警告。
 
 ### 2026-07-29 00:43 - 将一百个历史剧本拆成独立模块
 

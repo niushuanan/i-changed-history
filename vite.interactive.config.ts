@@ -11,6 +11,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^\.\.\/data\/historySeeds$/,
+        replacement: path.join(projectRoot, "src/data/historySeeds/interactive.ts"),
+      },
+      {
         find: "../services/deepseek",
         replacement: path.join(projectRoot, "src/services/deepseek.interactive.ts"),
       },

@@ -50,7 +50,8 @@
 
 - `app/page.tsx` 与 `app/game-client.tsx`：Sites 页面入口与纯浏览器游戏边界
 - `worker/index.ts` 与 `worker/deepseek-proxy.ts`：Cloudflare Worker、透明流式模型代理和用量保护
-- `src/data/historySeeds.ts`：100 张历史卡（中国 58 / 世界 42；中国节点全部早于 1949 年，并排除中共、中华人民共和国与“新中国”政治题材；苏联史保留在世界史中）
+- `src/data/historySeeds/index.ts`：100 个独立剧本模块的完整卡组聚合入口（中国 58 / 世界 42；中国节点全部早于 1949 年，并排除中共、中华人民共和国与“新中国”政治题材；苏联史保留在世界史中）
+- `src/data/historySeeds/scripts/<seed-id>/index.ts`：单个历史剧本，可独立删除、审查和测试
 - `src/data/historyCatalog.ts`：网格搜索、年代、地域和主题筛选
 - `src/screens/SeedPickerScreen.tsx`：横向胶片与两列网格的共享节点浏览器
 - `src/data/fixedOpenings.ts`：固定第一幕
@@ -118,6 +119,16 @@ npm run build
 `check:portability` 会扫描运行时文件并拒绝开发者个人目录。GitHub Actions 会在 Windows 和 Linux 上执行 `npm ci`、测试、类型检查和生产构建。
 
 需要真实验证十二节点、直接改写和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。长测在 Node 环境读取同一组服务端变量并直连 DeepSeek，把脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行。
+
+## 抖音互动空间审核包
+
+仓库只维护完整 100 剧本版本。提交抖音审核前统一运行：
+
+```bash
+npm run build:interactive
+```
+
+该命令只在互动空间构建阶段把运行时卡组替换为古腾堡印刷、伽利略《星空使者》和阿波罗 11 号三个低敏剧本；完整源码和普通产品构建仍保留全部 100 个。脚本会删除其余 97 张历史图、扫描最终 JS 是否泄漏其他剧本、优化移动端资源、检查 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通构建并提交审核。
 
 ## 密钥与部署
 
