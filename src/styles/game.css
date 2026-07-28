@@ -730,10 +730,15 @@
   pointer-events: none;
 }
 .seed-picker--filmstrip {
+  --picker-brand-height: clamp(68px, 10dvh, 82px);
+  --picker-timeline-height: clamp(58px, 9dvh, 74px);
+  --picker-carousel-pad-top: clamp(6px, 1.2dvh, 10px);
+  --picker-carousel-pad-bottom: clamp(8px, 1.8dvh, 18px);
+  --history-scene-height: clamp(236px, calc(100dvh - 500px), 378px);
   display: grid;
-  grid-template-rows: 82px 74px minmax(728px, 1fr);
+  grid-template-rows: var(--picker-brand-height) var(--picker-timeline-height) minmax(0, 1fr);
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
 }
 .seed-picker--grid { display: grid; grid-template-rows: 82px minmax(0, 1fr); overflow: hidden; }
@@ -744,7 +749,7 @@
 .seed-picker__brand {
   position: relative;
   z-index: 12;
-  height: 82px;
+  height: var(--picker-brand-height, 82px);
   width: 100%;
   min-height: 0;
   padding: 9px 14px 8px;
@@ -846,7 +851,7 @@
 .history-time {
   position: relative;
   z-index: 5;
-  height: 74px;
+  height: var(--picker-timeline-height, 74px);
   width: 100%;
   border-top: 0;
   border-bottom: 1px solid rgba(236, 226, 205, .18);
@@ -930,12 +935,12 @@
   --history-card-width: clamp(252px, 75.4%, 294px);
   position: relative;
   z-index: 2;
-  min-height: 626px;
+  min-height: 0;
   height: 100%;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  padding: 10px 0 18px;
+  padding: var(--picker-carousel-pad-top, 10px) 0 var(--picker-carousel-pad-bottom, 18px);
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -1059,7 +1064,7 @@
 }
 .history-card__scene {
   position: relative;
-  height: clamp(324px, 96.9vw, 378px);
+  height: var(--history-scene-height, clamp(324px, 96.9vw, 378px));
   margin: 0;
   overflow: hidden;
   border: 1px solid rgba(224, 209, 181, .44);
@@ -1220,10 +1225,66 @@
 .history-card__action:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 
 @media (max-height: 760px) {
-  .seed-picker--filmstrip { grid-template-rows: 78px 72px 728px; }
-  .seed-picker__brand { height: 78px; }
-  .history-time { height: 72px; }
-  .history-carousel { padding-top: 8px; padding-bottom: 16px; }
+  .seed-picker--filmstrip {
+    --picker-brand-height: clamp(64px, 9.5dvh, 72px);
+    --picker-timeline-height: clamp(56px, 8.5dvh, 64px);
+    --picker-carousel-pad-top: 5px;
+    --picker-carousel-pad-bottom: 6px;
+    --history-scene-height: 260px;
+  }
+  .seed-picker__brand { padding-block: 5px; }
+  .seed-picker__wordmark img { max-height: 54px; }
+  .history-time__readout { height: 22px; padding-top: 2px; }
+  .history-time__axis { top: 33px; }
+  .history-time__track { height: 40px; }
+  .history-time__track button {
+    height: 40px;
+    grid-template-rows: 23px 17px;
+  }
+  .history-card__year-rail {
+    width: 44px;
+    padding: 13px 0 10px;
+  }
+  .history-card__year { gap: 4px; }
+  .history-card__year-era { font-size: 16px; }
+  .history-card__year-number { font-size: 28px; }
+  .history-card__year-suffix { font-size: 14px; }
+  .history-card__year-rail small { font-size: 11px; }
+  .history-card__position {
+    right: 7px;
+    min-width: 56px;
+    padding: 4px 7px 3px;
+    font-size: 12px;
+  }
+  .history-card__position strong { font-size: 18px; }
+  .history-card__dossier {
+    min-height: 190px;
+    margin-top: -20px;
+    padding: 16px 14px 14px;
+  }
+  .history-card__dossier h2 {
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    font-size: 24px;
+  }
+  .history-card__facts p {
+    padding: 2px 0;
+    grid-template-columns: 17px 34px minmax(0, 1fr);
+    gap: 4px;
+    line-height: 1.14;
+  }
+  .history-card__facts p svg {
+    width: 15px;
+    height: 15px;
+  }
+  .history-card__facts p span { font-size: 11px; line-height: 1.2; }
+  .history-card__facts p strong { font-size: 11px; line-height: 1.18; }
+  .history-card__action {
+    min-height: 54px;
+    margin-top: 6px;
+    padding-inline: 19px;
+    font-size: 22px;
+  }
 }
 
 .event-screen { position: relative; height: 100%; overflow: hidden; background: #0d0d0c; }
@@ -1672,14 +1733,6 @@
 @media (max-width: 330px) {
   .history-card__dossier h2 { font-size: 24px; }
   .history-card__facts p strong { font-size: 11px; }
-}
-
-@media (max-height: 760px) and (max-width: 360px) {
-  .seed-picker--filmstrip { grid-template-rows: 78px 72px 728px; }
-}
-
-@media (max-height: 760px) and (max-width: 330px) {
-  .seed-picker--filmstrip { grid-template-rows: 78px 72px 728px; }
 }
 
 /* Mobile readability pass: readable type is funded by image overlap, never clipping. */
