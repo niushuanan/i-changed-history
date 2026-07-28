@@ -24,8 +24,10 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={turn}
       deviation={18}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
@@ -52,8 +54,10 @@ describe("clear change event screen", () => {
     expect(screen.queryByText(/INTP|ENFP|微调|改制|断裂/)).not.toBeInTheDocument();
     expect(screen.queryByText(/你与黄盖/)).not.toBeInTheDocument();
     expect(screen.queryByText(/巡哨抵近前半刻/)).not.toBeInTheDocument();
-    expect(document.querySelectorAll(".choice-item")).toHaveLength(3);
-    expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("不限次数");
+    expect(document.querySelectorAll(".choice-card")).toHaveLength(3);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toBeVisible();
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "compact");
     expect(screen.getByRole("button", { name: "关闭历史对照" })).toBeVisible();
@@ -61,51 +65,53 @@ describe("clear change event screen", () => {
     expect(screen.queryByRole("dialog", { name: "历史对照" })).not.toBeInTheDocument();
   });
 
-  it("validates free action length while keeping result rewrites unlimited", async () => {
-    const onCustomAction = vi.fn();
+  it("removes free input and exposes one zero-wait roll", () => {
+    const onRoll = vi.fn();
     render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={onCustomAction}
+      onRoll={onRoll}
       onExit={vi.fn()}
     />);
 
-    fireEvent.click(screen.getByRole("button", { name: /直接改写结果/ }));
-    expect(screen.getByRole("dialog", { name: "钦定历史结果" })).toBeVisible();
-    expect(screen.getByText("请写下已经发生的结果。提交后，这句话不会被推翻。")).toBeVisible();
-    expect(screen.queryByText(/AI|传播|受益者|隐藏代价/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "写入时间线" })).toBeDisabled();
-
-    const textarea = screen.getByRole("textbox", { name: "你要写入的历史结果" });
-    const fullRewrite = "改".repeat(160);
-    expect(textarea).toHaveAttribute("maxlength", "160");
-    fireEvent.change(textarea, { target: { value: fullRewrite } });
-    expect(screen.getByText("160/160")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "写入时间线" }));
-    expect(onCustomAction).toHaveBeenCalledWith(fullRewrite);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/直接改写|钦定历史/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toHaveTextContent("无需等待");
   });
 
-  it("keeps the event visible behind the custom rewrite sheet", () => {
-    render(<TimelineEventScreen
+  it("uses touch-first cards with project-owned generated artwork", () => {
+    const { container } = render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
-    fireEvent.click(screen.getByRole("button", { name: /直接改写结果/ }));
-    expect(gameStyles).toContain("background: rgba(0,0,0,.5)");
-    expect(gameStyles).toContain("box-shadow: 0 -16px 40px rgba(0,0,0,.32)");
+    expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
+    expect(container.querySelector('img[src="/assets/cards/choice-regular.png"]')).toBeInTheDocument();
+    expect(container.querySelector('img[src="/assets/cards/choice-radical.png"]')).toBeInTheDocument();
+    expect(container.querySelector('img[src="/assets/cards/choice-surreal.png"]')).toBeInTheDocument();
+    expect(gameStyles).toContain("touch-action: none");
+    expect(gameStyles).toContain(".choice-card.is-armed");
   });
 
   it("renders event time and location as separate caption rows", () => {
     const { container } = render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
@@ -139,8 +145,10 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={denseTurn}
       deviation={36}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
@@ -165,8 +173,10 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={richOpening}
       deviation={0}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
@@ -179,31 +189,39 @@ describe("clear change event screen", () => {
     expect(screen.getByRole("region", { name: "真实历史切入口" })).toBeVisible();
   });
 
-  it("shows a complete thirty-two-character action instead of cutting it mid-sentence", () => {
+  it("keeps a compact card face while preserving the complete canonical decision for details", () => {
     const fullAction = "趁董卓车队入城前调弓弩手封锁宣阳门并扣住吕布亲兵";
     const turn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      choices: turnFixture.choices.map((choice, index) => index === 0 ? { ...choice, label: fullAction } : choice),
+      choices: turnFixture.choices.map((choice, index) => index === 0 ? {
+        ...choice,
+        label: fullAction,
+        displayLabel: "封锁宣阳门",
+      } : choice),
     }));
 
     render(<TimelineEventScreen
       turn={turn}
       deviation={0}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
-    expect(screen.getByRole("button", { name: `A${fullAction}` })).toBeVisible();
+    expect(screen.getByRole("button", { name: /循史牌，封锁宣阳门/ })).toBeVisible();
+    expect(screen.queryByText(fullAction)).not.toBeInTheDocument();
   });
 
-  it("shows a compact action while keeping the full canonical choice accessible", () => {
+  it("shows the model-authored short face instead of deriving another visible sentence", () => {
     const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们在日落之前重新宣誓效忠";
     const turn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: turnFixture.choices.map((choice, index) => index === 0 ? {
         ...choice,
         label: canonical,
+        displayLabel: "核验边军军令",
         actionSpec: { actor: "你", action: "公开核验军令", target: "边军将领", deadline: "日落前" },
       } : choice),
     }));
@@ -211,12 +229,15 @@ describe("clear change event screen", () => {
     render(<TimelineEventScreen
       turn={turn}
       deviation={0}
+      rollUsed={false}
+      muted
       onChoose={vi.fn()}
-      onCustomAction={vi.fn()}
+      onRoll={vi.fn()}
       onExit={vi.fn()}
     />);
 
-    expect(screen.getByText("公开核验军令：边军将领")).toBeVisible();
-    expect(screen.getByRole("button", { name: `A${canonical}` })).toBeVisible();
+    expect(screen.getByText("核验边军军令")).toBeVisible();
+    expect(screen.getByRole("button", { name: /循史牌，核验边军军令/ })).toBeVisible();
+    expect(screen.queryByText(canonical)).not.toBeInTheDocument();
   });
 });

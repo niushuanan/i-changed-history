@@ -83,10 +83,12 @@ describe("complete player journey", () => {
       expect(await screen.findByRole("heading", { name: chapter === 1 ? "罗马大火开始蔓延" : `第${chapter}幕局势` })).toBeVisible();
       expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
       const decisionGroup = screen.getByRole("group", { name: "本幕决定" });
-      const firstChoice = decisionGroup.querySelector<HTMLButtonElement>("button.choice-action");
+      const firstChoice = decisionGroup.querySelector<HTMLButtonElement>("button.choice-card");
       expect(firstChoice).not.toBeNull();
-      await user.click(firstChoice!);
-      expect(screen.getByText("这件事已经发生")).toBeVisible();
+      fireEvent.pointerDown(firstChoice!, { clientY: 220, pointerId: chapter });
+      fireEvent.pointerMove(firstChoice!, { clientY: 120, pointerId: chapter });
+      fireEvent.pointerUp(firstChoice!, { clientY: 120, pointerId: chapter });
+      expect(await screen.findByText("这件事已经发生")).toBeVisible();
       const continueButton = await screen.findByRole("button", { name: /看看接下来发生什么|查看最终历史/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);
@@ -130,7 +132,7 @@ describe("complete player journey", () => {
     expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("keeps free text inside the unlimited player-canon result action", async () => {
+  it("offers one instant prepared roll and never exposes free text", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -141,7 +143,15 @@ describe("complete player journey", () => {
     expect(engine.generateNextTurn).not.toHaveBeenCalled();
     expect(screen.getAllByText(/城市水道和消防队的值夜主管/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /直接改写结果，不限次数/ })).toBeVisible();
+    expect(screen.queryByText(/直接改写结果|钦定历史/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" }));
+    expect(await screen.findByText("压到最后一刻")).toBeVisible();
+    expect(screen.getByRole("button", { name: "本节点已经重抽过一次" })).toBeDisabled();
+    expect(engine.generateNextTurn).not.toHaveBeenCalled();
   });
 
   it("always exposes one chronological one-hundred-moment filmstrip and exits an active run", async () => {

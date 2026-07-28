@@ -53,8 +53,10 @@ export function App() {
       <TimelineEventScreen
         turn={state.currentTurn}
         deviation={state.deviation}
+        rollUsed={state.rollUsed}
+        muted={game.muted}
         onChoose={game.choose}
-        onCustomAction={game.submitCustomAction}
+        onRoll={game.rollChoices}
         onExit={game.restart}
         sceneImage={state.currentTurn.chapter <= 3 && state.scenario
           ? historyAssetForSeed(state.scenario.seed)

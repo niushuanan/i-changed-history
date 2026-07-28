@@ -1,33 +1,74 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseTimelineTurn } from "../game/schema";
 import { turnFixture } from "../test/fixtures";
 import { ChoiceList } from "./ChoiceList";
 
-describe("historical action choices", () => {
-  afterEach(() => cleanup());
+describe("roguelike history cards", () => {
+  const choices = parseTimelineTurn(JSON.stringify(turnFixture)).choices;
 
-  it("shows three concrete actions without personality decorations", async () => {
-    const user = userEvent.setup();
-    const choices = parseTimelineTurn(JSON.stringify(turnFixture)).choices;
-    const onChoose = vi.fn();
-    render(<ChoiceList choices={choices} onChoose={onChoose} />);
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    cleanup();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
 
-    expect(screen.queryByText(choices[0].intent)).not.toBeInTheDocument();
+  it("shows one readable card for each risk tier without personality decorations", () => {
+    const { container } = render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={vi.fn()}
+        rollUsed={false}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
+    expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
     expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: new RegExp(choices[0].label) }));
+    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toBeEnabled();
+  });
+
+  it("commits exactly one card only after an upward swipe crosses the threshold", () => {
+    const onChoose = vi.fn();
+    render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={onChoose}
+        onRoll={vi.fn()}
+        rollUsed={false}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /循史牌/ });
+    fireEvent.pointerDown(card, { clientY: 220, pointerId: 1 });
+    fireEvent.pointerMove(card, { clientY: 190, pointerId: 1 });
+    fireEvent.pointerUp(card, { clientY: 190, pointerId: 1 });
+    act(() => vi.advanceTimersByTime(250));
+    expect(onChoose).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(card, { clientY: 220, pointerId: 2 });
+    fireEvent.pointerMove(card, { clientY: 130, pointerId: 2 });
+    fireEvent.pointerUp(card, { clientY: 130, pointerId: 2 });
+    expect(onChoose).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(250));
+    expect(onChoose).toHaveBeenCalledTimes(1);
     expect(onChoose).toHaveBeenCalledWith("A");
   });
 
-  it("shows the full canonical decision before committing a compact long choice", async () => {
-    const user = userEvent.setup();
+  it("reveals the full canonical decision on long press without committing it", () => {
     const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们在日落之前重新宣誓效忠";
-    const choices = parseTimelineTurn(JSON.stringify({
+    const detailedChoices = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       choices: turnFixture.choices.map((choice, index) => index === 0 ? {
         ...choice,
         label: canonical,
+        displayLabel: "核验边军军令",
         actionSpec: {
           actor: "你",
           action: "公开核验军令",
@@ -37,13 +78,60 @@ describe("historical action choices", () => {
       } : choice),
     })).choices;
     const onChoose = vi.fn();
-    render(<ChoiceList choices={choices} onChoose={onChoose} />);
+    render(
+      <ChoiceList
+        choices={detailedChoices}
+        muted
+        onChoose={onChoose}
+        onRoll={vi.fn()}
+        rollUsed={false}
+      />,
+    );
 
-    await user.click(screen.getByRole("button", { name: new RegExp(canonical) }));
+    const card = screen.getByRole("button", { name: /循史牌/ });
+    fireEvent.pointerDown(card, { clientY: 220, pointerId: 1 });
+    act(() => vi.advanceTimersByTime(450));
+
+    const dialog = screen.getByRole("dialog", { name: "核验边军军令详细信息" });
+    expect(dialog).toHaveTextContent(canonical);
+    expect(dialog).toHaveTextContent("公开核验军令");
+    expect(dialog).toHaveTextContent(detailedChoices[0].instantEcho.unexpectedCost);
     expect(onChoose).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog", { name: "确认完整决定" })).toHaveTextContent(canonical);
 
-    await user.click(screen.getByRole("button", { name: "执行这项决定" }));
-    expect(onChoose).toHaveBeenCalledWith("A");
+    fireEvent.click(screen.getByRole("button", { name: "关闭卡牌详情" }));
+    expect(dialog).not.toBeInTheDocument();
+  });
+
+  it("reveals the prepared second trio once and never asks the model to wait", () => {
+    const onRoll = vi.fn();
+    const { rerender } = render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={onRoll}
+        rollUsed={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" }));
+    expect(onRoll).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(190));
+    expect(onRoll).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={onRoll}
+        rollUsed
+      />,
+    );
+    const usedButton = screen.getByRole("button", { name: "本节点已经重抽过一次" });
+    expect(usedButton).toBeDisabled();
+    fireEvent.click(usedButton);
+    act(() => vi.runOnlyPendingTimers());
+    expect(onRoll).toHaveBeenCalledTimes(1);
   });
 });

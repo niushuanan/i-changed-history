@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Clock, PencilSimpleLine, X } from "@phosphor-icons/react";
+import { ArrowRight, Clock, X } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
-import { CUSTOM_ACTION_MAX_LENGTH } from "../game/limits";
 
 function HistoryContextDialog({
   turn,
@@ -60,28 +59,29 @@ function HistoryContextDialog({
 export function TimelineEventScreen({
   turn,
   deviation,
+  rollUsed,
+  muted,
   onChoose,
-  onCustomAction,
+  onRoll,
   onExit,
   sceneImage,
 }: {
   turn: TimelineTurn;
   deviation: number;
+  rollUsed: boolean;
+  muted: boolean;
   onChoose: (id: "A" | "B" | "C") => void;
-  onCustomAction: (action: string) => void;
+  onRoll: () => void;
   onExit: () => void;
   sceneImage?: string;
 }) {
-  const [customOpen, setCustomOpen] = useState(false);
   const [historyContextOpen, setHistoryContextOpen] = useState(false);
-  const [customAction, setCustomAction] = useState("");
-  const actionLength = [...customAction.trim()].length;
-  const canSubmitCustom = actionLength >= 2 && actionLength <= CUSTOM_ACTION_MAX_LENGTH;
+  const visibleChoices = rollUsed ? turn.rollChoices : turn.choices;
   const visibleCopyLength = [
     turn.headline,
     turn.narrative,
     turn.timePressure,
-    ...turn.choices.map((choice) => choice.displayLabel),
+    ...visibleChoices.map((choice) => choice.displayLabel),
   ].reduce((total, copy) => total + [...(copy ?? "")].length, 0);
   const narrativeLength = [...turn.narrative].length;
   const density = narrativeLength > 132 || visibleCopyLength > 300
@@ -91,9 +91,7 @@ export function TimelineEventScreen({
       : "comfortable";
 
   useEffect(() => {
-    setCustomOpen(false);
     setHistoryContextOpen(false);
-    setCustomAction("");
   }, [turn.chapter, turn.yearLabel]);
 
   useEffect(() => {
@@ -104,12 +102,6 @@ export function TimelineEventScreen({
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [historyContextOpen]);
-
-  const submitCustom = () => {
-    if (!canSubmitCustom) return;
-    onCustomAction(customAction.trim());
-    setCustomOpen(false);
-  };
 
   return (
     <main
@@ -138,18 +130,17 @@ export function TimelineEventScreen({
         </article>
 
         <section className="decision-zone" role="group" aria-label="本幕决定">
-          <h2><span>你要怎么做？</span></h2>
-          <ChoiceList choices={turn.choices} onChoose={onChoose} />
-          <button
-            className="custom-action-command"
-            type="button"
-            aria-label="直接改写结果，不限次数"
-            onClick={() => setCustomOpen(true)}
-          >
-            <PencilSimpleLine size={16} weight="bold" />
-            <span>直接改写结果</span>
-            <strong>不限次数</strong>
-          </button>
+          <h2>
+            <span>抽一张，改写这一刻</span>
+            <em>上划打出 · 长按详情</em>
+          </h2>
+          <ChoiceList
+            choices={visibleChoices}
+            muted={muted}
+            onChoose={onChoose}
+            onRoll={onRoll}
+            rollUsed={rollUsed}
+          />
         </section>
         <button
           className="history-context-trigger"
@@ -164,27 +155,6 @@ export function TimelineEventScreen({
           <ArrowRight size={16} weight="bold" />
         </button>
       </section>
-      {customOpen ? (
-        <div className="custom-action-backdrop">
-          <section className="custom-action-sheet" role="dialog" aria-modal="true" aria-label="钦定历史结果">
-            <header>
-              <div><span>玩家拥有最终解释权</span><h2>直接改写结果</h2></div>
-              <button type="button" aria-label="关闭结果改写" onClick={() => setCustomOpen(false)}><X size={20} /></button>
-            </header>
-            <p>请写下已经发生的结果。提交后，这句话不会被推翻。</p>
-            <textarea
-              autoFocus
-              aria-label="你要写入的历史结果"
-              value={customAction}
-              maxLength={CUSTOM_ACTION_MAX_LENGTH}
-              placeholder="例如：我暗杀了皇帝且成功，摄政会议接受了我伪造的遗诏"
-              onChange={(event) => setCustomAction(event.target.value)}
-            />
-            <div className="custom-action-meta"><strong>{actionLength}/{CUSTOM_ACTION_MAX_LENGTH}</strong></div>
-            <button className="custom-action-submit" type="button" disabled={!canSubmitCustom} onClick={submitCustom}>写入时间线 <ArrowRight size={18} weight="bold" /></button>
-          </section>
-        </div>
-      ) : null}
       {historyContextOpen ? <HistoryContextDialog turn={turn} onClose={() => setHistoryContextOpen(false)} /> : null}
     </main>
   );

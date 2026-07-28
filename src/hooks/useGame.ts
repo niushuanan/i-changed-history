@@ -164,6 +164,9 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const choose = useCallback((choiceId: "A" | "B" | "C") => {
     dispatch({ type: "COMMIT_AI_CHOICE", choiceId });
   }, []);
+  const rollChoices = useCallback(() => {
+    dispatch({ type: "ROLL_CHOICES" });
+  }, []);
   const submitCustomAction = useCallback((action: string) => {
     dispatch({ type: "SUBMIT_CUSTOM_ACTION", action });
   }, []);
@@ -192,6 +195,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     startExperience,
     selectSeed,
     choose,
+    rollChoices,
     submitCustomAction,
     continueTimeline,
     revealGeneratedTurn,
