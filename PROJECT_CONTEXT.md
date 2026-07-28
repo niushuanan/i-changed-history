@@ -6,6 +6,8 @@
 
 当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，原样流式转发 SSE，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子限额；浏览器产物不再包含 API Key。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地音频继续构建史诗氛围；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。游戏存档仍按设备和站点域名保存在浏览器 `localStorage`。
 
+同一份完整产品另有抖音互动空间比赛构建：AI 传输在构建时替换为 `tt.callAIChatCompletion`，移动端运行资源保持全部本地化，并只在该产物中压缩到真实上传接口要求的 8MB 以内。当前平台草稿 AppID 为 `ttbb15cda8243f100b21`，名称仍为 `哎！我改变了历史？`，竖屏和 AI 能力均已开启，状态为草稿且尚未提审。
+
 ## 2. 代码结构是什么
 
 - `src/data/`：100 张著名历史转折点、与其一一对应的固定第一幕、搜索筛选目录，以及按年份/阶段选取的视觉资产映射。
@@ -22,6 +24,7 @@
 - `src/soak/`：显式运行的真实 DeepSeek 十二节点长局压力测试；默认覆盖十个不同开局、每局四到五次唯一直接改写，也支持指定多个历史节点、十二幕全自定义、最低成功率与强制延迟门槛，结果只写入被忽略的 `tmp/soak/`。
 - `design/`：三套 ImageGen 首屏方向、选定的 `redaction-room.png` 和真实浏览器截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、CC0 史诗配乐及授权记录。
+- `scripts/prepare-interactive-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：清理互动空间非运行时文件、改写相对资源路径，并只在比赛产物中重采样移动端图片、转换透明纹理和执行 7.5MB 未压缩体积闸门；Sites 正式版继续使用原始资源。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
 实际数据流是：在胶片或筛选网格中选择真实历史卡 -> 客户端同步装载该卡固定第一幕与固定主角 -> 玩家选择行动或直接写入正史 -> 客户端把姓名、年龄、人生阶段和全部决定固化为不可撤销 `WorldCanon` -> 从第 2 幕起，客户端把全部决定压成分层叙事上下文并提交同源固定协议 -> Worker 校验协议与用量后向 DeepSeek 发起 SSE 开放推演 -> 浏览器继续按原流式解析器呈现真实进度 -> 本地只注入客户端权威字段并归一无害格式漂移，Zod 校验人物连续性与因果账本；缺失可见文案时仅让 AI 补回失败字段 -> 主事件页通过二级入口打开“你的时间线 / 正史原本 / 为何改变”完整历史对照 -> 第 12 次决定 -> 主角死亡 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 客户端合并 -> 当前报告完整 2x PNG。
@@ -41,17 +44,27 @@
 - `src/data/historyCatalog.ts`：历史网格的搜索、年代、地域与主题筛选入口。
 - `src/services/share.ts`：完整报告图片准备、移动系统分享、桌面下载和 object URL 回收入口。
 - `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
+- `vite.interactive.config.ts`：互动空间纯静态 Vite 构建和 `tt.callAIChatCompletion` / 本地报告导出适配入口。
 - `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测继续读取服务端变量直连模型。
 - `.openai/hosting.json`：Sites 项目 ID 与 D1 / R2 逻辑绑定，绝不保存运行时密钥。
-- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 和 `npm run db:generate` 命令入口。
+- `.trae/mcp.json`：比赛方 `interative_content_mcp` 的项目级发布配置。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run db:generate` 命令入口。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
 
+### 2026-07-28 22:20 - 压入真实 8MB 门槛并创建互动空间 AI 草稿
+
+- 本次任务：接续互动空间比赛版发布，在真实 MCP 上传端验证产物边界，修复原 21MB ZIP 被服务端拒绝的问题，并把完整产品创建为平台竖屏 AI 草稿。
+- 改了哪些文件：新增 `scripts/optimize-interactive-assets.mjs`；修改 `package.json`、`AGENTS.md` 与 `PROJECT_CONTEXT.md`。被 Git 忽略的 `dist-interactive/` 与 `release/i-changed-history-interactive-space.zip` 已重新生成。
+- 改了什么：`npm run build:interactive` 在原 Vite 构建和合规清理后新增比赛产物专用图片优化：100 张历史图按移动容器实际显示尺寸重采样，纸张和朱砂透明纹理在产物中改为 WebP，透明书法字标保留原路径并压缩；原始 `public/` 素材和 Sites 构建不变。脚本逐文件只接受更小的结果，并对完整未压缩产物设置 7,500,000 字节闸门。最终构建为 5,677,310 字节，ZIP 为 5,280,378 字节，MD5 `dbffca9b61207b39c9edc59d51df3043`，保留 100/100 张本地历史图、音乐、双报告、十二章和直接改写。ZIP 与 300×300 图标通过一次性上传凭证写入平台，创建 AppID `ttbb15cda8243f100b21`；只读回查确认状态 `1`（草稿）、`ScreenDirection: 1`、`AIEnabled: true`、包 MD5 一致，未调用提审。
+- 为什么这样改：比赛方校验器只验证单文件和代码规则，原 21MB 包虽全部绿灯，真实上传接口仍以 `413` 明确拒绝并返回最大 8,388,608 字节。为了同时满足稳定性、完整玩法和真实平台门槛，资源优化必须限定在移动端比赛构建，且把尺寸失败前移到本地构建阶段，不能删历史节点、音乐或依赖人工记忆检查 ZIP。
+- 影响了哪些模块：影响互动空间静态产物的图片编码、包体门禁和平台草稿状态；不改变历史数据、固定开场、玩家正史、AI prompt/schema、运行时 UI、音频、Sites / Worker、原始高清素材或默认生产构建。官方校验器对目录和 ZIP 全部通过；ZIP 完整性 125 个文件无错误；Vitest 33 文件 350/350、TypeScript、105 个运行时文件可移植性和 `git diff --check` 通过。真实浏览器在 390×844 与 360×667 验证字标、胶片纸张、100 张网格图、搜索、武昌起义固定开场和直接改写，破图 0、控制台错误/警告 0。平台容器中的真实 `tt.callAIChatCompletion` 生成仍需在草稿扫码或后续提审前验收。
+
 ### 2026-07-28 21:05 - 新增互动空间专用离线构建与平台 AI 传输
 
-- 本次任务：在独立 `codex/interactive-space-adaptation` worktree 中，把完整《哎！我改变了历史？》适配为抖音互动空间可上传作品；工作人员已明确无需删减内容节点、无需限制文字录入且允许包体超过 8MB，因此保留全部 100 个历史入口、直接改写、十二次决定、完整双报告、音乐和本地历史美术。
+- 本次任务：在独立 `codex/interactive-space-adaptation` worktree 中，把完整《哎！我改变了历史？》适配为抖音互动空间可上传作品；工作人员已明确无需删减内容节点和文字录入，因此保留全部 100 个历史入口、直接改写、十二次决定、完整双报告、音乐和本地历史美术。工作人员当时称包体可超过 8MB，但 22:20 的真实上传随后证实服务端仍硬性限制 8MB，当前边界以上一条记录为准。
 - 改了哪些文件：新增 `vite.interactive.config.ts`、`.trae/mcp.json`、`src/services/{deepseek-contract,deepseek.interactive,deepseek.interactive.test,htmlToImage.interactive}.ts`、`scripts/{prepare-interactive-build,create-interactive-icon}.mjs`；修改 `package.json`、`.gitignore`、`index.html`、`scripts/check-portability.mjs`、`src/services/deepseek.ts`、`src/App.tsx`、`src/data/fixedOpenings.ts`、`src/game/{engine,narrativeContext,prompts,schema,worldCanon}.ts` 与 `AGENTS.md`。
 - 改了什么：新增完全相对路径的 `dist-interactive` 构建目标，通过别名只在互动空间包中把原同源 HTTP/SSE 传输替换为 `tt.callAIChatCompletion`，固定调用用户确认的 `deepseek-v4-flash`、8192 token、平台 SSE 增量解析、90 秒超时、有限重试、取消、刷新恢复和字段修复；把 DeepSeek 类型契约抽成共享模块，原 Sites / Worker 传输逻辑保持不变。互动空间包不含任何 API Key、远程 URL、普通网络请求或外部资源；报告图片改用本地 DOM/SVG/Canvas 渲染，并先把已加载的本地图片和 CSS 背景在内存中嵌入，避免 `foreignObject` 让 Canvas 误判跨域，仍导出完整 2x PNG。补充 Safari 13.4 不支持的 `.at`、`Object.hasOwn` 与 `Intl.Segmenter` 兼容路径，构建后移除非运行时授权清单并只把根资源路径改成相对路径。项目和 Codex 全局均已写入比赛方要求的 `interative_content_mcp`；发布 ZIP 和 300×300 项目字标图标已生成到被 Git 忽略的 `release/`。
 - 为什么这样改：互动空间要求作品资源完全内置、禁止普通网络与外链，并只能通过容器注入的 `tt.*` 能力调用 AI；同时现有 Web / Sites 版已经稳定，不能为比赛发布破坏其服务端密钥、限额、流式体验或公开托管能力。因此采用同一领域层与 UI、两种构建时传输适配器的边界，避免复制玩法或在运行时猜测环境。
