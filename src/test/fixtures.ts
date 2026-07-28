@@ -1,4 +1,4 @@
-export const turnFixture = {
+const turnFixtureBase = {
   timelineName: "无王航线",
   chapter: 1,
   chapterName: "历史现场",
@@ -74,6 +74,11 @@ export const turnFixture = {
   callbackUsed: null,
   visualTone: "ancient",
   memorySummary: "火船提前出发，曹军左翼在主攻前已经起火。",
+} as const;
+
+export const turnFixture = {
+  ...turnFixtureBase,
+  rollChoices: turnFixtureBase.choices,
 } as const;
 
 export const endingFixture = {
