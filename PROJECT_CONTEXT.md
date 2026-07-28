@@ -11,6 +11,7 @@
 ## 2. 代码结构是什么
 
 - `src/data/`：100 张著名历史转折点、与其一一对应的固定第一幕、搜索筛选目录，以及按年份/阶段选取的视觉资产映射。
+- `src/data/historySeeds/`：历史剧本模块边界；`scripts/<seed-id>/index.ts` 每个目录只拥有一个剧本，`shared.ts` 提供公共构造器与标签，`index.ts` 显式维护完整 100 节点的唯一聚合顺序。
 - `src/game/`：游戏领域层，包含单一主角一生 12 决策时间计划、不可撤销世界正史、重大节点编排、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
 - `src/hooks/`：`useGame.ts` 负责请求取消、预生成、即时回响、存储、音频和重试编排。
 - `src/services/`：DeepSeek 传输、版本化本地存储、史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
@@ -40,7 +41,7 @@
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
 - `src/data/fixedOpenings.ts`：100 张卡片的固定第一幕构建与严格 schema 校验入口。
 - `src/game/worldCanon.ts`：把玩家决定固化为世界正史，并生成下一幕的重大节点编排约束。
-- `src/data/historySeeds.ts`：历史卡牌数据入口。
+- `src/data/historySeeds/index.ts`：100 个单剧本模块的显式聚合与历史卡牌数据入口。
 - `src/data/historyCatalog.ts`：历史网格的搜索、年代、地域与主题筛选入口。
 - `src/services/share.ts`：完整报告图片准备、移动系统分享、桌面下载和 object URL 回收入口。
 - `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
@@ -53,6 +54,14 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-29 00:43 - 将一百个历史剧本拆成独立模块
+
+- 本次任务：在完整 100 节点分支中把单体历史卡牌文件重构为“一剧本一模块”，方便单独删除、增加和测试，同时保证剧本内容、数量与顺序不变。
+- 改了哪些文件：删除 `src/data/historySeeds.ts`；新增 `src/data/historySeeds/{index,shared}.ts`、`src/data/historySeeds/scripts/<seed-id>/index.ts` 共 100 个剧本模块与 `src/data/historySeeds.modules.test.ts`；更新 `AGENTS.md` 和 `PROJECT_CONTEXT.md`。
+- 改了什么：公共 `moment` 构造器和标签迁入 `shared.ts`；每个历史节点按自己的稳定 ID 拥有独立目录；聚合入口显式导入全部 100 个模块并保留原顺序；新增结构测试，强制活动节点集合与模块目录一一对应，并证明单个剧本可直接导入测试。
+- 为什么这样改：原先 100 个剧本挤在一个文件中，单独删减、审查或回归测试容易误伤其他节点；模块化边界让每次操作的代码范围可见，并通过聚合测试及时发现“只删数据没删目录”或“有目录没接入卡组”的残缺状态。
+- 影响了哪些模块：历史卡牌源码组织、卡组聚合入口、单剧本测试方式和后续维护约束；不改变任何运行时剧本字段、卡组顺序、固定开场、图片映射、筛选逻辑或玩家行为。
 
 ### 2026-07-28 22:23 - 提交互动空间审核
 

@@ -8,6 +8,7 @@ When implementing from a selected generated mock, treat that image as the source
 
 ## Durable Product Decisions
 
+- Each history script owns exactly one module at `src/data/historySeeds/scripts/<seed-id>/index.ts`. Shared construction and tags stay in `src/data/historySeeds/shared.ts`, while `src/data/historySeeds/index.ts` is the only explicit catalogue aggregation point. Additions or removals must update both the script directory and the index, keep order intentional, and pass the module-structure test; never collapse the catalogue back into one monolithic seed file.
 - The product title is exactly `哎！我改变了历史？`.
 - The history picker header uses the project-owned transparent calligraphic wordmark at `/assets/brand/history-wordmark.png`; keep the exact title as its accessible name and do not restore the instructional subtitle `选择你要闯入的瞬间`. Keep only one aligned 44px settings button in the header; filmstrip, two-column table, and audio belong in its accessible secondary menu rather than appearing as separate top-level controls.
 - The mobile filmstrip picker follows the selected archival-poster anatomy: synchronized timeline above one centered illustrated scene, a vermilion vertical year rail, a separate warm-paper dossier with the complete place/role/decision/deadline, an independently framed vermilion `闯入这一刻` action, and visible neighboring-card previews. Preserve the generated archival stage, paper, and vermilion textures; do not restore the flat image-plus-overlay card or let the action disappear inside the dossier.
