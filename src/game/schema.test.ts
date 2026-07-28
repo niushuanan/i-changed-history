@@ -4,7 +4,8 @@ import { extractFirstJsonObject, parseAlternatePresent, parseBiographyReport, pa
 
 describe("structured timeline parsing", () => {
   it("requires a separately generated Roll trio for live model turns", () => {
-    expect(() => parseTimelineTurn(JSON.stringify(turnFixture), {
+    const { rollChoices: _omitted, ...withoutRollChoices } = turnFixture;
+    expect(() => parseTimelineTurn(JSON.stringify(withoutRollChoices), {
       requireRollChoices: true,
     })).toThrow(/rollChoices/);
 

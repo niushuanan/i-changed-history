@@ -8,7 +8,6 @@ import {
   generateNextTurn,
   type GenerationDiagnostic,
 } from "../game/engine";
-import { buildCanonicalCustomResolution } from "../game/customCanon";
 import { buildNarrativeContext } from "../game/narrativeContext";
 import type { PlayedTurn } from "../game/prompts";
 import type { GameScenario } from "../game/reducer";
@@ -16,8 +15,6 @@ import type { AlternatePresent, TimelineTurn } from "../game/schema";
 import type { DecisionChapter } from "../game/timelinePlan";
 import type { DeepSeekPartialDraft, DeepSeekRequestMetrics } from "../services/deepseek";
 import {
-  buildSoakCustomOutcome,
-  buildWildSoakCustomOutcome,
   selectLongRunSoakCases,
   type LongRunSoakCase,
 } from "./soakCases";
@@ -41,7 +38,7 @@ type NodeResult = Readonly<{
   location: string;
   role: string;
   choice: string;
-  custom: boolean;
+  rolled: boolean;
   generationSource: TimelineTurn["generationSource"];
   activeCanonChapters: readonly number[];
   actionMs: number;
@@ -61,8 +58,8 @@ type RunResult = {
   success: boolean;
   durationMs: number;
   completedChapters: number;
-  customChapters: readonly number[];
-  customOutcomes: string[];
+  rollChapters: readonly number[];
+  rolledChoices: string[];
   manualRetries: number;
   endingMs?: number;
   diagnostics: GenerationDiagnostic[];
@@ -77,16 +74,15 @@ const OUTPUT_ROOT = path.resolve("tmp", "soak");
 const SOAK_LIMIT = Math.max(1, Math.min(10, Number(process.env.SOAK_LIMIT ?? 10)));
 const SOAK_CONCURRENCY = Math.max(1, Math.min(3, Number(process.env.SOAK_CONCURRENCY ?? 2)));
 const SOAK_CASE_IDS = (process.env.SOAK_CASE_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-const SOAK_ALL_CUSTOM = process.env.SOAK_ALL_CUSTOM === "1";
+const SOAK_ALL_ROLL = process.env.SOAK_ALL_ROLL === "1";
 const SOAK_ENFORCE_LATENCY = process.env.SOAK_ENFORCE_LATENCY === "1";
 const SOAK_MIN_SUCCESS_RATE = Math.max(0.5, Math.min(1, Number(process.env.SOAK_MIN_SUCCESS_RATE ?? 0.9)));
 const BATCH_ID = process.env.SOAK_BATCH?.trim() || new Date().toISOString().replace(/[:.]/g, "-");
 const selectedCases = selectLongRunSoakCases({
   caseIds: SOAK_CASE_IDS,
   limit: SOAK_LIMIT,
-  allCustom: SOAK_ALL_CUSTOM,
+  allRoll: SOAK_ALL_ROLL,
 });
-const usedCustomOutcomes = new Set<string>();
 
 function sanitizedError(error: unknown): SanitizedError {
   if (error instanceof Error) {
@@ -115,37 +111,15 @@ async function retryOnce<T>(
   throw new Error(`unreachable retry state for ${step}`);
 }
 
-function ordinaryPlayedTurn(turn: TimelineTurn, runIndex: number): PlayedTurn {
-  const choice = turn.choices[(runIndex + turn.chapter - 1) % turn.choices.length];
+function cardPlayedTurn(turn: TimelineTurn, runIndex: number, rolled: boolean): PlayedTurn {
+  const deck = rolled ? turn.rollChoices : turn.choices;
+  const choice = deck[(runIndex + turn.chapter - 1) % deck.length];
   return {
     turn,
     selectedChoiceId: choice.id,
     selectedChoiceLabel: choice.label,
     selectedDeviationClass: choice.deviationClass,
     resolvedEcho: choice.instantEcho,
-  };
-}
-
-function customPlayedTurn(
-  turn: TimelineTurn,
-  outcome: string,
-): { played: PlayedTurn; durationMs: number } {
-  const startedAt = Date.now();
-  const resolution = buildCanonicalCustomResolution(turn, outcome, "rupture");
-  expect(resolution.declaredOutcome).toBe(outcome);
-  expect(resolution.instantEcho.directResult).toBe(outcome);
-  return {
-    durationMs: Date.now() - startedAt,
-    played: {
-      turn,
-      selectedChoiceId: "custom",
-      selectedChoiceLabel: outcome,
-      selectedDeviationClass: resolution.deviationClass,
-      resolvedEcho: resolution.instantEcho,
-      playerAuthored: true,
-      canonStatus: resolution.canonStatus,
-      causalMechanism: resolution.causalMechanism,
-    },
   };
 }
 
@@ -184,8 +158,8 @@ async function runGame(
     success: false,
     durationMs: 0,
     completedChapters: 0,
-    customChapters: soakCase.customChapters,
-    customOutcomes: [],
+    rollChapters: soakCase.rollChapters,
+    rolledChoices: [],
     manualRetries: 0,
     diagnostics: [],
     requestMetrics: [],
@@ -199,24 +173,12 @@ async function runGame(
 
     for (let chapter = 1; chapter <= 12; chapter += 1) {
       expect(currentTurn.chapter).toBe(chapter);
-      const isCustom = soakCase.customChapters.includes(chapter);
+      const rolled = soakCase.rollChapters.includes(chapter);
       const actionStartedAt = Date.now();
-      let played: PlayedTurn;
-
-      if (isCustom) {
-        const customIndex = soakCase.customChapters.indexOf(chapter);
-        const outcome = SOAK_ALL_CUSTOM
-          ? buildWildSoakCustomOutcome(soakCase, runIndex, customIndex, currentTurn, seed)
-          : buildSoakCustomOutcome(soakCase, runIndex, customIndex, currentTurn, seed);
-        expect([...outcome].length).toBeLessThanOrEqual(160);
-        expect(usedCustomOutcomes.has(outcome)).toBe(false);
-        usedCustomOutcomes.add(outcome);
-        run.customOutcomes.push(outcome);
-        const custom = customPlayedTurn(currentTurn, outcome);
-        played = custom.played;
-      } else {
-        played = ordinaryPlayedTurn(currentTurn, runIndex);
-      }
+      expect(currentTurn.choices).toHaveLength(3);
+      expect(currentTurn.rollChoices).toHaveLength(3);
+      const played = cardPlayedTurn(currentTurn, runIndex, rolled);
+      if (rolled) run.rolledChoices.push(played.selectedChoiceLabel);
 
       playedTurns.push(played);
       const node: NodeResult = {
@@ -226,7 +188,7 @@ async function runGame(
         location: currentTurn.location,
         role: currentTurn.role,
         choice: played.selectedChoiceLabel,
-        custom: isCustom,
+        rolled,
         generationSource: currentTurn.generationSource,
         activeCanonChapters: [],
         actionMs: Date.now() - actionStartedAt,
@@ -234,7 +196,7 @@ async function runGame(
         worldStateChange: currentTurn.worldStateChange,
         causalBridge: currentTurn.causalBridge,
         divergenceProof: currentTurn.divergenceProof,
-        choices: currentTurn.choices.map((choice) => choice.label),
+        choices: [...currentTurn.choices, ...currentTurn.rollChoices].map((choice) => choice.label),
       };
       run.completedChapters = chapter;
 
@@ -264,8 +226,7 @@ async function runGame(
     }
 
     expect(playedTurns).toHaveLength(12);
-    expect(run.customOutcomes).toHaveLength(soakCase.customChapters.length);
-    expect(new Set(run.customOutcomes).size).toBe(run.customOutcomes.length);
+    expect(run.rolledChoices).toHaveLength(soakCase.rollChapters.length);
     const ending = await retryOnce(
       "ending",
       () => generateEnding(scenario, playedTurns, {
@@ -334,16 +295,16 @@ describe("real DeepSeek twelve-node long-run stability", () => {
 
     await Promise.all(Array.from({ length: Math.min(SOAK_CONCURRENCY, selectedCases.length) }, () => worker()));
     const successes = results.filter((result) => result.success).length;
-    const totalCustomOutcomes = results.reduce((sum, result) => sum + result.customOutcomes.length, 0);
-    const plannedCustomOutcomes = selectedCases.reduce((sum, item) => sum + item.customChapters.length, 0);
-    const successfulRunCustomOutcomes = results
+    const totalRolls = results.reduce((sum, result) => sum + result.rolledChoices.length, 0);
+    const plannedRolls = selectedCases.reduce((sum, item) => sum + item.rollChapters.length, 0);
+    const successfulRunRolls = results
       .filter((result) => result.success)
-      .reduce((sum, result) => sum + result.customOutcomes.length, 0);
+      .reduce((sum, result) => sum + result.rolledChoices.length, 0);
     const successfulResults = results.filter((result) => result.success);
     const turnDurations = successfulResults.flatMap((result) => result.nodes.flatMap((node) => node.nextTurnMs ?? []));
     const firstReadableDurations = successfulResults.flatMap((result) => result.nodes.flatMap((node) => node.firstReadableMs ?? []));
     const endingDurations = successfulResults.flatMap((result) => result.endingMs ?? []);
-    const actionDurations = successfulResults.flatMap((result) => result.nodes.filter((node) => node.custom).map((node) => node.actionMs));
+    const actionDurations = successfulResults.flatMap((result) => result.nodes.filter((node) => node.rolled).map((node) => node.actionMs));
     const requestMetrics = results.flatMap((result) => result.requestMetrics);
     const successfulMetrics = requestMetrics.filter((metric) => metric.outcome === "success");
     const cacheHitTokens = successfulMetrics.reduce((sum, metric) => sum + (metric.usage?.promptCacheHitTokens ?? 0), 0);
@@ -375,20 +336,19 @@ describe("real DeepSeek twelve-node long-run stability", () => {
       successes,
       successRate: successes / results.length,
       requiredSuccesses: Math.ceil(results.length * SOAK_MIN_SUCCESS_RATE),
-      allCustom: SOAK_ALL_CUSTOM,
+      allRoll: SOAK_ALL_ROLL,
       plannedGeneratedTurns,
       completedGeneratedTurns,
       generatedTurnSuccessRate: completedGeneratedTurns / plannedGeneratedTurns,
-      plannedCustomOutcomes,
-      totalCustomOutcomes,
-      successfulRunCustomOutcomes,
-      uniqueCustomOutcomes: usedCustomOutcomes.size,
+      plannedRolls,
+      totalRolls,
+      successfulRunRolls,
       totalManualRetries: results.reduce((sum, result) => sum + result.manualRetries, 0),
       latency: {
         fullRun: latencySummary(successfulResults.map((result) => result.durationMs)),
         nextTurn: latencySummary(turnDurations),
         firstReadable: latencySummary(firstReadableDurations),
-        customCommit: latencySummary(actionDurations),
+        rollReveal: latencySummary(actionDurations),
         ending: latencySummary(endingDurations),
       },
       generatedTurns,
@@ -408,7 +368,7 @@ describe("real DeepSeek twelve-node long-run stability", () => {
         id: result.id,
         success: result.success,
         completedChapters: result.completedChapters,
-        customCount: result.customOutcomes.length,
+        rollCount: result.rolledChoices.length,
         manualRetries: result.manualRetries,
         durationMs: result.durationMs,
         endingMs: result.endingMs,
@@ -419,22 +379,22 @@ describe("real DeepSeek twelve-node long-run stability", () => {
 
     expect(new Set(selectedCases.map((item) => item.seedId)).size).toBe(selectedCases.length);
     selectedCases.forEach((item) => {
-      if (SOAK_ALL_CUSTOM) {
-        expect(item.customChapters).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      if (SOAK_ALL_ROLL) {
+        expect(item.rollChapters).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
       } else {
-        expect(item.customChapters.length).toBeGreaterThanOrEqual(4);
-        expect(item.customChapters.length).toBeLessThanOrEqual(5);
+        expect(item.rollChapters.length).toBeGreaterThanOrEqual(4);
+        expect(item.rollChapters.length).toBeLessThanOrEqual(5);
       }
     });
     results.filter((result) => result.success).forEach((result) => {
       const soakCase = selectedCases.find((item) => item.id === result.id)!;
-      expect(result.customOutcomes).toHaveLength(soakCase.customChapters.length);
+      expect(result.rolledChoices).toHaveLength(soakCase.rollChapters.length);
     });
-    expect(usedCustomOutcomes.size).toBe(totalCustomOutcomes);
+    expect(totalRolls).toBe(plannedRolls);
     expect(successes).toBeGreaterThanOrEqual(summary.requiredSuccesses);
     expect(summary.generatedTurnSuccessRate).toBeGreaterThanOrEqual(SOAK_MIN_SUCCESS_RATE);
     expect(actionDurations.every((duration) => duration < 50)).toBe(true);
-    expect(requestMetrics.every((metric) => !metric.requestKind.includes("custom"))).toBe(true);
+    expect(requestMetrics.every((metric) => /^(turn|ending)-/.test(metric.requestKind))).toBe(true);
     if ((SOAK_ENFORCE_LATENCY || selectedCases.length === 10) && successes >= summary.requiredSuccesses) {
       expect(summary.latency.fullRun.p50Ms).toBeLessThanOrEqual(acceptance.runP50TargetMs);
       expect(summary.latency.nextTurn.p50Ms).toBeLessThanOrEqual(acceptance.turnP50TargetMs);
