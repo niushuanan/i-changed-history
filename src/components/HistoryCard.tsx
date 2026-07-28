@@ -1,5 +1,6 @@
 import { ArrowRight, ClockCountdown, MapPin, UserFocus, WarningCircle } from "@phosphor-icons/react";
 import type { HistorySeed } from "../game/types";
+import { formatHistoricalYear } from "../data/historicalYear";
 import { historyAssetForSeed, VISUAL_ASSETS } from "../data/visualAssets";
 
 type HistoryCardProps = {
@@ -9,19 +10,18 @@ type HistoryCardProps = {
   onSelect: () => void;
 };
 
-function visibleDateParts(seed: HistorySeed) {
+function visibleYearParts(seed: HistorySeed) {
   const era = seed.year < 0 ? "公元前" : "公元";
   const year = String(Math.abs(seed.year));
-  const yearPrefix = seed.year < 0
-    ? new RegExp(`^公元前\\s*${year}年`)
-    : new RegExp(`^(?:公元)?${year}年`);
-  const detail = seed.dateLabel.replace(yearPrefix, "");
 
-  return { era, year, detail };
+  return {
+    era: Array.from(era),
+    year: Array.from(year),
+  };
 }
 
 export function HistoryCard({ seed, position, total, onSelect }: HistoryCardProps) {
-  const date = visibleDateParts(seed);
+  const visibleYear = visibleYearParts(seed);
 
   return (
     <article className="history-card">
@@ -34,11 +34,14 @@ export function HistoryCard({ seed, position, total, onSelect }: HistoryCardProp
             onError={(event) => { event.currentTarget.src = VISUAL_ASSETS[seed.visualTone]; }}
           />
           <div className="history-card__year-rail" data-testid="history-card-year-rail">
-            <div className="history-card__year" data-testid="history-card-year" data-year={seed.year} aria-label={seed.dateLabel}>
-              <span className="history-card__year-era" data-testid="history-card-year-era">{date.era}</span>
-              <strong className="history-card__year-number" data-testid="history-card-year-number">{date.year}</strong>
+            <div className="history-card__year" data-testid="history-card-year" data-year={seed.year} aria-label={formatHistoricalYear(seed.year)}>
+              <span className="history-card__year-era" data-testid="history-card-year-era">
+                {visibleYear.era.map((character) => <span key={character}>{character}</span>)}
+              </span>
+              <strong className="history-card__year-number" data-testid="history-card-year-number">
+                {visibleYear.year.map((digit, index) => <span key={`${digit}-${index}`}>{digit}</span>)}
+              </strong>
               <span className="history-card__year-suffix" data-testid="history-card-year-suffix">年</span>
-              {date.detail ? <small>{date.detail}</small> : null}
             </div>
           </div>
           <span className="history-card__position" data-testid="history-card-position"><strong>{position}</strong> / {total}</span>

@@ -1120,23 +1120,16 @@
   text-shadow: 0 1px 1px rgba(0, 0, 0, .38);
 }
 .history-card__year-era,
-.history-card__year-number,
-.history-card__year-suffix {
-  writing-mode: vertical-rl;
-  text-orientation: upright;
+.history-card__year-number {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-.history-card__year-era { font-size: 18px; line-height: 1; letter-spacing: 2px; }
-.history-card__year-number { font-size: 32px; line-height: .94; letter-spacing: 2px; }
+.history-card__year-era { gap: 2px; font-size: 18px; line-height: 1; letter-spacing: 0; }
+.history-card__year-number { gap: 2px; font-size: 32px; line-height: .94; letter-spacing: 0; }
+.history-card__year-era > span,
+.history-card__year-number > span { display: block; }
 .history-card__year-suffix { font-size: 16px; line-height: 1; }
-.history-card__year-rail small {
-  margin-top: auto;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  color: #ead8c6;
-  font-size: 11px;
-  line-height: 1;
-  letter-spacing: 1px;
-}
 .history-card__position {
   position: absolute;
   z-index: 6;

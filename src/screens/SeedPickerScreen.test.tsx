@@ -90,7 +90,6 @@ describe("living history browser", () => {
     expect(posterStack).toContainElement(scene);
 
     const yearRail = within(firstCard).getByTestId("history-card-year-rail");
-    expect(yearRail).toHaveTextContent(cards[0].dateLabel);
     expect(within(yearRail).getByTestId("history-card-year-era")).toHaveTextContent(cards[0].year < 0 ? "公元前" : "公元");
     expect(within(yearRail).getByTestId("history-card-year-number")).toHaveTextContent(String(Math.abs(cards[0].year)));
     expect(within(yearRail).getByTestId("history-card-year-suffix")).toHaveTextContent("年");
@@ -112,7 +111,7 @@ describe("living history browser", () => {
     expect(posterStack.nextElementSibling).toBe(action);
   });
 
-  it("keeps the complete positive-era calendar detail visible on its year rail", () => {
+  it("keeps the year rail to a stable era-and-year format without month or day detail", () => {
     const detailedCardIndex = cards.findIndex((seed) => (
       seed.year > 0
       && seed.dateLabel.startsWith(`${seed.year}年`)
@@ -123,7 +122,16 @@ describe("living history browser", () => {
 
     const detailedSeed = cards[detailedCardIndex];
     const year = within(screen.getAllByRole("article")[detailedCardIndex]).getByTestId("history-card-year");
-    expect(year).toHaveTextContent(detailedSeed.dateLabel);
+    const detail = detailedSeed.dateLabel.replace(`${detailedSeed.year}年`, "");
+    expect(year).toHaveAccessibleName(formatHistoricalYear(detailedSeed.year));
+    expect(year).toHaveTextContent(`公元${detailedSeed.year}年`);
+    expect(year).not.toHaveTextContent(detail);
+    expect(
+      Array.from(within(year).getByTestId("history-card-year-era").children).map((node) => node.textContent),
+    ).toEqual(["公", "元"]);
+    expect(
+      Array.from(within(year).getByTestId("history-card-year-number").children).map((node) => node.textContent),
+    ).toEqual(Array.from(String(detailedSeed.year)));
     expect(year.tagName).toBe("DIV");
     expect(year).not.toHaveAttribute("datetime");
   });
