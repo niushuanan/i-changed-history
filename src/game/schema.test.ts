@@ -3,6 +3,19 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { extractFirstJsonObject, parseAlternatePresent, parseBiographyReport, parseCustomActionResolution, parseTimelineTurn, parseWorldReport } from "./schema";
 
 describe("structured timeline parsing", () => {
+  it("requires a separately generated Roll trio for live model turns", () => {
+    expect(() => parseTimelineTurn(JSON.stringify(turnFixture), {
+      requireRollChoices: true,
+    })).toThrow(/rollChoices/);
+
+    expect(parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      rollChoices: turnFixture.choices,
+    }), {
+      requireRollChoices: true,
+    }).rollChoices).toHaveLength(3);
+  });
+
   it("keeps the same protagonist while enforcing the authoritative age", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
@@ -463,7 +476,7 @@ describe("structured timeline parsing", () => {
     expect(parsed.choices[0].label).toBe(label);
   });
 
-  it("accepts an oversized canonical choice when no compact display label can be derived", () => {
+  it("keeps an oversized canonical choice while always deriving a short card face", () => {
     const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们重新宣誓效忠否则立即解除兵权";
     expect([...canonical].length).toBeGreaterThan(36);
 
@@ -482,7 +495,8 @@ describe("structured timeline parsing", () => {
     }));
 
     expect(parsed.choices[0].label).toBe(canonical);
-    expect(parsed.choices[0].displayLabel).toBe(canonical);
+    expect(parsed.choices[0].displayLabel).toBe("执行关键行动");
+    expect([...parsed.choices[0].displayLabel].length).toBeLessThanOrEqual(16);
   });
 
   it("preserves a complete oversized choice consequence", () => {
@@ -615,6 +629,7 @@ describe("structured timeline parsing", () => {
 
     expect(parsed).toMatchObject({ headline, role, location });
     expect(parsed.choices[0]).toMatchObject({ label, actionSpec: { action, target, deadline } });
+    expect([...parsed.choices[0].displayLabel].length).toBeLessThanOrEqual(16);
   });
 
   it("uses the selected choice echo as the authoritative continuation callback", () => {

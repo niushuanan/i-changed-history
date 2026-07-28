@@ -285,6 +285,7 @@ function parseRequestedTurn(
       expectedProtagonistAge: expectedProtagonist?.age,
       expectedLifeStage: expectedProtagonist?.lifeStage,
       expectedCausalLedger: authoritativeLedger,
+      requireRollChoices: true,
     });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
@@ -292,7 +293,7 @@ function parseRequestedTurn(
     if (expectedChapter >= 4 && openingContext) {
       const headlineKeepsOpeningPlot = turn.headline.includes(openingContext.eventName);
       const objectiveKeepsOpeningPlot = turn.immediateObjective.includes(openingContext.eventName)
-        || turn.choices.some((choice) => choice.label.includes(openingContext.eventName));
+        || [...turn.choices, ...turn.rollChoices].some((choice) => choice.label.includes(openingContext.eventName));
       const narrativeKeepsOpeningPlot = turn.narrative.includes(openingContext.eventName)
         && (headlineKeepsOpeningPlot || objectiveKeepsOpeningPlot);
       const staleFields = [

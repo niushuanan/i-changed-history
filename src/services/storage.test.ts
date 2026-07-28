@@ -7,7 +7,7 @@ import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v13 fast-path single-history storage", () => {
+describe("v14 roguelike-card single-history storage", () => {
   it("persists the historical picker and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
@@ -75,7 +75,7 @@ describe("v13 fast-path single-history storage", () => {
       customActionsUsed: 0,
       request: null,
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -90,7 +90,7 @@ describe("v13 fast-path single-history storage", () => {
       request: null,
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
   });
 
   it.each([
@@ -381,7 +381,7 @@ describe("v13 fast-path single-history storage", () => {
       currentTurn: null,
       playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
@@ -431,6 +431,6 @@ describe("v13 fast-path single-history storage", () => {
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":13');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
   });
 });

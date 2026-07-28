@@ -46,6 +46,22 @@ describe("single-life choice-only game reducer", () => {
     expect(chosen.playedTurns[0]).not.toHaveProperty("customIntervention");
   });
 
+  it("reveals the prefetched second trio only once and commits from that trio", () => {
+    const started = gameReducer(createInitialGameState(), {
+      type: "START_SCENARIO",
+      seed: HISTORY_SEEDS[0],
+    });
+    const firstRoll = gameReducer(started, { type: "ROLL_CHOICES" });
+    const ignoredSecondRoll = gameReducer(firstRoll, { type: "ROLL_CHOICES" });
+
+    expect(firstRoll.rollUsed).toBe(true);
+    expect(ignoredSecondRoll).toBe(firstRoll);
+
+    const chosen = gameReducer(firstRoll, { type: "COMMIT_AI_CHOICE", choiceId: "B" });
+    expect(chosen.playedTurns[0].selectedChoiceLabel)
+      .toBe(started.currentTurn?.rollChoices[1].label);
+  });
+
   it("records the full canonical AI choice instead of its compact display label", () => {
     const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们在日落之前重新宣誓效忠";
     const longChoiceTurn = parseTimelineTurn(JSON.stringify({

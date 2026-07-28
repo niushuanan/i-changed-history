@@ -4,13 +4,13 @@ import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
 import { alternatePresentSchema, storedAlternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v13";
+export const GAME_STORAGE_KEY = "i-changed-history:session:v14";
 const LEGACY_GAME_STORAGE_KEYS = [
-  "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
+  "i-changed-history:session:v13", "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
   "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5",
   "i-changed-history:session:v4",
 ] as const;
-const STORAGE_VERSION = 13;
+const STORAGE_VERSION = 14;
 const ACTIVE_HISTORY_SEED_IDS = new Set(HISTORY_SEEDS.map((seed) => seed.id));
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingEnding" | "echo">;
@@ -58,6 +58,7 @@ const stateSchema = z.strictObject({
   deviation: z.number().int().min(0).max(100),
   lastImpact: z.number().int().min(0).max(100),
   customActionsUsed: z.number().int().min(0),
+  rollUsed: z.boolean().default(false),
   request: requestSchema.nullable(),
   pendingTurn: storedTimelineTurnSchema.nullable().default(null),
   result: storedAlternatePresentSchema.nullable(),
@@ -78,7 +79,7 @@ function base(state: GameState) {
   return {
     scenario: state.scenario, currentTurn: state.currentTurn,
     playedTurns: state.playedTurns, deviation: state.deviation, lastImpact: state.lastImpact,
-    customActionsUsed: state.customActionsUsed, pendingTurn: state.pendingTurn,
+    customActionsUsed: state.customActionsUsed, rollUsed: state.rollUsed, pendingTurn: state.pendingTurn,
     result: state.result, nextRequestId: state.nextRequestId,
   };
 }

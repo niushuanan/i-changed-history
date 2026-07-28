@@ -52,12 +52,12 @@ function turnContract() {
   return {
     clientOwnedFields: ["chapter", "chapterName", "protagonistAge", "lifeStage", "yearLabel", "previousEcho", "generationSource"],
     derivedFromAiFields: ["immediateObjective", "baselineAnchor", "memorySummary"],
-    requiredFields: ["headline", "narrative", "location", "role", "protagonistName", "timePressure", "causalBridge", "worldStateChange", "divergenceProof", "historicalAnchors", "choices", "causalLedger", "visualTone"],
+    requiredFields: ["headline", "narrative", "location", "role", "protagonistName", "timePressure", "causalBridge", "worldStateChange", "divergenceProof", "historicalAnchors", "choices", "rollChoices", "causalLedger", "visualTone"],
     rules: {
-      totalLength: "只返回 requiredFields，严格按 exactShapeExample 的字段顺序，完整 JSON 控制在 900 个汉字左右；不要输出解释",
+      totalLength: "只返回 requiredFields，严格按 exactShapeExample 的字段顺序，完整 JSON 控制在 1400 个汉字左右；不要输出解释",
       clientOwnedFields: "clientOwnedFields 和 derivedFromAiFields 都由客户端注入或从你的其他字段提取，禁止输出",
       protagonistName: "第一幕给主角一个符合时代与地域的固定姓名；续幕必须逐字等于 authoritativeProtagonist.name",
-      narrative: "80-180 个汉字，绝不超过 180 字；用二至五句完整叙事交代三层信息，推荐三句，第二人称现在时。第一层交代著名史实局面或上一项决定如何造成当前局面；第二层写明真实人物、机构或阵营正在争夺什么及现场可见证据；第三层写清你能调动的身份或资源、必须决定什么、失败会立即失去什么",
+      narrative: "55-110 个汉字；用二至三句完整叙事，第二人称现在时。只保留上一决定造成的局面、一个可见历史锚点、玩家当前能做什么与失败代价，不写长篇背景",
       headline: "22 个汉字以内；必须与 recentScenes 最近三幕中的标题逐字不同",
       location: "28 个汉字以内；必须使用当时真实存在或时代可信的称谓。1900 年前禁止使用议事厅、会议室、办公室、指挥中心、新闻中心、发布厅、报告厅、展览厅、作战室、控制室、调度室等现代通用空间名，改用府署正堂、军帐、中军帐、行辕、馆驿、宫门、城楼、书院等符合史实的时代真实称谓",
       role: "24 个汉字以内；玩家此刻被历史人物认可的具体身份",
@@ -66,7 +66,8 @@ function turnContract() {
       divergenceProof: "42 字以内；一句话只写真实历史的对应结果，字段正文不要重复写‘真实历史中’，不得复述当前架空线；必须含至少一个可核验的真实人物、机构、地点或事件",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念；输出前核对人物、机构与制度在目标年份仍在世、在任或确实存在，目标年份以 authoritativeTimelineNode.targetYear 为准；若因玩家正史改变则在 narrative 中说明",
-      choices: "严格三个对象 A/B/C，分别使用 nudge/reform/rupture；每个 label 18-30 字，必须写明动作与对象，并以对象或明确结果收尾，禁止以“的、并、试图、计划、平衡、处理、推进”等悬空词结尾；只含 id、label、deviationClass、instantEcho、usesModernKnowledge、actionSpec；actionSpec 必须含 actor、action、target、deadline，四项合起来构成历史人物此刻真的能下达或执行的动作；usesModernKnowledge 只表示是否使用现代常识，不得与性格相关",
+      choices: "首组三张已预生成卡，严格为 A/B/C。A=nudge：按史实既有轨迹推进的正规方案；B=reform：显著改史、更加激进但仍可由人执行；C=rupture：允许坦克、神兽、天外器物、时空异象等光怪陆离设定，并把它当作已经出现的现实条件。每张 displayLabel 为牌面标题，4-12 个汉字；label 为 18-42 字的完整详细决定，供后续推演写入正史。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec；actionSpec 必须含 actor、action、target、deadline",
+      rollChoices: "第二组三张预生成卡，字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture。不得只是改写首组三张的措辞：三张都必须提供不同的行动载体、对象或超现实机制。客户端只展示首组；玩家本节点唯一一次 Roll 后立即切到本组，不再请求模型",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       causalLedger: "最多三项，只写模型新增的普通因果，每项含 fact、causedByChapter、mustAffect，fact 与 mustAffect 控制在 28 字以内。客户端会优先注入 narrativeContext.activePlayerCanon；不要在这里机械复制玩家原文，活跃正史占满三项时返回空数组",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
@@ -84,9 +85,14 @@ function turnContract() {
       divergenceProof: "只写实际发生的真实结果与直接后果",
       historicalAnchors: ["真实人物", "真实机构", "时代器物"],
       choices: [
-        { id: "A", label: "具体行动", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "B", label: "具体行动", deviationClass: "reform", usesModernKnowledge: true, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "C", label: "具体行动", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "A", displayLabel: "照原令推进", label: "依照既有军令在日落前完成原定部署", intent: "按史实轨迹推进", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", displayLabel: "夺令改制", label: "扣下旧令并联合前线将领重组指挥权", intent: "激进改写权力结构", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "C", displayLabel: "召来钢铁巨兽", label: "召来跨时代坦克封锁城门并迫使双方停战", intent: "让不可能之物进入历史", deviationClass: "rupture", usesModernKnowledge: true, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+      ],
+      rollChoices: [
+        { id: "A", displayLabel: "稳住原局", label: "封存争议情报并在最后时限照常执行原令", intent: "谨慎维持原轨迹", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", displayLabel: "撕令夺权", label: "当众撕毁原令并联合反对者接管现场", intent: "把决定升级为夺权", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "C", displayLabel: "请神兽降临", label: "召来山海异兽驮走关键器物并颁下兽谕", intent: "让神话实体改写因果", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
       causalLedger: [{ fact: "因果事实", causedByChapter: 0, mustAffect: "后续对象" }], visualTone: "war",
     },
@@ -142,7 +148,7 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
     narrativeContext.activePlayerCanon.length - 1
   ];
   return turnMessages({
-    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的最近三幕玩家正史：worldStateChange 必须展示最近玩家正史已经造成的局面，causalBridge 必须写清它通过什么媒介抵达当前冲突；若 activePlayerCanon 非空，最新一条必须在 narrative、worldStateChange 或 causalBridge 中至少逐字写出一个核心人物、制度、地点、器物或动作名，不能只写“产生影响”；不要在 causalLedger 中机械抄写，客户端会权威注入原文。更早的玩家正史继续成立，但无需每幕重复点名。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务；本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors，并核对它们在 authoritativeTimelineNode.targetYear 仍在世、在任或确实存在；如果玩家正史改变了其命运，必须在 narrative 中交代。三个选择都必须是当前角色能在明确期限内执行的命令、交易、部署、公开表态、任免或具体操作，不得写抽象政策口号。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。输出前逐项确认 requiredFields 全部存在，尤其不得遗漏 timePressure、historicalAnchors 与三个 choices。`,
+    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。请像历史小说家与反事实研究者一样，先在内部推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，再自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的最近三幕玩家正史：worldStateChange 必须展示最近玩家正史已经造成的局面，causalBridge 必须写清它通过什么媒介抵达当前冲突；若 activePlayerCanon 非空，最新一条必须在 narrative、worldStateChange 或 causalBridge 中至少逐字写出一个核心人物、制度、地点、器物或动作名，不能只写“产生影响”；不要在 causalLedger 中机械抄写，客户端会权威注入原文。更早的玩家正史继续成立，但无需每幕重复点名。第 4 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务；本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同。必须使用至少两个时代准确的真实人物、机构、地点、军队、法令或器物作为 historicalAnchors，并核对它们在 authoritativeTimelineNode.targetYear 仍在世、在任或确实存在；如果玩家正史改变了其命运，必须在 narrative 中交代。一次性生成 choices 与 rollChoices 共六张牌。每组三张都按循史、破局、天外排列；天外牌可以明确召唤坦克、神兽、异象或其他不可能之物，后续必须把玩家选中的详细 label 当作已发生正史。第 12 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。输出前逐项确认 requiredFields 全部存在，尤其不得遗漏 timePressure、historicalAnchors、choices 与 rollChoices。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     authoritativeProtagonist: {
@@ -169,7 +175,7 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
       location: "若目标年份早于 1900 年，再检查一次地点中没有议事厅、会议室、办公室、指挥中心、控制室等现代通用空间名",
       historicalAnchors: "数组必须有 2—4 项，且每一项都在本幕正文真实出现或被明确指向",
       choiceIds: ["A", "B", "C"],
-      choices: "必须恰好三个完整对象；每个 label 都以具体对象或已完成结果收尾，禁止省略第三项或用悬空动词结尾",
+      choices: "choices 与 rollChoices 都必须恰好三个完整对象；每张 displayLabel 控制在 4-12 字，每个 label 都以具体对象或已完成结果收尾，禁止省略第三项或用悬空动词结尾",
     },
   });
 }

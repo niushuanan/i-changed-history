@@ -37,6 +37,7 @@ export type GameState = {
   deviation: number;
   lastImpact: number;
   customActionsUsed: number;
+  rollUsed: boolean;
   echo: EchoState | null;
   request: RequestIntent | null;
   pendingTurn: TimelineTurn | null;
@@ -48,6 +49,7 @@ export type GameState = {
 
 export type GameAction =
   | { type: "START_SCENARIO"; seed: HistorySeed }
+  | { type: "ROLL_CHOICES" }
   | { type: "COMMIT_AI_CHOICE"; choiceId: "A" | "B" | "C" }
   | { type: "SUBMIT_CUSTOM_ACTION"; action: string }
   | { type: "TURN_RESOLVED"; requestId: number; turn: TimelineTurn }
@@ -61,7 +63,7 @@ export type GameAction =
 export function createInitialGameState(nextRequestId = 1): GameState {
   return {
     phase: "selecting", scenario: null, currentTurn: null, playedTurns: [],
-    deviation: 0, lastImpact: 0, customActionsUsed: 0, echo: null, request: null,
+    deviation: 0, lastImpact: 0, customActionsUsed: 0, rollUsed: false, echo: null, request: null,
     pendingTurn: null, pendingEnding: null, result: null, error: null, nextRequestId,
   };
 }
@@ -90,12 +92,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         phase: "event",
         scenario: { seed: action.seed },
         currentTurn: getFixedOpening(action.seed),
+        rollUsed: false,
         request: null,
         error: null,
       };
+    case "ROLL_CHOICES":
+      if (state.phase !== "event" || !state.currentTurn || state.rollUsed) return state;
+      return { ...state, rollUsed: true };
     case "COMMIT_AI_CHOICE": {
       if (state.phase !== "event" || !state.currentTurn) return state;
-      const choice = state.currentTurn.choices.find((candidate) => candidate.id === action.choiceId);
+      const visibleChoices = state.rollUsed ? state.currentTurn.rollChoices : state.currentTurn.choices;
+      const choice = visibleChoices.find((candidate) => candidate.id === action.choiceId);
       if (!choice) return state;
       const impact = calculateDeviation(state.deviation, choice.deviationClass, state.currentTurn.chapter);
       const playedTurn: PlayedTurn = {
@@ -177,6 +184,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         phase: "event",
         currentTurn: state.pendingTurn,
+        rollUsed: false,
         pendingTurn: null,
         error: null,
       };

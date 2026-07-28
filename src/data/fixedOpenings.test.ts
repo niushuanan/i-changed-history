@@ -18,6 +18,12 @@ describe("fixed first turns", () => {
       });
       expect(opening.choices.map((choice) => choice.id)).toEqual(["A", "B", "C"]);
       expect(opening.choices.map((choice) => choice.deviationClass)).toEqual(["nudge", "reform", "rupture"]);
+      expect(opening.rollChoices.map((choice) => choice.id)).toEqual(["A", "B", "C"]);
+      expect(opening.rollChoices.map((choice) => choice.deviationClass)).toEqual(["nudge", "reform", "rupture"]);
+      expect([...opening.choices, ...opening.rollChoices]).toHaveLength(6);
+      expect([...opening.choices, ...opening.rollChoices].every(
+        (choice) => [...choice.displayLabel].length <= 16,
+      )).toBe(true);
       expect(opening.narrative.match(/[。！？!?]/g)).toHaveLength(3);
     }
   });
@@ -53,7 +59,7 @@ describe("fixed first turns", () => {
     expect(opening.choices[0].label).toBe(completeAction);
   });
 
-  it("keeps all 150 opening choices as complete clauses instead of slicing at 32 characters", () => {
+  it("keeps all opening card details as complete canonical clauses", () => {
     const openings = HISTORY_SEEDS.map(getFixedOpening);
     const labels = openings.flatMap((opening) => opening.choices.map((choice) => choice.label));
     const apollo = openings[HISTORY_SEEDS.findIndex((seed) => seed.id === "apollo-11-1969")];

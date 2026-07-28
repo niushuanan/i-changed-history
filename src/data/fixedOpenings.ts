@@ -70,8 +70,8 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     {
       id: "A",
       label: action,
-      displayLabel: action,
-      intent: "立即执行眼前的关键决定",
+      displayLabel: compactCompleteClause(action, 14, "照史推进原定命令"),
+      intent: "依照真实历史的既有路径推进",
       deviationClass: "nudge",
       usesModernKnowledge: false,
       actionSpec: { actor: "你与现场执行者", action, target: clip(event, 28), deadline },
@@ -84,32 +84,90 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     },
     {
       id: "B",
-      label: `核验${factKey}后，再决定是否执行原令`,
-      displayLabel: `核验${factKey}后，再决定是否执行原令`,
-      intent: "用现代核验方法降低误判",
+      label: `抢在各方反应前夺取${factKey}的现场解释权`,
+      displayLabel: "夺取现场解释权",
+      intent: "用强硬手段显著改写历史走向",
       deviationClass: "reform",
       usesModernKnowledge: true,
-      actionSpec: { actor: "你与可靠见证人", action: "交叉核验情报后重发命令", target: clip(fact, 28), deadline },
+      actionSpec: { actor: "你与可靠见证人", action: "抢先控制证据并重发命令", target: clip(fact, 28), deadline },
       instantEcho: {
-        directResult: "关键情报被重新核验，命令随证据调整",
-        unexpectedCost: "核验耗掉最后的行动窗口",
-        beneficiary: "掌握可靠证据的人",
-        payer: "等待命令的前线人员",
+        directResult: "关键证据与命令解释权被你同时控制",
+        unexpectedCost: "旧有权力立即把你视为威胁",
+        beneficiary: "愿意追随新命令的人",
+        payer: "依赖原有秩序的执行者",
       },
     },
     {
       id: "C",
-      label: `公开拒绝并阻止${action}`,
-      displayLabel: `公开拒绝并阻止${action}`,
-      intent: "让真实历史的关键动作无法发生",
+      label: `召来钢铁巨兽，以轰鸣逼迫${eventKey}各方立即停手`,
+      displayLabel: "召来钢铁巨兽",
+      intent: "以超越时代常识的力量撕开历史",
+      deviationClass: "rupture",
+      usesModernKnowledge: true,
+      actionSpec: { actor: "你与突然降临的钢铁巨兽", action: "以装甲与轰鸣封锁现场", target: clip(event, 28), deadline },
+      instantEcho: {
+        directResult: clip(`${eventKey}各方因钢铁巨兽当场停手`, 80),
+        unexpectedCost: "所有阵营开始争夺异物",
+        beneficiary: "被原定冲突卷入的人",
+        payer: "无法解释神迹的旧权威",
+      },
+    },
+  ];
+}
+
+function rollChoices(seed: HistorySeed): TimelineTurn["rollChoices"] {
+  const event = clean(seed.eventName);
+  const eventKey = compactCompleteClause(event, 18, "这一历史现场");
+  const deadline = clip(clean(seed.urgency), 20);
+  const originalAction = compactCompleteClause(
+    decisionAction(seed),
+    28,
+    `执行改变${eventKey}走向的关键命令`,
+  );
+  return [
+    {
+      id: "A",
+      label: `封存争议情报，在最后时限照既有方案执行${originalAction}`,
+      displayLabel: "压到最后一刻",
+      intent: "更谨慎地保护真实历史的既有轨迹",
+      deviationClass: "nudge",
+      usesModernKnowledge: false,
+      actionSpec: { actor: "你与原定执行者", action: "封存争议信息后照原令行动", target: clip(event, 28), deadline },
+      instantEcho: {
+        directResult: "原定行动在最后时限照常发生",
+        unexpectedCost: "被压住的争议留下长期裂痕",
+        beneficiary: "依赖原计划的人",
+        payer: "要求立刻改变的人",
+      },
+    },
+    {
+      id: "B",
+      label: `当众撕毁原令，联合反对者接管${eventKey}的执行权`,
+      displayLabel: "撕令夺权",
+      intent: "把一次决定升级为公开的权力更替",
+      deviationClass: "reform",
+      usesModernKnowledge: false,
+      actionSpec: { actor: "你与现场反对者", action: "撕毁原令并夺取执行权", target: clip(event, 28), deadline },
+      instantEcho: {
+        directResult: "原定执行链被你当众截断",
+        unexpectedCost: "现场立刻分裂为两套权力",
+        beneficiary: "被旧命令压制的人",
+        payer: "仍效忠原令的执行者",
+      },
+    },
+    {
+      id: "C",
+      label: `召来山海异兽驮走${eventKey}的关键器物，让全场改奉兽谕`,
+      displayLabel: "请神兽改写诏令",
+      intent: "让神话实体直接进入历史因果链",
       deviationClass: "rupture",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与直属人手", action: "扣住原令并公开阻止原定行动", target: clip(action, 28), deadline },
+      actionSpec: { actor: "你与降临现场的山海异兽", action: "驮走关键器物并颁下兽谕", target: clip(event, 28), deadline },
       instantEcho: {
-        directResult: clip(`${action}被你当场阻止`, 80),
-        unexpectedCost: "旧秩序立即把你视为敌人",
-        beneficiary: "原本会被牺牲的人",
-        payer: "依赖既定计划的人",
+        directResult: "关键器物被异兽带离现场",
+        unexpectedCost: "民众开始把神迹凌驾于制度",
+        beneficiary: "借神谕摆脱旧令的人",
+        payer: "依靠文书与礼法的权威",
       },
     },
   ];
@@ -144,6 +202,7 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
     historicalAnchors: seed.baselineFacts.map((fact) => clip(clean(fact), 32)),
     previousEcho: null,
     choices: choices(seed),
+    rollChoices: rollChoices(seed),
     memorySummary: clip(`你在${seed.eventName}现场获得改变真实历史的决定权`, 54),
     causalLedger: [],
     visualTone: seed.visualTone,

@@ -202,7 +202,7 @@ const choiceLabelSchema = requiredString.refine((label) => {
 
 const choiceFields = {
   label: choiceLabelSchema,
-  displayLabel: requiredString,
+  displayLabel: boundedString(16),
   intent: requiredString,
   deviationClass: deviationClassSchema,
   instantEcho: echoSchema,
@@ -261,6 +261,7 @@ const timelineTurnFields = {
     historicalAnchors: z.array(requiredString).min(2).max(4),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
+    rollChoices: choicesSchema,
     memorySummary: requiredString,
     causalLedger: z.array(causalLedgerEntrySchema).max(3),
     visualTone: visualToneSchema,
@@ -307,22 +308,16 @@ function validateTimelineTurn(
       });
     }
 
-    const classes = new Set(turn.choices.map((choice) => choice.deviationClass));
-    if (classes.size !== 3) {
-      context.addIssue({
-        code: "custom",
-        path: ["choices"],
-        message: "三个选择必须恰好覆盖 nudge、reform 和 rupture",
-      });
-    }
-
-    if (turn.choices.filter((choice) => choice.usesModernKnowledge).length !== 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["choices"],
-        message: "三个选择中必须恰好一个使用现代知识",
-      });
-    }
+    (["choices", "rollChoices"] as const).forEach((field) => {
+      const classes = new Set(turn[field].map((choice) => choice.deviationClass));
+      if (classes.size !== 3) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: "每组三张牌必须恰好覆盖循史、破局和天外三种强度",
+        });
+      }
+    });
 
     if (ALTERNATE_TIMELINE_IN_BASELINE_PATTERN.test(turn.divergenceProof)) {
       context.addIssue({
@@ -332,22 +327,24 @@ function validateTimelineTurn(
       });
     }
 
-    turn.choices.forEach((choice, index) => {
-      if (GENERIC_ACTION_PATTERN.test(`${choice.label} ${choice.intent} ${choice.actionSpec.action}`)) {
-        context.addIssue({
-          code: "custom",
-          path: ["choices", index, "label"],
-          message: "行动过于抽象，必须写明谁在期限内对什么对象做什么",
-        });
-      }
-      const specificity = `${choice.label}${choice.actionSpec.actor}${choice.actionSpec.action}${choice.actionSpec.target}${choice.actionSpec.deadline}`;
-      if (specificity.length < 18) {
-        context.addIssue({
-          code: "custom",
-          path: ["choices", index, "actionSpec"],
-          message: "行动缺少足够具体的执行信息",
-        });
-      }
+    (["choices", "rollChoices"] as const).forEach((field) => {
+      turn[field].forEach((choice, index) => {
+        if (GENERIC_ACTION_PATTERN.test(`${choice.label} ${choice.intent} ${choice.actionSpec.action}`)) {
+          context.addIssue({
+            code: "custom",
+            path: [field, index, "label"],
+            message: "行动过于抽象，必须写明谁在期限内对什么对象做什么",
+          });
+        }
+        const specificity = `${choice.label}${choice.actionSpec.actor}${choice.actionSpec.action}${choice.actionSpec.target}${choice.actionSpec.deadline}`;
+        if (specificity.length < 18) {
+          context.addIssue({
+            code: "custom",
+            path: [field, index, "actionSpec"],
+            message: "行动缺少足够具体的执行信息",
+          });
+        }
+      });
     });
 }
 
@@ -441,7 +438,7 @@ function normalizeCustomActionResolutionCandidate(value: unknown): unknown {
 function displayLabelForChoice(label: unknown, actionSpec: unknown): unknown {
   if (typeof label !== "string") return label;
   const canonical = label.trim();
-  if ([...canonical].length <= 36) return canonical;
+  if ([...canonical].length <= 16) return canonical;
 
   const spec = asRecord(actionSpec);
   const action = typeof spec?.action === "string" ? spec.action.trim() : "";
@@ -449,20 +446,22 @@ function displayLabelForChoice(label: unknown, actionSpec: unknown): unknown {
   const structured = action && target ? `${action}：${target}` : "";
   if (
     [...structured].length >= 6
-    && [...structured].length <= 36
+    && [...structured].length <= 16
     && !INCOMPLETE_CHOICE_END_PATTERN.test(structured)
   ) return structured;
 
-  const clause = compactAiAuthoredClause(canonical, 36);
+  const clause = compactAiAuthoredClause(canonical, 16);
   if (
     typeof clause === "string"
-    && [...clause].length <= 36
+    && [...clause].length <= 16
     && !DEPENDENT_CLAUSE_START_PATTERN.test(clause)
     && !LEADING_CONNECTOR_PATTERN.test(clause)
     && !INCOMPLETE_CHOICE_END_PATTERN.test(clause)
   ) return clause;
 
-  return canonical;
+  const actionOnly = typeof spec?.action === "string" ? spec.action.trim() : "";
+  if ([...actionOnly].length >= 4 && [...actionOnly].length <= 16) return actionOnly;
+  return "执行关键行动";
 }
 
 function normalizeChoice(value: unknown, index: number): unknown {
@@ -485,6 +484,14 @@ function normalizeChoice(value: unknown, index: number): unknown {
     : typeof intent === "string" && intent.length > 0
       ? intent
       : label ?? asRecord(choice.actionSpec)?.action;
+  const providedDisplayLabel = typeof choice.displayLabel === "string"
+    ? choice.displayLabel.trim()
+    : "";
+  const displayLabel = providedDisplayLabel.length >= 2
+    && [...providedDisplayLabel].length <= 16
+    && !INCOMPLETE_CHOICE_END_PATTERN.test(providedDisplayLabel)
+      ? providedDisplayLabel
+      : displayLabelForChoice(label, choice.actionSpec);
 
   return {
     ...choice,
@@ -492,13 +499,18 @@ function normalizeChoice(value: unknown, index: number): unknown {
     // This exact text becomes player canon after selection, so an oversized
     // label is preserved while the compact derivative stays display-only.
     label: typeof label === "string" ? label.trim() : label,
-    displayLabel: displayLabelForChoice(label, choice.actionSpec),
+    displayLabel,
     intent: typeof normalizedIntent === "string" ? normalizedIntent.trim() : normalizedIntent,
     deviationClass: DEVIATION_CLASSES[index],
     usesModernKnowledge: choice.usesModernKnowledge,
     actionSpec: choice.actionSpec,
     instantEcho: choice.instantEcho,
   };
+}
+
+function normalizeChoiceSet(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((choice, index) => normalizeChoice(choice, index));
 }
 
 function normalizeTimelineTurnCandidate(value: unknown): unknown {
@@ -513,9 +525,11 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
       typeof tone === "string" && VISUAL_TONES.includes(tone as (typeof VISUAL_TONES)[number]),
   );
 
-  const normalizedChoices = Array.isArray(turn.choices)
-    ? turn.choices.map((choice, index) => normalizeChoice(choice, index))
-    : turn.choices;
+  const normalizedChoices = normalizeChoiceSet(turn.choices);
+  // Old local saves and test fixtures predate the one-free-Roll contract.
+  // They remain readable, while live model responses can opt into the strict
+  // requirement through TimelineTurnParseOptions.requireRollChoices.
+  const normalizedRollChoices = normalizeChoiceSet(turn.rollChoices ?? turn.choices);
   const firstModernChoice = Array.isArray(normalizedChoices)
     ? normalizedChoices.findIndex((choice) => asRecord(choice)?.usesModernKnowledge === true)
     : -1;
@@ -556,6 +570,9 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
     choices: Array.isArray(normalizedChoices)
       ? normalizedChoices.map((choice, index) => ({ ...asRecord(choice), usesModernKnowledge: index === authoritativeModernIndex }))
       : normalizedChoices,
+    rollChoices: Array.isArray(normalizedRollChoices)
+      ? normalizedRollChoices.map((choice) => ({ ...asRecord(choice) }))
+      : normalizedRollChoices,
     memorySummary: joinStringArray(turn.memorySummary ?? derivedMemory),
     causalLedger: Array.isArray(turn.causalLedger) ? turn.causalLedger.slice(0, 3) : turn.causalLedger ?? [],
     visualTone: visualTone ?? turn.visualTone,
@@ -727,6 +744,7 @@ export type TimelineTurnParseOptions = {
   expectedLifeStage?: LifeStage;
   expectedGenerationSource?: TimelineTurn["generationSource"];
   expectedCausalLedger?: TimelineTurn["causalLedger"];
+  requireRollChoices?: boolean;
 };
 export type ExpectedHistoryTimelineItem = {
   yearLabel: string;
@@ -812,6 +830,9 @@ export function parseTimelineTurn(
 ): TimelineTurn {
   const parsed = parseJsonObject(raw);
   const candidate = asRecord(parsed);
+  if (options.requireRollChoices && !Array.isArray(candidate?.rollChoices)) {
+    throw new Error("模型响应缺少预生成的第二组三张卡牌 rollChoices");
+  }
   const turn = timelineTurnSchema.parse(candidate ? {
     ...candidate,
     generationSource: options.expectedGenerationSource ?? "deepseek",
