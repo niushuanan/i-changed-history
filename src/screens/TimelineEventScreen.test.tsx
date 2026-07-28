@@ -11,7 +11,7 @@ describe("clear change event screen", () => {
   afterEach(() => cleanup());
   const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 
-  it("places an explicit changed-versus-real history comparison below the decisions", () => {
+  it("keeps the complete history comparison behind a compact secondary entry", () => {
     const turn = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
       chapter: 2,
@@ -30,7 +30,13 @@ describe("clear change event screen", () => {
     />);
 
     expect(screen.queryByText("因果回执")).not.toBeInTheDocument();
-    const proof = screen.getByRole("region", { name: "历史对照" });
+    expect(screen.queryByRole("region", { name: "历史对照" })).not.toBeInTheDocument();
+    const comparisonTrigger = screen.getByRole("button", { name: "查看历史对照" });
+    expect(comparisonTrigger).toHaveTextContent("你的时间线 · 正史原本 · 改变原因");
+    fireEvent.click(comparisonTrigger);
+
+    const dialog = screen.getByRole("dialog", { name: "历史对照" });
+    const proof = within(dialog).getByRole("region", { name: "历史对照" });
     expect(within(proof).queryByText(/扶植年幼继承人/)).not.toBeInTheDocument();
     expect(within(proof).queryByText("你的决定")).not.toBeInTheDocument();
     expect(within(proof).queryByText("重大节点")).not.toBeInTheDocument();
@@ -50,8 +56,9 @@ describe("clear change event screen", () => {
     expect(screen.getByRole("button", { name: /直接改写结果/ })).toHaveTextContent("不限次数");
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "compact");
-    const decisions = screen.getByRole("group", { name: "本幕决定" });
-    expect(decisions.compareDocumentPosition(proof) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("button", { name: "关闭历史对照" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "关闭历史对照" }));
+    expect(screen.queryByRole("dialog", { name: "历史对照" })).not.toBeInTheDocument();
   });
 
   it("validates free action length while keeping result rewrites unlimited", async () => {
@@ -140,6 +147,10 @@ describe("clear change event screen", () => {
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
     expect(fullNarrative).toHaveLength(230);
     expect(screen.getByText(fullNarrative)).toBeVisible();
+    expect(screen.queryByText(fullCausalBridge, { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText(fullWorldChange)).not.toBeInTheDocument();
+    expect(screen.queryByText(fullRealHistory)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查看历史对照" }));
     expect(screen.getByText(fullCausalBridge, { exact: false })).toBeVisible();
     expect(screen.getByText(fullWorldChange)).toBeVisible();
     expect(screen.getByText(fullRealHistory)).toBeVisible();
@@ -162,6 +173,10 @@ describe("clear change event screen", () => {
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "dense");
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-history-mode", "opening");
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-layout", "image-overlay");
+    expect(screen.queryByRole("region", { name: "真实历史切入口" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查看正史切入口" }));
+    expect(screen.getByRole("dialog", { name: "正史切入口" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "真实历史切入口" })).toBeVisible();
   });
 
   it("shows a complete thirty-two-character action instead of cutting it mid-sentence", () => {

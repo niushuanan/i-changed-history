@@ -86,7 +86,10 @@ export function GeneratingScreen({
   ) : null;
 
   return (
-    <main className={`generating-screen${ready ? " generating-screen--ready" : ""}`} aria-live="polite">
+    <main
+      className={`generating-screen${readableDraft ? " generating-screen--draft" : ""}${ready ? " generating-screen--ready" : ""}`}
+      aria-live="polite"
+    >
       <img className="generating-screen__art" src={stage.image} alt={stage.alt} />
       <div className="developing-motion" data-testid="developing-motion" aria-hidden="true">
         <i className="causal-thread causal-thread--one" />

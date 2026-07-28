@@ -9,6 +9,7 @@ const DESCRIPTION = "从一百个真实历史转折点出发，亲手写下十�
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: "#11100f",
 };
 

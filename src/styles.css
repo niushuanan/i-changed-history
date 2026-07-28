@@ -41,12 +41,12 @@ img {
 
 .mobile-prototype {
   width: min(100vw, 390px);
-  height: min(100dvh, 844px);
+  height: min(100dvh, 932px);
   margin-inline: auto;
   overflow: hidden;
   position: relative;
 }
 
-@media (max-height: 844px) {
+@media (max-height: 932px) {
   .mobile-prototype { height: 100dvh; }
 }

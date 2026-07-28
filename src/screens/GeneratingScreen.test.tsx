@@ -67,7 +67,7 @@ describe("history developing room", () => {
   });
 
   it("reveals only complete streamed scene fields while choices are still being validated", () => {
-    render(
+    const { container } = render(
       <GeneratingScreen
         chapter={4}
         ending={false}
@@ -81,6 +81,7 @@ describe("history developing room", () => {
     expect(screen.getByText("旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。")).toBeVisible();
     expect(screen.getByText("场景仍在写成，完整校验后才能决定")).toBeVisible();
     expect(screen.queryByRole("button", { name: /选择/ })).not.toBeInTheDocument();
+    expect(container.querySelector(".generating-screen")).toHaveClass("generating-screen--draft");
   });
 
   it("waits for the player after validation instead of changing screens automatically", () => {
@@ -136,7 +137,7 @@ describe("history developing room", () => {
     expect(paragraph).toHaveTextContent(narrative);
   });
 
-  it("removes the ready-page top gap and halves the canon-to-scene gap", () => {
+  it("uses one compact draft rhythm instead of reserving a large transition gap", () => {
     render(
       <GeneratingScreen
         chapter={4}
@@ -155,9 +156,11 @@ describe("history developing room", () => {
     const draft = screen.getByRole("region", { name: "正在写成的历史现场" });
 
     expect(readyScreen).toHaveClass("generating-screen--ready");
+    expect(readyScreen).toHaveClass("generating-screen--draft");
     expect(draft).toHaveClass("developing-draft--with-canon");
-    expect(gameStyles).toContain(".generating-screen--ready { height: 100%; min-height: 0; padding-top: 0; overflow-y: auto; overscroll-behavior: contain; }");
-    expect(gameStyles).toContain(".developing-draft--with-canon { margin-top: 34px; }");
+    expect(gameStyles).toContain(".generating-screen--draft .developing-draft");
+    expect(gameStyles).toContain("margin-top: clamp(14px, 3dvh, 26px)");
+    expect(gameStyles).toContain(".generating-screen--ready .developing-draft");
   });
 
   it("keeps the exact player-authored fact visible while its consequences are generated", () => {
