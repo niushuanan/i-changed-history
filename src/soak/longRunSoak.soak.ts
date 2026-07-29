@@ -84,6 +84,8 @@ const SOAK_CONCURRENCY = Math.max(1, Math.min(3, Number(process.env.SOAK_CONCURR
 const SOAK_CASE_IDS = (process.env.SOAK_CASE_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean);
 const SOAK_ALL_ROLL = process.env.SOAK_ALL_ROLL === "1";
 const SOAK_ENFORCE_LATENCY = process.env.SOAK_ENFORCE_LATENCY === "1";
+const SOAK_PROXY_BASE_URL = process.env.SOAK_PROXY_BASE_URL?.trim() || null;
+const SOAK_REQUIRE_PROXY = process.env.SOAK_REQUIRE_PROXY === "1";
 const SOAK_MIN_RUN_SUCCESS_RATE = Math.max(0.5, Math.min(1, Number(
   process.env.SOAK_MIN_RUN_SUCCESS_RATE ?? process.env.SOAK_MIN_SUCCESS_RATE ?? 0.9,
 )));
@@ -365,6 +367,9 @@ describe("real DeepSeek four-decision full-run stability", () => {
     const summary = {
       batchId: BATCH_ID,
       model: process.env.DEEPSEEK_MODEL || process.env.VITE_DEEPSEEK_MODEL || "deepseek-v4-flash",
+      transport: SOAK_PROXY_BASE_URL
+        ? { kind: "local-worker-proxy", baseUrl: SOAK_PROXY_BASE_URL }
+        : { kind: "direct-provider" },
       runs: results.length,
       successes,
       successRate: successes / results.length,
@@ -417,6 +422,10 @@ describe("real DeepSeek four-decision full-run stability", () => {
     };
     await writeJson(path.join(outputDirectory, "summary.json"), summary);
 
+    if (SOAK_REQUIRE_PROXY) {
+      expect(SOAK_PROXY_BASE_URL).not.toBeNull();
+      expect(summary.transport.kind).toBe("local-worker-proxy");
+    }
     expect(new Set(selectedCases.map((item) => item.seedId)).size).toBe(selectedCases.length);
     selectedCases.forEach((item) => {
       if (SOAK_ALL_ROLL) {

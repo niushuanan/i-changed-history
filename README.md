@@ -131,7 +131,7 @@ npm run build
 
 `check:portability` 会扫描运行时文件并拒绝开发者个人目录。GitHub Actions 会在 Windows 和 Linux 上执行 `npm ci`、测试、类型检查和生产构建。
 
-需要真实验证四次人生抉择、每幕预生成 Roll 和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。默认十个不同开局都在四幕使用 Roll；设置 `SOAK_ALL_ROLL=1` 可对指定开局执行同样的全幕门禁。长测在 Node 环境读取同一组服务端变量并直连 DeepSeek，把脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行；第二、第三次实时 Roll 的请求与失败重试由组件和应用集成测试独立覆盖。
+需要真实验证四次人生抉择、每幕预生成 Roll 和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。默认十个不同开局都在四幕使用 Roll；设置 `SOAK_ALL_ROLL=1` 可对指定开局执行同样的全幕门禁。发布门禁必须先运行本地产品，再用 `SOAK_PROXY_BASE_URL=http://localhost:3003 SOAK_REQUIRE_PROXY=1 npm run test:soak` 让全部长测请求经过浏览器实际使用的同源 Worker 协议；Node 直连 DeepSeek 只用于拆分上游故障，不能代替产品链路验收。脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行；第二、第三次实时 Roll 的请求与失败重试由组件和应用集成测试独立覆盖。
 
 ## 抖音互动空间完整包
 

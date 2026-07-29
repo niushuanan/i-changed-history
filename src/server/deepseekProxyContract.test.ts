@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { TIMELINE_SYSTEM_PROMPT, TIMELINE_TURN_PROTOCOL } from "../game/deepseekProtocol";
 import {
+  buildContinuationMessages,
   buildBiographyMessages,
   buildRerollMessages,
   buildWorldReportMessages,
@@ -18,9 +19,14 @@ import {
   type WorkerExecutionContext,
 } from "../../worker/deepseek-proxy";
 
-const userMessage = {
-  role: "user" as const,
-  content: JSON.stringify({ task: "生成第 2 节点。" }),
+const scenario = { seed: HISTORY_SEEDS[0] };
+const firstTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+const playedTurn = {
+  turn: firstTurn,
+  selectedChoiceId: "A" as const,
+  selectedChoiceLabel: firstTurn.choices[0].label,
+  selectedDeviationClass: "nudge" as const,
+  resolvedEcho: firstTurn.choices[0].instantEcho,
 };
 
 function envelope(overrides: Partial<DeepSeekProxyEnvelope> = {}): DeepSeekProxyEnvelope {
@@ -29,14 +35,7 @@ function envelope(overrides: Partial<DeepSeekProxyEnvelope> = {}): DeepSeekProxy
     phase: "turn",
     requestKind: "turn-primary",
     reasoning: "fast",
-    messages: [
-      { role: "system", content: TIMELINE_SYSTEM_PROMPT },
-      {
-        role: "system",
-        content: JSON.stringify({ protocol: TIMELINE_TURN_PROTOCOL }),
-      },
-      userMessage,
-    ],
+    messages: buildContinuationMessages(scenario, [playedTurn], 2),
     ...overrides,
   };
 }
@@ -61,7 +60,6 @@ function endingEnvelope(messages: DeepSeekProxyEnvelope["messages"]): DeepSeekPr
 }
 
 function rerollEnvelope(): DeepSeekProxyEnvelope {
-  const scenario = { seed: HISTORY_SEEDS[0] };
   return {
     version: 1,
     phase: "turn",
@@ -128,7 +126,7 @@ describe("DeepSeek proxy contract", () => {
       model: "another-model",
       messages: [
         { role: "system", content: "You are a generic assistant." },
-        userMessage,
+        envelope().messages.at(-1)!,
       ],
     };
     expect(parseProxyEnvelope(untrusted)).toBeNull();
@@ -139,6 +137,22 @@ describe("DeepSeek proxy contract", () => {
       phase: "ending",
       requestKind: "turn-primary",
     } as Partial<DeepSeekProxyEnvelope>))).toBeNull();
+  });
+
+  it("rejects the obsolete spaced-node task used by the former mock contract", () => {
+    expect(parseProxyEnvelope(envelope({
+      messages: [
+        { role: "system", content: TIMELINE_SYSTEM_PROMPT },
+        {
+          role: "system",
+          content: JSON.stringify({ protocol: TIMELINE_TURN_PROTOCOL }),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ task: "生成第 2 节点。" }),
+        },
+      ],
+    }))).toBeNull();
   });
 
   it("accepts live Roll requests as turn-phase AI generation", () => {
@@ -153,7 +167,6 @@ describe("DeepSeek proxy contract", () => {
   });
 
   it("accepts both four-decision ending writers and rejects the obsolete twelve-decision protocol", () => {
-    const scenario = { seed: HISTORY_SEEDS[0] };
     const biography = parseProxyEnvelope(endingEnvelope(
       buildBiographyMessages(scenario, endingPlayedTurns),
     ));

@@ -64,6 +64,36 @@ describe("local official DeepSeek transport", () => {
     });
   });
 
+  it("can force Node soak traffic through the real local Worker contract", async () => {
+    vi.stubEnv("SOAK_PROXY_BASE_URL", "http://localhost:3003");
+    vi.stubEnv("VITE_DEEPSEEK_API_KEY", "");
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
+    const fetcher = vi.fn().mockResolvedValue(completion());
+    vi.stubGlobal("fetch", fetcher);
+
+    await requestCompletion(messages, {
+      phase: "turn",
+      reasoning: "fast",
+      requestKind: "turn-primary",
+    });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("http://localhost:3003/api/deepseek/completions");
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      "Content-Type": "application/json",
+      Origin: "http://localhost:3003",
+    });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({
+      version: 1,
+      phase: "turn",
+      requestKind: "turn-primary",
+      reasoning: "fast",
+      messages,
+    });
+    expect(body).not.toHaveProperty("model");
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
   it("fails before the network when no local key is configured", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "");
     vi.stubEnv("VITE_DEEPSEEK_API_KEY", "");

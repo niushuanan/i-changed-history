@@ -4,6 +4,7 @@ import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { buildNarrativeContext } from "./narrativeContext";
 import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
 import {
+  CONTINUATION_TASK_PREFIX,
   ENDING_SYSTEM_PROMPT,
   ENDING_BIOGRAPHY_TASK_PREFIX,
   ENDING_WORLD_TASK_PREFIX,
@@ -143,7 +144,7 @@ export function buildContinuationMessages(
   const protagonist = playedTurns[0]?.turn;
   const node = getTimelineNode(chapter, scenario.seed.year);
   return turnMessages({
-    task: `生成第${chapter}幕。根据 context 的全部决定、最近后果与历史债，推演一阶到三阶影响，选择最意外且主角能亲手介入的重大历史冲突。不得套模板或重复近三幕；第3幕起，开场事件只作因果源。承认全部正史，最新 activeCanon 必须在叙事、因果桥或架空事实中产生可见效果。使用两个时代准确的具体锚点。第4幕只发出最后选择，不提前写主角死亡。`,
+    task: `${CONTINUATION_TASK_PREFIX}${chapter}幕。根据 context 的全部决定、最近后果与历史债，推演一阶到三阶影响，选择最意外且主角能亲手介入的重大历史冲突。不得套模板或重复近三幕；第3幕起，开场事件只作因果源。承认全部正史，最新 activeCanon 必须在叙事、因果桥或架空事实中产生可见效果。使用两个时代准确的具体锚点。第4幕只发出最后选择，不提前写主角死亡。`,
     ...scenarioPayload(scenario),
     node: {
       chapter,

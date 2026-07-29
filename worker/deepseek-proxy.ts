@@ -1,4 +1,5 @@
 import {
+  CONTINUATION_TASK_PREFIX,
   ENDING_SYSTEM_PROMPT,
   ENDING_BIOGRAPHY_TASK_PREFIX,
   ENDING_WORLD_TASK_PREFIX,
@@ -120,8 +121,8 @@ function allowedUserTask(content: string): boolean {
   if (!isRecord(parsed)) return false;
   const task = parsed.task;
   if (typeof task !== "string") return false;
+  if ([2, 3, 4].some((chapter) => task.startsWith(`${CONTINUATION_TASK_PREFIX}${chapter}幕。`))) return true;
   return [
-    "生成第 ",
     "为当前现场发出第",
     "玩家正在直接写入一条新的历史结果。",
     ENDING_BIOGRAPHY_TASK_PREFIX,

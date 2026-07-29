@@ -8,6 +8,7 @@ export const TIMELINE_SYSTEM_PROMPT = [
 ].join("\n");
 
 export const TIMELINE_TURN_PROTOCOL = "timeline_turn_v1";
+export const CONTINUATION_TASK_PREFIX = "生成第";
 
 export const ENDING_SYSTEM_PROMPT = [
   "你是《哎！我改变了历史？》的结局作者，只输出可被 JSON.parse 解析的对象。",

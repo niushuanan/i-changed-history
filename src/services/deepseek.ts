@@ -93,10 +93,17 @@ function transportRequest(
   reasoning: DeepSeekReasoning,
   requestKind: DeepSeekRequestKind,
 ) {
-  if (isBrowserTransport()) {
+  const soakProxyBaseUrl = nodeEnvironmentValue("SOAK_PROXY_BASE_URL");
+  if (isBrowserTransport() || soakProxyBaseUrl) {
+    const endpoint = soakProxyBaseUrl
+      ? new URL(DEEPSEEK_PROXY_ENDPOINT, soakProxyBaseUrl).toString()
+      : DEEPSEEK_PROXY_ENDPOINT;
     return {
-      endpoint: DEEPSEEK_PROXY_ENDPOINT,
-      headers: { "Content-Type": "application/json" } as Record<string, string>,
+      endpoint,
+      headers: {
+        "Content-Type": "application/json",
+        ...(soakProxyBaseUrl ? { Origin: new URL(soakProxyBaseUrl).origin } : {}),
+      } as Record<string, string>,
       body: proxyRequestBody(messages, options, reasoning, requestKind),
     } as const;
   }
