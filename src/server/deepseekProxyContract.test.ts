@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { TIMELINE_SYSTEM_PROMPT, TIMELINE_TURN_PROTOCOL } from "../game/deepseekProtocol";
-import { buildBiographyMessages, buildWorldReportMessages } from "../game/prompts";
+import {
+  buildBiographyMessages,
+  buildRerollMessages,
+  buildWorldReportMessages,
+} from "../game/prompts";
 import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import {
@@ -52,6 +56,23 @@ function endingEnvelope(messages: DeepSeekProxyEnvelope["messages"]): DeepSeekPr
   };
 }
 
+function rerollEnvelope(): DeepSeekProxyEnvelope {
+  const scenario = { seed: HISTORY_SEEDS[0] };
+  return {
+    version: 1,
+    phase: "turn",
+    requestKind: "roll-primary",
+    reasoning: "fast",
+    messages: buildRerollMessages(
+      scenario,
+      endingPlayedTurns,
+      endingTurn,
+      2,
+      endingTurn.rollChoices,
+    ),
+  };
+}
+
 describe("DeepSeek proxy contract", () => {
   it("accepts the game protocol and rebuilds provider-owned fields", () => {
     const parsed = parseProxyEnvelope(envelope());
@@ -92,6 +113,17 @@ describe("DeepSeek proxy contract", () => {
       phase: "ending",
       requestKind: "turn-primary",
     } as Partial<DeepSeekProxyEnvelope>))).toBeNull();
+  });
+
+  it("accepts live Roll requests as turn-phase AI generation", () => {
+    const parsed = parseProxyEnvelope(rerollEnvelope());
+    expect(parsed).not.toBeNull();
+    expect(buildDeepSeekRequestBody(parsed!, "deepseek-v4-flash")).toMatchObject({
+      model: "deepseek-v4-flash",
+      stream: true,
+      response_format: { type: "json_object" },
+      thinking: { type: "disabled" },
+    });
   });
 
   it("accepts both four-decision ending writers and rejects the obsolete twelve-decision protocol", () => {

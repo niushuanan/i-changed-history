@@ -17,6 +17,9 @@ const REQUEST_KINDS = new Set([
   "turn-primary",
   "turn-repair",
   "turn-recovery",
+  "roll-primary",
+  "roll-repair",
+  "roll-recovery",
   "ending-primary",
   "ending-repair",
   "ending-recovery",
@@ -46,6 +49,9 @@ export type DeepSeekProxyEnvelope = Readonly<{
     | "turn-primary"
     | "turn-repair"
     | "turn-recovery"
+    | "roll-primary"
+    | "roll-repair"
+    | "roll-recovery"
     | "ending-primary"
     | "ending-repair"
     | "ending-recovery";
@@ -103,6 +109,7 @@ function allowedUserTask(content: string): boolean {
   if (typeof task !== "string") return false;
   return [
     "生成第 ",
+    "为当前同一历史现场发出第 ",
     "玩家正在直接写入一条新的历史结果。",
     ENDING_BIOGRAPHY_TASK_PREFIX,
     ENDING_WORLD_TASK_PREFIX,
@@ -127,7 +134,11 @@ export function parseProxyEnvelope(value: unknown): DeepSeekProxyEnvelope | null
   if (value.phase !== "turn" && value.phase !== "ending") return null;
   if (value.reasoning !== "fast" && value.reasoning !== "high") return null;
   if (typeof value.requestKind !== "string" || !REQUEST_KINDS.has(value.requestKind)) return null;
-  if (value.phase === "turn" && !value.requestKind.startsWith("turn-")) return null;
+  if (
+    value.phase === "turn"
+    && !value.requestKind.startsWith("turn-")
+    && !value.requestKind.startsWith("roll-")
+  ) return null;
   if (value.phase === "ending" && !value.requestKind.startsWith("ending-")) return null;
   if (!Array.isArray(value.messages) || !value.messages.every(isProxyMessage)) return null;
 
