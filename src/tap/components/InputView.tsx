@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import type { TapRecord } from "../types";
-import { JsonBlock } from "./JsonBlock";
+import { JsonTree } from "./JsonTree";
 
 type CollapsibleSectionProps = {
   title: string;
@@ -27,23 +27,104 @@ const MSG_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export function InputView({ record }: { record: TapRecord }) {
+  const [view, setView] = useState<"tree" | "raw">("tree");
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [treeVersion, setTreeVersion] = useState(0);
+
+  // Per-role counts for numbering (e.g. SYSTEM 1/2, USER 1/1)
+  const roleCounts: Record<string, number> = {};
+  for (const msg of record.messages) {
+    roleCounts[msg.role] = (roleCounts[msg.role] ?? 0) + 1;
+  }
+
+  // Identify messages whose content is parseable JSON
+  const parsed: Record<number, Record<string, unknown>> = {};
+  for (let i = 0; i < record.messages.length; i++) {
+    try {
+      const obj = JSON.parse(record.messages[i].content);
+      if (typeof obj === "object" && obj !== null) {
+        parsed[i] = obj;
+      }
+    } catch { /* not JSON, show as text */ }
+  }
+
+  // Find first user message for special USER structured display
   let userPayload: unknown = null;
   let userIndex = -1;
-
-  // Try to parse the USER message content as JSON for structured display
   for (let i = 0; i < record.messages.length; i++) {
-    const msg = record.messages[i];
-    if (msg.role === "user") {
+    if (record.messages[i].role === "user") {
       userIndex = i;
-      try { userPayload = JSON.parse(msg.content); } catch { userPayload = msg.content; }
+      userPayload = parsed[i] ?? record.messages[i].content;
     }
   }
 
+  const roleIndex: Record<string, number> = {};
+
+  const toggleExpand = () => {
+    setIsCollapsed(v => !v);
+    setTreeVersion(v => v + 1);
+  };
+
   return (
     <div style={{ fontFamily: "system-ui, sans-serif" }}>
-      {record.messages.map((msg, i) => {
+      <div style={{ display: "flex", gap: "4px", marginBottom: "10px" }}>
+        <button onClick={() => setView("tree")}
+          style={{
+            padding: "4px 12px", border: "1px solid #444", borderRadius: "4px",
+            background: view === "tree" ? "#2a2a2a" : "transparent",
+            color: view === "tree" ? "#e0e0e0" : "#888", cursor: "pointer", fontSize: "12px",
+          }}>
+          解析
+        </button>
+        <button onClick={() => setView("raw")}
+          style={{
+            padding: "4px 12px", border: "1px solid #444", borderRadius: "4px",
+            background: view === "raw" ? "#2a2a2a" : "transparent",
+            color: view === "raw" ? "#e0e0e0" : "#888", cursor: "pointer", fontSize: "12px",
+          }}>
+          原始 JSON
+        </button>
+        <div style={{ flex: 1 }} />
+        {view === "tree" && (
+          <button onClick={toggleExpand}
+            style={{
+              padding: "4px 12px", border: "1px solid #444", borderRadius: "4px",
+              background: "transparent", color: "#888", cursor: "pointer", fontSize: "12px",
+            }}>
+            {isCollapsed ? "全部展开" : "全部折叠"}
+          </button>
+        )}
+      </div>
+      {view === "raw" ? (
+        record.messages.map((msg, i) => {
+          const rawLabel = MSG_LABELS[msg.role]?.label ?? msg.role.toUpperCase();
+          return (
+          <div key={i} style={{ marginBottom: "16px" }}>
+            <div style={{
+              display: "inline-block", padding: "1px 8px", borderRadius: "3px",
+              background: "#569cd622", color: "#569cd6", fontSize: "10px",
+              fontWeight: 600, marginBottom: "6px", fontFamily: "monospace",
+            }}>
+              {MSG_LABELS[msg.role]?.label ?? msg.role.toUpperCase()}
+            </div>
+            <div style={{
+              background: "#111", padding: "10px", borderRadius: "4px",
+              whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.5,
+              maxHeight: "calc(100vh - 200px)", overflow: "auto",
+              fontFamily: "monospace", color: "#ccc",
+            }}>
+              {msg.content}
+            </div>
+          </div>
+        )})
+      ) : (
+        <div key={treeVersion}>
+        {record.messages.map((msg, i) => {
+        roleIndex[msg.role] = (roleIndex[msg.role] ?? 0) + 1;
         const style = MSG_LABELS[msg.role] ?? { label: msg.role.toUpperCase(), color: "#888" };
+        const jsonObj = parsed[i];
         const isUserPayload = i === userIndex && typeof userPayload === "object" && userPayload !== null;
+        const isJsonMessage = jsonObj !== undefined && !isUserPayload;
 
         return (
           <div key={i} style={{ marginBottom: "12px" }}>
@@ -52,17 +133,26 @@ export function InputView({ record }: { record: TapRecord }) {
               background: style.color + "22", color: style.color, fontSize: "10px",
               fontWeight: 600, marginBottom: "6px", fontFamily: "monospace",
             }}>
-              {style.label} {i + 1}/{record.messages.length}
+              {style.label} {roleIndex[msg.role]}/{roleCounts[msg.role]}
             </div>
 
-            {isUserPayload ? (
+            {isJsonMessage ? (
+              Object.entries(jsonObj).map(([key, val]) => (
+                typeof val === "object" && val !== null ? (
+                  <CollapsibleSection key={key} title={key} defaultOpen={false}>
+                    <JsonTree value={val} />
+                  </CollapsibleSection>
+                ) : (
+                  <div key={key} style={{ color: "#ccc", fontSize: "12px", lineHeight: 1.6, marginBottom: "4px" }}>
+                    <span style={{ color: "#9cdcfe", marginRight: "6px" }}>{key}</span>
+                    {String(val)}
+                  </div>
+                )
+              ))
+            ) : isUserPayload ? (
               Object.entries(userPayload as Record<string, unknown>).map(([key, val]) => (
                 <CollapsibleSection key={key} title={key} defaultOpen={key === "task" || key === "historyMoment"}>
-                  {typeof val === "object" && val !== null ? (
-                    <JsonBlock value={val} />
-                  ) : (
-                    <div style={{ color: "#ccc", whiteSpace: "pre-wrap", fontSize: "12px", lineHeight: 1.6 }}>{String(val)}</div>
-                  )}
+                  <JsonTree value={val} />
                 </CollapsibleSection>
               ))
             ) : (
@@ -77,6 +167,8 @@ export function InputView({ record }: { record: TapRecord }) {
           </div>
         );
       })}
+      </div>
+      )}
     </div>
   );
 }

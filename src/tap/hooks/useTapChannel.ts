@@ -60,7 +60,25 @@ export function useTapChannel(initialGoLatest = true) {
   }, []);
 
   const exportJson = useCallback(() => {
-    const data = JSON.stringify(recordsRef.current, null, 2);
+    const trunc = (s: string, maxLen = 2000): string =>
+      s.length <= maxLen ? s
+        : s.slice(0, 800) + `\n\n...(中略，共 ${s.length} 字符)...\n\n` + s.slice(-600);
+
+    // Deep-truncate long strings in the exported records
+    function truncateStrings(obj: unknown): unknown {
+      if (typeof obj === "string") return trunc(obj);
+      if (Array.isArray(obj)) return obj.map(truncateStrings);
+      if (obj && typeof obj === "object") {
+        const result: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+          result[k] = truncateStrings(v);
+        }
+        return result;
+      }
+      return obj;
+    }
+
+    const data = JSON.stringify(truncateStrings(recordsRef.current), null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

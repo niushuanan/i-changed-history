@@ -52,6 +52,11 @@ export function TopBar({ records, currentIndex, totalRecords, onPrev, onNext, on
       </span>
       {record && (
         <>
+          <span style={{ color: "#666", fontFamily: "system-ui, sans-serif", fontSize: "12px" }}>
+            {new Date(record.timing.requestedAt ?? (record.timestamp - record.timing.totalMs)).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            {" → "}
+            {new Date(record.timestamp).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </span>
           <span style={{
             background: "#2a2a2a", color: "#8af", padding: "1px 8px",
             borderRadius: "3px", fontSize: "11px", fontFamily: "system-ui, sans-serif",

@@ -466,7 +466,7 @@ async function performRequest(
           kind: payload.kind,
           messages: payload.messages.map(m => ({ role: m.role, content: m.content })),
           response: payload.response,
-          timing: payload.timing,
+          timing: { ...payload.timing, requestedAt },
           usage: payload.usage ?? null,
           status: payload.status ?? 0,
           error: payload.error ?? null,
@@ -480,6 +480,7 @@ async function performRequest(
   };
   const transport = transportRequest(messages, options, reasoning, requestKind);
   const startedAt = clockNow();
+  const requestedAt = Date.now();
   let responseHeadersMs: number | undefined;
   let responseStatus: number | undefined;
   const controller = new AbortController();
