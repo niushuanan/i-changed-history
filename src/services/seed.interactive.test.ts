@@ -8,7 +8,8 @@ type CapturedOptions = {
   type: string;
   stream: boolean;
   model: string;
-  reasoning_effort: "minimal";
+  reasoning_effort: "high";
+  service_tier: "auto";
   maxTokens: number;
   messages: Array<{ role: string; content: string }>;
   onSSE: (event: { eventName: string; data: string }) => void;
@@ -85,7 +86,8 @@ describe("Interactive Space Ark transport", () => {
       type: "text",
       stream: true,
       model: "doubao-seed-2-0-lite-260428",
-      reasoning_effort: "minimal",
+      reasoning_effort: "high",
+      service_tier: "auto",
       maxTokens: 4096,
       messages: [
         { role: "system", content: "只返回 JSON" },
@@ -96,12 +98,12 @@ describe("Interactive Space Ark transport", () => {
     expect(drafts.some((draft) => draft.headline === "新局面")).toBe(true);
   });
 
-  it("forces every Seed request to the minimal no-thinking mode", async () => {
+  it("forces every Seed request to the highest reasoning mode", async () => {
     const metrics: Array<{ reasoning: string }> = [];
     const call = installRuntime((options) => {
       options.success({
         errMsg: "callAIChatCompletion:ok",
-        data: "{\"headline\":\"最速模式\",\"narrative\":\"直接生成正文。\"}",
+        data: "{\"headline\":\"深度推演\",\"narrative\":\"完整生成正文。\"}",
       });
     });
 
@@ -112,14 +114,15 @@ describe("Interactive Space Ark transport", () => {
         reasoning: "high",
         onMetrics: (item) => metrics.push(item),
       },
-    )).resolves.toContain("直接生成正文");
+    )).resolves.toContain("完整生成正文");
 
     expect(call.mock.calls[0]?.[0]).toMatchObject({
       model: "doubao-seed-2-0-lite-260428",
-      reasoning_effort: "minimal",
+      reasoning_effort: "high",
+      service_tier: "auto",
     });
     expect(call.mock.calls[0]?.[0]).not.toHaveProperty("thinking");
-    expect(metrics).toEqual([expect.objectContaining({ reasoning: "minimal" })]);
+    expect(metrics).toEqual([expect.objectContaining({ reasoning: "high" })]);
   });
 
   it("keeps compatibility with provider-shaped SSE payloads", async () => {
@@ -199,8 +202,8 @@ describe("Interactive Space Ark transport", () => {
     expect(call).toHaveBeenCalledTimes(2);
     expect(call.mock.calls.map(([options]) => options.stream)).toEqual([true, false]);
     expect(call.mock.calls.map(([options]) => options.reasoning_effort)).toEqual([
-      "minimal",
-      "minimal",
+      "high",
+      "high",
     ]);
     expect(call.mock.calls.map(([options]) => options.model)).toEqual([
       "doubao-seed-2-0-lite-260428",
@@ -239,7 +242,9 @@ describe("Interactive Space Ark transport", () => {
       "doubao-seed-2-0-pro-260215",
     ]);
     expect(call.mock.calls.every(([options]) => (
-      options.reasoning_effort === "minimal" && !("thinking" in options)
+      options.reasoning_effort === "high"
+      && options.service_tier === "auto"
+      && !("thinking" in options)
     ))).toBe(true);
     expect(metrics).toEqual([
       expect.objectContaining({
@@ -280,9 +285,14 @@ describe("Interactive Space Ark transport", () => {
       "doubao-seed-evolving",
     ]);
     expect(call.mock.calls.map(([options]) => options.reasoning_effort)).toEqual([
-      "minimal",
-      "minimal",
-      "minimal",
+      "high",
+      "high",
+      "high",
+    ]);
+    expect(call.mock.calls.map(([options]) => options.service_tier)).toEqual([
+      "auto",
+      "auto",
+      "auto",
     ]);
   });
 

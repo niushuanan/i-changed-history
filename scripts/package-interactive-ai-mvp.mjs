@@ -53,9 +53,11 @@ if (!packageEntries["index.html"]) {
 if (
   !bundledSource.includes("doubao-seed-2-0-lite-260428")
   || !bundledSource.includes("reasoning_effort")
-  || !bundledSource.includes("minimal")
+  || !bundledSource.includes("high")
+  || !bundledSource.includes("service_tier")
+  || !bundledSource.includes("auto")
 ) {
-  throw new Error("Interactive AI MVP must use Doubao Seed 2.0 Lite with minimal reasoning effort.");
+  throw new Error("Interactive AI MVP must use Doubao Seed 2.0 Lite with high reasoning effort and automatic Fast service tier.");
 }
 if (/deepseek/i.test(bundledSource)) {
   throw new Error("Interactive AI MVP must not contain DeepSeek provider traces.");
@@ -83,6 +85,7 @@ console.log(JSON.stringify({
   maxZipBytes,
   md5: createHash("md5").update(await readFile(zipPath)).digest("hex"),
   model: "doubao-seed-2-0-lite-260428",
-  reasoningEffort: "minimal",
+  reasoningEffort: "high",
+  serviceTier: "auto",
   stream: false,
 }, null, 2));

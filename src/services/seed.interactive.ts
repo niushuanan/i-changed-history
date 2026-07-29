@@ -34,7 +34,8 @@ const SEED_MODEL_PRIORITY = [
   "doubao-seed-evolving",
 ] as const;
 type SeedModelId = typeof SEED_MODEL_PRIORITY[number];
-const SEED_REASONING_EFFORT = "minimal" as const;
+const SEED_REASONING_EFFORT = "high" as const;
+const SEED_SERVICE_TIER = "auto" as const;
 const SEED_TEMPERATURE = 0.7;
 const QUOTA_COOLDOWN_MS = 30 * 60 * 1_000;
 const QUOTA_COOLDOWN_STORAGE_KEY = "history.seed.quota-cooldown.v1";
@@ -72,6 +73,7 @@ type PlatformChatOptions = {
   stream: boolean;
   model: string;
   reasoning_effort: typeof SEED_REASONING_EFFORT;
+  service_tier: typeof SEED_SERVICE_TIER;
   messages: Array<{ role: "system" | "user"; content: string }>;
   temperature: number;
   maxTokens: number;
@@ -493,9 +495,9 @@ function performRequest(
     return Promise.reject(new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false));
   }
 
-  // Interactive Space always runs Seed in its fastest documented no-thinking mode.
-  // The engine may request a higher recovery effort for other providers, but the
-  // Doubao package deliberately clamps every request to `minimal`.
+  // Interactive Space always runs Seed at its highest documented reasoning effort.
+  // The engine may request a lower effort for other providers, but the Doubao
+  // package deliberately clamps every request to `high` for output reliability.
   const reasoning = SEED_REASONING_EFFORT;
   const requestKind = options.requestKind
     ?? (options.phase === "ending" ? "ending-primary" : "turn-primary");
@@ -617,6 +619,7 @@ function performRequest(
         stream,
         model,
         reasoning_effort: SEED_REASONING_EFFORT,
+        service_tier: SEED_SERVICE_TIER,
         messages: messages.map(({ role, content: messageContent }) => ({
           role,
           content: messageContent,

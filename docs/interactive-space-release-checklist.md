@@ -7,9 +7,9 @@
 1. 互动空间运行时必须完整包含全部 100 个历史开局、对应固定首幕与本地历史图，不保留三剧本审核子集。
 2. 根目录只有一个 `index.html`，全部文件名使用 ASCII，所有资源本地化并使用相对路径。
 3. 不包含外链、网络请求、iframe、文件上传、原生弹窗、动态代码执行或 API 密钥。
-4. AI 只能通过 `tt.callAIChatCompletion` 调用，火山方舟 Model ID 顺序固定为 `doubao-seed-2-0-lite-260428` → `doubao-seed-2-0-pro-260215` → `doubao-seed-evolving`；只有明确额度耗尽才向后接力，普通 429、网络或服务错误不能切模型。所有续幕、Roll、修复、恢复与结局调用都必须带 `reasoning_effort: "minimal"`，不得重新打开思考模式。
+4. AI 只能通过 `tt.callAIChatCompletion` 调用，火山方舟 Model ID 顺序固定为 `doubao-seed-2-0-lite-260428` → `doubao-seed-2-0-pro-260215` → `doubao-seed-evolving`；只有明确额度耗尽才向后接力，普通 429、网络或服务错误不能切模型。所有续幕、Roll、修复、恢复与结局调用都必须带 `reasoning_effort: "high"` 与 `service_tier: "auto"`，统一使用最高思考强度并在账户已开通时优先走 Fast。
 5. 首页起始画面的标题栏角落持续显示清晰的双行 `AI / 生成` 文字标识，完整无障碍名称为“本作品包含人工智能生成内容”；字高固定为 20px，不低于 390px 产品画面短边的 5%。事件与报告不重复显示模型或生成来源，互动空间包把“游戏说明”改成“体验说明”。
-6. ZIP 必须不超过 8,388,608 字节，并同时通过仓库校验和官方 `h5-validator` 的目录、ZIP 两轮校验；仓库校验还必须确认 Seed 模型、`minimal` 参数已经进入运行时，并拒绝任何 DeepSeek 供应商或传输层痕迹。
+6. ZIP 必须不超过 8,388,608 字节，并同时通过仓库校验和官方 `h5-validator` 的目录、ZIP 两轮校验；仓库校验还必须确认 Seed 模型、`high` 与 `service_tier: "auto"` 已经进入运行时，并拒绝任何 DeepSeek 供应商或传输层痕迹。
 
 ## 上传前
 

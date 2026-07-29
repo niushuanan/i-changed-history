@@ -23,7 +23,8 @@ if (
   || JSON.stringify(releaseConfig.chatModels) !== JSON.stringify(expectedChatModels)
   || releaseConfig.fallbackPolicy !== "quota-exhausted-only"
   || releaseConfig.quotaCooldownMinutes !== 30
-  || releaseConfig.reasoningEffort !== "minimal"
+  || releaseConfig.reasoningEffort !== "high"
+  || releaseConfig.serviceTier !== "auto"
   || releaseConfig.credentialMode !== "platform-volcengine-api-key"
   || releaseConfig.minimumDouyinVersion !== "39.5.0"
   || releaseConfig.aiDisclosureMinShortEdgePercent !== 5
@@ -31,7 +32,7 @@ if (
   || releaseConfig.packageType !== 1
   || releaseConfig.maxZipBytes !== 8 * 1024 * 1024
 ) {
-  throw new Error("Interactive release configuration must keep AI enabled, the exact Lite -> Pro -> Evolving quota fallback, minimal reasoning effort, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
+  throw new Error("Interactive release configuration must keep AI enabled, the exact Lite -> Pro -> Evolving quota fallback, high reasoning effort, automatic Fast service tier, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
 }
 
 async function collectFiles(directory) {
@@ -109,7 +110,9 @@ const requiredRuntimeMarkers = [
   "doubao-seed-2-0-pro-260215",
   "doubao-seed-evolving",
   "reasoning_effort",
-  "minimal",
+  "high",
+  "service_tier",
+  "auto",
   "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",
@@ -163,6 +166,7 @@ console.log(JSON.stringify({
   fallbackPolicy: releaseConfig.fallbackPolicy,
   quotaCooldownMinutes: releaseConfig.quotaCooldownMinutes,
   reasoningEffort: releaseConfig.reasoningEffort,
+  serviceTier: releaseConfig.serviceTier,
   credentialMode: releaseConfig.credentialMode,
   minimumDouyinVersion: releaseConfig.minimumDouyinVersion,
   aiDisclosureMinShortEdgePercent: releaseConfig.aiDisclosureMinShortEdgePercent,

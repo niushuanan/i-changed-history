@@ -31,7 +31,7 @@
 | 环节 | 实现方式 |
 | --- | --- |
 | 100 张历史卡、随机入口与第一幕 | 本地固定数据，抽中后立即可玩 |
-| 第 2-4 幕 | 当前运行环境的实时模型生成；互动空间按 Lite → Pro → Evolving 额度接力，三者都固定为 `minimal` 不思考模式 |
+| 第 2-4 幕 | 当前运行环境的实时模型生成；互动空间按 Lite → Pro → Evolving 额度接力，三者都固定为 `high` 最高思考强度 |
 | 六张决定牌 | 每幕同一次调用生成首组三张和 Roll 组三张；每组固定为循史、破局、天外，两张天外分别绑定不同的客户端指定能力 |
 | 第 2、3 次 Roll | 当前运行环境的模型在同一现场实时生成全新的循史、破局、天外三张牌 |
 | 牌面与详情 | `displayLabel` 用于短牌面；完整 `label`、行动规格和即时结果用于长按详情与下一幕推演 |
@@ -67,7 +67,7 @@
 - `src/game/engine.ts`：模型生成、校验和修复
 - `src/services/deepseek.ts`：浏览器同源代理传输、SSE 解析与 Node 长测直连传输
 - `src/services/completion.ts` 与 `src/services/completion-contract.ts`：运行环境无关的模型入口和通用传输契约
-- `src/services/seed.interactive.ts`：抖音互动空间 `tt.callAIChatCompletion` / 火山平台传输，按 `doubao-seed-2-0-lite-260428` → `doubao-seed-2-0-pro-260215` → `doubao-seed-evolving` 接力，统一使用 `reasoning_effort: "minimal"`
+- `src/services/seed.interactive.ts`：抖音互动空间 `tt.callAIChatCompletion` / 火山平台传输，按 `doubao-seed-2-0-lite-260428` → `doubao-seed-2-0-pro-260215` → `doubao-seed-evolving` 接力，统一使用 `reasoning_effort: "high"` 与 `service_tier: "auto"`
 - `src/components/ChoiceList.tsx`：三张卡牌、三次 Roll、长按详情和上划提交
 - `src/services/share.ts`：完整报告图片准备、移动系统分享与桌面下载
 - `src/hooks/useGame.ts`：请求、存档、音频与恢复编排
@@ -138,7 +138,7 @@ npm run build
 npm run build:interactive
 ```
 
-该命令会把完整 100 个历史开局、固定首幕、AI 续幕、音频和本地图片一起转换为互动空间运行时，通过平台 `tt.callAIChatCompletion` 优先调用 Doubao Seed 2.0 Lite；只有平台明确返回“额度耗尽”时，才依次切到 Seed 2.0 Pro 和 Seed Evolving。三种模型的续幕、Roll、修复、恢复和结局请求全部锁定为 `reasoning_effort: "minimal"` 的不思考快速模式；普通限流、网络波动和服务错误仍在原模型有限重试，不会误切模型。构建随后优化全部移动端资源、检查 100 个剧本和图片均已入包、拒绝任何 DeepSeek 运行时痕迹、确认 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通网页构建并提交审核。
+该命令会把完整 100 个历史开局、固定首幕、AI 续幕、音频和本地图片一起转换为互动空间运行时，通过平台 `tt.callAIChatCompletion` 优先调用 Doubao Seed 2.0 Lite；只有平台明确返回“额度耗尽”时，才依次切到 Seed 2.0 Pro 和 Seed Evolving。三种模型的续幕、Roll、修复、恢复和结局请求全部锁定为 `reasoning_effort: "high"` 的最高思考强度，并携带 `service_tier: "auto"`，在账户已开通 Fast 时优先使用低延迟服务、否则自动回退普通服务层；普通限流、网络波动和服务错误仍在原模型有限重试，不会误切模型。构建随后优化全部移动端资源、检查 100 个剧本和图片均已入包、拒绝任何 DeepSeek 运行时痕迹、确认 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通网页构建并提交审核。
 
 ## 密钥与部署
 
