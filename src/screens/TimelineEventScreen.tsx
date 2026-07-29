@@ -76,6 +76,7 @@ export function TimelineEventScreen({
   sceneImage?: string;
 }) {
   const [historyContextOpen, setHistoryContextOpen] = useState(false);
+  const [cardCommitting, setCardCommitting] = useState(false);
   const visibleChoices = rollUsed ? turn.rollChoices : turn.choices;
   const visibleCopyLength = [
     turn.headline,
@@ -92,6 +93,7 @@ export function TimelineEventScreen({
 
   useEffect(() => {
     setHistoryContextOpen(false);
+    setCardCommitting(false);
   }, [turn.chapter, turn.yearLabel]);
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export function TimelineEventScreen({
 
   return (
     <main
-      className="event-screen"
+      className={`event-screen${cardCommitting ? " is-card-committing" : ""}`}
       data-density={density}
       data-history-mode={turn.previousEcho ? "continuation" : "opening"}
       data-layout="image-overlay"
@@ -138,6 +140,7 @@ export function TimelineEventScreen({
             choices={visibleChoices}
             muted={muted}
             onChoose={onChoose}
+            onCommitVisualStart={() => setCardCommitting(true)}
             onRoll={onRoll}
             rollUsed={rollUsed}
           />

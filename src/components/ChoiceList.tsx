@@ -1,12 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowsClockwise, CaretUp, Info, X } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { playCardSound } from "../services/cardAudio";
 
 type Choice = TimelineTurn["choices"][number];
+type CardOrigin = {
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+};
 
-const SWIPE_THRESHOLD = 54;
-const LONG_PRESS_MS = 430;
+const SWIPE_THRESHOLD = 48;
+const LONG_PRESS_MS = 320;
+const COMMIT_DURATION_MS = 480;
 
 const CARD_META = {
   nudge: {
@@ -28,20 +35,41 @@ const CARD_META = {
 
 function ChoiceDetail({
   choice,
+  origin,
   onClose,
 }: {
   choice: Choice;
+  origin: CardOrigin;
   onClose: () => void;
 }) {
   const meta = CARD_META[choice.deviationClass];
+  const detailRef = useRef<HTMLElement | null>(null);
+  const readyFrameRef = useRef<number | null>(null);
   const [closing, setClosing] = useState(false);
+  const [motionReady, setMotionReady] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
 
   const requestClose = useCallback(() => {
     if (closing) return;
     setClosing(true);
-    closeTimerRef.current = window.setTimeout(onClose, 180);
+    const reducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    closeTimerRef.current = window.setTimeout(onClose, reducedMotion ? 20 : 230);
   }, [closing, onClose]);
+
+  useLayoutEffect(() => {
+    const detail = detailRef.current;
+    if (!detail) return undefined;
+    const rect = detail.getBoundingClientRect();
+    const scale = Math.max(.28, Math.min(.62, origin.width / rect.width, origin.height / rect.height));
+    detail.style.setProperty("--detail-from-x", `${origin.centerX - (rect.left + rect.width / 2)}px`);
+    detail.style.setProperty("--detail-from-y", `${origin.centerY - (rect.top + rect.height / 2)}px`);
+    detail.style.setProperty("--detail-from-scale", `${scale}`);
+    readyFrameRef.current = window.requestAnimationFrame(() => setMotionReady(true));
+    return () => {
+      if (readyFrameRef.current !== null) window.cancelAnimationFrame(readyFrameRef.current);
+    };
+  }, [origin]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -57,13 +85,14 @@ function ChoiceDetail({
 
   return (
     <div
-      className={`choice-detail-backdrop${closing ? " is-closing" : ""}`}
+      className={`choice-detail-backdrop${motionReady ? " is-ready" : ""}${closing ? " is-closing" : ""}`}
       onPointerDown={requestClose}
     >
       <section
         aria-label={`${choice.displayLabel}详细信息`}
         aria-modal="true"
         className={`choice-detail choice-detail--${choice.deviationClass}`}
+        ref={detailRef}
         role="dialog"
         onPointerDown={(event) => event.stopPropagation()}
       >
@@ -75,8 +104,14 @@ function ChoiceDetail({
             <span>{meta.name}牌 · 完整决定</span>
             <h2>{choice.displayLabel}</h2>
           </div>
-          <button autoFocus type="button" aria-label="关闭卡牌详情" onClick={requestClose}>
-            <X size={20} weight="bold" />
+          <button
+            autoFocus
+            className="choice-detail__close"
+            type="button"
+            aria-label="关闭卡牌详情"
+            onClick={requestClose}
+          >
+            <X size={17} weight="bold" />
           </button>
         </header>
         <p className="choice-detail__canon">{choice.label}</p>
@@ -109,14 +144,21 @@ function ChoiceCard({
   muted: boolean;
   dealIndex: number;
 }) {
-  const [offsetY, setOffsetY] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [armed, setArmed] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const cardRef = useRef<HTMLButtonElement | null>(null);
   const startYRef = useRef(0);
+  const draggingRef = useRef(false);
+  const offsetYRef = useRef(0);
+  const dragFrameRef = useRef<number | null>(null);
+  const pendingOffsetRef = useRef(0);
+  const pointerIdRef = useRef<number | null>(null);
   const longPressRef = useRef<number | null>(null);
+  const commitTimerRef = useRef<number | null>(null);
   const inspectedRef = useRef(false);
+  const committedRef = useRef(false);
   const meta = CARD_META[choice.deviationClass];
-  const armed = offsetY <= -SWIPE_THRESHOLD;
 
   const clearLongPress = () => {
     if (longPressRef.current !== null) {
@@ -125,10 +167,48 @@ function ChoiceCard({
     }
   };
 
+  const writeCardOffset = (nextOffset: number) => {
+    offsetYRef.current = nextOffset;
+    pendingOffsetRef.current = nextOffset;
+    if (dragFrameRef.current !== null) return;
+    dragFrameRef.current = window.requestAnimationFrame(() => {
+      dragFrameRef.current = null;
+      cardRef.current?.style.setProperty("--card-y", `${pendingOffsetRef.current}px`);
+    });
+  };
+
+  const releasePointer = (target: HTMLButtonElement) => {
+    const pointerId = pointerIdRef.current;
+    if (
+      pointerId !== null
+      && typeof target.hasPointerCapture === "function"
+      && target.hasPointerCapture(pointerId)
+      && typeof target.releasePointerCapture === "function"
+    ) {
+      target.releasePointerCapture(pointerId);
+    }
+    pointerIdRef.current = null;
+  };
+
+  const resetGesture = (target?: HTMLButtonElement) => {
+    clearLongPress();
+    if (target) releasePointer(target);
+    inspectedRef.current = false;
+    draggingRef.current = false;
+    setDragging(false);
+    setArmed(false);
+    writeCardOffset(0);
+  };
+
   const begin = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (committing) return;
     inspectedRef.current = false;
+    committedRef.current = false;
+    pointerIdRef.current = event.pointerId;
     startYRef.current = event.clientY;
+    draggingRef.current = true;
+    writeCardOffset(0);
+    setArmed(false);
     setDragging(true);
     if (typeof event.currentTarget.setPointerCapture === "function") {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -136,39 +216,61 @@ function ChoiceCard({
     const trigger = event.currentTarget;
     longPressRef.current = window.setTimeout(() => {
       inspectedRef.current = true;
+      draggingRef.current = false;
       setDragging(false);
-      setOffsetY(0);
+      setArmed(false);
+      writeCardOffset(0);
+      releasePointer(trigger);
       onInspect(choice, trigger);
     }, LONG_PRESS_MS);
   };
 
   const move = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (!dragging || inspectedRef.current) return;
+    if (!draggingRef.current || inspectedRef.current) return;
     const next = Math.min(14, event.clientY - startYRef.current);
     if (Math.abs(next) > 8) clearLongPress();
-    setOffsetY(next < 0 ? next : next * 0.3);
+    const resistedOffset = next < 0 ? next : next * 0.3;
+    writeCardOffset(resistedOffset);
+    const nextArmed = resistedOffset <= -SWIPE_THRESHOLD;
+    setArmed((current) => current === nextArmed ? current : nextArmed);
   };
 
-  const finish = () => {
+  const finish = (event: React.PointerEvent<HTMLButtonElement>) => {
     clearLongPress();
-    if (inspectedRef.current) return;
+    releasePointer(event.currentTarget);
+    if (inspectedRef.current || committedRef.current) return;
+    draggingRef.current = false;
     setDragging(false);
-    if (armed) {
+    if (offsetYRef.current <= -SWIPE_THRESHOLD) {
+      committedRef.current = true;
       setCommitting(true);
+      setArmed(false);
       onCommitStart(choice.id);
-      setOffsetY(-Math.max(520, window.innerHeight * 0.86));
       playCardSound("commit", muted);
-      const commitDelay = typeof window.matchMedia === "function"
+      window.requestAnimationFrame(() => {
+        writeCardOffset(-Math.max(560, window.innerHeight * 1.02));
+      });
+      const reducedMotion = typeof window.matchMedia === "function"
         && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? 90
-        : 420;
-      window.setTimeout(() => onChoose(choice.id), commitDelay);
+      commitTimerRef.current = window.setTimeout(
+        () => onChoose(choice.id),
+        reducedMotion ? 100 : COMMIT_DURATION_MS,
+      );
       return;
     }
-    setOffsetY(0);
+    resetGesture();
   };
 
-  useEffect(() => () => clearLongPress(), []);
+  const cancel = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (committedRef.current) return;
+    resetGesture(event.currentTarget);
+  };
+
+  useEffect(() => () => {
+    clearLongPress();
+    if (dragFrameRef.current !== null) window.cancelAnimationFrame(dragFrameRef.current);
+    if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
+  }, []);
 
   return (
     <button
@@ -177,14 +279,18 @@ function ChoiceCard({
       data-choice-id={choice.id}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onInspect(choice, event.currentTarget);
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onInspect(choice, event.currentTarget);
+        }
       }}
-      onPointerCancel={finish}
+      onPointerCancel={cancel}
       onPointerDown={begin}
       onPointerMove={move}
       onPointerUp={finish}
+      ref={cardRef}
       style={{
-        "--card-y": `${offsetY}px`,
+        "--card-y": "0px",
         "--deal-index": dealIndex,
       } as React.CSSProperties}
       type="button"
@@ -209,15 +315,17 @@ export function ChoiceList({
   rollUsed,
   onChoose,
   onRoll,
+  onCommitVisualStart,
   muted = false,
 }: {
   choices: TimelineTurn["choices"];
   rollUsed: boolean;
   onChoose: (id: "A" | "B" | "C") => void;
   onRoll: () => void;
+  onCommitVisualStart?: (id: "A" | "B" | "C") => void;
   muted?: boolean;
 }) {
-  const [detailChoice, setDetailChoice] = useState<Choice | null>(null);
+  const [detailState, setDetailState] = useState<{ choice: Choice; origin: CardOrigin } | null>(null);
   const [rollPhase, setRollPhase] = useState<"idle" | "collecting" | "dealing">("idle");
   const [committingId, setCommittingId] = useState<"A" | "B" | "C" | null>(null);
   const rollTimersRef = useRef<number[]>([]);
@@ -238,8 +346,8 @@ export function ChoiceList({
     playCardSound("roll", muted);
     const reducedMotion = typeof window.matchMedia === "function"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const collectDuration = reducedMotion ? 70 : 260;
-    const totalDuration = reducedMotion ? 120 : 720;
+    const collectDuration = reducedMotion ? 60 : 180;
+    const totalDuration = reducedMotion ? 110 : 460;
     rollTimersRef.current.push(window.setTimeout(() => {
       onRoll();
       setRollPhase("dealing");
@@ -249,12 +357,27 @@ export function ChoiceList({
 
   const inspect = (choice: Choice, trigger: HTMLButtonElement) => {
     inspectTriggerRef.current = trigger;
-    setDetailChoice(choice);
+    const rect = trigger.getBoundingClientRect();
+    setDetailState({
+      choice,
+      origin: {
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top + rect.height / 2,
+        width: rect.width,
+        height: rect.height,
+      },
+    });
   };
 
   const closeDetail = () => {
-    setDetailChoice(null);
+    setDetailState(null);
     window.requestAnimationFrame(() => inspectTriggerRef.current?.focus());
+  };
+
+  const beginCommit = (id: "A" | "B" | "C") => {
+    if (committingId) return;
+    setCommittingId(id);
+    onCommitVisualStart?.(id);
   };
 
   return (
@@ -271,7 +394,7 @@ export function ChoiceList({
               key={`${rollUsed ? "roll" : "initial"}-${choice.id}`}
               muted={muted}
               onChoose={onChoose}
-              onCommitStart={setCommittingId}
+              onCommitStart={beginCommit}
               onInspect={inspect}
             />
           ))}
@@ -281,22 +404,17 @@ export function ChoiceList({
           className="choice-roll"
           disabled={rollUsed || rolling}
           onClick={roll}
+          title={rollUsed ? "本节点已使用" : "本节点仅一次，无需等待"}
           type="button"
         >
-          <span className="choice-roll__deck" aria-hidden="true">
-            <img src="/assets/picker/vermilion-cloth-v2.webp" alt="" />
-            <img src="/assets/picker/vermilion-cloth-v2.webp" alt="" />
-            <img src="/assets/picker/vermilion-cloth-v2.webp" alt="" />
-          </span>
-          <span className="choice-roll__action">
+          <span className="choice-roll__label">
             <ArrowsClockwise size={17} weight="bold" />
-            <span>{rolling ? "洗牌中" : rollUsed ? "已重抽" : "ROLL"}</span>
+            <span>{rolling ? "洗牌" : rollUsed ? "已用" : "ROLL"}</span>
           </span>
-          <strong>{rollUsed ? "本节点不可再用" : "本节点仅一次 · 无需等待"}</strong>
         </button>
       </div>
-      {detailChoice ? (
-        <ChoiceDetail choice={detailChoice} onClose={closeDetail} />
+      {detailState ? (
+        <ChoiceDetail choice={detailState.choice} origin={detailState.origin} onClose={closeDetail} />
       ) : null}
     </>
   );
