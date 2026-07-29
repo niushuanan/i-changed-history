@@ -17,8 +17,9 @@ import { historyAssetForSeed } from "../data/visualAssets";
 import { playCardSound } from "../services/cardAudio";
 
 const HISTORY_CARDS = browseHistorySeeds();
-const DRAW_STEP_WEIGHTS = [110, 120, 140, 180, 240, 320, 430, 550, 650] as const;
-const DRAW_SETTLE_MS = 460;
+const DRAW_STEP_COUNT = 9;
+const DRAW_STEP_MS = 180;
+const DRAW_SETTLE_MS = 240;
 
 export type PickerContext = {
   mode: "draw" | "archive";
@@ -75,7 +76,6 @@ export function SeedPickerScreen({
   ));
   const [previousPreviewIndex, setPreviousPreviewIndex] = useState(previewIndex);
   const [drawTick, setDrawTick] = useState(0);
-  const [drawStepMs, setDrawStepMs] = useState<number>(DRAW_STEP_WEIGHTS[0]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -136,16 +136,15 @@ export function SeedPickerScreen({
     setDrawState("drawing");
     setPreviousPreviewIndex(startIndex);
     setDrawTick(0);
-    setDrawStepMs(DRAW_STEP_WEIGHTS[0]);
     playCardSound("roll", muted);
 
     const forwardDistance = HISTORY_CARDS.length
       + ((targetIndex - startIndex + HISTORY_CARDS.length) % HISTORY_CARDS.length);
-    const rollingIndices = DRAW_STEP_WEIGHTS.map((_, index) => {
+    const rollingIndices = Array.from({ length: DRAW_STEP_COUNT }, (_, index) => {
       const step = index + 1;
-      return step === DRAW_STEP_WEIGHTS.length
+      return step === DRAW_STEP_COUNT
         ? targetIndex
-        : (startIndex + Math.round(forwardDistance * step / DRAW_STEP_WEIGHTS.length))
+        : (startIndex + Math.round(forwardDistance * step / DRAW_STEP_COUNT))
           % HISTORY_CARDS.length;
     });
 
@@ -165,13 +164,12 @@ export function SeedPickerScreen({
     let elapsed = 0;
     rollingIndices.forEach((rollingIndex, index) => {
       const step = index + 1;
-      const stepDuration = Math.max(1, Math.round(DRAW_STEP_WEIGHTS[index] * motionScale));
+      const stepDuration = Math.max(1, Math.round(DRAW_STEP_MS * motionScale));
       elapsed += stepDuration;
       timersRef.current.push(window.setTimeout(() => {
         setPreviousPreviewIndex(index === 0 ? startIndex : rollingIndices[index - 1]);
         setPreviewIndex(rollingIndex);
         setDrawTick(step);
-        setDrawStepMs(Math.max(150, Math.round(DRAW_STEP_WEIGHTS[index] * 0.92)));
       }, elapsed));
     });
 
@@ -279,7 +277,7 @@ export function SeedPickerScreen({
                 <div
                   className="destiny-carousel__ring"
                   data-draw-tick={drawTick}
-                  style={{ "--carousel-step-ms": `${drawStepMs}ms` } as CSSProperties}
+                  style={{ "--carousel-step-ms": `${DRAW_STEP_MS}ms` } as CSSProperties}
                 >
                   {drawTick > 0 && previousPreviewIndex !== previewIndex ? (
                     <div
@@ -344,15 +342,22 @@ export function SeedPickerScreen({
 
           {!revealed ? <div className={`destiny-actions destiny-actions--${drawState}`}>
             {drawState === "drawing" ? (
-              <span className="destiny-actions__motion" role="status">命运正在减速，等它停稳</span>
+              <span className="destiny-actions__motion" role="status">命运匀速掠过，即将揭晓</span>
             ) : (
               <button
-                className="destiny-draw-button"
+                className="destiny-draw-button destiny-draw-button--primary"
                 type="button"
+                aria-label="随机抽一个开局"
                 onClick={draw}
               >
-                <DiceFive size={23} weight="fill" />
-                <span>随机抽一个开局</span>
+                <span className="destiny-draw-button__seal" aria-hidden="true">
+                  <DiceFive size={24} weight="fill" />
+                </span>
+                <span className="destiny-draw-button__copy">
+                  <small>让命运替你选择</small>
+                  <strong>随机抽一个开局</strong>
+                </span>
+                <span className="destiny-draw-button__chevron" aria-hidden="true" />
               </button>
             )}
             {drawState === "ready" ? <small>会优先抽到你还没通关的历史</small> : null}

@@ -2841,9 +2841,6 @@
 .destiny-picker.seed-picker--archive {
   grid-template-rows: var(--picker-brand-height, 82px) minmax(0, 1fr);
 }
-.destiny-picker[data-draw-state="drawing"] {
-  --destiny-card-width: min(calc(100% - 56px), 334px);
-}
 .destiny-readout {
   min-height: 50px;
   padding: 6px 16px 5px;
@@ -2894,7 +2891,6 @@
 }
 .destiny-revealed > .history-card {
   width: 100%;
-  animation: destiny-card-settle 540ms cubic-bezier(.16,.86,.24,1) both;
 }
 .destiny-card-back {
   width: var(--destiny-card-width);
@@ -2989,14 +2985,14 @@
   z-index: 5;
   opacity: 1;
   filter: brightness(.98) saturate(.9);
-  transform: translate3d(-50%, -50%, 72px) rotateY(0deg) scale(1.015);
+  transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
 }
 .destiny-carousel__ring:not([data-draw-tick="0"]) .destiny-carousel__card[data-slot="current"] {
-  animation: destiny-carousel-arrive var(--carousel-step-ms) cubic-bezier(.18,.82,.26,1) both;
+  animation: destiny-carousel-arrive var(--carousel-step-ms) linear both;
 }
 .destiny-carousel__card[data-slot="outgoing"] {
   z-index: 4;
-  animation: destiny-carousel-depart var(--carousel-step-ms) cubic-bezier(.22,.7,.28,1) both;
+  animation: destiny-carousel-depart var(--carousel-step-ms) linear both;
 }
 .destiny-carousel__card[data-slot="previous"] {
   z-index: 2;
@@ -3052,12 +3048,6 @@
 }
 .destiny-carousel .history-card {
   filter: drop-shadow(0 24px 28px rgba(0, 0, 0, .66));
-}
-.destiny-picker[data-draw-state="drawing"] .destiny-stage .history-card__scene {
-  height: clamp(235px, 35dvh, 290px);
-}
-.destiny-picker[data-draw-state="drawing"] .destiny-stage .history-card__dossier {
-  min-height: clamp(182px, 24dvh, 216px);
 }
 .destiny-card-back {
   position: relative;
@@ -3156,6 +3146,100 @@
   font-size: 17px;
   font-weight: 900;
   cursor: pointer;
+}
+.destiny-draw-button--primary {
+  position: relative;
+  width: min(100%, 306px);
+  height: 56px;
+  padding: 5px 15px 5px 8px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
+  gap: 10px;
+  border: 1px solid #d8bc7c;
+  border-bottom: 4px solid #2a0d08;
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, rgba(31, 8, 6, .72), transparent 28%, rgba(255, 216, 143, .08)),
+    #8d241c url("/assets/picker/vermilion-cloth-v2.webp") center / cover;
+  background-blend-mode: multiply, normal;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, .52),
+    inset 0 0 0 1px rgba(255, 224, 156, .24),
+    inset 0 -9px 14px rgba(45, 9, 6, .32);
+  text-align: left;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+.destiny-draw-button--primary::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(239, 207, 137, .3);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.destiny-draw-button--primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, .56),
+    inset 0 0 0 1px rgba(255, 224, 156, .3),
+    inset 0 -9px 14px rgba(45, 9, 6, .28);
+}
+.destiny-draw-button--primary:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+  box-shadow:
+    0 5px 12px rgba(0, 0, 0, .48),
+    inset 0 0 0 1px rgba(255, 224, 156, .24),
+    inset 0 5px 12px rgba(45, 9, 6, .3);
+}
+.destiny-draw-button--primary:focus-visible {
+  outline: 2px solid #f2d99d;
+  outline-offset: 3px;
+}
+.destiny-draw-button__seal {
+  position: relative;
+  z-index: 1;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(245, 213, 146, .72);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #bd4634, #5b1511 72%);
+  box-shadow:
+    0 0 0 3px rgba(58, 13, 9, .46),
+    inset 0 1px 0 rgba(255, 232, 182, .32);
+  color: #f4d995;
+}
+.destiny-draw-button__copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1px;
+  line-height: 1;
+}
+.destiny-draw-button__copy small {
+  color: #d5bd8b;
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+.destiny-draw-button__copy strong {
+  color: #fff0c8;
+  font-family: var(--serif);
+  font-size: 18px;
+  letter-spacing: .08em;
+}
+.destiny-draw-button__chevron {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-top: 2px solid #e4c783;
+  border-right: 2px solid #e4c783;
+  transform: rotate(45deg);
 }
 .destiny-draw-button--secondary {
   width: 176px;
@@ -3370,10 +3454,6 @@
   from { opacity: 0; transform: translateY(34px) rotateY(-12deg) scale(.93); filter: blur(4px) brightness(.6); }
   to { opacity: 1; transform: translateY(0) rotateY(0) scale(1); filter: none; }
 }
-@keyframes destiny-card-settle {
-  from { transform: translateY(1px) rotateY(-2deg) scale(.99); filter: brightness(.88); }
-  to { transform: translateY(0) rotateY(0) scale(1); filter: none; }
-}
 @keyframes destiny-entry-action-arrive {
   from { opacity: 0; transform: translateY(18px) scale(.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -3395,14 +3475,14 @@
   to {
     opacity: 1;
     filter: brightness(.98) saturate(.9);
-    transform: translate3d(-50%, -50%, 72px) rotateY(0deg) scale(1.015);
+    transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
   }
 }
 @keyframes destiny-carousel-depart {
   from {
     opacity: 1;
     filter: brightness(.98) saturate(.9);
-    transform: translate3d(-50%, -50%, 72px) rotateY(0deg) scale(1.015);
+    transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
   }
   to {
     opacity: .3;
@@ -3439,8 +3519,6 @@
   .destiny-stage { padding-top: 4px; }
   .destiny-stage .history-card__scene { height: clamp(204px, 32dvh, 226px); }
   .destiny-stage .history-card__dossier { min-height: 164px; padding: 17px 15px 12px; }
-  .destiny-picker[data-draw-state="drawing"] .destiny-stage .history-card__scene { height: clamp(220px, 34dvh, 236px); }
-  .destiny-picker[data-draw-state="drawing"] .destiny-stage .history-card__dossier { min-height: 174px; }
   .destiny-stage .history-card__dossier h2 { font-size: 21px; }
   .destiny-stage .history-card__facts p { padding-block: 2px; }
   .destiny-stage .history-card__action { min-height: 52px; font-size: 21px; }
@@ -3450,6 +3528,9 @@
   .destiny-actions { min-height: 58px; padding-top: 0; }
   .destiny-actions--drawing { min-height: 42px; }
   .destiny-draw-button { height: 42px; font-size: 15px; }
+  .destiny-draw-button--primary { height: 50px; }
+  .destiny-draw-button__seal { width: 34px; height: 34px; }
+  .destiny-draw-button__copy strong { font-size: 16px; }
   .destiny-draw-button--secondary { width: 164px; height: 38px; font-size: 13px; }
   .game-announcement { padding: 10px 12px; }
   .game-announcement__title { padding-block: 9px 5px; }

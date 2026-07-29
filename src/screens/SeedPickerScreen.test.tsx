@@ -50,8 +50,8 @@ describe("destiny draw history entry", () => {
 
   afterEach(() => {
     cleanup();
-    vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("starts with one hidden destiny card instead of one hundred choices", () => {
@@ -65,9 +65,10 @@ describe("destiny draw history entry", () => {
     expect(screen.getByText("会优先抽到你还没通关的历史")).toBeVisible();
   });
 
-  it("rotates full-height history posters in depth, then reveals entry controls only after settling", () => {
+  it("rotates full-height history posters at one pace, then reveals entry controls only after settling", () => {
     const onSelect = vi.fn();
     const { container } = render(<PickerHarness onSelect={onSelect} />);
+    const timeoutSpy = vi.spyOn(window, "setTimeout");
 
     fireEvent.click(screen.getByRole("button", { name: "随机抽一个开局" }));
     expect(screen.getByTestId("destiny-carousel")).toBeVisible();
@@ -76,7 +77,14 @@ describe("destiny draw history entry", () => {
     expect(container.querySelector('.destiny-carousel__card[data-slot="current"]')).toBeTruthy();
     expect(container.querySelector('.destiny-carousel__card[data-slot="far-previous"]')).toBeTruthy();
     expect(container.querySelector('.destiny-carousel__card[data-slot="far-next"]')).toBeTruthy();
-    expect(screen.getByText("命运正在减速，等它停稳")).toHaveAttribute("role", "status");
+    expect(screen.getByText("命运匀速掠过，即将揭晓")).toHaveAttribute("role", "status");
+    const drawDelays = timeoutSpy.mock.calls
+      .map(([, delay]) => Number(delay))
+      .slice(0, 9);
+    const stepIntervals = drawDelays.map((delay, index) => (
+      index === 0 ? delay : delay - drawDelays[index - 1]
+    ));
+    expect(new Set(stepIntervals)).toEqual(new Set([2]));
     expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "换一个开局" })).not.toBeInTheDocument();
 
