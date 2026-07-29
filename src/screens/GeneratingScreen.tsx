@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Aperture, ArrowRight, Check, Circle, CircleNotch } from "@phosphor-icons/react";
 import type { DeepSeekPartialDraft, DeepSeekProgressStage } from "../services/deepseek";
+import { ATMOSPHERE_PHRASES, POLISHING_PHRASES, STEP1_PHRASES, STEP2_PHRASES, STEP3_PHRASES } from "../data/generatingPhrases";
 
 type DevelopingStage = {
   image: string;
@@ -9,7 +11,7 @@ type DevelopingStage = {
   steps: readonly [string, string, string];
 };
 
-function stageFor(chapter: number, ending: boolean, customAction: boolean): DevelopingStage {
+function stageFor(chapter: number, ending: boolean, customAction: boolean, randomSteps?: readonly [string, string, string]): DevelopingStage {
   if (customAction) {
     return {
       image: "/assets/generating-opening.webp",
@@ -42,7 +44,7 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
     alt: "新的历史现场正在形成",
     title: "历史正在发生",
     focus: "把真实人物、地点与倒计时放回现场",
-    steps: ["确认真实人物与地点", "把既有决定写进现场", "写出下一次关键抉择"],
+    steps: randomSteps ?? ["确认真实人物与地点", "把既有决定写进现场", "写出下一次关键抉择"] as const,
   };
 }
 
@@ -67,7 +69,19 @@ export function GeneratingScreen({
   onContinue?: () => void;
   onCancel: () => void;
 }) {
-  const stage = stageFor(chapter, ending, customAction);
+  const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const [randomPhrase] = useState(() => pick(ATMOSPHERE_PHRASES));
+  const [polishIndex, setPolishIndex] = useState(0);
+  const [step1] = useState(() => pick(STEP1_PHRASES));
+  const [step2] = useState(() => pick(STEP2_PHRASES));
+  const [step3] = useState(() => pick(STEP3_PHRASES));
+  const stage = stageFor(chapter, ending, customAction, [step1, step2, step3]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setPolishIndex(i => (i + 1) % POLISHING_PHRASES.length), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const activeStep = ready ? 3 : progressStage === "connected" ? 0 : progressStage === "reasoning" ? 1 : 2;
   const readableDraft = !ending && Boolean(draft?.headline && draft?.narrative);
 
@@ -77,7 +91,7 @@ export function GeneratingScreen({
     ? "正在整理这一页，已经发生的历史不会改变"
     : progressStage === "validating"
       ? "下一幕即将开始"
-      : ending ? "四次选择正在汇成最后两份历史" : customAction ? "下一幕即将开始" : "新的历史现场即将出现";
+      : ending ? "四次选择正在汇成最后两份历史" : customAction ? "下一幕即将开始" : randomPhrase;
   const canonReceipt = customCanonText ? (
     <blockquote className="developing-canon">
       <strong>{customCanonText}</strong>
@@ -117,7 +131,7 @@ export function GeneratingScreen({
               </button>
             </div>
           ) : (
-            <em><CircleNotch size={14} weight="bold" />场景仍在写成，完整校验后才能决定</em>
+            <em key={polishIndex}><CircleNotch size={14} weight="bold" />{POLISHING_PHRASES[polishIndex]}</em>
           )}
         </section>
       ) : (
