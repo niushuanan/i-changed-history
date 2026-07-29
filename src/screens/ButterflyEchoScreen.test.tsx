@@ -1,7 +1,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EchoState } from "../game/reducer";
 import { ButterflyEchoScreen } from "./ButterflyEchoScreen";
+
+const gameStyles = readFileSync("src/styles/game.css", "utf8");
 
 const echo: EchoState = {
   source: "ai_choice",
@@ -36,6 +39,9 @@ describe("decision result screen", () => {
     expect(screen.getByRole("button", { name: "看看接下来发生什么" })).toBeEnabled();
 
     expect(screen.queryByText(/因果回响|世界已回应|偏离|获益|付出|继续推演/)).not.toBeInTheDocument();
+    expect(gameStyles).toContain(
+      ".echo-verdict h1 { font-size: clamp(23px, 6.7vw, 26px); line-height: 1.28; }",
+    );
   });
 
   it("keeps a legacy player-authored confirmation free of invented analysis", () => {
