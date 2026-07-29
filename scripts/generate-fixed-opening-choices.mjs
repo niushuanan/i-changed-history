@@ -64,6 +64,7 @@ const SYSTEM = [
   "两张 A 必须由玩家以 assignedRole 的权限执行不同具体动作，但都保留真实历史中的关键人物、控制关系、命令方向和最终结果。不得阻止、逆转、推迟到期限之后或偷换真实结果。",
   "两张 B 必须在同一历史决断点改变控制关系、命令方向或关键结果，并明确谁立刻获益、谁承担代价。",
   "四张牌都必须落到快照中的真实人物、机构、地点、器物、命令和期限，像当事人会当场说出口的动作。",
+  "所有输出值必须是面向中国玩家的自然中文。actualHistory、assignedRole、deadline、actionSpec、deviationClass 等只允许作为输入或 JSON 键名，绝不能原样出现在任何输出值中。",
   "这是四幕人生的第一幕。任何牌的直接结果或代价都不得让玩家死亡、被处死、失去意识、终身监禁或永久失去行动能力；可以受伤、失势、被追捕或流亡。",
   "禁止“按原计划、遵循历史、推进历史、现场众人、原负责人、另找一队、有关人物、稳妥处置、综合施策”等占位话术。",
   "不得使用超能力、现代武器、未来知识或架空技术。只返回 JSON。",
@@ -81,6 +82,7 @@ const JUDGE_SYSTEM = [
 const banned = /按原计划|遵循历史|推进历史|历史走向|现场众人|在场者|有关人物|原负责人|另找一队|另派一队|稳妥处置|综合施策|改变历史/;
 const passiveOnly = /^(?:先|暂缓|等待|观察|核对|复核|询问|追问|调查|查清)/;
 const protagonistRemoved = /(?:你|玩家|主角)(?!的).{0,8}(?:被|遭).{0,8}(?:处死|斩首|杀死|击毙|杀害)|(?:你|玩家|主角)(?!的)(?:本人)?(?:当场|随后|最终|立即|会|将)?(?:死亡|身亡|丧命|殒命|自尽|失去意识|终身监禁|终身囚禁)|(?:处死|斩首|杀死|击毙)(?:了)?(?:你|玩家|主角)(?!的)/;
+const internalPlayerCopy = /\b(?:actualHistory|actionsHistory|actionSpec|deadline|unexpectedCost|deviationClass|causedByChapter|mustAffect|powerId)\b|(?:resverse|reverse)[\s_-]*cause/i;
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 let providerUnavailable = !apiKey;
 
@@ -103,6 +105,7 @@ function promptFor(seed, validationErrors = [], previousRejected = null) {
       choicesB: "B1；必须改变 trajectory 中的控制权、命令或结果",
       rollChoicesA: "A2；使用另一人物、器物或程序实际执行同一真实历史轨道",
       rollChoicesB: "B2；使用另一杠杆改变真实历史结果",
+      playerFacingLanguage: "actualHistory、assignedRole、deadline、actionSpec、deviationClass 等只是提示词内部字段名，任何输出值都必须改写成面向中国玩家的自然中文，绝不能原样复述这些字段名",
     },
     exactShape: {
       trajectory: {
@@ -192,6 +195,25 @@ function validateChoice(choice, expectedId, pathLabel) {
   return errors;
 }
 
+function collectInternalPlayerCopy(value, pathLabel, errors) {
+  if (typeof value === "string") {
+    if (internalPlayerCopy.test(value)) {
+      errors.push(`${pathLabel} 泄漏内部字段名或英文能力 ID`);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => (
+      collectInternalPlayerCopy(item, `${pathLabel}[${index}]`, errors)
+    ));
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value)) {
+    collectInternalPlayerCopy(child, `${pathLabel}.${key}`, errors);
+  }
+}
+
 function validateCandidate(candidate) {
   const errors = [];
   if (!candidate || typeof candidate !== "object") return ["顶层不是对象"];
@@ -221,6 +243,7 @@ function validateCandidate(candidate) {
     ...(candidate.rollChoices ?? []),
   ].map((choice) => choice?.label).filter(textField);
   if (new Set(labels).size !== labels.length) errors.push("四张牌的完整决定不得重复");
+  collectInternalPlayerCopy(candidate, "candidate", errors);
   return errors;
 }
 
@@ -446,11 +469,12 @@ try {
   }
 }
 
-const results = HISTORY_SEEDS.map((seed) => (
-  checkpoint[seed.id]?.trajectory
-    ? [seed.id, checkpoint[seed.id]]
-    : null
-));
+const results = HISTORY_SEEDS.map((seed) => {
+  const entry = checkpoint[seed.id];
+  return entry?.trajectory && validateCandidate(entry).length === 0
+    ? [seed.id, entry]
+    : null;
+});
 const pendingIndexes = HISTORY_SEEDS
   .map((_, index) => index)
   .filter((index) => results[index] === null);

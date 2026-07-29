@@ -242,6 +242,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("目标年份仍在世、在任或确实存在");
     expect(protocol).toContain("label 为完整决定");
     expect(protocol).toContain("每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字");
+    expect(protocol).toContain("所有字段值面向中国玩家，必须使用自然中文");
+    expect(protocol).toContain("不得写 reverse-cause 等超能力 ID");
     expect(protocol).toContain('"intent"');
     expect(protocol).toContain("clientOwnedFields");
     expect(protocol).toContain("禁止输出");
@@ -292,6 +294,8 @@ describe("modern traveler AI prompt contract", () => {
       name: "百人迁跃",
     });
     expect(payload.outputContract.powerRule).toContain("A/B 不得输出 powerId");
+    expect(payload.outputContract.playerFacingLanguage).toContain("字段值只写自然中文");
+    expect(payload.outputContract.playerFacingLanguage).toContain("能力只写 assignedPower.name");
     expect(payload.task).toContain("不要输出盘点过程");
     expect(payload.outputContract.label).toContain("必须以具体的人、物、地点或已经发生的结果收尾");
     expect(payload.outputContract.displayLabel).toContain("自然动宾短语");

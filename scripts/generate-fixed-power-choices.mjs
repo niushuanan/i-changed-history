@@ -35,10 +35,12 @@ const SYSTEM = [
   "主语永远是“你”。玩家亲自发动能力；历史人物只能是目标、盟友、对手或受影响者。",
   "决定必须深度使用给定快照中的具体人名、地点、器物、命令、期限和矛盾，不能写“历史现场、所有人、在场者、有关人物、公开审判、真相现形”。",
   "六张牌必须像六个完全不同的人在危急时刻说出的具体做法，不要共享句式。",
+  "所有输出值必须是面向中国玩家的自然中文。powerId、actionSpec、deadline、unexpectedCost、deviationClass 等只允许作为 JSON 键名，绝不能原样写入牌面或正文；能力在文案里只写 assignedPowers.name，不得写 reverse-cause 等英文 ID。",
   "只返回 JSON。",
 ].join("\n");
 
 const banned = /历史现场|在场者|有关人物|公开审判|真相现形|被迫说真话/;
+const internalPlayerCopy = /\b(?:actionSpec|deadline|unexpectedCost|directResult|deviationClass|powerId)\b|(?:resverse|reverse)[\s_-]*cause/i;
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function assignedPowers(seedIndex) {
@@ -64,6 +66,7 @@ function promptFor(seed, powers, validationErrors = [], previousRejectedChoices 
     exactTopLevelShape: { choices: ["六个完整 C 牌对象；顶层只能有 choices 这一个字段"] },
     outputContract: {
       choices: "恰好六项，顺序与 assignedPowers 相同",
+      playerFacingLanguage: "字段值只写自然中文；内部键名和英文能力 ID 只能出现在键位，能力正文只用 assignedPowers.name",
       eachChoice: {
         id: "固定为 C",
         powerId: "逐字复制 assignedPowers.powerId",
@@ -126,6 +129,26 @@ function validate(seed, powers, candidate) {
     }
     if (banned.test(`${choice.displayLabel ?? ""}${choice.label ?? ""}${choice.actionSpec?.target ?? ""}`)) {
       errors.push(`choices.${index} 使用抽象占位词`);
+    }
+    const playerFacingCopy = [
+      choice.displayLabel,
+      choice.label,
+      choice.intent,
+      choice.actionSpec?.actor,
+      choice.actionSpec?.action,
+      choice.actionSpec?.target,
+      choice.actionSpec?.deadline,
+      choice.instantEcho?.directResult,
+      choice.instantEcho?.unexpectedCost,
+      choice.instantEcho?.beneficiary,
+      choice.instantEcho?.payer,
+    ].filter(Boolean).join("；");
+    const leaksPowerId = powers.some(({ id }) => {
+      const pattern = new RegExp(`\\b${id.replaceAll("-", "[\\s_-]+")}\\b`, "i");
+      return pattern.test(playerFacingCopy);
+    });
+    if (internalPlayerCopy.test(playerFacingCopy) || leaksPowerId) {
+      errors.push(`choices.${index} 泄漏内部字段名或英文能力 ID`);
     }
     const groundedChoiceText = `${choice.label ?? ""}${choice.actionSpec?.action ?? ""}${choice.actionSpec?.target ?? ""}`;
     if (
@@ -217,9 +240,13 @@ try {
     checkpoint = {};
   }
 }
-const results = HISTORY_SEEDS.map((seed) => (
-  Array.isArray(checkpoint[seed.id]) ? [seed.id, checkpoint[seed.id]] : null
-));
+const results = HISTORY_SEEDS.map((seed, index) => {
+  const choices = checkpoint[seed.id];
+  return Array.isArray(choices)
+    && validate(seed, assignedPowers(index), { choices }).length === 0
+    ? [seed.id, choices]
+    : null;
+});
 const pendingIndexes = HISTORY_SEEDS
   .map((_, index) => index)
   .filter((index) => results[index] === null);

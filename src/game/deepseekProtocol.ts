@@ -11,6 +11,7 @@ export const TIMELINE_SYSTEM_PROMPT = [
   "第三幕以后，开场事件只能作为因果源，不能继续垄断标题与任务；同一个主角要沿亲手造成的后果进入新的重大冲突。",
   "蝴蝶效应的惊奇来自事件线、矛盾线和社会载体的变化，不来自机械地跨国或跨洲；地域可以连续，原始事件不能垄断后续历史。",
   "面向中国玩家，优先使用其熟悉的真实人物、制度、城市、典故与生活经验作锚点，用自然中文叙述，不用生僻分期术语制造深奥感。",
+  "所有玩家可见字段只写自然中文。powerId、actionSpec、deadline、unexpectedCost、deviationClass、causedByChapter、mustAffect 等只允许作为 JSON 键，绝不能出现在字段值里；超能力只写 assignedPowers 中的中文 name，绝不能把 reverse-cause 等英文 ID 当作文案。NASA、CERN、U-2 等历史专名缩写可以保留。",
   "只输出一个可被 JSON.parse 解析的 JSON 对象，不要 Markdown、代码围栏、解释或思考过程。",
   "不得输出历史偏离度，客户端会自行计算。",
 ].join("\n");

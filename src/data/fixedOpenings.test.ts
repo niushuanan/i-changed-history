@@ -6,11 +6,19 @@ import {
   getFixedPowerChoicePool,
 } from "./fixedOpenings";
 import { FIXED_OPENING_CHOICES } from "./fixedOpeningChoices.generated";
+import {
+  containsInternalPlayerCopy,
+  localizeInternalPlayerCopy,
+} from "../game/playerFacingText";
 
 const removedProtagonistPattern = /(?:你|玩家|主角)(?!的).{0,8}(?:被|遭).{0,8}(?:处死|斩首|杀死|击毙|杀害)|(?:你|玩家|主角)(?!的)(?:本人)?(?:当场|随后|最终|立即|会|将)?(?:死亡|身亡|丧命|殒命|自尽|失去意识|终身监禁|终身囚禁)|(?:处死|斩首|杀死|击毙)(?:了)?(?:你|玩家|主角)(?!的)/;
 
 function clean(value: string): string {
-  return value.replace(/[。！？!?；;]+/g, "，").replace(/，+/g, "，").replace(/^，|，$/g, "").trim();
+  return localizeInternalPlayerCopy(value)
+    .replace(/[。！？!?；;]+/g, "，")
+    .replace(/，+/g, "，")
+    .replace(/^，|，$/g, "")
+    .trim();
 }
 
 describe("fixed first turns", () => {
@@ -70,6 +78,34 @@ describe("fixed first turns", () => {
     expect(allChoices.filter((choice) => /夺取现场解释权|照史推进原定命令|压到最后一刻|撕令夺权/.test(
       `${choice.displayLabel}${choice.label}`,
     ))).toEqual([]);
+  });
+
+  it("never exposes schema labels or English power IDs in fixed player copy", () => {
+    for (const seed of HISTORY_SEEDS) {
+      const opening = getFixedOpening(seed);
+      const visibleCopy = [
+        opening.headline,
+        opening.narrative,
+        opening.immediateObjective,
+        opening.timePressure,
+        opening.baselineAnchor,
+        ...opening.historicalAnchors,
+        ...[...opening.choices, ...opening.rollChoices].flatMap((choice) => [
+          choice.displayLabel,
+          choice.label,
+          choice.actionSpec.actor,
+          choice.actionSpec.action,
+          choice.actionSpec.target,
+          choice.actionSpec.deadline,
+          choice.instantEcho.directResult,
+          choice.instantEcho.unexpectedCost,
+          choice.instantEcho.beneficiary,
+          choice.instantEcho.payer,
+        ]),
+      ];
+
+      expect(visibleCopy.filter(containsInternalPlayerCopy)).toEqual([]);
+    }
   });
 
   it("makes A preserve actual history, B change it, and both act through the player", () => {

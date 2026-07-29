@@ -2,6 +2,7 @@ import { parseTimelineTurn, type TimelineTurn } from "../game/schema";
 import { getTimelineNode } from "../game/timelinePlan";
 import type { HistorySeed } from "../game/types";
 import type { PowerId } from "../game/powers";
+import { localizeInternalPlayerCopy } from "../game/playerFacingText";
 import { formatHistoricalYear } from "./historicalYear";
 import {
   FIXED_OPENING_CHOICES,
@@ -18,11 +19,36 @@ const PROTAGONIST_NAMES = [
 ] as const;
 
 function clean(value: string): string {
-  return value.replace(/[。！？!?；;]+/g, "，").replace(/，+/g, "，").replace(/^，|，$/g, "").trim();
+  return localizeInternalPlayerCopy(value)
+    .replace(/[。！？!?；;]+/g, "，")
+    .replace(/，+/g, "，")
+    .replace(/^，|，$/g, "")
+    .trim();
 }
 
 function clip(value: string, max: number): string {
   return [...value].slice(0, max).join("");
+}
+
+function localizeFixedChoice<T extends TimelineTurn["choices"][number]>(choice: T): T {
+  return {
+    ...choice,
+    displayLabel: localizeInternalPlayerCopy(choice.displayLabel),
+    label: localizeInternalPlayerCopy(choice.label),
+    intent: localizeInternalPlayerCopy(choice.intent),
+    actionSpec: {
+      actor: localizeInternalPlayerCopy(choice.actionSpec.actor),
+      action: localizeInternalPlayerCopy(choice.actionSpec.action),
+      target: localizeInternalPlayerCopy(choice.actionSpec.target),
+      deadline: localizeInternalPlayerCopy(choice.actionSpec.deadline),
+    },
+    instantEcho: {
+      directResult: localizeInternalPlayerCopy(choice.instantEcho.directResult),
+      unexpectedCost: localizeInternalPlayerCopy(choice.instantEcho.unexpectedCost),
+      beneficiary: localizeInternalPlayerCopy(choice.instantEcho.beneficiary),
+      payer: localizeInternalPlayerCopy(choice.instantEcho.payer),
+    },
+  } as T;
 }
 
 function fixedNarrative(
@@ -56,7 +82,7 @@ export function getFixedPowerChoicePool(
   if (!pool || pool.length !== 6) {
     throw new Error(`Fixed power choices are missing for ${seed.id}.`);
   }
-  return pool;
+  return pool.map(localizeFixedChoice);
 }
 
 export function getFixedOpeningPowerIds(seed: HistorySeed): PowerId[] {
@@ -111,13 +137,13 @@ export function getFixedOpening(
     historicalAnchors: seed.baselineFacts.map((fact) => clip(clean(fact), 32)),
     previousEcho: null,
     choices: [
-      fixedChoices.choices[0],
-      fixedChoices.choices[1],
+      localizeFixedChoice(fixedChoices.choices[0]),
+      localizeFixedChoice(fixedChoices.choices[1]),
       selectedPowerChoices[0],
     ],
     rollChoices: [
-      fixedChoices.rollChoices[0],
-      fixedChoices.rollChoices[1],
+      localizeFixedChoice(fixedChoices.rollChoices[0]),
+      localizeFixedChoice(fixedChoices.rollChoices[1]),
       selectedPowerChoices[1],
     ],
     memorySummary: clip(`你在${seed.eventName}现场获得改变真实历史的决定权`, 54),

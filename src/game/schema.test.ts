@@ -1,8 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { endingFixture, turnFixture } from "../test/fixtures";
-import { extractFirstJsonObject, parseAlternatePresent, parseBiographyReport, parseCustomActionResolution, parseTimelineTurn, parseWorldReport } from "./schema";
+import { extractFirstJsonObject, parseAlternatePresent, parseBiographyReport, parseCustomActionResolution, parseTimelineTurn, parseWorldReport, storedTimelineTurnSchema } from "./schema";
 
 describe("structured timeline parsing", () => {
+  it("rejects internal English tokens in new player-facing copy and migrates old saves", () => {
+    const leaking = {
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => index === 2
+        ? {
+            ...choice,
+            displayLabel: "reverse-cause",
+            label: "你发动 reverse cause 颠倒现场因果",
+            actionSpec: { ...choice.actionSpec, deadline: "deadline" },
+          }
+        : choice),
+    };
+
+    expect(() => parseTimelineTurn(JSON.stringify(leaking))).toThrow(/自然中文|超能力 ID/);
+
+    const migrated = storedTimelineTurnSchema.parse(leaking);
+    expect(migrated.choices[2].displayLabel).toBe("颠倒一次因果");
+    expect(migrated.choices[2].label).toContain("颠倒一次因果");
+    expect(migrated.choices[2].actionSpec.deadline).toBe("最后期限");
+  });
+
   it("preserves the assigned superpower identity on C cards", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,

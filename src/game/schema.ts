@@ -2,10 +2,21 @@ import { z } from "zod";
 import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from "./timelinePlan";
 import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
 import { isPowerId, type PowerId } from "./powers";
+import {
+  containsInternalPlayerCopy,
+  localizeInternalPlayerCopy,
+} from "./playerFacingText";
 
 const requiredString = z.string().trim().min(1);
-const boundedString = (max: number) => requiredString.max(max);
+const playerFacingString = requiredString.refine(
+  (value) => !containsInternalPlayerCopy(value),
+  "玩家可见文案必须使用自然中文，不能泄漏内部字段名或超能力 ID",
+);
+const boundedPlayerFacingString = (max: number) => playerFacingString.max(max);
 const completeReportSentence = (max: number, label: string, min = 1) => z.string().trim().min(min).max(max).refine(
+  (value) => !containsInternalPlayerCopy(value),
+  `${label}不能泄漏内部字段名或超能力 ID`,
+).refine(
   (value) => {
     if (!/[。！？!?](?:[”"』」）)])?$/.test(value)) return false;
     const withoutClosing = value.replace(/[”"』」）)]*$/, "").trim();
@@ -34,10 +45,10 @@ const visualToneSchema = z.enum([
 const generationSourceSchema = z.enum(["fixed", "deepseek"]);
 
 const echoSchema = z.object({
-  directResult: requiredString,
-  unexpectedCost: requiredString,
-  beneficiary: requiredString,
-  payer: requiredString,
+  directResult: playerFacingString,
+  unexpectedCost: playerFacingString,
+  beneficiary: playerFacingString,
+  payer: playerFacingString,
 });
 
 const GENERIC_ACTION_PATTERN = /保留现有安排|修正最紧迫|重写规则|废除旧约束|新的联盟|加强管理|稳步推进|优化安排|灵活处理|综合施策|视情况而定/;
@@ -176,10 +187,10 @@ const preModernLocationSchema = z.object({
 });
 
 const actionSpecSchema = z.object({
-  actor: requiredString,
-  action: requiredString,
-  target: requiredString,
-  deadline: requiredString,
+  actor: playerFacingString,
+  action: playerFacingString,
+  target: playerFacingString,
+  deadline: playerFacingString,
 });
 
 const customActionResolutionObjectSchema = z.object({
@@ -195,15 +206,15 @@ export const customActionResolutionSchema = z.preprocess(
   customActionResolutionObjectSchema,
 );
 
-const choiceLabelSchema = requiredString.refine((label) => {
+const choiceLabelSchema = playerFacingString.refine((label) => {
   const withoutPunctuation = label.replace(/[。！？!?]+$/g, "").trim();
   return isCompleteActionLabel(withoutPunctuation);
 }, "行动必须是完整句，不能停在连接词、意图或缺少对象的动词上");
 
 const choiceFields = {
   label: choiceLabelSchema,
-  displayLabel: boundedString(16),
-  intent: requiredString,
+  displayLabel: boundedPlayerFacingString(16),
+  intent: playerFacingString,
   deviationClass: deviationClassSchema,
   powerId: z.custom<PowerId>(isPowerId, "未知超能力").optional(),
   instantEcho: echoSchema,
@@ -220,13 +231,13 @@ const choicesSchema = z.tuple([
 const PREMATURE_PROTAGONIST_REMOVAL_PATTERN = /(?:你|玩家|主角)(?!的).{0,8}(?:被|遭).{0,8}(?:处死|斩首|杀死|击毙|杀害)|(?:你|玩家|主角)(?!的)(?:本人)?(?:当场|随后|最终|立即|会|将)?(?:死亡|身亡|丧命|殒命|自尽|失去意识|终身监禁|终身囚禁)|(?:处死|斩首|杀死|击毙)(?:了)?(?:你|玩家|主角)(?!的)/;
 
 const causalLedgerEntrySchema = z.object({
-  fact: requiredString,
+  fact: playerFacingString,
   causedByChapter: causalChapterSchema,
-  mustAffect: requiredString,
+  mustAffect: playerFacingString,
 });
 
-const narrativeTextSchema = requiredString;
-const factualScanString = requiredString.refine(
+const narrativeTextSchema = playerFacingString;
+const factualScanString = playerFacingString.refine(
   (value) => !DEPENDENT_SENTENCE_START_PATTERN.test(value),
   "字段必须直接陈述已经发生或明确迫近的事实，不能以条件从句开头",
 );
@@ -248,24 +259,24 @@ const richNarrativeSchema = narrativeTextSchema
 const timelineTurnFields = {
     chapter: chapterSchema,
     chapterName: chapterNameSchema,
-    protagonistName: boundedString(16),
+    protagonistName: boundedPlayerFacingString(16),
     protagonistAge: z.number().int().min(14).max(90),
     lifeStage: lifeStageSchema,
-    yearLabel: requiredString,
-    location: requiredString,
-    role: requiredString,
+    yearLabel: playerFacingString,
+    location: playerFacingString,
+    role: playerFacingString,
     causalBridge: factualScanString,
-    worldStateChange: requiredString,
-    divergenceProof: requiredString,
-    immediateObjective: requiredString,
+    worldStateChange: playerFacingString,
+    divergenceProof: playerFacingString,
+    immediateObjective: playerFacingString,
     timePressure: factualScanString,
-    headline: requiredString,
-    baselineAnchor: requiredString,
-    historicalAnchors: z.array(requiredString).min(2).max(4),
+    headline: playerFacingString,
+    baselineAnchor: playerFacingString,
+    historicalAnchors: z.array(playerFacingString).min(2).max(4),
     previousEcho: echoSchema.nullable(),
     choices: choicesSchema,
     rollChoices: choicesSchema,
-    memorySummary: requiredString,
+    memorySummary: playerFacingString,
     causalLedger: z.array(causalLedgerEntrySchema).max(3),
     visualTone: visualToneSchema,
     generationSource: generationSourceSchema,
@@ -528,6 +539,25 @@ function normalizeChoiceSet(value: unknown): unknown {
   return value.map((choice, index) => normalizeChoice(choice, index));
 }
 
+function localizeStoredPlayerCopy(value: unknown, key = ""): unknown {
+  if (typeof value === "string") {
+    return /(?:^|selected)powerId$/i.test(key)
+      ? value
+      : localizeInternalPlayerCopy(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => localizeStoredPlayerCopy(item, key));
+  }
+  const record = asRecord(value);
+  if (!record) return value;
+  return Object.fromEntries(
+    Object.entries(record).map(([childKey, childValue]) => [
+      childKey,
+      localizeStoredPlayerCopy(childValue, childKey),
+    ]),
+  );
+}
+
 function normalizeTimelineTurnCandidate(value: unknown): unknown {
   const turn = asRecord(value);
   if (!turn) return value;
@@ -600,37 +630,37 @@ export const timelineTurnSchema = z.preprocess(
 );
 
 export const storedTimelineTurnSchema = z.preprocess(
-  normalizeTimelineTurnCandidate,
+  (value) => normalizeTimelineTurnCandidate(localizeStoredPlayerCopy(value)),
   compatibleStoredTimelineTurnSchema,
 );
 
 export const storedChoiceSetSchema = z.preprocess(
-  normalizeChoiceSet,
+  (value) => normalizeChoiceSet(localizeStoredPlayerCopy(value)),
   choicesSchema,
 );
 
 const historyTimelineItemSchema = z.object({
   chapter: chapterSchema,
-  yearLabel: requiredString,
-  playerChoice: requiredString,
+  yearLabel: playerFacingString,
+  playerChoice: playerFacingString,
   consequence: completeReportSentence(120, "决定后果"),
 });
 
 const causalChainSchema = z.object({
-  origin: requiredString,
-  transformation: requiredString,
-  payoff: requiredString,
+  origin: playerFacingString,
+  transformation: playerFacingString,
+  payoff: playerFacingString,
 });
 
 const biographyFields = {
     vernacularBiography: completeReportSentence(960, "白话列传"),
     classicalBiography: completeReportSentence(720, "文言列传"),
-    protagonistName: boundedString(16),
+    protagonistName: boundedPlayerFacingString(16),
     lifespanSummary: completeReportSentence(240, "一生总述"),
     deathScene: z.object({
-      yearLabel: requiredString,
+      yearLabel: playerFacingString,
       age: z.number().int().min(14).max(100),
-      place: boundedString(32),
+      place: boundedPlayerFacingString(32),
       finalMoment: completeReportSentence(180, "临终场景"),
       lastingLegacy: completeReportSentence(180, "身后遗产"),
     }),
@@ -638,15 +668,15 @@ const biographyFields = {
 } as const;
 
 const posthumousChronicleItemSchema = z.object({
-  period: boundedString(18),
-  title: boundedString(22),
+  period: boundedPlayerFacingString(18),
+  title: boundedPlayerFacingString(22),
   narrative: completeReportSentence(128, "身后时代叙事"),
   inheritedChange: completeReportSentence(96, "时代遗产结论"),
 });
 
 const worldReportFields = {
-    worldName: requiredString,
-    frontPageHeadline: requiredString,
+    worldName: playerFacingString,
+    frontPageHeadline: playerFacingString,
     causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
     ordinaryLife2026: z.tuple([
       completeReportSentence(18, "2026生活细节", 12),
@@ -660,12 +690,12 @@ const worldReportFields = {
       posthumousChronicleItemSchema,
     ]),
     closingPassage: completeReportSentence(320, "小说尾声"),
-    greatestGain: requiredString,
-    hiddenPrice: requiredString,
-    strangestDetail: requiredString,
-    biggestBeneficiary: requiredString,
-    biggestLoser: requiredString,
-    rewriteLevel: requiredString,
+    greatestGain: playerFacingString,
+    hiddenPrice: playerFacingString,
+    strangestDetail: playerFacingString,
+    biggestBeneficiary: playerFacingString,
+    biggestLoser: playerFacingString,
+    rewriteLevel: playerFacingString,
     plausibilityScore: z.number().finite().min(0).max(100),
     plausibilityReason: completeReportSentence(180, "可信度说明"),
     shareLine: completeReportSentence(120, "分享语"),
@@ -701,32 +731,36 @@ const compatibleStoredAlternatePresentObjectSchema = z
   .object({
     ...biographyFields,
     ...worldReportFields,
-    vernacularBiography: requiredString.max(960),
-    classicalBiography: requiredString.max(720),
-    lifespanSummary: requiredString.max(240),
+    vernacularBiography: playerFacingString.max(960),
+    classicalBiography: playerFacingString.max(720),
+    lifespanSummary: playerFacingString.max(240),
     deathScene: z.object({
-      yearLabel: requiredString,
+      yearLabel: playerFacingString,
       age: z.number().int().min(14).max(100),
-      place: boundedString(32),
-      finalMoment: requiredString.max(180),
-      lastingLegacy: requiredString.max(180),
+      place: boundedPlayerFacingString(32),
+      finalMoment: playerFacingString.max(180),
+      lastingLegacy: playerFacingString.max(180),
     }),
     historyTimeline: z.array(z.object({
       chapter: chapterSchema,
-      yearLabel: requiredString,
-      playerChoice: requiredString,
-      consequence: requiredString,
+      yearLabel: playerFacingString,
+      playerChoice: playerFacingString,
+      consequence: playerFacingString,
     })).length(4),
-    ordinaryLife2026: z.tuple([boundedString(72), boundedString(72), boundedString(72)]),
-    posthumousChronicle: z.tuple([
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
-      z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
+    ordinaryLife2026: z.tuple([
+      boundedPlayerFacingString(72),
+      boundedPlayerFacingString(72),
+      boundedPlayerFacingString(72),
     ]),
-    closingPassage: requiredString.max(320),
-    plausibilityReason: requiredString,
-    shareLine: requiredString,
+    posthumousChronicle: z.tuple([
+      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+    ]),
+    closingPassage: playerFacingString.max(320),
+    plausibilityReason: playerFacingString,
+    shareLine: playerFacingString,
   })
   .superRefine((ending, context) => {
     ending.historyTimeline.forEach((item, index) => {
@@ -745,7 +779,7 @@ export const alternatePresentSchema = z.preprocess(
   alternatePresentObjectSchema,
 );
 export const storedAlternatePresentSchema = z.preprocess(
-  normalizeAlternatePresentCandidate,
+  (value) => normalizeAlternatePresentCandidate(localizeStoredPlayerCopy(value)),
   compatibleStoredAlternatePresentObjectSchema,
 );
 
