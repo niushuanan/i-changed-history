@@ -1,4 +1,9 @@
-import { TIMELINE_SYSTEM_PROMPT, TIMELINE_TURN_PROTOCOL } from "../src/game/deepseekProtocol";
+import {
+  ENDING_BIOGRAPHY_TASK_PREFIX,
+  ENDING_WORLD_TASK_PREFIX,
+  TIMELINE_SYSTEM_PROMPT,
+  TIMELINE_TURN_PROTOCOL,
+} from "../src/game/deepseekProtocol";
 
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
@@ -99,8 +104,8 @@ function allowedUserTask(content: string): boolean {
   return [
     "生成第 ",
     "玩家正在直接写入一条新的历史结果。",
-    "十二次选择已经结束。只为同一个穿越者写一份完整人物列传",
-    "十二次选择已经结束。只推演主角死后到 2026 年的平行世界",
+    ENDING_BIOGRAPHY_TASK_PREFIX,
+    ENDING_WORLD_TASK_PREFIX,
     "修复下面的模型输出",
     "上一输出只有部分字段校验失败。",
     "上一输出校验失败。",

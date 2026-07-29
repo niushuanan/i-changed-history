@@ -14,3 +14,9 @@ export const TIMELINE_SYSTEM_PROMPT = [
 ].join("\n");
 
 export const TIMELINE_TURN_PROTOCOL = "timeline_turn_v1";
+
+export const ENDING_BIOGRAPHY_TASK_PREFIX =
+  "四次选择已经结束。只为同一个穿越者写一份完整人物列传";
+
+export const ENDING_WORLD_TASK_PREFIX =
+  "四次选择已经结束。只推演主角死后到 2026 年的平行世界";

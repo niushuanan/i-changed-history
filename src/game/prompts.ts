@@ -4,7 +4,12 @@ import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { buildWorldCanon } from "./worldCanon";
 import { buildNarrativeContext } from "./narrativeContext";
 import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
-import { TIMELINE_SYSTEM_PROMPT, TIMELINE_TURN_PROTOCOL } from "./deepseekProtocol";
+import {
+  ENDING_BIOGRAPHY_TASK_PREFIX,
+  ENDING_WORLD_TASK_PREFIX,
+  TIMELINE_SYSTEM_PROMPT,
+  TIMELINE_TURN_PROTOCOL,
+} from "./deepseekProtocol";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -278,7 +283,7 @@ function endingLifeRecord(playedTurns: readonly PlayedTurn[]) {
 
 export function buildBiographyMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
   return messages({
-    task: "四次选择已经结束。只为同一个穿越者写一份完整人物列传：白话文与文言文各一版，都要贯穿四次选择、身份变化、所得、代价与死亡，不得写成四条摘要的拼接。lifeRecord 是不可撤销正史，必须承认每次玩家选择。historyTimeline.playerChoice 由客户端按 lifeRecord 决定权威注入，模型可原样输出但不必在 consequence 中机械重复长原句；consequence 只写该决定造成的具体后果，绝不能否定玩家钦定事实。不得加入性格、人格或测试结论，不得让主角活到 2026。只输出人物报告字段，不要输出世界报告字段。",
+    task: `${ENDING_BIOGRAPHY_TASK_PREFIX}：白话文与文言文各一版，都要贯穿四次选择、身份变化、所得、代价与死亡，不得写成四条摘要的拼接。lifeRecord 是不可撤销正史，必须承认每次玩家选择。historyTimeline.playerChoice 由客户端按 lifeRecord 决定权威注入，模型可原样输出但不必在 consequence 中机械重复长原句；consequence 只写该决定造成的具体后果，绝不能否定玩家钦定事实。不得加入性格、人格或测试结论，不得让主角活到 2026。只输出人物报告字段，不要输出世界报告字段。`,
     historyMoment: scenarioPayload(scenario).historyMoment,
     lifeRecord: endingLifeRecord(playedTurns),
     outputContract: {
@@ -295,7 +300,7 @@ export function buildBiographyMessages(scenario: GameScenario, playedTurns: read
 
 export function buildWorldReportMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[]): ChatMessage[] {
   return messages({
-    task: "四次选择已经结束。只推演主角死后到 2026 年的平行世界：他的决定被继承、误读、争夺和制度化，最终落到普通人的具体生活。worldCanon 与 lifeIndex 是不可撤销正史；所有玩家钦定结果都必须继续成立。写成一页可读完的小说后续，不得把 2026 写成第五个玩家节点，不得让主角活到 2026，不得加入性格或人格结论。只输出世界报告字段，不要输出人物列传字段。",
+    task: `${ENDING_WORLD_TASK_PREFIX}：他的决定被继承、误读、争夺和制度化，最终落到普通人的具体生活。worldCanon 与 lifeIndex 是不可撤销正史；所有玩家钦定结果都必须继续成立。写成一页可读完的小说后续，不得把 2026 写成第五个玩家节点，不得让主角活到 2026，不得加入性格或人格结论。只输出世界报告字段，不要输出人物列传字段。`,
     historyMoment: scenarioPayload(scenario).historyMoment,
     endingContext: {
       lifeIndex: buildNarrativeContext(playedTurns).lifeIndex,
