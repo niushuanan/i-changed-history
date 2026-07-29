@@ -1,5 +1,6 @@
 import {
   Archive,
+  ArrowsClockwise,
   DiceFive,
   GearSix,
   Megaphone,
@@ -12,11 +13,12 @@ import { HistoryCard } from "../components/HistoryCard";
 import { HistoryGridCard } from "../components/HistoryGridCard";
 import { browseHistorySeeds } from "../data/historySeeds";
 import { formatHistoricalYear } from "../data/historicalYear";
+import { historyAssetForSeed } from "../data/visualAssets";
 import { playCardSound } from "../services/cardAudio";
 
 const HISTORY_CARDS = browseHistorySeeds();
-const DRAW_STEPS = 16;
-const DRAW_DURATION_MS = 2100;
+const DRAW_STEP_WEIGHTS = [110, 120, 140, 180, 240, 320, 430, 550, 650] as const;
+const DRAW_SETTLE_MS = 460;
 
 export type PickerContext = {
   mode: "draw" | "archive";
@@ -71,7 +73,9 @@ export function SeedPickerScreen({
   const [previewIndex, setPreviewIndex] = useState(() => (
     Math.max(0, HISTORY_CARDS.findIndex((seed) => seed.id === context.activeSeedId))
   ));
+  const [previousPreviewIndex, setPreviousPreviewIndex] = useState(previewIndex);
   const [drawTick, setDrawTick] = useState(0);
+  const [drawStepMs, setDrawStepMs] = useState<number>(DRAW_STEP_WEIGHTS[0]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -128,34 +132,54 @@ export function SeedPickerScreen({
     const startIndex = previewIndex;
     const reducedMotion = typeof window.matchMedia === "function"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = import.meta.env.MODE === "test" || reducedMotion ? 40 : DRAW_DURATION_MS;
+    const motionScale = import.meta.env.MODE === "test" || reducedMotion ? 0.01 : 1;
     setDrawState("drawing");
+    setPreviousPreviewIndex(startIndex);
     setDrawTick(0);
+    setDrawStepMs(DRAW_STEP_WEIGHTS[0]);
     playCardSound("roll", muted);
 
-    const totalWeight = Array.from(
-      { length: DRAW_STEPS },
-      (_, index) => 40 + (index + 1) * 8,
-    ).reduce((sum, weight) => sum + weight, 0);
-    let elapsedWeight = 0;
     const forwardDistance = HISTORY_CARDS.length
       + ((targetIndex - startIndex + HISTORY_CARDS.length) % HISTORY_CARDS.length);
-
-    for (let step = 1; step <= DRAW_STEPS; step += 1) {
-      elapsedWeight += 40 + step * 8;
-      const progress = step / DRAW_STEPS;
-      const rollingIndex = step === DRAW_STEPS
+    const rollingIndices = DRAW_STEP_WEIGHTS.map((_, index) => {
+      const step = index + 1;
+      return step === DRAW_STEP_WEIGHTS.length
         ? targetIndex
-        : (startIndex + Math.round(forwardDistance * progress)) % HISTORY_CARDS.length;
+        : (startIndex + Math.round(forwardDistance * step / DRAW_STEP_WEIGHTS.length))
+          % HISTORY_CARDS.length;
+    });
+
+    if (typeof window.Image === "function") {
+      const preloadIndices = new Set<number>();
+      rollingIndices.forEach((index) => {
+        [-2, -1, 0, 1, 2].forEach((offset) => {
+          preloadIndices.add((index + offset + HISTORY_CARDS.length) % HISTORY_CARDS.length);
+        });
+      });
+      preloadIndices.forEach((index) => {
+        const image = new window.Image();
+        image.src = historyAssetForSeed(seedAt(index));
+      });
+    }
+
+    let elapsed = 0;
+    rollingIndices.forEach((rollingIndex, index) => {
+      const step = index + 1;
+      const stepDuration = Math.max(1, Math.round(DRAW_STEP_WEIGHTS[index] * motionScale));
+      elapsed += stepDuration;
       timersRef.current.push(window.setTimeout(() => {
+        setPreviousPreviewIndex(index === 0 ? startIndex : rollingIndices[index - 1]);
         setPreviewIndex(rollingIndex);
         setDrawTick(step);
-        if (step !== DRAW_STEPS) return;
+        setDrawStepMs(Math.max(150, Math.round(DRAW_STEP_WEIGHTS[index] * 0.92)));
+      }, elapsed));
+    });
+
+    timersRef.current.push(window.setTimeout(() => {
         setDrawState("revealed");
         onContextChange({ ...context, activeSeedId: target.id, mode: "draw" });
         playCardSound("deal", muted);
-      }, Math.round(duration * elapsedWeight / totalWeight)));
-    }
+    }, elapsed + Math.max(8, Math.round(DRAW_SETTLE_MS * motionScale))));
   };
 
   const seedAt = (index: number) => (
@@ -229,39 +253,78 @@ export function SeedPickerScreen({
 
           <section className={`destiny-stage${revealed ? " is-revealed" : ""}`}>
             {revealed ? (
-              <HistoryCard
-                seed={previewSeed}
-                position={previewIndex + 1}
-                total={HISTORY_CARDS.length}
-                onSelect={() => onSelect(previewSeed)}
-              />
+              <div className="destiny-revealed">
+                <HistoryCard
+                  seed={previewSeed}
+                  position={previewIndex + 1}
+                  total={HISTORY_CARDS.length}
+                  eager
+                  onSelect={() => onSelect(previewSeed)}
+                />
+                <button
+                  className="destiny-draw-button destiny-draw-button--secondary"
+                  type="button"
+                  onClick={draw}
+                >
+                  <ArrowsClockwise size={19} weight="bold" />
+                  <span>换一个开局</span>
+                </button>
+              </div>
             ) : drawState === "drawing" ? (
               <div
-                className="destiny-filmstrip"
-                data-testid="destiny-filmstrip"
-                aria-label={`正在翻过历史卡牌，当前是${previewSeed.eventName}`}
+                className="destiny-carousel"
+                data-testid="destiny-carousel"
+                aria-label={`历史卡牌正在环绕旋转，当前是${previewSeed.eventName}`}
               >
                 <div
-                  className="destiny-filmstrip__track"
+                  className="destiny-carousel__ring"
                   data-draw-tick={drawTick}
-                  key={drawTick}
-                  style={{ "--draw-step-ms": `${Math.min(240, 72 + drawTick * 10)}ms` } as CSSProperties}
+                  style={{ "--carousel-step-ms": `${drawStepMs}ms` } as CSSProperties}
                 >
-                  {([-1, 0, 1] as const).map((offset) => {
+                  {drawTick > 0 && previousPreviewIndex !== previewIndex ? (
+                    <div
+                      className="destiny-carousel__card"
+                      data-slot="outgoing"
+                      aria-hidden="true"
+                      key={`outgoing-${drawTick}-${previousPreviewIndex}`}
+                    >
+                      <div className="destiny-carousel__face">
+                        <HistoryCard
+                          seed={seedAt(previousPreviewIndex)}
+                          position={previousPreviewIndex + 1}
+                          total={HISTORY_CARDS.length}
+                          eager
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  {(drawTick > 0 ? [-2, 0, 1, 2] : [-2, -1, 0, 1, 2]).map((offset) => {
                     const index = (previewIndex + offset + HISTORY_CARDS.length) % HISTORY_CARDS.length;
                     const seed = seedAt(index);
+                    const slot = offset === 0
+                      ? "current"
+                      : offset === -1
+                        ? "previous"
+                        : offset === 1
+                          ? "next"
+                          : offset < 0
+                            ? "far-previous"
+                            : "far-next";
                     return (
                       <div
-                        className="destiny-filmstrip__card"
-                        data-slot={offset === 0 ? "current" : offset < 0 ? "previous" : "next"}
+                        className="destiny-carousel__card"
+                        data-slot={slot}
                         aria-hidden={offset === 0 ? undefined : true}
                         key={`${drawTick}-${seed.id}-${offset}`}
                       >
-                        <HistoryCard
-                          seed={seed}
-                          position={index + 1}
-                          total={HISTORY_CARDS.length}
-                        />
+                        <div className="destiny-carousel__face">
+                          <HistoryCard
+                            seed={seed}
+                            position={index + 1}
+                            total={HISTORY_CARDS.length}
+                            eager
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -273,24 +336,27 @@ export function SeedPickerScreen({
                   <img src="/assets/cards/frame-regular-v2.webp" alt="" />
                   <span className="destiny-card-back__seal"><DiceFive size={42} weight="duotone" /></span>
                   <strong>历史还没翻开</strong>
-                  <small>按下抽取，完整的历史卡会沿着时间一张张滑过</small>
+                  <small>按下抽取，完整的历史卡会沿着时间一张张旋过</small>
                 </div>
               </article>
             )}
           </section>
 
-          <div className="destiny-actions">
-            <button
-              className="destiny-draw-button"
-              type="button"
-              disabled={drawState === "drawing"}
-              onClick={draw}
-            >
-              <DiceFive size={23} weight="fill" />
-              <span>{drawState === "drawing" ? "正在抽取" : revealed ? "换一个开局" : "随机抽一个开局"}</span>
-            </button>
-            <small>{revealed ? "不满意可以再抽；进入后，四次选择写完这一生" : "会优先抽到你还没通关的历史"}</small>
-          </div>
+          {!revealed ? <div className={`destiny-actions destiny-actions--${drawState}`}>
+            {drawState === "drawing" ? (
+              <span className="destiny-actions__motion" role="status">命运正在减速，等它停稳</span>
+            ) : (
+              <button
+                className="destiny-draw-button"
+                type="button"
+                onClick={draw}
+              >
+                <DiceFive size={23} weight="fill" />
+                <span>随机抽一个开局</span>
+              </button>
+            )}
+            {drawState === "ready" ? <small>会优先抽到你还没通关的历史</small> : null}
+          </div> : null}
         </>
       ) : (
         <section className="destiny-archive" aria-label="已解锁历史档案">
