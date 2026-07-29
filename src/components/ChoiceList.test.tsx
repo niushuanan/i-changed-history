@@ -149,7 +149,7 @@ describe("roguelike history cards", () => {
         displayLabel: "核验边军军令",
         actionSpec: {
           actor: "你",
-          action: "公开核验军令",
+          action: canonical,
           target: "边军将领",
           deadline: "日落前",
         },
@@ -176,10 +176,14 @@ describe("roguelike history cards", () => {
     act(() => vi.advanceTimersByTime(340));
 
     const dialog = screen.getByRole("dialog", { name: "核验边军军令详细信息" });
+    const scrollRegion = screen.getByRole("region", { name: "完整决定与执行结果" });
     expect(card).not.toHaveClass("is-pressing");
-    expect(dialog).toHaveTextContent(canonical);
-    expect(dialog).toHaveTextContent("公开核验军令");
+    expect(screen.getAllByText(canonical)).toHaveLength(1);
+    expect(scrollRegion).toContainElement(screen.getByText(canonical));
+    expect(dialog).not.toHaveTextContent("怎么做");
     expect(dialog).toHaveTextContent(detailedChoices[0].instantEcho.unexpectedCost);
+    expect(scrollRegion.previousElementSibling).toBe(dialog.querySelector("header"));
+    expect(scrollRegion.nextElementSibling).toBe(dialog.querySelector(".choice-detail__footer"));
     expect(dialog.querySelector(".choice-detail__art img")).toHaveAttribute(
       "src",
       "/assets/cards/choice-regular.png",

@@ -11,18 +11,19 @@ export type CardSound =
 type SoundDefinition = Readonly<{
   path: string;
   volume: number;
+  duckMs: number;
   playbackRate?: number;
 }>;
 
 const SOUNDS: Record<CardSound, SoundDefinition> = {
-  "page-turn": { path: "/audio/sfx/page-turn.mp3", volume: 0.17, playbackRate: 1.04 },
-  "enter-history": { path: "/audio/sfx/enter-history.m4a", volume: 0.26, playbackRate: 0.94 },
-  "swipe-regular": { path: "/audio/sfx/swipe-regular.m4a", volume: 0.2, playbackRate: 0.96 },
-  "swipe-radical": { path: "/audio/sfx/swipe-radical.m4a", volume: 0.24, playbackRate: 0.92 },
-  "swipe-surreal": { path: "/audio/sfx/swipe-surreal.m4a", volume: 0.2, playbackRate: 1.08 },
-  roll: { path: "/audio/sfx/card-shuffle.m4a", volume: 0.22, playbackRate: 1.02 },
-  deal: { path: "/audio/sfx/card-deal.m4a", volume: 0.16 },
-  inspect: { path: "/audio/sfx/card-inspect.m4a", volume: 0.14, playbackRate: 0.92 },
+  "page-turn": { path: "/audio/sfx/page-turn.mp3", volume: 0.78, duckMs: 760, playbackRate: 1.04 },
+  "enter-history": { path: "/audio/sfx/enter-history.m4a", volume: 0.72, duckMs: 480, playbackRate: 0.94 },
+  "swipe-regular": { path: "/audio/sfx/swipe-regular.m4a", volume: 0.78, duckMs: 360, playbackRate: 0.96 },
+  "swipe-radical": { path: "/audio/sfx/swipe-radical.m4a", volume: 0.72, duckMs: 420, playbackRate: 0.92 },
+  "swipe-surreal": { path: "/audio/sfx/swipe-surreal.m4a", volume: 0.76, duckMs: 480, playbackRate: 1.08 },
+  roll: { path: "/audio/sfx/card-shuffle.m4a", volume: 0.62, duckMs: 900, playbackRate: 1.02 },
+  deal: { path: "/audio/sfx/card-deal.m4a", volume: 0.82, duckMs: 360 },
+  inspect: { path: "/audio/sfx/card-inspect.m4a", volume: 0.88, duckMs: 480, playbackRate: 0.92 },
 };
 
 const templates = new Map<CardSound, HTMLAudioElement>();
@@ -57,7 +58,11 @@ export function preloadCardSounds(): void {
   });
 }
 
-export function playCardSound(sound: CardSound, muted = false): void {
+export function playCardSound(
+  sound: CardSound,
+  muted = false,
+  duckScore?: (durationMs: number) => void,
+): void {
   if (muted || typeof window === "undefined" || import.meta.env.MODE === "test") return;
   const template = audioTemplate(sound);
   if (!template) return;
@@ -65,6 +70,7 @@ export function playCardSound(sound: CardSound, muted = false): void {
   try {
     const player = template.cloneNode(true) as HTMLAudioElement;
     const definition = SOUNDS[sound];
+    duckScore?.(definition.duckMs);
     player.volume = definition.volume;
     player.playbackRate = definition.playbackRate ?? 1;
     player.currentTime = 0;

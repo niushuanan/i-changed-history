@@ -8,7 +8,7 @@ import {
 import { getDeviationStage } from "../game/deviation";
 import type { HistorySeed } from "../game/types";
 import { createEpicAudioController, type EpicAudioController } from "../services/audio";
-import { preloadCardSounds } from "../services/cardAudio";
+import { playCardSound, preloadCardSounds, type CardSound } from "../services/cardAudio";
 import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 import type {
   DeepSeekPartialDraft,
@@ -248,6 +248,9 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     if (!next) void startExperience();
     return next;
   }, [dependencies, startExperience]);
+  const playSound = useCallback((sound: CardSound) => {
+    playCardSound(sound, muted, (durationMs) => dependencies.audio.duckFor(durationMs));
+  }, [dependencies, muted]);
 
   return {
     state,
@@ -266,5 +269,6 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     retry,
     restart,
     toggleMute,
+    playSound,
   };
 }

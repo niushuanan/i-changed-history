@@ -48,6 +48,7 @@ export function App() {
         unlockedSeedIds={state.unlockedSeedIds}
         onContextChange={setPickerContext}
         onSelect={game.selectSeed}
+        onPlaySound={game.playSound}
         onShowAnnouncement={() => setAnnouncementOpen(true)}
         onToggleMute={game.toggleMute}
       />
@@ -63,6 +64,7 @@ export function App() {
         rollError={state.rollError}
         muted={game.muted}
         onChoose={game.choose}
+        onPlaySound={game.playSound}
         onRoll={game.rollChoices}
         onExit={game.restart}
         sceneImage={state.currentTurn.chapter <= 2 && state.scenario

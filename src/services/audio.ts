@@ -20,12 +20,15 @@ export type EpicAudioOptions = {
   storage?: AudioStorage;
   setInterval?: typeof globalThis.setInterval;
   clearInterval?: typeof globalThis.clearInterval;
+  setTimeout?: typeof globalThis.setTimeout;
+  clearTimeout?: typeof globalThis.clearTimeout;
 };
 
 export type EpicAudioController = {
   start(): Promise<boolean>;
   stop(): void;
   setChapter(chapter: DecisionChapter | "result"): void;
+  duckFor(durationMs: number): void;
   isMuted(): boolean;
   setMuted(muted: boolean): boolean;
   toggleMuted(): boolean;
@@ -53,10 +56,14 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
   const storage = options.storage ?? browserStorage();
   const setIntervalFn = options.setInterval ?? globalThis.setInterval;
   const clearIntervalFn = options.clearInterval ?? globalThis.clearInterval;
+  const setTimeoutFn = options.setTimeout ?? globalThis.setTimeout;
+  const clearTimeoutFn = options.clearTimeout ?? globalThis.clearTimeout;
   let audio: AudioLike | null = null;
   let muted = readMuted(storage);
-  let targetVolume = 0.32;
+  let targetVolume = 0.09;
+  let duckMultiplier = 1;
   let fadeTimer: ReturnType<typeof globalThis.setInterval> | null = null;
+  let duckTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   let playing = false;
   let desiredPlaying = false;
   let playGeneration = 0;
@@ -66,6 +73,14 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
     clearIntervalFn(fadeTimer);
     fadeTimer = null;
   };
+
+  const clearDuck = () => {
+    if (duckTimer === null) return;
+    clearTimeoutFn(duckTimer);
+    duckTimer = null;
+  };
+
+  const effectiveTargetVolume = () => targetVolume * duckMultiplier;
 
   const ensureAudio = () => {
     if (audio) return audio;
@@ -82,9 +97,10 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
     clearFade();
     fadeTimer = setIntervalFn(() => {
       if (!audio) return;
-      const difference = targetVolume - audio.volume;
+      const effectiveTarget = effectiveTargetVolume();
+      const difference = effectiveTarget - audio.volume;
       if (Math.abs(difference) <= 0.02) {
-        audio.volume = targetVolume;
+        audio.volume = effectiveTarget;
         clearFade();
         return;
       }
@@ -107,6 +123,8 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
     playGeneration += 1;
     desiredPlaying = false;
     clearFade();
+    clearDuck();
+    duckMultiplier = 1;
     playing = false;
     if (!audio) return;
     try {
@@ -148,8 +166,20 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
     },
     stop,
     setChapter(chapter) {
-      targetVolume = chapter === "result" ? 0.24 : Math.min(0.52, 0.3 + chapter * 0.025);
+      targetVolume = chapter === "result" ? 0.07 : 0.08 + chapter * 0.01;
       fadeToTarget();
+    },
+    duckFor(durationMs) {
+      if (!audio || !playing || muted) return;
+      clearDuck();
+      clearFade();
+      duckMultiplier = 0.28;
+      audio.volume = Math.min(audio.volume, effectiveTargetVolume());
+      duckTimer = setTimeoutFn(() => {
+        duckTimer = null;
+        duckMultiplier = 1;
+        fadeToTarget();
+      }, Math.max(120, durationMs));
     },
     isMuted() {
       return muted;

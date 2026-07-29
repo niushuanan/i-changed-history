@@ -9,7 +9,7 @@ const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
   generateNextTurn: vi.fn(), generateRerolledChoices: vi.fn(), generateEnding: vi.fn(),
   loadSnapshot: vi.fn(() => null), saveSnapshot: vi.fn(() => true),
-  audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
+  audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), duckFor: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
 });
 
 describe("useGame single-life orchestration", () => {

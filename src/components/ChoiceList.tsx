@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowsClockwise, CaretUp, X } from "@phosphor-icons/react";
+import { createPortal } from "react-dom";
 import type { TimelineTurn } from "../game/schema";
-import { playCardSound } from "../services/cardAudio";
+import { playCardSound, type CardSound } from "../services/cardAudio";
 import { CardCommitFlight, type CardCommitOrigin } from "./CardCommitFlight";
 
 type Choice = TimelineTurn["choices"][number];
@@ -91,7 +92,7 @@ function ChoiceDetail({
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
   }, []);
 
-  return (
+  const detail = (
     <div
       className={`choice-detail-backdrop${motionReady ? " is-ready" : ""}${closing ? " is-closing" : ""}`}
       onPointerDown={requestClose}
@@ -122,19 +123,31 @@ function ChoiceDetail({
             <X size={17} weight="bold" />
           </button>
         </header>
-        <p className="choice-detail__canon">{choice.label}</p>
-        <dl>
-          <div><dt>谁来做</dt><dd>{choice.actionSpec.actor}</dd></div>
-          <div><dt>怎么做</dt><dd>{choice.actionSpec.action}</dd></div>
-          <div><dt>作用于</dt><dd>{choice.actionSpec.target}</dd></div>
-          <div><dt>最后期限</dt><dd>{choice.actionSpec.deadline}</dd></div>
-          <div className="is-result"><dt>直接结果</dt><dd>{choice.instantEcho.directResult}</dd></div>
-          <div className="is-cost"><dt>隐藏代价</dt><dd>{choice.instantEcho.unexpectedCost}</dd></div>
-        </dl>
-        <small><CaretUp size={14} weight="bold" /> 关闭后向上划出这张牌，即写入你的时间线</small>
+        <div
+          aria-label="完整决定与执行结果"
+          className="choice-detail__scroll"
+          role="region"
+          tabIndex={0}
+        >
+          <p className="choice-detail__canon">{choice.label}</p>
+          <dl>
+            <div><dt>谁来做</dt><dd>{choice.actionSpec.actor}</dd></div>
+            <div><dt>作用于</dt><dd>{choice.actionSpec.target}</dd></div>
+            <div><dt>最后期限</dt><dd>{choice.actionSpec.deadline}</dd></div>
+            <div className="is-result"><dt>直接结果</dt><dd>{choice.instantEcho.directResult}</dd></div>
+            <div className="is-cost"><dt>隐藏代价</dt><dd>{choice.instantEcho.unexpectedCost}</dd></div>
+          </dl>
+        </div>
+        <small className="choice-detail__footer">
+          <CaretUp size={14} weight="bold" /> 关闭后向上划出这张牌，即写入你的时间线
+        </small>
       </section>
     </div>
   );
+  const eventScreen = typeof document === "undefined"
+    ? null
+    : document.querySelector(".event-screen");
+  return eventScreen ? createPortal(detail, eventScreen) : detail;
 }
 
 function ChoiceCard({
@@ -143,7 +156,7 @@ function ChoiceCard({
   onCommitStart,
   onHoldChange,
   onInspect,
-  muted,
+  onPlaySound,
   dealIndex,
   disabled,
 }: {
@@ -152,7 +165,7 @@ function ChoiceCard({
   onCommitStart: (id: "A" | "B" | "C") => void;
   onHoldChange: (id: "A" | "B" | "C" | null) => void;
   onInspect: (choice: Choice, trigger: HTMLButtonElement) => void;
-  muted: boolean;
+  onPlaySound: (sound: CardSound) => void;
   dealIndex: number;
   disabled: boolean;
 }) {
@@ -242,7 +255,7 @@ function ChoiceCard({
       setArmed(false);
       writeCardOffset(0);
       releasePointer(trigger);
-      playCardSound("inspect", muted);
+      onPlaySound("inspect");
       onInspect(choice, trigger);
     }, LONG_PRESS_MS);
   };
@@ -291,13 +304,12 @@ function ChoiceCard({
       setCommitting(true);
       setArmed(false);
       onCommitStart(choice.id);
-      playCardSound(
+      onPlaySound(
         choice.deviationClass === "nudge"
           ? "swipe-regular"
           : choice.deviationClass === "reform"
             ? "swipe-radical"
             : "swipe-surreal",
-        muted,
       );
       return;
     }
@@ -381,6 +393,7 @@ export function ChoiceList({
   onChoose,
   onRoll,
   onCommitVisualStart,
+  onPlaySound,
   muted = false,
 }: {
   choices: TimelineTurn["choices"];
@@ -390,6 +403,7 @@ export function ChoiceList({
   onChoose: (id: "A" | "B" | "C") => void;
   onRoll: () => void;
   onCommitVisualStart?: (id: "A" | "B" | "C") => void;
+  onPlaySound?: (sound: CardSound) => void;
   muted?: boolean;
 }) {
   const [detailState, setDetailState] = useState<{ choice: Choice; origin: CardOrigin } | null>(null);
@@ -401,10 +415,17 @@ export function ChoiceList({
   const inspectTriggerRef = useRef<HTMLButtonElement | null>(null);
   const rolling = rollPhase !== "idle" || rollLoading;
   const remainingRolls = Math.max(0, 3 - rollCount);
+  const playSound = useCallback((sound: CardSound) => {
+    if (onPlaySound) {
+      onPlaySound(sound);
+      return;
+    }
+    playCardSound(sound, muted);
+  }, [muted, onPlaySound]);
 
   useEffect(() => {
-    playCardSound("deal", muted);
-  }, [choices, muted]);
+    playSound("deal");
+  }, [choices, playSound]);
 
   useEffect(() => {
     const previous = previousRollCountRef.current;
@@ -431,7 +452,7 @@ export function ChoiceList({
   const roll = () => {
     if (remainingRolls === 0 || rolling) return;
     setRollPhase("collecting");
-    playCardSound("roll", muted);
+    playSound("roll");
     const reducedMotion = typeof window.matchMedia === "function"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const collectDuration = reducedMotion
@@ -484,11 +505,11 @@ export function ChoiceList({
               dealIndex={index}
               disabled={rolling}
               key={`${rollCount}-${choice.id}-${choice.displayLabel}`}
-              muted={muted}
               onChoose={onChoose}
               onCommitStart={beginCommit}
               onHoldChange={setHoldingId}
               onInspect={inspect}
+              onPlaySound={playSound}
             />
           ))}
         </div>

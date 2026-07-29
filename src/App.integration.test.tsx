@@ -16,6 +16,7 @@ const score = vi.hoisted(() => ({
   start: vi.fn().mockResolvedValue(true),
   stop: vi.fn(),
   setChapter: vi.fn(),
+  duckFor: vi.fn(),
   isMuted: vi.fn(() => false),
   setMuted: vi.fn((muted: boolean) => muted),
   toggleMuted: vi.fn(() => true),

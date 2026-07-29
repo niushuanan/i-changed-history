@@ -2883,9 +2883,11 @@
   --detail-frame: url("/assets/cards/frame-regular-v2.webp");
   position: relative;
   width: min(100%, 350px);
-  max-height: min(calc(100% - 24px), 82dvh, 690px);
+  height: min(calc(100% - 24px), 82dvh, 690px);
   padding: 86px 34px 28px;
-  overflow-y: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
   border: 0;
   border-radius: 15px;
   background-color: #15120e;
@@ -2982,8 +2984,29 @@
   color: #fff0c8;
   transform: rotate(8deg) scale(1.05);
 }
+.choice-detail__scroll {
+  min-height: 0;
+  margin-top: 14px;
+  padding-right: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--detail-accent) rgba(183, 157, 104, .12);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+.choice-detail__scroll:focus-visible {
+  outline: 1px solid var(--detail-accent);
+  outline-offset: 3px;
+}
+.choice-detail__scroll::-webkit-scrollbar { width: 4px; }
+.choice-detail__scroll::-webkit-scrollbar-track { background: rgba(183, 157, 104, .1); }
+.choice-detail__scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--detail-accent);
+}
 .choice-detail__canon {
-  margin: 15px 0;
+  margin: 0 0 14px;
   padding: 12px 13px;
   border-left: 3px solid var(--detail-accent);
   background: rgba(6, 5, 4, .66);
@@ -3019,15 +3042,20 @@
 }
 .choice-detail .is-result dd { color: #e8d98e; }
 .choice-detail .is-cost dd { color: #ec8b82; }
-.choice-detail > small {
-  margin-top: 13px;
-  padding-bottom: 6px;
+.choice-detail__footer {
+  min-height: 38px;
+  margin-top: 10px;
+  padding: 9px 2px 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
+  border-top: 1px solid rgba(92, 170, 165, .28);
+  background: linear-gradient(180deg, rgba(8, 7, 5, .22), rgba(8, 7, 5, .7));
   color: #9cc9c5;
   font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .history-context-trigger {
@@ -3866,8 +3894,8 @@
   .history-context-trigger { min-height: 32px; flex-basis: 32px; }
   .history-context-trigger { margin-top: 4px; }
   .choice-detail {
-    max-height: min(calc(100% - 16px), 82dvh, 570px);
-    padding: 70px 29px 32px;
+    height: min(calc(100% - 16px), 82dvh, 570px);
+    padding: 70px 29px 28px;
   }
   .choice-detail__art { top: 11px; width: 54px; height: 54px; }
 }

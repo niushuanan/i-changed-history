@@ -38,7 +38,7 @@ describe("epic score controller", () => {
     expect(audio.play).toHaveBeenCalledOnce();
 
     vi.advanceTimersByTime(2_000);
-    expect(audio.volume).toBeCloseTo(0.32, 2);
+    expect(audio.volume).toBeCloseTo(0.09, 2);
   });
 
   it("raises intensity by chapter and lowers it for the result", async () => {
@@ -49,11 +49,24 @@ describe("epic score controller", () => {
 
     controller.setChapter(4);
     vi.advanceTimersByTime(2_000);
-    expect(audio.volume).toBeCloseTo(0.4, 2);
+    expect(audio.volume).toBeCloseTo(0.12, 2);
 
     controller.setChapter("result");
     vi.advanceTimersByTime(2_000);
-    expect(audio.volume).toBeCloseTo(0.24, 2);
+    expect(audio.volume).toBeCloseTo(0.07, 2);
+  });
+
+  it("ducks promptly for an interaction sound and then restores the score", async () => {
+    const audio = new FakeAudio();
+    const controller = createEpicAudioController({ createAudio: () => audio, storage: new MemoryStorage() });
+    await controller.start();
+    vi.advanceTimersByTime(2_000);
+
+    controller.duckFor(500);
+    expect(audio.volume).toBeCloseTo(0.09 * 0.28, 3);
+
+    vi.advanceTimersByTime(1_500);
+    expect(audio.volume).toBeCloseTo(0.09, 2);
   });
 
   it("restores and persists mute without requiring audio to exist", async () => {

@@ -4,6 +4,7 @@ import type { TimelineTurn } from "../game/schema";
 import { visualAssetForTurn } from "../data/visualAssets";
 import { TimelineProgress } from "../components/TimelineProgress";
 import { ChoiceList } from "../components/ChoiceList";
+import type { CardSound } from "../services/cardAudio";
 
 function HistoryContextDialog({
   turn,
@@ -65,6 +66,7 @@ export function TimelineEventScreen({
   rollError,
   muted,
   onChoose,
+  onPlaySound,
   onRoll,
   onExit,
   sceneImage,
@@ -77,6 +79,7 @@ export function TimelineEventScreen({
   rollError?: string | null;
   muted: boolean;
   onChoose: (id: "A" | "B" | "C") => void;
+  onPlaySound?: (sound: CardSound) => void;
   onRoll: () => void;
   onExit: () => void;
   sceneImage?: string;
@@ -149,6 +152,7 @@ export function TimelineEventScreen({
             choices={visibleChoices}
             muted={muted}
             onChoose={onChoose}
+            onPlaySound={onPlaySound}
             onCommitVisualStart={() => setCardCommitting(true)}
             onRoll={onRoll}
             rollCount={rollCount}

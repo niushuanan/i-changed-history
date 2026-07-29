@@ -14,7 +14,7 @@ import { HistoryGridCard } from "../components/HistoryGridCard";
 import { browseHistorySeeds } from "../data/historySeeds";
 import { formatHistoricalYear } from "../data/historicalYear";
 import { historyAssetForSeed } from "../data/visualAssets";
-import { playCardSound } from "../services/cardAudio";
+import { playCardSound, type CardSound } from "../services/cardAudio";
 
 const HISTORY_CARDS = browseHistorySeeds();
 const DRAW_STEP_COUNT = 9;
@@ -36,6 +36,7 @@ type SeedPickerScreenProps = {
   muted: boolean;
   unlockedSeedIds: readonly string[];
   onContextChange: (context: PickerContext) => void;
+  onPlaySound?: (sound: CardSound) => void;
   onSelect: (seed: HistorySeed) => void;
   onShowAnnouncement: () => void;
   onToggleMute: () => void;
@@ -66,6 +67,7 @@ export function SeedPickerScreen({
   muted,
   unlockedSeedIds,
   onContextChange,
+  onPlaySound,
   onSelect,
   onShowAnnouncement,
   onToggleMute,
@@ -90,6 +92,13 @@ export function SeedPickerScreen({
   );
   const previewSeed = HISTORY_CARDS[previewIndex] ?? HISTORY_CARDS[0];
   const revealed = drawState === "revealed";
+  const playSound = (sound: CardSound) => {
+    if (onPlaySound) {
+      onPlaySound(sound);
+      return;
+    }
+    playCardSound(sound, muted);
+  };
 
   const clearDrawTimers = () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -139,7 +148,7 @@ export function SeedPickerScreen({
     setDrawState("drawing");
     setPreviousPreviewIndex(startIndex);
     setDrawTick(0);
-    playCardSound("page-turn", muted);
+    playSound("page-turn");
 
     const forwardDistance = HISTORY_CARDS.length
       + ((targetIndex - startIndex + HISTORY_CARDS.length) % HISTORY_CARDS.length);
@@ -179,7 +188,7 @@ export function SeedPickerScreen({
     timersRef.current.push(window.setTimeout(() => {
         setDrawState("revealed");
         onContextChange({ ...context, activeSeedId: target.id, mode: "draw" });
-        playCardSound("deal", muted);
+        playSound("deal");
     }, elapsed + Math.max(8, Math.round(DRAW_SETTLE_MS * motionScale))));
   };
 
@@ -268,7 +277,7 @@ export function SeedPickerScreen({
                   total={HISTORY_CARDS.length}
                   eager
                   onSelect={() => {
-                    playCardSound("enter-history", muted);
+                    playSound("enter-history");
                     onSelect(previewSeed);
                   }}
                 />
@@ -391,7 +400,7 @@ export function SeedPickerScreen({
                   seed={seed}
                   isCurrent={seed.id === context.activeSeedId}
                   onSelect={(selected) => {
-                    playCardSound("enter-history", muted);
+                    playSound("enter-history");
                     onContextChange({ ...context, activeSeedId: selected.id });
                     onSelect(selected);
                   }}
