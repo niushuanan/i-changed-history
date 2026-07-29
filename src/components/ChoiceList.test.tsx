@@ -30,6 +30,7 @@ describe("roguelike history cards", () => {
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
     expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
     expect(container.querySelectorAll(".choice-card__surface")).toHaveLength(3);
+    expect(container.querySelectorAll(".choice-card__hold-cue")).toHaveLength(3);
     expect(container.querySelector(".choice-roll__deck")).not.toBeInTheDocument();
     expect(container.querySelector(".choice-roll__label")).toHaveTextContent("ROLL");
     expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
@@ -121,9 +122,14 @@ describe("roguelike history cards", () => {
 
     const card = screen.getByRole("button", { name: /循史牌/ });
     fireEvent.pointerDown(card, { clientY: 220, pointerId: 1 });
+    expect(card).toHaveClass("is-pressing");
+    expect(card.closest(".rogue-choice-table")).toHaveClass("is-holding");
+    act(() => vi.advanceTimersByTime(180));
+    expect(card).toHaveClass("is-pressing");
     act(() => vi.advanceTimersByTime(340));
 
     const dialog = screen.getByRole("dialog", { name: "核验边军军令详细信息" });
+    expect(card).not.toHaveClass("is-pressing");
     expect(dialog).toHaveTextContent(canonical);
     expect(dialog).toHaveTextContent("公开核验军令");
     expect(dialog).toHaveTextContent(detailedChoices[0].instantEcho.unexpectedCost);
@@ -139,6 +145,27 @@ describe("roguelike history cards", () => {
     act(() => vi.advanceTimersByTime(260));
     expect(dialog).not.toBeInTheDocument();
     expect(card).toHaveFocus();
+  });
+
+  it("cancels the long-press lift as soon as the player starts swiping", () => {
+    render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={vi.fn()}
+        rollUsed={false}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /天外牌/ });
+    fireEvent.pointerDown(card, { clientY: 220, pointerId: 8 });
+    expect(card).toHaveClass("is-pressing");
+    fireEvent.pointerMove(card, { clientY: 198, pointerId: 8 });
+    expect(card).not.toHaveClass("is-pressing");
+    expect(card.closest(".rogue-choice-table")).not.toHaveClass("is-holding");
+    act(() => vi.advanceTimersByTime(360));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("reveals the prepared second trio once and never asks the model to wait", () => {

@@ -1,4 +1,4 @@
-type CardSound = "deal" | "roll" | "commit";
+type CardSound = "deal" | "roll" | "commit" | "inspect";
 
 function createTone(
   context: AudioContext,
@@ -41,9 +41,12 @@ export function playCardSound(sound: CardSound, muted = false): void {
       [196, 247, 311].forEach((frequency, index) => {
         createTone(context, master, frequency, now + index * 0.055, 0.09, 0.27, "triangle");
       });
-    } else {
+    } else if (sound === "commit") {
       createTone(context, master, 128, now, 0.12, 0.42, "square");
       createTone(context, master, 384, now + 0.035, 0.16, 0.28, "triangle");
+    } else {
+      createTone(context, master, 196, now, 0.09, 0.22, "sine");
+      createTone(context, master, 294, now + 0.025, 0.13, 0.18, "triangle");
     }
 
     window.setTimeout(() => {

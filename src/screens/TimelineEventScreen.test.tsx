@@ -132,6 +132,10 @@ describe("clear change event screen", () => {
     expect(container.querySelector('img[src="/assets/cards/choice-surreal.png"]')).toBeInTheDocument();
     expect(gameStyles).toContain("touch-action: none");
     expect(gameStyles).toContain(".choice-card.is-armed");
+    expect(gameStyles).toContain(".choice-card.is-pressing");
+    expect(gameStyles).toContain("/assets/cards/frame-regular-v2.webp");
+    expect(gameStyles).toContain("/assets/cards/frame-radical-v2.webp");
+    expect(gameStyles).toContain("/assets/cards/frame-surreal-v2.webp");
   });
 
   it("renders event time and location as separate caption rows", () => {

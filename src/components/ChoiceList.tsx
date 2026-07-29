@@ -133,6 +133,7 @@ function ChoiceCard({
   choice,
   onChoose,
   onCommitStart,
+  onHoldChange,
   onInspect,
   muted,
   dealIndex,
@@ -140,11 +141,13 @@ function ChoiceCard({
   choice: Choice;
   onChoose: (id: "A" | "B" | "C") => void;
   onCommitStart: (id: "A" | "B" | "C") => void;
+  onHoldChange: (id: "A" | "B" | "C" | null) => void;
   onInspect: (choice: Choice, trigger: HTMLButtonElement) => void;
   muted: boolean;
   dealIndex: number;
 }) {
   const [dragging, setDragging] = useState(false);
+  const [pressing, setPressing] = useState(false);
   const [armed, setArmed] = useState(false);
   const [committing, setCommitting] = useState(false);
   const cardRef = useRef<HTMLButtonElement | null>(null);
@@ -159,6 +162,11 @@ function ChoiceCard({
   const inspectedRef = useRef(false);
   const committedRef = useRef(false);
   const meta = CARD_META[choice.deviationClass];
+
+  const setHoldActive = (active: boolean) => {
+    setPressing(active);
+    onHoldChange(active ? choice.id : null);
+  };
 
   const clearLongPress = () => {
     if (longPressRef.current !== null) {
@@ -196,6 +204,7 @@ function ChoiceCard({
     inspectedRef.current = false;
     draggingRef.current = false;
     setDragging(false);
+    setHoldActive(false);
     setArmed(false);
     writeCardOffset(0);
   };
@@ -209,7 +218,8 @@ function ChoiceCard({
     draggingRef.current = true;
     writeCardOffset(0);
     setArmed(false);
-    setDragging(true);
+    setDragging(false);
+    setHoldActive(true);
     if (typeof event.currentTarget.setPointerCapture === "function") {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
@@ -218,9 +228,11 @@ function ChoiceCard({
       inspectedRef.current = true;
       draggingRef.current = false;
       setDragging(false);
+      setHoldActive(false);
       setArmed(false);
       writeCardOffset(0);
       releasePointer(trigger);
+      playCardSound("inspect", muted);
       onInspect(choice, trigger);
     }, LONG_PRESS_MS);
   };
@@ -228,7 +240,11 @@ function ChoiceCard({
   const move = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (!draggingRef.current || inspectedRef.current) return;
     const next = Math.min(14, event.clientY - startYRef.current);
-    if (Math.abs(next) > 8) clearLongPress();
+    if (Math.abs(next) > 8) {
+      clearLongPress();
+      setHoldActive(false);
+      setDragging(true);
+    }
     const resistedOffset = next < 0 ? next : next * 0.3;
     writeCardOffset(resistedOffset);
     const nextArmed = resistedOffset <= -SWIPE_THRESHOLD;
@@ -241,6 +257,7 @@ function ChoiceCard({
     if (inspectedRef.current || committedRef.current) return;
     draggingRef.current = false;
     setDragging(false);
+    setHoldActive(false);
     if (offsetYRef.current <= -SWIPE_THRESHOLD) {
       committedRef.current = true;
       setCommitting(true);
@@ -275,7 +292,7 @@ function ChoiceCard({
   return (
     <button
       aria-label={`${meta.name}牌，${choice.displayLabel}，向上划选择，长按查看详情`}
-      className={`choice-card choice-card--${choice.deviationClass}${dragging ? " is-dragging" : ""}${armed ? " is-armed" : ""}${committing ? " is-committing" : ""}`}
+      className={`choice-card choice-card--${choice.deviationClass}${pressing ? " is-pressing" : ""}${dragging ? " is-dragging" : ""}${armed ? " is-armed" : ""}${committing ? " is-committing" : ""}`}
       data-choice-id={choice.id}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
@@ -296,6 +313,7 @@ function ChoiceCard({
       type="button"
     >
       <span className="choice-card__surface">
+        <span className="choice-card__hold-cue" aria-hidden="true"><i /></span>
         <span className="choice-card__tier">{meta.name}</span>
         <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
         <strong>{choice.displayLabel}</strong>
@@ -304,7 +322,7 @@ function ChoiceCard({
           <CaretUp size={14} weight="bold" />
           {armed ? "松手打出" : "上划选择"}
         </span>
-        <span className="choice-card__inspect"><Info size={11} weight="fill" /> 长按详情</span>
+        <span className="choice-card__inspect"><Info size={11} weight="fill" /> 按住读牌</span>
       </span>
     </button>
   );
@@ -328,6 +346,7 @@ export function ChoiceList({
   const [detailState, setDetailState] = useState<{ choice: Choice; origin: CardOrigin } | null>(null);
   const [rollPhase, setRollPhase] = useState<"idle" | "collecting" | "dealing">("idle");
   const [committingId, setCommittingId] = useState<"A" | "B" | "C" | null>(null);
+  const [holdingId, setHoldingId] = useState<"A" | "B" | "C" | null>(null);
   const rollTimersRef = useRef<number[]>([]);
   const inspectTriggerRef = useRef<HTMLButtonElement | null>(null);
   const rolling = rollPhase !== "idle";
@@ -383,8 +402,9 @@ export function ChoiceList({
   return (
     <>
       <div
-        className={`rogue-choice-table${rollPhase === "collecting" ? " is-collecting" : ""}${rollPhase === "dealing" ? " is-dealing" : ""}${committingId ? " is-committing" : ""}`}
+        className={`rogue-choice-table${rollPhase === "collecting" ? " is-collecting" : ""}${rollPhase === "dealing" ? " is-dealing" : ""}${committingId ? " is-committing" : ""}${holdingId ? " is-holding" : ""}`}
         data-committing-choice={committingId ?? undefined}
+        data-holding-choice={holdingId ?? undefined}
       >
         <div className="choice-list" aria-label="三张历史选择卡牌">
           {choices.map((choice, index) => (
@@ -395,6 +415,7 @@ export function ChoiceList({
               muted={muted}
               onChoose={onChoose}
               onCommitStart={beginCommit}
+              onHoldChange={setHoldingId}
               onInspect={inspect}
             />
           ))}
