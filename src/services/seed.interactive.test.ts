@@ -15,7 +15,7 @@ type CapturedOptions = {
   success: (result: { errMsg: string; data?: string }) => void;
   fail: (error: {
     errMsg: string;
-    errorCode: number;
+    errorCode: number | string;
     errorType: string;
   }) => void;
   complete: (result: { errMsg: string }) => void;
@@ -34,6 +34,8 @@ function installRuntime(
 
 afterEach(() => {
   Reflect.deleteProperty(globalThis, "tt");
+  globalThis.sessionStorage?.clear();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -199,6 +201,174 @@ describe("Interactive Space Ark transport", () => {
     expect(call.mock.calls.map(([options]) => options.reasoning_effort)).toEqual([
       "minimal",
       "minimal",
+    ]);
+    expect(call.mock.calls.map(([options]) => options.model)).toEqual([
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-lite-260428",
+    ]);
+  });
+
+  it("falls through from Lite to Pro only when Lite explicitly exhausts its quota", async () => {
+    const metrics: Array<{ model?: string; outcome: string }> = [];
+    const call = installRuntime((options) => {
+      if (options.model === "doubao-seed-2-0-lite-260428") {
+        options.fail({
+          errMsg: "The free quota has been used up",
+          errorCode: "QuotaExceeded",
+          errorType: "D",
+        });
+        return;
+      }
+      options.success({
+        errMsg: "callAIChatCompletion:ok",
+        data: "{\"headline\":\"Pro 接管\",\"narrative\":\"额度接力成功。\"}",
+      });
+    });
+
+    await expect(requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      {
+        phase: "turn",
+        reasoning: "high",
+        onMetrics: (item) => metrics.push(item),
+      },
+    )).resolves.toContain("额度接力成功");
+
+    expect(call.mock.calls.map(([options]) => options.model)).toEqual([
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-pro-260215",
+    ]);
+    expect(call.mock.calls.every(([options]) => (
+      options.reasoning_effort === "minimal" && !("thinking" in options)
+    ))).toBe(true);
+    expect(metrics).toEqual([
+      expect.objectContaining({
+        model: "doubao-seed-2-0-lite-260428",
+        outcome: "error",
+      }),
+      expect.objectContaining({
+        model: "doubao-seed-2-0-pro-260215",
+        outcome: "success",
+      }),
+    ]);
+  });
+
+  it("falls through Lite and Pro to Evolving in the exact configured order", async () => {
+    const call = installRuntime((options) => {
+      if (options.model !== "doubao-seed-evolving") {
+        options.fail({
+          errMsg: "免费额度已用完",
+          errorCode: "QuotaExceeded",
+          errorType: "D",
+        });
+        return;
+      }
+      options.success({
+        errMsg: "callAIChatCompletion:ok",
+        data: "{\"headline\":\"Evolving 接管\",\"narrative\":\"三级接力成功。\"}",
+      });
+    });
+
+    await expect(requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      { phase: "turn" },
+    )).resolves.toContain("三级接力成功");
+
+    expect(call.mock.calls.map(([options]) => options.model)).toEqual([
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-pro-260215",
+      "doubao-seed-evolving",
+    ]);
+    expect(call.mock.calls.map(([options]) => options.reasoning_effort)).toEqual([
+      "minimal",
+      "minimal",
+      "minimal",
+    ]);
+  });
+
+  it("reports one clear error after all three Seed quotas are exhausted", async () => {
+    const call = installRuntime((options) => {
+      options.fail({
+        errMsg: "quota_exhausted",
+        errorCode: "QuotaExceeded",
+        errorType: "D",
+      });
+    });
+
+    await expect(requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      { phase: "turn" },
+    )).rejects.toMatchObject({
+      code: "quota_exhausted",
+      message: expect.stringContaining("三个 Seed 模型"),
+      retryable: false,
+    });
+    expect(call.mock.calls.map(([options]) => options.model)).toEqual([
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-pro-260215",
+      "doubao-seed-evolving",
+    ]);
+  });
+
+  it("remembers an exhausted model for this session and skips it on the next request", async () => {
+    let liteCalls = 0;
+    const call = installRuntime((options) => {
+      if (options.model === "doubao-seed-2-0-lite-260428") {
+        liteCalls += 1;
+        options.fail({
+          errMsg: "额度耗尽",
+          errorCode: "QuotaExceeded",
+          errorType: "D",
+        });
+        return;
+      }
+      options.success({
+        errMsg: "callAIChatCompletion:ok",
+        data: "{\"headline\":\"接管\",\"narrative\":\"继续。\"}",
+      });
+    });
+
+    await requestCompletion([{ role: "user", content: "第一次" }], { phase: "turn" });
+    await requestCompletion([{ role: "user", content: "第二次" }], { phase: "turn" });
+
+    expect(liteCalls).toBe(1);
+    expect(call.mock.calls.map(([options]) => options.model)).toEqual([
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-pro-260215",
+      "doubao-seed-2-0-pro-260215",
+    ]);
+  });
+
+  it("retries an ordinary rate limit on Lite without switching models", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const call = installRuntime((options) => {
+      calls += 1;
+      if (calls < 3) {
+        options.fail({
+          errMsg: "rate limit",
+          errorCode: 429,
+          errorType: "F",
+        });
+        return;
+      }
+      options.success({
+        errMsg: "callAIChatCompletion:ok",
+        data: "{\"headline\":\"Lite 恢复\",\"narrative\":\"没有误切模型。\"}",
+      });
+    });
+
+    const completion = requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      { phase: "turn" },
+    );
+    await vi.runAllTimersAsync();
+    await expect(completion).resolves.toContain("没有误切模型");
+    expect(call).toHaveBeenCalledTimes(3);
+    expect(call.mock.calls.map(([options]) => options.model)).toEqual([
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-lite-260428",
+      "doubao-seed-2-0-lite-260428",
     ]);
   });
 

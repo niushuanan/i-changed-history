@@ -28,9 +28,16 @@ export type {
   CompletionUsage,
 } from "./completion-contract";
 
-const SEED_MODEL_ID = "doubao-seed-2-0-lite-260428";
+const SEED_MODEL_PRIORITY = [
+  "doubao-seed-2-0-lite-260428",
+  "doubao-seed-2-0-pro-260215",
+  "doubao-seed-evolving",
+] as const;
+type SeedModelId = typeof SEED_MODEL_PRIORITY[number];
 const SEED_REASONING_EFFORT = "minimal" as const;
 const SEED_TEMPERATURE = 0.7;
+const QUOTA_COOLDOWN_MS = 30 * 60 * 1_000;
+const QUOTA_COOLDOWN_STORAGE_KEY = "history.seed.quota-cooldown.v1";
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
 const MAX_RETRY_DELAY_MS = 15_000;
@@ -212,6 +219,91 @@ function errorNumber(error: PlatformFailure): number | undefined {
   return undefined;
 }
 
+function errorIdentity(error: PlatformFailure): string {
+  return [
+    error.errMsg,
+    error.errNo,
+    error.errCode,
+    error.errorCode,
+    error.errorType,
+  ].filter((value) => typeof value === "string" || typeof value === "number")
+    .join(" ");
+}
+
+function isQuotaExhaustion(error: PlatformFailure): boolean {
+  const identity = errorIdentity(error).toLowerCase();
+  return [
+    "quotaexceeded",
+    "quota_exceeded",
+    "quota exceeded",
+    "exceeded your current quota",
+    "quota exhausted",
+    "quota has been exhausted",
+    "insufficient quota",
+    "insufficientquota",
+    "free quota is used up",
+    "free quota has been used up",
+    "insufficient balance",
+    "额度已用完",
+    "额度用完",
+    "额度耗尽",
+    "额度已耗尽",
+    "额度不足",
+    "配额已用完",
+    "配额用完",
+    "配额耗尽",
+    "配额已耗尽",
+    "配额不足",
+    "超出配额",
+    "余额不足",
+  ].some((marker) => identity.includes(marker));
+}
+
+function quotaCooldowns(now = Date.now()): Partial<Record<SeedModelId, number>> {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(QUOTA_COOLDOWN_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+    const cooldowns: Partial<Record<SeedModelId, number>> = {};
+    for (const model of SEED_MODEL_PRIORITY) {
+      const expiresAt = (parsed as Record<string, unknown>)[model];
+      if (typeof expiresAt === "number" && Number.isFinite(expiresAt) && expiresAt > now) {
+        cooldowns[model] = expiresAt;
+      }
+    }
+    return cooldowns;
+  } catch {
+    return {};
+  }
+}
+
+function writeQuotaCooldowns(cooldowns: Partial<Record<SeedModelId, number>>): void {
+  try {
+    if (Object.keys(cooldowns).length === 0) {
+      globalThis.sessionStorage?.removeItem(QUOTA_COOLDOWN_STORAGE_KEY);
+      return;
+    }
+    globalThis.sessionStorage?.setItem(QUOTA_COOLDOWN_STORAGE_KEY, JSON.stringify(cooldowns));
+  } catch {
+    // Storage is an optimization only; the ordered fallback still works without it.
+  }
+}
+
+function rememberQuotaExhaustion(model: SeedModelId): void {
+  writeQuotaCooldowns({
+    ...quotaCooldowns(),
+    [model]: Date.now() + QUOTA_COOLDOWN_MS,
+  });
+}
+
+function clearQuotaCooldown(model: SeedModelId): void {
+  const cooldowns = quotaCooldowns();
+  if (cooldowns[model] === undefined) return;
+  delete cooldowns[model];
+  writeQuotaCooldowns(cooldowns);
+}
+
 function responseData(result: PlatformSuccess | PlatformFailure): string | undefined {
   return "data" in result && typeof result.data === "string" ? result.data : undefined;
 }
@@ -227,6 +319,15 @@ function platformError(error: PlatformFailure): CompletionError {
   ].filter(Boolean).join(" · ");
   const suffix = reference ? `（${reference}）` : "";
 
+  if (isQuotaExhaustion(error)) {
+    return new CompletionError(
+      "quota_exhausted",
+      `当前 Seed 模型额度已用完${suffix}。`,
+      status,
+      undefined,
+      false,
+    );
+  }
   if (
     status === 20107
     || lowerMessage.includes("api key")
@@ -373,6 +474,7 @@ function streamFailure(rawData: unknown): PlatformFailure {
 function performRequest(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
+  model: SeedModelId,
   attempt: number,
   stream: boolean,
 ): Promise<string> {
@@ -434,6 +536,7 @@ function performRequest(
         phase: options.phase,
         requestKind,
         reasoning,
+        model,
         attempt,
         outcome: "success",
         responseHeadersMs: firstCallbackMs,
@@ -453,6 +556,7 @@ function performRequest(
         phase: options.phase,
         requestKind,
         reasoning,
+        model,
         attempt,
         outcome: "error",
         responseHeadersMs: firstCallbackMs,
@@ -511,7 +615,7 @@ function performRequest(
       task = callAIChatCompletion({
         type: "text",
         stream,
-        model: SEED_MODEL_ID,
+        model,
         reasoning_effort: SEED_REASONING_EFFORT,
         messages: messages.map(({ role, content: messageContent }) => ({
           role,
@@ -605,14 +709,15 @@ function performRequest(
   });
 }
 
-export async function requestCompletion(
+async function requestWithModelRetries(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
+  model: SeedModelId,
 ): Promise<string> {
   let stream = true;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await performRequest(messages, options, attempt + 1, stream);
+      return await performRequest(messages, options, model, attempt + 1, stream);
     } catch (error) {
       if (
         stream
@@ -634,6 +739,45 @@ export async function requestCompletion(
   throw new CompletionError(
     "request_failed",
     "推演请求失败，请重新推演这一幕。",
+    undefined,
+    undefined,
+    false,
+  );
+}
+
+export async function requestCompletion(
+  messages: readonly ChatMessage[],
+  options: CompletionOptions,
+): Promise<string> {
+  const cooldowns = quotaCooldowns();
+  const availableModels = SEED_MODEL_PRIORITY.filter((model) => cooldowns[model] === undefined);
+  if (availableModels.length === 0) {
+    throw new CompletionError(
+      "quota_exhausted",
+      "三个 Seed 模型的额度暂时都已用完，请稍后重新推演。",
+      undefined,
+      undefined,
+      false,
+    );
+  }
+
+  for (const model of availableModels) {
+    try {
+      const content = await requestWithModelRetries(messages, options, model);
+      clearQuotaCooldown(model);
+      return content;
+    } catch (error) {
+      if (error instanceof CompletionError && error.code === "quota_exhausted") {
+        rememberQuotaExhaustion(model);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new CompletionError(
+    "quota_exhausted",
+    "三个 Seed 模型的额度都已用完，请稍后重新推演。",
     undefined,
     undefined,
     false,

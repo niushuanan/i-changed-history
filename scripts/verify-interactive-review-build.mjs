@@ -9,12 +9,20 @@ const historyAssetsRoot = path.join(outputRoot, "assets/history");
 const releaseConfigPath = path.join(projectRoot, "interactive-space.release.json");
 const textExtensions = new Set([".css", ".html", ".js", ".json", ".svg"]);
 const releaseConfig = JSON.parse(await readFile(releaseConfigPath, "utf8"));
+const expectedChatModels = [
+  "doubao-seed-2-0-lite-260428",
+  "doubao-seed-2-0-pro-260215",
+  "doubao-seed-evolving",
+];
 
 await access(path.join(outputRoot, "index.html"));
 
 if (
   releaseConfig.aiEnabled !== true
   || releaseConfig.chatModel !== "doubao-seed-2-0-lite-260428"
+  || JSON.stringify(releaseConfig.chatModels) !== JSON.stringify(expectedChatModels)
+  || releaseConfig.fallbackPolicy !== "quota-exhausted-only"
+  || releaseConfig.quotaCooldownMinutes !== 30
   || releaseConfig.reasoningEffort !== "minimal"
   || releaseConfig.credentialMode !== "platform-volcengine-api-key"
   || releaseConfig.minimumDouyinVersion !== "39.5.0"
@@ -23,7 +31,7 @@ if (
   || releaseConfig.packageType !== 1
   || releaseConfig.maxZipBytes !== 8 * 1024 * 1024
 ) {
-  throw new Error("Interactive release configuration must keep AI enabled, Doubao Seed 2.0 Lite at minimal reasoning effort, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
+  throw new Error("Interactive release configuration must keep AI enabled, the exact Lite -> Pro -> Evolving quota fallback, minimal reasoning effort, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
 }
 
 async function collectFiles(directory) {
@@ -98,6 +106,8 @@ for (const match of indexHtml.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
 const requiredRuntimeMarkers = [
   "callAIChatCompletion",
   "doubao-seed-2-0-lite-260428",
+  "doubao-seed-2-0-pro-260215",
+  "doubao-seed-evolving",
   "reasoning_effort",
   "minimal",
   "本作品包含人工智能生成内容",
@@ -149,6 +159,9 @@ console.log(JSON.stringify({
   missingScriptIds: 0,
   aiEnabled: releaseConfig.aiEnabled,
   chatModel: releaseConfig.chatModel,
+  chatModels: releaseConfig.chatModels,
+  fallbackPolicy: releaseConfig.fallbackPolicy,
+  quotaCooldownMinutes: releaseConfig.quotaCooldownMinutes,
   reasoningEffort: releaseConfig.reasoningEffort,
   credentialMode: releaseConfig.credentialMode,
   minimumDouyinVersion: releaseConfig.minimumDouyinVersion,

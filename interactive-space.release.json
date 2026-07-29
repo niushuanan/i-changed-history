@@ -2,6 +2,13 @@
   "appId": "tt68891e34f7a3c3e821",
   "aiEnabled": true,
   "chatModel": "doubao-seed-2-0-lite-260428",
+  "chatModels": [
+    "doubao-seed-2-0-lite-260428",
+    "doubao-seed-2-0-pro-260215",
+    "doubao-seed-evolving"
+  ],
+  "fallbackPolicy": "quota-exhausted-only",
+  "quotaCooldownMinutes": 30,
   "reasoningEffort": "minimal",
   "credentialMode": "platform-volcengine-api-key",
   "minimumDouyinVersion": "39.5.0",

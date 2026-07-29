@@ -35,6 +35,7 @@ export type CompletionRequestMetrics = Readonly<{
   phase: CompletionPhase;
   requestKind: CompletionRequestKind;
   reasoning: CompletionReasoningEffort;
+  model?: string;
   attempt: number;
   outcome: "success" | "error";
   responseHeadersMs?: number;
@@ -50,6 +51,7 @@ export type CompletionErrorCode =
   | "missing_api_key"
   | "unauthorized"
   | "forbidden"
+  | "quota_exhausted"
   | "rate_limited"
   | "service_unavailable"
   | "network"
