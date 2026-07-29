@@ -90,6 +90,12 @@ function cleanSession(state: GameState): GameState {
   };
 }
 
+function unlockCurrentScenario(state: GameState): string[] {
+  const seedId = state.scenario?.seed.id;
+  if (!seedId || state.unlockedSeedIds.includes(seedId)) return state.unlockedSeedIds;
+  return [...state.unlockedSeedIds, seedId];
+}
+
 function requestAfterChoice(state: GameState) {
   const chapter = state.currentTurn?.chapter;
   if (chapter === 4) return withRequest(state, { kind: "ending" });
@@ -182,6 +188,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playedTurns: [...state.playedTurns, playedTurn],
         deviation: impact.nextDeviation,
         lastImpact: impact.stepImpact,
+        unlockedSeedIds: state.currentTurn.chapter === 4
+          ? unlockCurrentScenario(state)
+          : state.unlockedSeedIds,
         echo: { source: "ai_choice", choiceLabel: choice.label, ...choice.instantEcho, ...impact },
         ...requestAfterChoice(state),
         pendingTurn: null,
@@ -218,6 +227,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         deviation: impact.nextDeviation,
         lastImpact: impact.stepImpact,
         customActionsUsed: state.customActionsUsed + 1,
+        unlockedSeedIds: state.currentTurn.chapter === 4
+          ? unlockCurrentScenario(state)
+          : state.unlockedSeedIds,
         echo: null,
         ...requestAfterChoice(state),
         pendingTurn: null,
@@ -232,9 +244,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, pendingTurn: action.turn, request: null, error: null };
     case "ENDING_RESOLVED":
       if (state.request?.id !== action.requestId || state.request.kind !== "ending") return state;
-      const unlockedSeedIds = state.scenario && !state.unlockedSeedIds.includes(state.scenario.seed.id)
-        ? [...state.unlockedSeedIds, state.scenario.seed.id]
-        : state.unlockedSeedIds;
+      const unlockedSeedIds = unlockCurrentScenario(state);
       if (state.phase === "echo") return { ...state, pendingEnding: action.ending, request: null, unlockedSeedIds };
       if (state.phase !== "ending") return state;
       return {

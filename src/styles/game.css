@@ -1024,8 +1024,9 @@
 }
 .history-grid { padding: 10px 12px 22px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .history-grid-card {
+  position: relative;
   min-width: 0;
-  min-height: 210px;
+  min-height: 244px;
   padding: 0 0 9px;
   display: flex;
   flex-direction: column;
@@ -1042,10 +1043,26 @@
 .history-grid-card img { width: 100%; height: 100px; flex: 0 0 100px; object-fit: cover; filter: saturate(.68) contrast(1.08); }
 .history-grid-card > span,
 .history-grid-card > strong { margin-inline: 9px; overflow-wrap: anywhere; }
-.history-grid-card > span:first-of-type { margin-top: 8px; color: var(--yellow); font-family: var(--serif); font-size: 12px; font-weight: 900; }
+.history-grid-card__year { margin-top: 8px; color: var(--yellow); font-family: var(--serif); font-size: 12px; font-weight: 900; }
 .history-grid-card > strong { margin-top: 4px; font-family: var(--serif); font-size: 15px; line-height: 1.25; }
-.history-grid-card > span:nth-of-type(2) { margin-top: 6px; color: #b4b4af; font-size: 11px; line-height: 1.25; }
-.history-grid-card > span:last-of-type { margin-top: auto; padding-top: 7px; color: #72aaa6; font-size: 11px; font-weight: 900; }
+.history-grid-card__location { margin-top: 6px; color: #b4b4af; font-size: 11px; line-height: 1.25; }
+.history-grid-card__theme { margin-top: 7px; color: #72aaa6; font-size: 11px; font-weight: 900; }
+.history-grid-card__replay {
+  min-height: 29px;
+  margin-top: auto;
+  padding-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(213, 183, 122, .2);
+  color: #e0c787;
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+.history-grid-card:hover .history-grid-card__replay { color: #f2dda9; }
+.history-grid-card:focus-visible { outline: 2px solid #e0c787; outline-offset: 2px; }
 .history-grid-empty { min-height: 280px; padding: 56px 24px; display: grid; place-items: center; align-content: center; gap: 14px; text-align: center; }
 .history-grid-empty strong { font-family: var(--serif); font-size: 18px; }
 .history-card {

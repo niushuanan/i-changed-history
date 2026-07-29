@@ -10,6 +10,7 @@ import {
 } from "../game/schema";
 
 export const GAME_STORAGE_KEY = "i-changed-history:session:v15";
+export const UNLOCKED_HISTORY_STORAGE_KEY = "i-changed-history:unlocked:v1";
 const LEGACY_GAME_STORAGE_KEYS = [
   "i-changed-history:session:v14", "i-changed-history:session:v13", "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
   "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5",
@@ -19,6 +20,7 @@ const STORAGE_VERSION = 15;
 const ACTIVE_HISTORY_SEED_IDS = new Set(HISTORY_SEEDS.map((seed) => seed.id));
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingEnding" | "echo">;
+const unlockedSeedIdsSchema = z.array(z.string()).max(100);
 
 const occupation = z.enum(["student", "product", "engineering", "business", "creative", "public-service"]);
 const strength = z.enum(["negotiation", "organization", "technology", "business", "writing", "strategy", "law", "medicine"]);
@@ -133,7 +135,38 @@ function remove(storage: StorageLike, key = GAME_STORAGE_KEY) {
   try { storage.removeItem(key); } catch { /* storage unavailable */ }
 }
 
+function sanitizeUnlockedSeedIds(ids: readonly unknown[]): string[] {
+  return [...new Set(ids.filter(
+    (id): id is string => typeof id === "string" && ACTIVE_HISTORY_SEED_IDS.has(id),
+  ))].slice(0, 100);
+}
+
+function readUnlockedSeedIds(storage: StorageLike): string[] {
+  try {
+    const raw = storage.getItem(UNLOCKED_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = unlockedSeedIdsSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? sanitizeUnlockedSeedIds(parsed.data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistUnlockedSeedIds(storage: StorageLike, ids: readonly string[]) {
+  try {
+    storage.setItem(UNLOCKED_HISTORY_STORAGE_KEY, JSON.stringify(sanitizeUnlockedSeedIds(ids)));
+  } catch { /* storage unavailable */ }
+}
+
+function withUnlockedArchive(state: GameState, archiveIds: readonly string[]): GameState {
+  return {
+    ...state,
+    unlockedSeedIds: sanitizeUnlockedSeedIds([...archiveIds, ...state.unlockedSeedIds]),
+  };
+}
+
 export function saveGameSnapshot(state: GameState, storage: StorageLike = localStorage): boolean {
+  persistUnlockedSeedIds(storage, state.unlockedSeedIds);
   const stored = toStored(state);
   if (!stored) return false;
   try {
@@ -145,22 +178,32 @@ export function saveGameSnapshot(state: GameState, storage: StorageLike = localS
 }
 
 export function loadGameSnapshot(storage: StorageLike = localStorage): GameState | null {
+  const archiveIds = readUnlockedSeedIds(storage);
   try {
     const current = storage.getItem(GAME_STORAGE_KEY);
     if (current) {
       const parsed = envelopeSchema.safeParse(JSON.parse(current));
-      if (!parsed.success) { remove(storage); return null; }
+      if (!parsed.success) {
+        remove(storage);
+        return archiveIds.length > 0
+          ? withUnlockedArchive(createInitialGameState(), archiveIds)
+          : null;
+      }
       const savedSeedId = parsed.data.state.scenario?.seed.id;
       if (savedSeedId && !ACTIVE_HISTORY_SEED_IDS.has(savedSeedId)) {
         remove(storage);
-        return createInitialGameState(parsed.data.state.nextRequestId);
+        return withUnlockedArchive(
+          createInitialGameState(parsed.data.state.nextRequestId),
+          archiveIds,
+        );
       }
-      const loaded = {
+      const loaded = withUnlockedArchive({
         ...parsed.data.state,
-        unlockedSeedIds: parsed.data.state.unlockedSeedIds.filter((id) => ACTIVE_HISTORY_SEED_IDS.has(id)),
+        unlockedSeedIds: sanitizeUnlockedSeedIds(parsed.data.state.unlockedSeedIds),
         pendingEnding: null,
         echo: null,
-      } as GameState;
+      } as GameState, archiveIds);
+      persistUnlockedSeedIds(storage, loaded.unlockedSeedIds);
       if (loaded.phase === "result" && loaded.result) {
         const completeResult = alternatePresentSchema.safeParse(loaded.result);
         if (completeResult.success) return { ...loaded, result: completeResult.data };
@@ -180,16 +223,29 @@ export function loadGameSnapshot(storage: StorageLike = localStorage): GameState
     for (const key of LEGACY_GAME_STORAGE_KEYS) {
       const legacy = storage.getItem(key);
       if (!legacy) continue;
-      const raw = JSON.parse(legacy) as { state?: { nextRequestId?: unknown } };
+      const raw = JSON.parse(legacy) as {
+        state?: { nextRequestId?: unknown; unlockedSeedIds?: unknown };
+      };
       const nextRequestId = typeof raw.state?.nextRequestId === "number" ? raw.state.nextRequestId : 1;
-      const fresh = createInitialGameState(nextRequestId);
+      const legacyUnlocked = Array.isArray(raw.state?.unlockedSeedIds)
+        ? raw.state.unlockedSeedIds
+        : [];
+      const fresh = withUnlockedArchive(
+        createInitialGameState(nextRequestId),
+        sanitizeUnlockedSeedIds([...archiveIds, ...legacyUnlocked]),
+      );
       storage.setItem(GAME_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, state: toStored(fresh) }));
+      persistUnlockedSeedIds(storage, fresh.unlockedSeedIds);
       remove(storage, key);
       return fresh;
     }
-    return null;
+    return archiveIds.length > 0
+      ? withUnlockedArchive(createInitialGameState(), archiveIds)
+      : null;
   } catch {
     remove(storage);
-    return null;
+    return archiveIds.length > 0
+      ? withUnlockedArchive(createInitialGameState(), archiveIds)
+      : null;
   }
 }

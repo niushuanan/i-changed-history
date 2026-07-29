@@ -131,6 +131,16 @@ describe("single-life choice-only game reducer", () => {
     const chosen = gameReducer(state, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
     expect(chosen.playedTurns).toHaveLength(4);
     expect(chosen.request).toMatchObject({ kind: "ending" });
+    expect(chosen.unlockedSeedIds).toContain(HISTORY_SEEDS[0].id);
+
+    const failed = gameReducer(chosen, {
+      type: "REQUEST_FAILED",
+      requestId: chosen.request!.id,
+      code: "provider_unavailable",
+      message: "结局报告暂时生成失败",
+    });
+    const restarted = gameReducer(failed, { type: "RESTART" });
+    expect(restarted.unlockedSeedIds).toContain(HISTORY_SEEDS[0].id);
   });
 
   it("writes a player-declared outcome into canon and starts the next turn without adjudication", () => {

@@ -124,6 +124,12 @@ describe("complete four-decision player journey", () => {
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitemradio", { name: /已解锁档案/ }));
     expect(screen.getByRole("heading", { name: "已解锁 1 个瞬间" })).toBeVisible();
+
+    const replay = screen.getByRole("button", { name: /再次闯入：/ });
+    await user.click(replay);
+    expect(screen.getByText("固定历史开场")).toBeVisible();
+    expect(screen.getByRole("list", { name: "四节点时间线" })).toBeVisible();
+    expect(engine.generateNextTurn).toHaveBeenCalledTimes(3);
   });
 
   it("uses one prepared Roll and two live AI Rolls without exposing free text", async () => {

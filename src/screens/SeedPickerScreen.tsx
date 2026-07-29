@@ -368,7 +368,7 @@ export function SeedPickerScreen({
           <header>
             <span>你的历史收藏</span>
             <h2>已解锁 {unlockedCards.length} 个瞬间</h2>
-            <p>完整走完四次人生抉择，那个历史节点才会永久点亮。</p>
+            <p>完成四次人生抉择便会永久点亮；点击任意档案，可从第一幕重新游玩。</p>
           </header>
           {unlockedCards.length > 0 ? (
             <div className="history-grid">

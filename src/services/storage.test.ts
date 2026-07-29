@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { createInitialGameState, gameReducer } from "../game/reducer";
-import { GAME_STORAGE_KEY, loadGameSnapshot, saveGameSnapshot } from "./storage";
+import {
+  GAME_STORAGE_KEY,
+  UNLOCKED_HISTORY_STORAGE_KEY,
+  loadGameSnapshot,
+  saveGameSnapshot,
+} from "./storage";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
@@ -16,6 +21,23 @@ describe("v15 four-decision roguelike storage", () => {
 
     const old = memoryStorage({ "i-changed-history:session:v1": JSON.stringify({ version: 1, state: {} }) });
     expect(loadGameSnapshot(old)).toBeNull();
+  });
+
+  it("keeps completed archives when the resumable session is corrupted", () => {
+    const storage = memoryStorage();
+    const completed = {
+      ...createInitialGameState(),
+      unlockedSeedIds: [HISTORY_SEEDS[0].id],
+    };
+    expect(saveGameSnapshot(completed, storage)).toBe(true);
+    expect(storage.getItem(UNLOCKED_HISTORY_STORAGE_KEY))
+      .toContain(HISTORY_SEEDS[0].id);
+
+    storage.setItem(GAME_STORAGE_KEY, "{broken");
+    expect(loadGameSnapshot(storage)).toMatchObject({
+      phase: "selecting",
+      unlockedSeedIds: [HISTORY_SEEDS[0].id],
+    });
   });
 
   it("returns an incompatible v4 run to a clean selection", () => {
@@ -64,6 +86,7 @@ describe("v15 four-decision roguelike storage", () => {
     };
     legacyEnvelope.state.profile = oldProfile;
     legacyEnvelope.state.scenario.profile = oldProfile;
+    legacyEnvelope.state.unlockedSeedIds = [HISTORY_SEEDS[1].id];
     const legacy = memoryStorage({
       "i-changed-history:session:v5": JSON.stringify(legacyEnvelope),
     });
@@ -74,6 +97,7 @@ describe("v15 four-decision roguelike storage", () => {
       currentTurn: null,
       customActionsUsed: 0,
       request: null,
+      unlockedSeedIds: [HISTORY_SEEDS[1].id],
     });
     expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();

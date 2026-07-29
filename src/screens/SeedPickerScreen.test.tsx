@@ -121,7 +121,8 @@ describe("destiny draw history entry", () => {
     vi.useRealTimers();
     const user = userEvent.setup();
     const unlocked = [cards[4].id, cards[11].id];
-    render(<PickerHarness unlockedSeedIds={unlocked} />);
+    const onSelect = vi.fn();
+    render(<PickerHarness unlockedSeedIds={unlocked} onSelect={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitemradio", { name: /已解锁档案/ }));
@@ -131,6 +132,10 @@ describe("destiny draw history entry", () => {
     expect(screen.getByRole("button", { name: new RegExp(cards[4].eventName) })).toBeVisible();
     expect(screen.getByRole("button", { name: new RegExp(cards[11].eventName) })).toBeVisible();
     expect(screen.queryByText(cards[0].eventName)).not.toBeInTheDocument();
+    expect(screen.getByText(/点击任意档案，可从第一幕重新游玩/)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: `再次闯入：${cards[4].eventName}` }));
+    expect(onSelect).toHaveBeenCalledWith(cards[4]);
   });
 
   it("keeps audio and the player-facing rules inside one settings menu", async () => {

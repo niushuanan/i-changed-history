@@ -1,3 +1,4 @@
+import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import type { HistorySeed } from "../game/types";
 import { formatHistoricalYear } from "../data/historicalYear";
 import { themeForSeed, type HistoryTheme } from "../data/historyCatalog";
@@ -23,6 +24,7 @@ export function HistoryGridCard({ seed, isCurrent, onSelect }: HistoryGridCardPr
       type="button"
       className="history-grid-card"
       aria-current={isCurrent ? "true" : undefined}
+      aria-label={`再次闯入：${seed.eventName}`}
       onClick={() => onSelect(seed)}
     >
       <img
@@ -31,10 +33,14 @@ export function HistoryGridCard({ seed, isCurrent, onSelect }: HistoryGridCardPr
         loading="lazy"
         onError={(event) => { event.currentTarget.src = VISUAL_ASSETS[seed.visualTone]; }}
       />
-      <span>{formatHistoricalYear(seed.year)}</span>
+      <span className="history-grid-card__year">{formatHistoricalYear(seed.year)}</span>
       <strong>{seed.eventName}</strong>
-      <span>{seed.location}</span>
-      <span>{HISTORY_THEME_LABELS[themeForSeed(seed)]}</span>
+      <span className="history-grid-card__location">{seed.location}</span>
+      <span className="history-grid-card__theme">{HISTORY_THEME_LABELS[themeForSeed(seed)]}</span>
+      <span className="history-grid-card__replay">
+        <ArrowCounterClockwise size={14} weight="bold" />
+        再次闯入
+      </span>
     </button>
   );
 }

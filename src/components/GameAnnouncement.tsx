@@ -35,7 +35,7 @@ export function GameAnnouncement({ onClose }: { onClose: () => void }) {
           </li>
           <li>
             <i><Archive size={24} weight="duotone" /></i>
-            <div><strong>四次选择，走完一生</strong><span>通关后会看到人物结局和 2026 的新世界，并解锁这段历史。</span></div>
+            <div><strong>四次选择，走完一生</strong><span>第四次选择落定就解锁这段历史；档案可以反复重玩，结局继续写到 2026。</span></div>
           </li>
         </ol>
         <button className="game-announcement__action" type="button" onClick={onClose}>
