@@ -28,7 +28,7 @@
 - `db/` 与 `drizzle/`：AI 请求限额表定义及 Sites 部署迁移。
 - `build/` 与 `.openai/hosting.json`：Sites 构建元数据打包和 D1 / R2 逻辑绑定。
 - `src/screens/` 和 `src/components/`：从命运抽取、游戏说明、解锁档案、三卡牌桌、三次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
-- `src/components/CardCommitFlight.tsx`：脱离事件页裁剪层的固定轨道飞行、产品容器居中停驻、真实卡面像素纸灰消散和捕获失败后备。
+- `src/components/CardCommitFlight.tsx`：脱离事件页裁剪层的页面最高层飞行、距产品顶部约 8px 的居中停驻、连续弧线轨道，以及 GPU 卡面裁切配合轻量纸灰粒子的无栅格消散。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
 - `src/soak/`：显式运行的真实 DeepSeek 四决策完整局压力测试；默认覆盖十个不同开局并在每幕选择预生成 Roll 组，也支持用 `SOAK_ALL_ROLL=1` 对指定开局执行相同的全幕、最低成功率与强制延迟门槛，结果只写入被忽略的 `tmp/soak/`。第二、第三次实时 Roll 的请求、恢复与错误重试由 reducer、组件和应用集成测试覆盖。
@@ -78,6 +78,15 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-29 21:56 - 把出牌飞行提升到画面最顶层并消除运行时卡顿源
+
+- 本次任务：根据真实预览反馈继续修正卡牌仍未到达整组元素最顶部、飞行后段不够自然和移动端可能掉帧的问题，并在同一隔离 worktree 上提交新版。
+- 改了哪些文件：修改 `src/components/CardCommitFlight.tsx`、`src/components/ChoiceList.test.tsx`、`src/screens/TimelineEventScreen.test.tsx`、`src/services/htmlToImage.interactive.ts`、`src/styles/game.css`、`AGENTS.md` 和 `PROJECT_CONTEXT.md`；新增 `src/components/CardCommitFlight.test.ts`。
+- 改了什么：卡牌 portal 外再建立占满视口、`z-index: 2147483646` 的独立最高层，停驻位置由距顶部 56—88px 改为约 8px，进度栏、场景、文案与声音按钮在提交时同步后退；原来后半段突进的三段关键帧改成按 25% 间隔采样的连续二次弧线，520ms 内稳定收束到顶部中央。移除提交瞬间的 `html-to-image` DOM 栅格与数千像素粒子重建，改为 GPU 友好的锯齿 `clip-path` 自下而上侵蚀卡面，同时只绘制 220 个有界纸灰粒子；完整提交缩短到约 1.26 秒。
+- 为什么这样改：此前 `targetTop` 仍保留约 60px 顶部空隙，视觉上没有真正越过进度栏；72% 到 88% 之间跨越大段距离会形成末段突冲，DOM 栅格和逐像素读取又可能在移动端主线程上制造掉帧。最高层容器、连续轨道和有界粒子把“永远盖在最上面”与“不卡顿”同时变成明确约束。
+- 影响了哪些模块：只调整三类决策卡的提交动效、背景退场、消散实现和提交等待时长；不改变上划阈值、决定内容、世界正史、三次 Roll、AI 请求、存档或互动空间三剧本边界。第 1 节产品目的和第 3 节入口仍准确；第 2 节已刷新动效实现说明。
+- 验证：Vitest 39 文件 378/378、TypeScript、239 个运行时文件可移植性、普通 vinext 构建、互动空间三剧本构建与 `git diff --check` 全部通过；审核 ZIP 35 个文件、2,731,694 字节、MD5 `4a2a110a5777ac196b858ae796343b37`，白名单外剧本泄漏 0。in-app browser 在 390×844 产品视口确认页面、三卡牌桌、资源和控制台健康，框架错误层为 0、错误与警告为 0；组件回归覆盖最高层 portal、8px 停驻、飞行/消散时序、连续轨道几何和最终只提交一次。
 
 ### 2026-07-29 21:34 - 重做上划出牌的顶层轨道与纸灰消散
 

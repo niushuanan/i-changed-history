@@ -117,7 +117,7 @@ describe("clear change event screen", () => {
 
     expect(container.querySelector(".event-screen")).toHaveClass("is-card-committing");
     expect(onChoose).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(1_500));
+    act(() => vi.advanceTimersByTime(1_300));
     expect(onChoose).toHaveBeenCalledWith("B");
   });
 

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export type CardCommitOrigin = {
@@ -12,7 +12,7 @@ export type CardCommitOrigin = {
   screenHeight: number;
 };
 
-type Particle = {
+type AshParticle = {
   x: number;
   y: number;
   size: number;
@@ -22,112 +22,91 @@ type Particle = {
   driftX: number;
   liftY: number;
   wobble: number;
-  ember: boolean;
 };
 
-const FLIGHT_AND_SETTLE_MS = 720;
-const DISSOLVE_MS = 720;
-export const CARD_COMMIT_DURATION_MS = FLIGHT_AND_SETTLE_MS + DISSOLVE_MS + 20;
-const PARTICLE_PADDING = 56;
+const FLIGHT_MS = 520;
+const SETTLE_MS = 100;
+const DISSOLVE_MS = 620;
+const DISSOLVE_START_MS = FLIGHT_MS + SETTLE_MS;
+export const CARD_COMMIT_DURATION_MS = DISSOLVE_START_MS + DISSOLVE_MS + 20;
+const PARTICLE_PADDING = 48;
+const ASH_PARTICLE_COUNT = 220;
 
 function seededNoise(x: number, y: number, salt: number) {
   const value = Math.sin(x * 12.9898 + y * 78.233 + salt * 37.719) * 43758.5453;
   return value - Math.floor(value);
 }
 
-function runParticleDissolve({
-  source,
+function runAshDissolve({
   target,
   width,
   height,
   accent,
 }: {
-  source: HTMLCanvasElement;
   target: HTMLCanvasElement;
   width: number;
   height: number;
   accent: string;
 }) {
-  const sourceContext = source.getContext("2d", { willReadFrequently: true });
-  const targetContext = target.getContext("2d");
-  if (!sourceContext || !targetContext) return null;
+  const context = target.getContext("2d");
+  if (!context) return () => {};
 
-  let pixels: ImageData;
-  try {
-    pixels = sourceContext.getImageData(0, 0, source.width, source.height);
-  } catch {
-    return null;
-  }
-
-  const deviceScale = Math.min(window.devicePixelRatio || 1, 2);
+  const deviceScale = Math.min(window.devicePixelRatio || 1, 1.5);
   const canvasWidth = width + PARTICLE_PADDING * 2;
   const canvasHeight = height + PARTICLE_PADDING * 2;
   target.width = Math.ceil(canvasWidth * deviceScale);
   target.height = Math.ceil(canvasHeight * deviceScale);
   target.style.width = `${canvasWidth}px`;
   target.style.height = `${canvasHeight}px`;
-  targetContext.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+  context.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+  context.imageSmoothingEnabled = false;
 
-  const sourceScaleX = source.width / width;
-  const sourceScaleY = source.height / height;
-  const step = Math.max(3, Math.round(width / 58));
-  const particles: Particle[] = [];
-
-  for (let y = 0; y < height; y += step) {
-    for (let x = 0; x < width; x += step) {
-      const sourceX = Math.min(source.width - 1, Math.floor((x + step / 2) * sourceScaleX));
-      const sourceY = Math.min(source.height - 1, Math.floor((y + step / 2) * sourceScaleY));
-      const offset = (sourceY * source.width + sourceX) * 4;
-      const alpha = pixels.data[offset + 3];
-      if (alpha < 28) continue;
-
-      const noise = seededNoise(x, y, 1);
-      const drift = seededNoise(x, y, 2);
-      const lift = seededNoise(x, y, 3);
-      const verticalProgress = 1 - y / Math.max(1, height);
-      particles.push({
-        x,
-        y,
-        size: Math.min(step + 1, width - x, height - y),
-        color: `rgba(${pixels.data[offset]}, ${pixels.data[offset + 1]}, ${pixels.data[offset + 2]}, ${alpha / 255})`,
-        delay: verticalProgress * 310 + noise * 145,
-        lifetime: 260 + lift * 260,
-        driftX: 14 + drift * 42,
-        liftY: 18 + lift * 42,
-        wobble: noise * Math.PI * 2,
-        ember: seededNoise(x, y, 4) > .925,
-      });
-    }
-  }
-
-  if (particles.length === 0) return null;
+  const palette = [accent, "#e8dcc0", "#9d8f75", "#403a31", "#211e1a"];
+  const particles: AshParticle[] = Array.from({ length: ASH_PARTICLE_COUNT }, (_, index) => {
+    const xNoise = seededNoise(index, 1, 1);
+    const yNoise = seededNoise(index, 2, 2);
+    const motionNoise = seededNoise(index, 3, 3);
+    const sizeNoise = seededNoise(index, 4, 4);
+    const y = height * (.035 + yNoise * .93);
+    const verticalProgress = 1 - y / Math.max(1, height);
+    return {
+      x: width * (.025 + xNoise * .95),
+      y,
+      size: 1.1 + sizeNoise * 3.2,
+      color: palette[Math.floor(seededNoise(index, 5, 5) * palette.length)] ?? accent,
+      delay: verticalProgress * 330 + seededNoise(index, 6, 6) * 62,
+      lifetime: 190 + motionNoise * 250,
+      driftX: 10 + seededNoise(index, 7, 7) * 42,
+      liftY: 24 + seededNoise(index, 8, 8) * 58,
+      wobble: seededNoise(index, 9, 9) * Math.PI * 2,
+    };
+  });
 
   let frame = 0;
   const startedAt = performance.now();
   const draw = (now: number) => {
     const elapsed = now - startedAt;
-    targetContext.clearRect(0, 0, canvasWidth, canvasHeight);
+    context.clearRect(0, 0, canvasWidth, canvasHeight);
 
     for (const particle of particles) {
       const local = elapsed - particle.delay;
-      const progress = Math.max(0, Math.min(1, local / particle.lifetime));
+      if (local < 0) continue;
+      const progress = Math.min(1, local / particle.lifetime);
       const eased = 1 - Math.pow(1 - progress, 3);
-      const alpha = local < 0 ? 1 : Math.pow(1 - progress, 1.45);
-      if (alpha <= .015) continue;
+      const alpha = Math.pow(1 - progress, 1.35);
+      if (alpha <= .018) continue;
 
-      const flutter = Math.sin(eased * 7 + particle.wobble) * 4.5 * eased;
+      const flutter = Math.sin(eased * 7 + particle.wobble) * 4 * eased;
       const x = PARTICLE_PADDING + particle.x + particle.driftX * eased + flutter;
-      const y = PARTICLE_PADDING + particle.y - particle.liftY * eased - 18 * eased * eased;
-      const size = particle.size * (1 - eased * .55);
+      const y = PARTICLE_PADDING + particle.y - particle.liftY * eased - 12 * eased * eased;
+      const size = Math.max(.65, particle.size * (1 - eased * .62));
 
-      targetContext.globalAlpha = alpha;
-      targetContext.fillStyle = particle.ember && progress > .02 && progress < .42
-        ? accent
-        : particle.color;
-      targetContext.fillRect(x, y, Math.max(.7, size), Math.max(.7, size));
+      context.globalAlpha = alpha;
+      context.fillStyle = particle.color;
+      context.fillRect(x, y, size, size * (1.15 + eased));
     }
 
-    targetContext.globalAlpha = 1;
+    context.globalAlpha = 1;
     if (elapsed < DISSOLVE_MS) frame = window.requestAnimationFrame(draw);
   };
 
@@ -135,12 +114,17 @@ function runParticleDissolve({
   return () => window.cancelAnimationFrame(frame);
 }
 
-function getFlightGeometry(origin: CardCommitOrigin) {
-  const widthLimit = origin.screenWidth * .36;
-  const desiredScale = Math.min(1.12, widthLimit / Math.max(1, origin.width));
-  let targetWidth = origin.width * Math.max(1.04, desiredScale);
+function quadraticPoint(start: number, control: number, progress: number) {
+  const inverse = 1 - progress;
+  return inverse * inverse * start + 2 * inverse * progress * control;
+}
+
+export function getFlightGeometry(origin: CardCommitOrigin) {
+  const widthLimit = origin.screenWidth * .4;
+  const desiredScale = Math.min(1.16, widthLimit / Math.max(1, origin.width));
+  let targetWidth = origin.width * Math.max(1.05, desiredScale);
   let targetHeight = origin.height * (targetWidth / Math.max(1, origin.width));
-  const heightLimit = origin.screenHeight * .43;
+  const heightLimit = origin.screenHeight * .45;
 
   if (targetHeight > heightLimit) {
     const fit = heightLimit / targetHeight;
@@ -149,9 +133,23 @@ function getFlightGeometry(origin: CardCommitOrigin) {
   }
 
   const targetLeft = origin.screenLeft + (origin.screenWidth - targetWidth) / 2;
-  const targetTop = origin.screenTop + Math.max(56, Math.min(88, origin.screenHeight * .09));
+  const targetTop = origin.screenTop + 8;
   const fromX = origin.left - targetLeft;
   const fromY = origin.top - targetTop;
+  const controlX = fromX * .78;
+  const controlY = fromY * .58 - Math.min(24, Math.max(0, fromY) * .06);
+  const point25 = {
+    x: quadraticPoint(fromX, controlX, .25),
+    y: quadraticPoint(fromY, controlY, .25),
+  };
+  const point50 = {
+    x: quadraticPoint(fromX, controlX, .5),
+    y: quadraticPoint(fromY, controlY, .5),
+  };
+  const point75 = {
+    x: quadraticPoint(fromX, controlX, .75),
+    y: quadraticPoint(fromY, controlY, .75),
+  };
 
   return {
     targetLeft,
@@ -160,8 +158,9 @@ function getFlightGeometry(origin: CardCommitOrigin) {
     targetHeight,
     fromX,
     fromY,
-    midX: fromX * .42,
-    midY: fromY * .4 - 24,
+    point25,
+    point50,
+    point75,
     scaleX: origin.width / Math.max(1, targetWidth),
     scaleY: origin.height / Math.max(1, targetHeight),
   };
@@ -191,38 +190,14 @@ export function CardCommitFlight({
   onComplete: () => void;
 }) {
   const [phase, setPhase] = useState<"flying" | "dissolving">("flying");
-  const [particleActive, setParticleActive] = useState(false);
-  const cardRef = useRef<HTMLDivElement | null>(null);
   const particleCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const capturePromiseRef = useRef<Promise<HTMLCanvasElement | null> | null>(null);
   const completedRef = useRef(false);
-  const geometry = getFlightGeometry(origin);
-
-  useLayoutEffect(() => {
-    if (
-      reducedMotion
-      || !cardRef.current
-      || typeof navigator === "undefined"
-      || navigator.userAgent.toLowerCase().includes("jsdom")
-    ) return;
-
-    const card = cardRef.current;
-    capturePromiseRef.current = import("html-to-image")
-      .then(({ toCanvas }) => toCanvas(card, {
-        width: Math.ceil(geometry.targetWidth),
-        height: Math.ceil(geometry.targetHeight),
-        canvasWidth: Math.ceil(geometry.targetWidth),
-        canvasHeight: Math.ceil(geometry.targetHeight),
-        pixelRatio: 1,
-        skipAutoScale: true,
-      }))
-      .catch(() => null);
-  }, [geometry.targetHeight, geometry.targetWidth, reducedMotion]);
+  const geometry = useMemo(() => getFlightGeometry(origin), [origin]);
 
   useEffect(() => {
     const dissolveTimer = window.setTimeout(
       () => setPhase("dissolving"),
-      reducedMotion ? 60 : FLIGHT_AND_SETTLE_MS,
+      reducedMotion ? 60 : DISSOLVE_START_MS,
     );
     const completeTimer = window.setTimeout(() => {
       if (completedRef.current) return;
@@ -237,63 +212,62 @@ export function CardCommitFlight({
   }, [onComplete, reducedMotion]);
 
   useEffect(() => {
-    if (phase !== "dissolving" || reducedMotion) return undefined;
-    let cancelled = false;
-    let stopParticles = () => {};
-
-    capturePromiseRef.current?.then((source) => {
-      if (cancelled || !source || !particleCanvasRef.current) return;
-      const stop = runParticleDissolve({
-        source,
-        target: particleCanvasRef.current,
-        width: Math.ceil(geometry.targetWidth),
-        height: Math.ceil(geometry.targetHeight),
-        accent,
-      });
-      if (!stop) return;
-      stopParticles = stop;
-      setParticleActive(true);
+    if (
+      phase !== "dissolving"
+      || reducedMotion
+      || !particleCanvasRef.current
+      || (typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("jsdom"))
+    ) return undefined;
+    return runAshDissolve({
+      target: particleCanvasRef.current,
+      width: Math.ceil(geometry.targetWidth),
+      height: Math.ceil(geometry.targetHeight),
+      accent,
     });
-
-    return () => {
-      cancelled = true;
-      stopParticles();
-    };
   }, [accent, geometry.targetHeight, geometry.targetWidth, phase, reducedMotion]);
 
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div
-      aria-hidden="true"
-      className={`card-commit-flight is-${phase}${particleActive ? " has-particles" : ""}${reducedMotion ? " is-reduced-motion" : ""}`}
-      data-phase={phase}
-      style={{
-        "--flight-left": `${geometry.targetLeft}px`,
-        "--flight-top": `${geometry.targetTop}px`,
-        "--flight-width": `${geometry.targetWidth}px`,
-        "--flight-height": `${geometry.targetHeight}px`,
-        "--flight-from-x": `${geometry.fromX}px`,
-        "--flight-from-y": `${geometry.fromY}px`,
-        "--flight-mid-x": `${geometry.midX}px`,
-        "--flight-mid-y": `${geometry.midY}px`,
-        "--flight-scale-x": geometry.scaleX,
-        "--flight-scale-y": geometry.scaleY,
-        "--flight-start-rotation": `${startRotation}deg`,
-        "--flight-accent": accent,
-        "--flight-frame": `url("${frame}")`,
-        "--particle-padding": `${PARTICLE_PADDING}px`,
-      } as React.CSSProperties}
-    >
-      <div className="card-commit-flight__card" ref={cardRef}>
-        <span className="card-commit-flight__surface">
-          <span className="card-commit-flight__tier">{tier}</span>
-          <span className="card-commit-flight__art"><img src={icon} alt="" /></span>
-          <strong>{displayLabel}</strong>
-          <small>{description}</small>
-        </span>
+    <div className="card-commit-layer" aria-hidden="true">
+      <div
+        className={`card-commit-flight is-${phase}${reducedMotion ? " is-reduced-motion" : ""}`}
+        data-phase={phase}
+        data-target-top={geometry.targetTop}
+        style={{
+          "--flight-left": `${geometry.targetLeft}px`,
+          "--flight-top": `${geometry.targetTop}px`,
+          "--flight-width": `${geometry.targetWidth}px`,
+          "--flight-height": `${geometry.targetHeight}px`,
+          "--flight-from-x": `${geometry.fromX}px`,
+          "--flight-from-y": `${geometry.fromY}px`,
+          "--flight-x-25": `${geometry.point25.x}px`,
+          "--flight-y-25": `${geometry.point25.y}px`,
+          "--flight-x-50": `${geometry.point50.x}px`,
+          "--flight-y-50": `${geometry.point50.y}px`,
+          "--flight-x-75": `${geometry.point75.x}px`,
+          "--flight-y-75": `${geometry.point75.y}px`,
+          "--flight-scale-x": geometry.scaleX,
+          "--flight-scale-y": geometry.scaleY,
+          "--flight-start-rotation": `${startRotation}deg`,
+          "--flight-rotation-25": `${startRotation * .72}deg`,
+          "--flight-rotation-50": `${startRotation * .4}deg`,
+          "--flight-rotation-75": `${startRotation * .14}deg`,
+          "--flight-accent": accent,
+          "--flight-frame": `url("${frame}")`,
+          "--particle-padding": `${PARTICLE_PADDING}px`,
+        } as React.CSSProperties}
+      >
+        <div className="card-commit-flight__card">
+          <span className="card-commit-flight__surface">
+            <span className="card-commit-flight__tier">{tier}</span>
+            <span className="card-commit-flight__art"><img src={icon} alt="" /></span>
+            <strong>{displayLabel}</strong>
+            <small>{description}</small>
+          </span>
+        </div>
+        <canvas className="card-commit-flight__particles" ref={particleCanvasRef} />
       </div>
-      <canvas className="card-commit-flight__particles" ref={particleCanvasRef} />
     </div>,
     document.body,
   );
