@@ -1953,7 +1953,7 @@
 }
 .echo-verdict::-webkit-scrollbar { display: none; }
 .echo-screen__status { font-size: 13px; }
-.echo-verdict h1 { font-size: 32px; }
+.echo-verdict h1 { font-size: clamp(23px, 6.7vw, 26px); line-height: 1.28; }
 .echo-screen__choice { font-size: 15px; }
 .echo-screen__ruling { font-size: 14px; }
 .echo-screen__cost { font-size: 17px; }
@@ -2296,13 +2296,14 @@
   pointer-events: none;
 }
 .event-screen[data-layout="image-overlay"].is-card-committing .event-scene {
-  animation: event-commit-scene 480ms cubic-bezier(.2,.75,.25,1) both;
+  animation: event-commit-scene 360ms cubic-bezier(.2,.75,.25,1) both;
 }
+.event-screen[data-layout="image-overlay"].is-card-committing .timeline-progress,
 .event-screen[data-layout="image-overlay"].is-card-committing .event-copy,
 .event-screen[data-layout="image-overlay"].is-card-committing .decision-zone h2,
 .event-screen[data-layout="image-overlay"].is-card-committing .choice-roll,
 .event-screen[data-layout="image-overlay"].is-card-committing .history-context-trigger {
-  animation: event-commit-copy 360ms ease both;
+  animation: event-commit-copy 280ms ease-out both;
 }
 .event-screen[data-layout="image-overlay"].is-card-committing .decision-zone {
   box-shadow: inset 0 14px 50px rgba(183, 40, 34, .12);
@@ -2527,14 +2528,14 @@
   pointer-events: none;
   opacity: 0;
   transform:
-    translate3d(0, var(--card-y), 150px)
+    translate3d(0, calc(var(--card-y) - 4px), 150px)
     rotateZ(0deg)
-    rotateX(-8deg)
-    scale(1.12);
+    rotateX(-4deg)
+    scale(1.06);
   filter: saturate(1.24) brightness(1.08);
   transition:
-    transform 480ms cubic-bezier(.18,.78,.18,1),
-    opacity 150ms ease 300ms,
+    transform 120ms cubic-bezier(.18,.78,.18,1),
+    opacity 40ms linear,
     filter 220ms ease;
 }
 .rogue-choice-table.is-committing .choice-card:not(.is-committing) {
@@ -2545,6 +2546,203 @@
     rotateZ(var(--card-rest-rotate))
     scale(.84);
   filter: brightness(.58) saturate(.62);
+}
+
+/* The commit layer is the last, isolated page layer: no event header, scene, or audio control can cover it. */
+.card-commit-layer {
+  position: fixed;
+  z-index: 2147483646;
+  inset: 0;
+  overflow: visible;
+  contain: layout style;
+  isolation: isolate;
+  pointer-events: none;
+}
+.card-commit-flight {
+  position: absolute;
+  z-index: 1;
+  top: var(--flight-top);
+  left: var(--flight-left);
+  width: var(--flight-width);
+  height: var(--flight-height);
+  pointer-events: none;
+  transform-origin: 50% 88%;
+  backface-visibility: hidden;
+  will-change: transform;
+  animation: card-commit-flight 520ms linear both;
+}
+.card-commit-flight__card {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 13px;
+  backface-visibility: hidden;
+  will-change: clip-path, opacity, transform;
+  transform: translateZ(0);
+  box-shadow:
+    0 26px 24px rgba(0, 0, 0, .72),
+    0 0 12px color-mix(in srgb, var(--flight-accent) 42%, transparent);
+}
+.card-commit-flight__surface {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 20px 13px 15px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+  background-color: #151411;
+  background-image: var(--flight-frame);
+  background-position: center;
+  background-size: 100% 100%;
+  box-shadow: inset 0 -5px rgba(3, 3, 2, .34);
+}
+.card-commit-flight__surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(244, 226, 177, .12),
+    inset 0 -22px 30px rgba(0, 0, 0, .16);
+  pointer-events: none;
+}
+.card-commit-flight__tier {
+  width: 100%;
+  color: var(--flight-accent);
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .16em;
+  line-height: 1;
+  text-align: center;
+  text-indent: .16em;
+}
+.card-commit-flight__art {
+  width: clamp(60px, 17vw, 76px);
+  height: clamp(60px, 17vw, 76px);
+  margin: 5px 0 3px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .38));
+}
+.card-commit-flight__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.card-commit-flight__surface > strong {
+  min-height: 2.45em;
+  display: grid;
+  place-items: center;
+  color: #f4efe4;
+  font-family: var(--serif);
+  font-size: clamp(15px, 4.55vw, 19px);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, .9);
+  overflow-wrap: anywhere;
+}
+.card-commit-flight__surface > small {
+  margin-top: 6px;
+  color: #aaa293;
+  font-family: var(--serif);
+  font-size: 10.5px;
+  line-height: 1.16;
+  text-align: center;
+}
+.card-commit-flight.is-dissolving .card-commit-flight__card {
+  animation: card-commit-paper-dissolve 620ms linear forwards;
+}
+.card-commit-flight__particles {
+  position: absolute;
+  top: calc(-1 * var(--particle-padding));
+  left: calc(-1 * var(--particle-padding));
+  display: block;
+  opacity: 1;
+  pointer-events: none;
+}
+.card-commit-flight.is-reduced-motion {
+  animation-duration: 60ms;
+}
+.card-commit-flight.is-reduced-motion.is-dissolving .card-commit-flight__card {
+  animation: card-commit-reduced-fade 120ms linear forwards;
+}
+
+@keyframes card-commit-flight {
+  0% {
+    transform:
+      translate3d(var(--flight-from-x), var(--flight-from-y), 0)
+      rotateZ(var(--flight-start-rotation))
+      scale(var(--flight-scale-x), var(--flight-scale-y));
+  }
+  25% {
+    transform:
+      translate3d(var(--flight-x-25), var(--flight-y-25), 0)
+      rotateZ(var(--flight-rotation-25))
+      scale(.972);
+  }
+  50% {
+    transform:
+      translate3d(var(--flight-x-50), var(--flight-y-50), 0)
+      rotateZ(var(--flight-rotation-50))
+      scale(.985);
+  }
+  75% {
+    transform:
+      translate3d(var(--flight-x-75), var(--flight-y-75), 0)
+      rotateZ(var(--flight-rotation-75))
+      scale(.995);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotateZ(0deg) scale(1);
+  }
+}
+
+@keyframes card-commit-paper-dissolve {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    clip-path: polygon(
+      0 0, 100% 0,
+      100% 100%, 88% 100%, 76% 100%, 64% 100%, 52% 100%,
+      40% 100%, 28% 100%, 16% 100%, 0 100%
+    );
+  }
+  28% {
+    opacity: 1;
+    transform: translate3d(2px, -2px, 0) scale(.998);
+    clip-path: polygon(
+      0 0, 100% 0,
+      100% 78%, 88% 86%, 76% 76%, 64% 83%, 52% 73%,
+      40% 84%, 28% 75%, 16% 82%, 0 74%
+    );
+  }
+  62% {
+    opacity: .96;
+    transform: translate3d(6px, -7px, 0) scale(.99);
+    clip-path: polygon(
+      0 0, 100% 0,
+      100% 42%, 88% 50%, 76% 39%, 64% 47%, 52% 35%,
+      40% 46%, 28% 37%, 16% 43%, 0 34%
+    );
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(14px, -22px, 0) scale(.965);
+    clip-path: polygon(
+      0 0, 100% 0,
+      100% 0, 88% 0, 76% 0, 64% 0, 52% 0,
+      40% 0, 28% 0, 16% 0, 0 0
+    );
+  }
+}
+
+@keyframes card-commit-reduced-fade {
+  to { opacity: 0; }
 }
 .choice-card__tier {
   width: 100%;
@@ -2847,6 +3045,11 @@
   border-color: rgba(183, 157, 104, .58);
   background: #15110d;
   color: #d7c7a4;
+}
+.game-shell:has(.event-screen.is-card-committing) .sound-toggle {
+  opacity: .08;
+  transform: scale(.92);
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
 }
 
 @keyframes card-deal-in {
@@ -3602,13 +3805,12 @@
   100% { transform: rotate(360deg) scale(1); }
 }
 @keyframes event-commit-scene {
-  0% { filter: brightness(1); transform: scale(1); }
-  45% { filter: brightness(.7) sepia(.18); transform: scale(1.018); }
-  100% { filter: brightness(.36) sepia(.3); transform: scale(1.035); }
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: .34; transform: scale(1.018); }
 }
 @keyframes event-commit-copy {
-  0% { opacity: 1; filter: blur(0); transform: translateY(0); }
-  100% { opacity: .08; filter: blur(2px); transform: translateY(6px); }
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: .08; transform: translateY(5px); }
 }
 @keyframes echo-screen-enter {
   0% { opacity: .18; background: #2d0806; }
@@ -3679,6 +3881,7 @@
   .echo-screen__art,
   .echo-verdict,
   .event-screen[data-layout="image-overlay"].is-card-committing .event-scene,
+  .event-screen[data-layout="image-overlay"].is-card-committing .timeline-progress,
   .event-screen[data-layout="image-overlay"].is-card-committing .event-copy,
   .event-screen[data-layout="image-overlay"].is-card-committing .decision-zone h2,
   .event-screen[data-layout="image-overlay"].is-card-committing .choice-roll,
