@@ -23,6 +23,7 @@ describe("local official DeepSeek transport", () => {
 
   it("calls the official endpoint with V4 Flash outside the browser", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "local-test-key");
+    vi.stubEnv("VITE_DEEPSEEK_API_KEY", "");
     vi.stubEnv("DEEPSEEK_MODEL", "deepseek-v4-flash");
     const fetcher = vi.fn().mockResolvedValue(completion());
     vi.stubGlobal("fetch", fetcher);
@@ -34,7 +35,7 @@ describe("local official DeepSeek transport", () => {
     })).resolves.toBe('{"ok":true}');
 
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(fetcher.mock.calls[0]?.[0]).toBe("https://api.deepseek.com/chat/completions");
+    expect(fetcher.mock.calls[0]?.[0]).toBe("https://api.deepseek.com/v1/chat/completions");
     expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({
       Authorization: "Bearer local-test-key",
       "Content-Type": "application/json",
@@ -47,6 +48,19 @@ describe("local official DeepSeek transport", () => {
       thinking: { type: "disabled" },
       max_tokens: 8192,
       messages,
+    });
+  });
+
+  it("uses the current local project key when an older shell key also exists", async () => {
+    vi.stubEnv("VITE_DEEPSEEK_API_KEY", "project-local-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "stale-shell-key");
+    const fetcher = vi.fn().mockResolvedValue(completion());
+    vi.stubGlobal("fetch", fetcher);
+
+    await requestCompletion(messages, { phase: "turn", reasoning: "fast" });
+
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: "Bearer project-local-key",
     });
   });
 

@@ -217,6 +217,8 @@ const choicesSchema = z.tuple([
   z.object({ id: z.literal("C"), ...choiceFields }),
 ]);
 
+const PREMATURE_PROTAGONIST_REMOVAL_PATTERN = /(?:你|玩家|主角)(?!的).{0,8}(?:被|遭).{0,8}(?:处死|斩首|杀死|击毙|杀害)|(?:你|玩家|主角)(?!的)(?:本人)?(?:当场|随后|最终|立即|会|将)?(?:死亡|身亡|丧命|殒命|自尽|失去意识|终身监禁|终身囚禁)|(?:处死|斩首|杀死|击毙)(?:了)?(?:你|玩家|主角)(?!的)/;
+
 const causalLedgerEntrySchema = z.object({
   fact: requiredString,
   causedByChapter: causalChapterSchema,
@@ -343,6 +345,18 @@ function validateTimelineTurn(
             code: "custom",
             path: [field, index, "actionSpec"],
             message: "行动缺少足够具体的执行信息",
+          });
+        }
+        const playerConsequence = [
+          choice.instantEcho.directResult,
+          choice.instantEcho.unexpectedCost,
+          choice.instantEcho.payer,
+        ].join(" ");
+        if (PREMATURE_PROTAGONIST_REMOVAL_PATTERN.test(playerConsequence)) {
+          context.addIssue({
+            code: "custom",
+            path: [field, index, "instantEcho", "unexpectedCost"],
+            message: "四幕主角不能在卡牌即时结果中死亡或永久退场",
           });
         }
       });

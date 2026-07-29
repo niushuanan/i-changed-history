@@ -20,12 +20,12 @@ const LIVE_ROLL_START_MS = 360;
 const CARD_META = {
   nudge: {
     name: "循史",
-    description: "照原计划行动",
+    description: "让眼前结果照常发生",
     icon: "/assets/cards/choice-regular.png",
   },
   reform: {
     name: "破局",
-    description: "当场换一条路",
+    description: "当场扭转眼前结果",
     icon: "/assets/cards/choice-radical.png",
   },
   rupture: {

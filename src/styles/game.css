@@ -1698,6 +1698,7 @@
 .result-front-page { min-height: 100%; margin: 0; padding: 15px 16px; background: var(--paper); color: var(--ink); }
 .report-masthead { padding: 7px 0 10px; border-top: 4px solid var(--ink); border-bottom: 3px double var(--ink); text-align: center; }
 .report-masthead span { color: var(--red); font-size: 12px; font-weight: 900; }
+.report-masthead .report-ai-mark { display: block; margin-top: 2px; color: #6b655d; font-size: 11px; font-weight: 800; }
 .report-masthead h1 { margin: 3px 0; font-family: var(--serif); font-size: 32px; line-height: 1.1; }
 .report-masthead p { margin: 4px 0 0; font-family: var(--serif); font-size: 14px; line-height: 1.4; }
 .biography-death { padding: 10px 0; border-bottom: 1px solid var(--ink); }

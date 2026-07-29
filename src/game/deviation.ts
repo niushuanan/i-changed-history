@@ -1,7 +1,7 @@
 import type { DeviationClass, TimelineTurn } from "./schema";
 
 export const BASE_IMPACT = Object.freeze({
-  nudge: 3,
+  nudge: 0,
   reform: 10,
   rupture: 22,
 } as const satisfies Record<DeviationClass, number>);

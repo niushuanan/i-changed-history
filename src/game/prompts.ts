@@ -76,9 +76,11 @@ function turnContract() {
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念；输出前核对人物、机构与制度在目标年份仍在世、在任或确实存在，目标年份以 authoritativeTimelineNode.targetYear 为准；若因玩家正史改变则在 narrative 中说明",
       snapshotGrounding: "历史快照不是背景资料，而是本幕所有行动的边界。三张牌必须分别使用不同的具体杠杆；每张牌至少逐字使用一个本幕已经出现的具体人物、机构、地点、器物、命令或程序。不得用原定方案、新方案、现场众人、愿意跟随的人、负责执行的人等万能占位词逃避历史细节",
-      choices: "首组三张严格为 A/B/C。A=nudge：利用本幕正在运行的真实程序、身份权限或既有人物关系推进，但不要把循史写成等待、复核或照办；B=reform：借具体人物、证据、器物、传播通道或指挥链显著改史，不要把破局写成泛化的接管现场、另起人马或公开改令；C=rupture：只能使用 assignedPowers.choicesC 指定的超能力，powerId 必须逐字复制，actionSpec.actor 必须逐字为“你”。你要亲自把这项能力用在当前历史快照中的具体人物、器物、命令、地点和期限上；历史人物只能成为目标、盟友、对手或受影响者。必须完整兑现 exactRule 的范围、强度、对象和持续时间，决定胜负的核心动作就是普通人绝不可能做到的能力效果；禁止缩小成普通技巧，禁止只拿能力制造黑暗、混乱、注意力或掩护，再靠换文件、偷东西、传话等普通动作解决问题。不能更换能力、把能力写成比喻、只讨论能力，也不能用意外代价否定能力已经成功。三张牌必须使用三种不同的现场杠杆，改变不同关系并让不同的人付代价。先像当事人开口，再从这句话中提取 actor、action、target、deadline；不要先按字段拼报告。每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字；label 为完整决定，必须以具体的人、物、地点或已经发生的结果收尾，末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”或“向、对、把、将、让、以、从、与、和、及、但、且”。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec；A/B 不得输出 powerId",
-      rollChoices: "第二组三张字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture，但必须继续开辟三种首组未使用的现场杠杆。rollChoices 的 C 只能使用 assignedPowers.rollChoicesC，powerId 必须逐字复制且 actionSpec.actor 必须逐字为“你”。六张牌不能只是同一动作换人、换动词或逐级加码；人物、对象、手段、直接结果和代价承担者都要拉开。牌名必须像玩家在现场会脱口而出的具体动作，不得用产品术语、历史评论、抽象政治口号或万能占位词。客户端会把本组作为第一次 Roll 的预先准备结果，经过洗牌动效后发出",
+      trajectorySemantics: "先从 narrative、worldStateChange、immediateObjective 与有效正史中写清本幕的既有轨道：当前掌权者、已经启动的命令、无人改动时会发生的结果。循史与温和程度无关：真实轨道即使是战争、政变、处决或制度巨变，A 也必须在期限前执行一个让它真正落地的具体动作。A 不得阻止、逆转、拖延到期限后、替换当前掌权者、改变命令目标或偷换最终结果；B 必须改变至少一个控制点、命令方向或最终结果",
+      choices: "首组三张严格为 A/B/C。A=nudge：利用本幕正在运行的程序、身份权限或既有人物关系，亲手执行 trajectorySemantics 中的既有轨道并让其结果按时发生；不能只等待、复核、建议或口头表示照办。B=reform：借具体人物、证据、器物、传播通道或指挥链改变既有轨道的控制点、命令方向或结果；不要把破局写成泛化的接管现场、另起人马或公开改令。C=rupture：只能使用 assignedPowers.choicesC 指定的超能力，powerId 必须逐字复制，actionSpec.actor 必须逐字为“你”。你要亲自把这项能力用在当前历史快照中的具体人物、器物、命令、地点和期限上；历史人物只能成为目标、盟友、对手或受影响者。必须完整兑现 exactRule 的范围、强度、对象和持续时间，决定胜负的核心动作就是普通人绝不可能做到的能力效果；禁止缩小成普通技巧，禁止只拿能力制造黑暗、混乱、注意力或掩护，再靠换文件、偷东西、传话等普通动作解决问题。不能更换能力、把能力写成比喻、只讨论能力，也不能用意外代价否定能力已经成功。三张牌必须使用三种不同的现场杠杆，改变不同关系并让不同的人付代价。先像当事人开口，再从这句话中提取 actor、action、target、deadline；不要先按字段拼报告。每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字；label 为完整决定，必须以具体的人、物、地点或已经发生的结果收尾，末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”或“向、对、把、将、让、以、从、与、和、及、但、且”。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec；A/B 不得输出 powerId",
+      rollChoices: "第二组三张字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture。第二张 A 仍须用另一个具体杠杆执行同一既有轨道，不能借 Roll 暗中改史；第二张 B 仍须明确改变轨道。rollChoices 的 C 只能使用 assignedPowers.rollChoicesC，powerId 必须逐字复制且 actionSpec.actor 必须逐字为“你”。六张牌不能只是同一动作换人、换动词或逐级加码；人物、对象、手段、直接结果和代价承担者都要拉开。牌名必须像玩家在现场会脱口而出的具体动作，不得用产品术语、历史评论、抽象政治口号或万能占位词。客户端会把本组作为第一次 Roll 的预先准备结果，经过洗牌动效后发出",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
+      protagonistSurvival: "六张牌的 directResult、unexpectedCost 与 payer 都不得让主角死亡、被处死、失去意识、终身监禁或永久失去行动能力；他必须能以同一身体继续完成下一幕。可以受伤、失势、被追捕、流亡或欠下具体债务",
       causalLedger: "最多三项，只写模型新增的普通因果，每项含 fact、causedByChapter、mustAffect，fact 与 mustAffect 控制在 28 字以内。客户端会优先注入 narrativeContext.activePlayerCanon；不要在这里机械复制玩家原文，活跃正史占满三项时返回空数组",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
       completeness: "每个短字段必须以完整短句收尾，宁可更短也不得在名词、动词或因果关系中间截断",
@@ -95,13 +97,13 @@ function turnContract() {
       divergenceProof: "只写实际发生的真实结果与直接后果",
       historicalAnchors: ["真实人物", "真实机构", "时代器物"],
       choices: [
-        { id: "A", displayLabel: "藏起渡河名册", label: "趁巡检封门前，把漕运名册藏进盐袋交给码头脚夫", intent: "利用现场文书和交接程序保住一条退路", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "看守仓门的录事", action: "藏起名册并交给脚夫", target: "漕运名册", deadline: "巡检封门前" }, instantEcho: { directResult: "名册避开搜查送出仓门", unexpectedCost: "脚夫会被追查", beneficiary: "名册上的船户", payer: "替你带货的脚夫" } },
-        { id: "B", displayLabel: "叫校尉提前落闸", label: "叫出守桥校尉真名，用他的旧债换来提前落闸", intent: "利用具体人情债改变关卡控制权", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "掌握旧债的录事", action: "以旧债逼校尉提前落闸", target: "守桥校尉", deadline: "追兵抵桥前" }, instantEcho: { directResult: "桥闸提前截住追兵", unexpectedCost: "校尉从此受你牵制", beneficiary: "桥外逃亡者", payer: "欠债的守桥校尉" } },
+        { id: "A", displayLabel: "封签渡河名册", label: "在巡检封门前盖下官印，把漕运名册交给守桥校尉执行", intent: "让已经启动的封桥命令按时落地", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "掌管官印的录事", action: "封签名册并交给校尉", target: "漕运名册", deadline: "巡检封门前" }, instantEcho: { directResult: "校尉按名册封住桥闸", unexpectedCost: "误列船户也被扣留", beneficiary: "追捕命令的签发者", payer: "名册上的船户" } },
+        { id: "B", displayLabel: "割断桥闸绞索", label: "趁校尉点名时割断桥闸绞索，放走名册上的最后一艘船", intent: "让已经启动的封桥命令无法完成", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "看守绞盘的录事", action: "割断桥闸绞索并放船离开", target: "桥闸绞索", deadline: "校尉点名结束前" }, instantEcho: { directResult: "桥闸卡死而船户驶出关口", unexpectedCost: "守闸兵会追查断索者", beneficiary: "名册上的船户", payer: "看守绞盘的录事" } },
         { id: "C", powerId: "逐字复制 assignedPowers.choicesC.powerId", displayLabel: "发动指定能力", label: "你把指定能力用在本幕具体人物或器物上并完成不可撤销行动", intent: "用指定能力击中当前唯一瓶颈", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "你", action: "亲自发动指定能力完成具体动作", target: "本幕具体人物或器物", deadline: "本幕明确期限" }, instantEcho: { directResult: "能力立即造成可见且具体的成功结果", unexpectedCost: "成功之后由具体人物承担的代价", beneficiary: "具体受益者", payer: "具体承担者" } },
       ],
       rollChoices: [
-        { id: "A", displayLabel: "调换两枚火漆印", label: "趁掌印官转身，调换红蓝火漆印让追查走错仓门", intent: "利用现场印记制造一次程序误判", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "熟悉封签的录事", action: "调换两枚火漆印", target: "仓门封签", deadline: "掌印官回身前" }, instantEcho: { directResult: "追查队先去了空仓", unexpectedCost: "真仓封签失去效力", beneficiary: "藏在真仓的人", payer: "负责封签的掌印官" } },
-        { id: "B", displayLabel: "把账册塞给债主", label: "把私运账册塞给盐商债主，逼他带人堵住官船", intent: "让经济债务压过原有命令", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "拿到账册的录事", action: "用账册逼盐商堵住官船", target: "盐商债主", deadline: "官船离岸前" }, instantEcho: { directResult: "盐商带人堵住官船", unexpectedCost: "账册落入商人手中", beneficiary: "被官船追捕的人", payer: "账册上的私运者" } },
+        { id: "A", displayLabel: "送出封桥副令", label: "趁掌印官封蜡，把封桥副令递给北岸骑手送往桥头", intent: "用第二条传令链确保封桥命令落地", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "熟悉封签的录事", action: "封好副令并交给北岸骑手", target: "封桥副令", deadline: "掌印官离席前" }, instantEcho: { directResult: "桥头收到第二份封桥令", unexpectedCost: "骑手错过撤离时辰", beneficiary: "追捕命令的执行者", payer: "送令的北岸骑手" } },
+        { id: "B", displayLabel: "烧掉追捕名册", label: "把追捕名册塞进灯炉烧尽，催盐商连夜带船户离港", intent: "让封桥命令失去名单和目标", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "保管账册的录事", action: "烧掉名册并催盐商带船户离港", target: "追捕名册", deadline: "官船离岸前" }, instantEcho: { directResult: "追捕队失去名单而船户离港", unexpectedCost: "录事成为唯一经手嫌疑人", beneficiary: "名册上的船户", payer: "保管账册的录事" } },
         { id: "C", powerId: "逐字复制 assignedPowers.rollChoicesC.powerId", displayLabel: "发动另一能力", label: "你把另一项指定能力用在不同历史锚点上并立刻改写局面", intent: "用另一项能力开辟完全不同的行动路线", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "你", action: "亲自发动另一项指定能力", target: "本幕另一个具体人物或器物", deadline: "本幕明确期限" }, instantEcho: { directResult: "另一能力立即完成具体改变", unexpectedCost: "不否定成功的具体代价", beneficiary: "具体受益者", payer: "具体承担者" } },
       ],
       causalLedger: [{ fact: "因果事实", causedByChapter: 0, mustAffect: "后续对象" }], visualTone: "war",
@@ -190,6 +192,12 @@ export function buildContinuationMessages(
       requiredHistoricalAnchors: 2,
       recentScenesToAvoidRepeating: narrativeContext.recentScenes,
     },
+    sceneTrajectoryContract: {
+      establishBeforeWritingChoices: "从本幕正文、当前世界事实与有效正史判断：谁掌权、哪道命令已经启动、无人改变会产生什么结果",
+      optionA: "在期限前执行一个让这条既有轨道真正落地的动作；轨道本身即使激进也仍是循史，不得阻止、逆转、拖延、换掉掌权者或偷换结果",
+      optionB: "在期限前改变既有轨道的控制点、命令方向或结果",
+      optionC: "由玩家亲自发动指定超能力，形成第三种完全不同的结果",
+    },
     submissionChecklist: {
       narrative: "必须以句号、问号或叹号结束，最后一句拥有明确主语、动作与对象，不得停在把、将、让、为、向等未完成结构",
       location: "若目标年份早于 1900 年，再检查一次地点中没有议事厅、会议室、办公室、指挥中心、控制室等现代通用空间名",
@@ -219,7 +227,7 @@ export function buildRerollMessages(
   ];
 
   return messages({
-    task: `为当前同一历史现场发出第 ${rollNumber} 次 Roll 的三张全新卡牌。不要续写场景，不要改变人物、年份、地点或已经发生的历史；只输出 choices。先在心里盘点 currentScene 与 historyMoment：谁能被说服、什么东西能被拿走、哪道命令或程序能被截断、主角凭当前身份够得到什么；不要输出盘点过程。三张牌严格依次为 A 循史、B 破局、C 天外。三张牌必须使用三种不同的现场杠杆，并与 allPreviouslySeenCards 的人物、对象、手段、直接结果和代价承担者明显不同。每张牌都要逐字带出至少一个当前快照中的专名或实物，像现场的人在说一个能立刻执行的主意，不像报告、评论或产品说明；禁止“夺取解释权、推进既有轨迹、改变历史走向、重塑秩序、综合施策、稳妥处置、原定方案、新方案、现场众人、愿意跟随的人”等万能话术。不要把循史写成等待、复核或照办；不要把破局写成泛化的接管现场、另起人马或越级下令。C 牌只能使用 assignedPower 指定的一项能力：powerId 必须逐字复制，actionSpec.actor 必须逐字为“你”，你要亲自把能力用在当前历史快照的具体人物、器物、命令或地点上。必须完整兑现 exactRule 的范围、强度、对象和持续时间，能力本身就是解决当前瓶颈的决胜动作；禁止只用能力制造黑暗、混乱、注意力或掩护，再靠普通动作解决问题。不能换能力、弱化成比喻、只讨论能力，代价也不能否定已经成功。`,
+    task: `为当前同一历史现场发出第 ${rollNumber} 次 Roll 的三张全新卡牌。不要续写场景，不要改变人物、年份、地点或已经发生的历史；只输出 choices。先在心里盘点 currentScene 与 historyMoment，并明确这幕的既有轨道：谁掌权、哪道命令已经启动、无人改变会产生什么结果；不要输出盘点过程。三张牌严格依次为 A 循史、B 破局、C 天外。A 必须在期限前用一个尚未出现的具体动作让既有轨道真正落地；即使轨道本身激进也仍然是循史，A 不得阻止、逆转、拖延、换掉掌权者或偷换结果。B 必须改变既有轨道的控制点、命令方向或结果。三张牌必须使用三种不同的现场杠杆，并与 allPreviouslySeenCards 的人物、对象、手段、直接结果和代价承担者明显不同。每张牌都要逐字带出至少一个当前快照中的专名或实物，像现场的人在说一个能立刻执行的主意，不像报告、评论或产品说明；禁止“夺取解释权、推进既有轨迹、改变历史走向、重塑秩序、综合施策、稳妥处置、原定方案、新方案、现场众人、愿意跟随的人”等万能话术。不要把循史写成等待、复核、建议或口头照办；不要把破局写成泛化的接管现场、另起人马或越级下令。三张牌的结果和代价都不能让玩家死亡、被处死、失去意识、终身监禁或永久退场；同一个主角必须能继续下一幕。C 牌只能使用 assignedPower 指定的一项能力：powerId 必须逐字复制，actionSpec.actor 必须逐字为“你”，你要亲自把能力用在当前历史快照的具体人物、器物、命令或地点上。必须完整兑现 exactRule 的范围、强度、对象和持续时间，能力本身就是解决当前瓶颈的决胜动作；禁止只用能力制造黑暗、混乱、注意力或掩护，再靠普通动作解决问题。不能换能力、弱化成比喻、只讨论能力，代价也不能否定已经成功。`,
     ...scenarioPayload(scenario),
     playedHistory: selectedHistory(playedTurns),
     assignedPower: powerPrompt(assignedPowerId),
@@ -234,6 +242,11 @@ export function buildRerollMessages(
       immediateObjective: turn.immediateObjective,
       timePressure: turn.timePressure,
       historicalAnchors: turn.historicalAnchors,
+    },
+    sceneTrajectoryContract: {
+      optionA: "执行并完成当前既有轨道",
+      optionB: "改变当前既有轨道的控制点、命令方向或结果",
+      optionC: "使用指定超能力形成第三种结果",
     },
     allPreviouslySeenCards: allPreviouslySeenCards.map(({ id, displayLabel, label, deviationClass, intent }) => ({
       id, displayLabel, label, deviationClass, intent,

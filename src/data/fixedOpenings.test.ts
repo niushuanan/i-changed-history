@@ -5,6 +5,13 @@ import {
   getFixedOpeningPowerIds,
   getFixedPowerChoicePool,
 } from "./fixedOpenings";
+import { FIXED_OPENING_CHOICES } from "./fixedOpeningChoices.generated";
+
+const removedProtagonistPattern = /(?:你|玩家|主角)(?!的).{0,8}(?:被|遭).{0,8}(?:处死|斩首|杀死|击毙|杀害)|(?:你|玩家|主角)(?!的)(?:本人)?(?:当场|随后|最终|立即|会|将)?(?:死亡|身亡|丧命|殒命|自尽|失去意识|终身监禁|终身囚禁)|(?:处死|斩首|杀死|击毙)(?:了)?(?:你|玩家|主角)(?!的)/;
+
+function clean(value: string): string {
+  return value.replace(/[。！？!?；;]+/g, "，").replace(/，+/g, "，").replace(/^，|，$/g, "").trim();
+}
 
 describe("fixed first turns", () => {
   it("provides one playable, schema-valid opening for every history card", () => {
@@ -28,7 +35,8 @@ describe("fixed first turns", () => {
       expect([...opening.choices, ...opening.rollChoices].every(
         (choice) => [...choice.displayLabel].length <= 16,
       )).toBe(true);
-      expect(opening.narrative.match(/[。！？!?]/g)).toHaveLength(3);
+      expect(opening.narrative.match(/[。！？!?]/g)?.length).toBeGreaterThanOrEqual(5);
+      expect(opening.narrative).not.toMatch(/[，、的并以而于]。$/);
     }
   });
 
@@ -43,31 +51,17 @@ describe("fixed first turns", () => {
     expect(getFixedOpening(HISTORY_SEEDS[0])).toEqual(getFixedOpening(HISTORY_SEEDS[0]));
   });
 
-  it("keeps the CERN opening objective and primary action complete through same-day publication", () => {
-    const seed = HISTORY_SEEDS.find((candidate) => candidate.id === "web-public-domain-1993");
-    const opening = getFixedOpening(seed!);
-    const completeAction = "把万维网免费开放条款送交两位主任共同签署并当日发布";
-
-    expect(opening.immediateObjective).toBe(completeAction);
-    expect(opening.choices[0].label).toBe(completeAction);
-    expect(opening.immediateObjective).toMatch(/万维网免费开放条款.*两位主任共同签署.*当日发布$/);
-    expect(opening.choices[0].label).toMatch(/万维网免费开放条款.*两位主任共同签署.*当日发布$/);
-  });
-
-  it("保留苏伊士固定开场的广播同步接管命令", () => {
-    const seed = HISTORY_SEEDS.find((candidate) => candidate.id === "suez-nationalization-1956");
-    const opening = getFixedOpening(seed!);
-    const completeAction = "在纳赛尔广播时同步发出运河公司立即接管密令";
-
-    expect(opening.immediateObjective).toBe(completeAction);
-    expect(opening.choices[0].label).toBe(completeAction);
+  it("keeps every AI-authored trajectory complete instead of clipping its final command", () => {
+    for (const seed of HISTORY_SEEDS) {
+      const entry = FIXED_OPENING_CHOICES[seed.id as keyof typeof FIXED_OPENING_CHOICES];
+      expect(getFixedOpening(seed).immediateObjective).toBe(clean(entry.trajectory.historicalPath));
+    }
   });
 
   it("keeps all opening card details as complete canonical clauses", () => {
     const openings = HISTORY_SEEDS.map((seed) => getFixedOpening(seed));
     const labels = openings.flatMap((opening) => opening.choices.map((choice) => choice.label));
     const allChoices = openings.flatMap((opening) => [...opening.choices, ...opening.rollChoices]);
-    const apollo = openings[HISTORY_SEEDS.findIndex((seed) => seed.id === "apollo-11-1969")];
 
     expect(labels).toHaveLength(300);
     expect(labels.every((label) => label.trim().length > 0)).toBe(true);
@@ -76,32 +70,53 @@ describe("fixed first turns", () => {
     expect(allChoices.filter((choice) => /夺取现场解释权|照史推进原定命令|压到最后一刻|撕令夺权/.test(
       `${choice.displayLabel}${choice.label}`,
     ))).toEqual([]);
-    expect(apollo.choices[0].label).toContain("中止登月的口令");
   });
 
-  it("grounds every fixed opening card in the assigned historical role instead of generic followers", () => {
-    const wu = HISTORY_SEEDS.find((candidate) => candidate.id === "wu-zetian-690")!;
-    const opening = getFixedOpening(wu);
-    const allChoices = [...opening.choices, ...opening.rollChoices];
+  it("makes A preserve actual history, B change it, and both act through the player", () => {
+    for (const seed of HISTORY_SEEDS) {
+      const entry = FIXED_OPENING_CHOICES[seed.id as keyof typeof FIXED_OPENING_CHOICES];
+      const [firstA, firstB] = entry.choices;
+      const [rolledA, rolledB] = entry.rollChoices;
 
-    expect(allChoices.filter((choice) => choice.id !== "C").every(
-      (choice) => choice.actionSpec.actor.includes(opening.role.slice(0, 18)),
-    )).toBe(true);
-    expect(allChoices.filter((choice) => choice.id === "C").every(
-      (choice) => choice.actionSpec.actor === "你" && Boolean(choice.powerId),
-    )).toBe(true);
-    expect(allChoices.map((choice) => choice.actionSpec.actor).join(" ")).not.toMatch(
-      /你与负责执行的人|你与愿意跟随的人|你与两名现场见证人|你与支持改令的人/,
+      expect(entry.trajectory.preservedResult).toBe(seed.historicalOutcome);
+      expect([firstA.id, firstB.id, rolledA.id, rolledB.id]).toEqual(["A", "B", "A", "B"]);
+      expect([firstA.deviationClass, firstB.deviationClass, rolledA.deviationClass, rolledB.deviationClass])
+        .toEqual(["nudge", "reform", "nudge", "reform"]);
+      expect([firstA, firstB, rolledA, rolledB].every(
+        (choice) => choice.actionSpec.actor === "你" && !("powerId" in choice),
+      )).toBe(true);
+      expect(firstA.label).not.toBe(rolledA.label);
+      expect(firstB.label).not.toBe(rolledB.label);
+      expect([firstA, firstB, rolledA, rolledB].filter((choice) => removedProtagonistPattern.test(
+        [
+          choice.instantEcho.directResult,
+          choice.instantEcho.unexpectedCost,
+          choice.instantEcho.payer,
+        ].join("；"),
+      ))).toEqual([]);
+    }
+  });
+
+  it("regresses the two clearest trajectory traps: Shanhai Pass and Apollo 11", () => {
+    const shanhai = getFixedOpening(
+      HISTORY_SEEDS.find((candidate) => candidate.id === "shanhai-pass-1644")!,
     );
-    expect(opening.choices[1].label).toContain("武则天称帝");
-    expect(opening.rollChoices[0].label).toContain("武则天称帝");
-    expect(opening.rollChoices[1].label).toContain("武则天称帝");
-    expect([
-      opening.choices[1].displayLabel,
-      opening.rollChoices[0].displayLabel,
-      opening.rollChoices[1].displayLabel,
-    ].every((label) => /武则天|称帝/.test(label))).toBe(true);
-    expect(opening.choices[2].label).toMatch(/武则天|武后|洛阳|神都|则天|李旦/);
+    const apollo = getFixedOpening(
+      HISTORY_SEEDS.find((candidate) => candidate.id === "apollo-11-1969")!,
+    );
+
+    expect(`${shanhai.choices[0].label}${shanhai.choices[0].instantEcho.directResult}`)
+      .toMatch(/吴三桂|多尔衮/);
+    expect(`${shanhai.choices[0].label}${shanhai.choices[0].instantEcho.directResult}`)
+      .toMatch(/清军.*入关|入关.*清军/);
+    expect(`${shanhai.choices[1].label}${shanhai.choices[1].instantEcho.directResult}`)
+      .toMatch(/拒绝清军|拒关外|不得入关|不准入关/);
+    expect(`${apollo.choices[0].label}${apollo.choices[0].instantEcho.directResult}`)
+      .toMatch(/1202/);
+    expect(`${apollo.choices[0].label}${apollo.choices[0].instantEcho.directResult}`)
+      .toMatch(/继续下降|成功着陆|完成.*登月/);
+    expect(`${apollo.choices[1].label}${apollo.choices[1].instantEcho.directResult}`)
+      .not.toBe(`${apollo.choices[0].label}${apollo.choices[0].instantEcho.directResult}`);
   });
 
   it("owns six distinct, concrete AI-authored power choices for every fixed history snapshot", () => {

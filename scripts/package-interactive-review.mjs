@@ -9,7 +9,11 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const outputRoot = path.join(projectRoot, "dist-interactive");
 const releaseRoot = path.join(projectRoot, "release");
 const zipPath = path.join(releaseRoot, "i-changed-history-interactive-space.zip");
-const maxZipBytes = 8 * 1024 * 1024;
+const releaseConfig = JSON.parse(await readFile(
+  path.join(projectRoot, "interactive-space.release.json"),
+  "utf8",
+));
+const maxZipBytes = releaseConfig.maxZipBytes;
 
 function runNode(label, relativeScript, args = []) {
   console.log(`\n[interactive review] ${label}`);
@@ -40,6 +44,20 @@ async function collectFiles(directory, relativeDirectory = "") {
   return files;
 }
 
+async function removePlatformMetadata(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.name === ".DS_Store" || entry.name === "__MACOSX") {
+      await rm(absolutePath, { recursive: true, force: true });
+      continue;
+    }
+    if (entry.isDirectory()) {
+      await removePlatformMetadata(absolutePath);
+    }
+  }
+}
+
 runNode(
   "build the three-script runtime",
   "node_modules/vite/bin/vite.js",
@@ -47,6 +65,7 @@ runNode(
 );
 runNode("remove non-review assets", "scripts/prepare-interactive-build.mjs");
 runNode("optimize mobile assets", "scripts/optimize-interactive-assets.mjs");
+await removePlatformMetadata(outputRoot);
 runNode("verify the three-script boundary", "scripts/verify-interactive-review-build.mjs");
 
 await mkdir(releaseRoot, { recursive: true });

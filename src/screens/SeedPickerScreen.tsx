@@ -70,6 +70,9 @@ export function SeedPickerScreen({
   onShowAnnouncement,
   onToggleMute,
 }: SeedPickerScreenProps) {
+  const announcementName = import.meta.env.VITE_INTERACTIVE_SPACE === "true"
+    ? "体验说明"
+    : "游戏说明";
   const [drawState, setDrawState] = useState<"ready" | "drawing" | "revealed">("ready");
   const [previewIndex, setPreviewIndex] = useState(() => (
     Math.max(0, HISTORY_CARDS.findIndex((seed) => seed.id === context.activeSeedId))
@@ -230,7 +233,7 @@ export function SeedPickerScreen({
               </button>
               <button type="button" role="menuitem" tabIndex={-1} onClick={openAnnouncement}>
                 <Megaphone size={20} weight="bold" />
-                <span><strong>游戏说明</strong><small>玩法与通关目标</small></span>
+                <span><strong>{announcementName}</strong><small>玩法与通关目标</small></span>
               </button>
               <button type="button" role="menuitemcheckbox" tabIndex={-1} aria-checked={!muted} onClick={toggleAudio}>
                 {muted ? <SpeakerSlash size={20} weight="bold" /> : <SpeakerHigh size={20} weight="bold" />}
@@ -244,7 +247,7 @@ export function SeedPickerScreen({
       {context.mode === "draw" ? (
         <>
           <section className="destiny-readout" aria-live="polite">
-            <span>{drawState === "ready" ? "100 个历史现场，随机抽一个开局" : drawState === "drawing" ? "历史正在你眼前掠过" : "这一次，你来到"}</span>
+            <span>{drawState === "ready" ? `${HISTORY_CARDS.length} 个历史现场，随机抽一个开局` : drawState === "drawing" ? "历史正在你眼前掠过" : "这一次，你来到"}</span>
             <strong>{drawState === "ready" ? "???? 年" : formatHistoricalYear(previewSeed.year)}</strong>
             <small>已解锁 {unlockedCards.length} / {HISTORY_CARDS.length}</small>
           </section>

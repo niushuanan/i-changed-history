@@ -1,0 +1,9 @@
+{
+  "appId": "ttbb15cda8243f100b21",
+  "aiEnabled": true,
+  "chatModel": "deepseek-v4-flash",
+  "credentialMode": "platform-volcengine-api-key",
+  "screenDirection": 1,
+  "packageType": 1,
+  "maxZipBytes": 8388608
+}

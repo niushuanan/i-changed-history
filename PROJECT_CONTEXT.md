@@ -2,19 +2,20 @@
 
 ## 1. 这个项目是干什么的
 
-《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕则从该历史快照专属的六张 AI 候选里随机取两张，因此不增加任何首屏等待。牌面是 4-12 字摘要，长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待《史记》式人物列传和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
+《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。循史不再等同于温和或少改变，而是让当前掌权者、命令方向与既有结果按时落地；它即使执行战争、政变或拒绝也属于循史，并且不会新增偏离度。100 个固定第一幕的两组 A/B 都在开发期由 DeepSeek V4 Flash 编写，A 逐条对照真实结局审校，B 才负责改变控制关系、命令或结果。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕再从该历史快照专属的六张 AI 天外候选里随机取两张，因此不增加任何首屏等待。牌面是 4-12 字摘要，长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待《史记》式人物列传和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
 
-当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，原样流式转发 SSE，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子限额；浏览器产物不再包含 API Key。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地音频继续构建史诗氛围；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
+当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，并通过官方 `/v1/chat/completions` 原样流式转发 SSE，再用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子限额；浏览器产物不再包含 API Key。本地与 Node 长测优先读取项目 `.env.local` 的当前 Key，避免失效的系统环境 Key 覆盖用户刚配置的凭据。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地音频继续构建史诗氛围；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
 
 本地开发环境还提供独立的 `/tap.html` LLM Tap 调试页。浏览器端 DeepSeek 传输会通过同源 `BroadcastChannel("llm-tap-v1")` 旁路广播每次请求的完整输入、输出、状态、时序和 token 用量；调试页最多保存 200 条记录，支持请求翻页、输入/输出/指标切换、JSON 导出和清空。广播失败始终静默，不得影响游戏请求；`tap.html` 与 `src/tap/` 不进入普通生产构建和互动空间审核包。
 
-项目只维护 `main` 上这一份完整 100 剧本源码，不再维护独立的审核精简版本。抖音互动空间审核包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为 `tt.callAIChatCompletion`，历史入口只打包古腾堡印刷、伽利略《星空使者》和阿波罗 11 号三个低敏剧本，其他 97 个剧本仍完整保留在源码和普通产品中但不得进入审核 ZIP；脚本同时删除非白名单历史图、扫描最终 JS 的剧本 ID 泄漏、优化移动资源、执行 8MB ZIP 闸门并生成待上传文件。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
+项目只维护 `main` 上这一份完整 100 剧本源码，不再维护独立的审核精简版本。抖音互动空间审核包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，模型固定 `deepseek-v4-flash`，密钥只使用互动空间账号托管的火山引擎 API Key；历史入口只打包古腾堡印刷、伽利略《星空使者》和阿波罗 11 号三个低敏剧本，首页数量同步显示 3，其他 97 个剧本仍完整保留在源码和普通产品中但不得进入审核 ZIP。脚本同时删除非白名单历史图、扫描最终 JS 的剧本 ID 泄漏、清理 macOS 元数据、优化移动资源、执行 8MB ZIP 闸门并生成待上传文件；成品事件和两页报告显示 AI 标识，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
 
 ## 2. 代码结构是什么
 
 - `src/data/`：100 张著名历史转折点、与其一一对应的固定第一幕、搜索筛选目录，以及按年份/阶段选取的视觉资产映射。
 - `src/data/historySeeds/`：历史剧本模块边界；`scripts/<seed-id>/index.ts` 每个目录只拥有一个剧本，`shared.ts` 提供公共构造器与标签，`index.ts` 显式维护完整 100 节点的唯一聚合顺序。
 - `src/data/historySeeds/interactive.ts`：只供互动空间构建别名使用的三个低敏剧本聚合；普通产品和测试默认不经过该入口。
+- `src/data/fixedOpeningChoices.generated.ts` 与 `src/data/fixedOpeningChoices.interactive.generated.ts`：100 个历史快照开发期 AI 生成并审校的两组 A/B，以及互动空间三个白名单历史的构建期子集。
 - `src/data/fixedPowerChoices.generated.ts` 与 `src/data/fixedPowerChoices.interactive.generated.ts`：100 个历史快照各六张开发期 AI 天外候选，以及互动空间三个白名单历史的构建期子集。
 - `src/game/`：游戏领域层，包含单一主角一生四决策时间计划、每幕首发六张牌与三次 Roll 状态、不可撤销世界正史、重大节点编排、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
 - `src/game/powers.ts`：50 项权威超能力、随机洗牌、开局候选抽取、整局无放回发牌和模型能力说明入口。
@@ -32,10 +33,12 @@
 - `design/`：历史视觉稿与 360×667 / 390×844 真实浏览器验收截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、三套原创透明卡面图标、CC0 史诗配乐及授权记录。
 - `scripts/package-interactive-review.mjs`、`scripts/interactive-review-catalog.mjs`、`scripts/prepare-interactive-build.mjs`、`scripts/verify-interactive-review-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：定义三个审核剧本、构建平台运行时、删除其他历史图、扫描非白名单剧本泄漏、优化移动资源、执行未压缩与 ZIP 双体积闸门，并生成唯一待提交 ZIP；Sites 正式版继续使用全部 100 剧本和原始资源。
+- `interactive-space.release.json` 与 `docs/interactive-space-release-checklist.md`：互动空间 AppID、AI 开关、V4 Flash、平台火山凭据、竖屏、ZIP 上限、`20107` 阻断与提审前真机门禁。
+- `scripts/generate-fixed-opening-choices.mjs`：批量生成、结构校验、历史语义审校并断点续跑 100 个固定开场 A/B；任何 AI 失败都会终止且不会写入本地模板兜底。
 - `scripts/generate-fixed-power-choices.mjs`：批量生成、校验并可断点续跑 100×6 张固定开局天外候选，同时输出互动空间三历史子集；正常运行时不会调用它。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
-实际数据流是：未显影卡牌 -> 客户端从尚未解锁的 100 节点池随机选择并预载候选历史图 -> 完整 `HistoryCard` 通过九段固定 180ms 节奏的 3D 轮盘旋转停靠，中心卡保持清晰，旧卡向左后方退场，新卡从右后方旋入 -> 轮盘停稳后才挂载 `闯入这一刻` 与紧邻的 `换一个开局` -> 客户端从该历史专属六张 C 候选中随机取两项能力，同时打乱剩余 48 项能力并把整个牌堆写进当前局存档 -> 同步装载固定第一幕、固定主角与两组三张牌 -> 玩家可直接选首组，也可第一次 Roll 在约 1.2 秒实体洗牌后无网络地换成预生成第二组；第二、第三次 Roll 先无放回取一项能力，再把它、当前现场和所有已看牌提交给模型，只接收新的 A/B/C 三张，并在请求成功或失败前保持可见洗牌过渡，失败重试继续使用同一个 `powerId` -> 长按查看完整字段，向上划出一张 -> reducer 把完整 `label`、能力 ID、偏离类型与即时结果固化为不可撤销 `WorldCanon`，并在结果页为下一幕预取两项不同能力 -> 第 2 至第 4 幕把全部已选牌压成分层叙事上下文，Sites/本地由 Worker 向 DeepSeek 官方接口发起 SSE 推演，互动空间由 `tt.callAIChatCompletion` 走火山平台 -> 本地/Sites DeepSeek 传输完成或失败时同步尝试向 `llm-tap-v1` 广播完整调试记录，但不等待调试页也不让广播失败干扰游戏 -> Zod 校验人物连续性、两组三档牌、指定能力和因果账本，缺失可见文案时仅补失败字段 -> 第 4 张牌成为最后决定时立即写入独立永久解锁集合 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 合并报告并导出完整 2x PNG；玩家从档案再次选择该历史时，清空上一局并重新随机发放该历史的固定天外候选。
+实际数据流是：未显影卡牌 -> 客户端从尚未解锁的 100 节点池随机选择并预载候选历史图 -> 完整 `HistoryCard` 通过九段固定 180ms 节奏的 3D 轮盘旋转停靠，中心卡保持清晰，旧卡向左后方退场，新卡从右后方旋入 -> 轮盘停稳后才挂载 `闯入这一刻` 与紧邻的 `换一个开局` -> 客户端读取该历史已经由 AI 生成并审校的两组 A/B，再从该历史专属六张 C 候选中随机取两项能力，同时打乱剩余 48 项能力并把整个牌堆写进当前局存档 -> 同步装载固定第一幕、固定主角与两组三张牌 -> 玩家可直接选首组，也可第一次 Roll 在约 1.2 秒实体洗牌后无网络地换成预生成第二组；第二、第三次 Roll 先无放回取一项能力，再把它、当前现场和所有已看牌提交给模型，只接收新的 A/B/C 三张，并在请求成功或失败前保持可见洗牌过渡，失败重试继续使用同一个 `powerId` -> 长按查看完整字段，向上划出一张 -> reducer 把完整 `label`、能力 ID、偏离类型与即时结果固化为不可撤销 `WorldCanon`；A 不新增偏离度，B/C 才会继续推高改变 -> 结果页为下一幕预取两项不同能力 -> 第 2 至第 4 幕把全部已选牌压成分层叙事上下文，本地/Sites 通过官方 `/v1/chat/completions` 发起 SSE 推演，互动空间只由 `tt.callAIChatCompletion` 使用平台托管的火山凭据 -> 本地/Sites DeepSeek 传输完成或失败时同步尝试向 `llm-tap-v1` 广播完整调试记录，但不等待调试页也不让广播失败干扰游戏 -> Zod 校验人物连续性、两组三档牌、指定能力和因果账本，缺失可见文案时仅补失败字段 -> 第 4 张牌成为最后决定时立即写入独立永久解锁集合 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 合并报告并导出完整 2x PNG；玩家从档案再次选择该历史时，清空上一局并重新随机发放该历史的固定天外候选。
 
 ## 3. 关键入口在哪里
 
@@ -50,7 +53,7 @@
 - `src/game/schema.ts` 与 `src/game/reducer.ts`：六张首发牌、三次 Roll、动态牌组、永久解锁、存档状态和卡牌提交的权威入口。
 - `src/components/ChoiceList.tsx`：三卡牌桌、长按详情、上划提交、三次 Roll 与即时音效入口。
 - `src/screens/SeedPickerScreen.tsx` 与 `src/components/GameAnnouncement.tsx`：百节点 3D 轮盘随机停靠、未显影/揭晓卡、已解锁档案和首次玩法说明入口。
-- `src/data/fixedOpenings.ts`：100 张历史卡的固定第一幕与两组三张牌构建入口。
+- `src/data/fixedOpenings.ts` 与 `src/data/fixedOpeningChoices.generated.ts`：100 张历史卡的固定第一幕，以及 AI 生成、历史语义审校后的两组循史/破局牌构建入口。
 - `src/data/fixedPowerChoices.generated.ts`：100×6 张历史快照专属固定天外候选的运行时权威数据；只由生成脚本更新。
 - `src/game/worldCanon.ts`：把玩家决定固化为世界正史，并生成下一幕的重大节点编排约束。
 - `src/data/historySeeds/index.ts`：100 个单剧本模块的显式聚合与历史卡牌数据入口。
@@ -65,12 +68,25 @@
 - `.openai/hosting.json`：Sites 项目 ID 与 D1 / R2 逻辑绑定，绝不保存运行时密钥。
 - `.trae/mcp.json`：比赛方 `interative_content_mcp` 的项目级发布配置。
 - `scripts/package-interactive-review.mjs`：抖音提审前唯一允许的打包入口，最终输出 `release/i-changed-history-interactive-space.zip`。
+- `interactive-space.release.json` 与 `docs/interactive-space-release-checklist.md`：火山 AI、模型、包体、AI 标识、官方校验与提审阻断规则入口。
+- `scripts/generate-fixed-opening-choices.mjs`：固定开场循史/破局的开发期 AI 生成、结构/历史语义审校、断点续跑和互动空间子集输出入口。
 - `scripts/generate-fixed-power-choices.mjs`：固定开局天外候选的开发期 AI 生成、校验、断点续跑和互动空间子集输出入口。
 - `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run db:generate` 命令入口；其中 `build:interactive` 已固定为三剧本审核打包链路。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-29 20:06 - 重建循史语义并完成互动空间火山 AI 发布门禁
+
+- 本次任务：先把当时本地最新版本推到远端 `main`，再从根本上修复第一幕 A `循史` 经常反而破坏真实历史的问题；在不改变四幕、三卡、三次 Roll、等待仪式和玩家操作的前提下，提高全部开场与后续 AI 选择的合理性；最后根据用户提供的互动空间规范补齐 AI 标识、火山引擎 V4 Flash、8MB、离线资源与官方校验门禁，并保证重复 Roll 和完整结局真实可跑。
+- 改了哪些文件：新增 `src/data/fixedOpeningChoices.{generated,interactive.generated}.ts`、`scripts/generate-fixed-opening-choices.mjs`、`interactive-space.release.json`、`docs/interactive-space-release-checklist.md` 与 `public/favicon.svg`；修改 `src/data/fixedOpenings.ts`、`src/game/{deepseekProtocol,prompts,schema,deviation}.ts`、`src/services/deepseek.ts`、`worker/deepseek-proxy.ts`、`src/screens/{SeedPickerScreen,TimelineEventScreen}.tsx`、`src/components/{ChoiceList,GameAnnouncement,ResultFrontPage}.tsx`、互动空间构建/校验脚本、对应测试、`package.json`、`AGENTS.md`、`docs/ai-transports.md` 与本文档。
+- 改了什么：固定第一幕不再把 `seed.decision` 误当循史牌；100 个开场的首组/预备 Roll A/B 已全部由充值后的 DeepSeek V4 Flash 生成，A 再由独立语义审校对照真实结果，任何生成失败都会终止且没有本地假模板。A 被定义为让当前掌权者、命令和结果按时发生，B 才改变控制关系、命令或结果；A 偏离增量从 3 改为 0。续幕与实时 Roll prompt 同步携带当幕轨道契约，第一幕卡牌禁止让同一主角死亡或永久退场，固定简介删除字符硬截断，完整句子不再被切成“更多原始……”一类残句。DeepSeek 本地/Worker 端点统一改为真实可用的 `/v1/chat/completions`，本地与 Node 长测优先项目当前 Key，避免旧系统 Key 导致充值后仍 401；第二、第三次实时 Roll 继续走真实 AI。
+- 互动空间适配：静态包只保留古腾堡、伽利略和阿波罗 11 号三段历史，首页如实显示 3；运行时只调用 `tt.callAIChatCompletion`，模型逐字为 `deepseek-v4-flash`，凭据模式为互动空间账号托管的火山引擎 API Key，源码和 ZIP 不含密钥或普通网络请求。成品固定幕显示 `AI 辅助创作 · 固定开场`，续幕和双报告显示 `AI 生成 · V4 Flash`，互动空间说明改为 `体验说明`；发布契约固定 `ai_enabled: true`、竖屏、ZIP 与 8MB，`20107` 会阻断提审。打包器新增 `.DS_Store` / `__MACOSX` 清理、本地图标和实际目录/脚本/AI 标识/外链/密钥扫描。
+- 为什么这样改：原根因不是“循史牌写得不够温和”，而是固定 A 直接复用了本来就用于询问反事实的 `seed.decision`，同时公式还给 A 增加偏离度；另外本地后续幕使用旧 DeepSeek 地址且被失效系统 Key 覆盖，导致充值后重复 Roll 仍可能 401。把真实轨道、玩家决定和平台传输分别变成显式契约，才能同时消灭语义错位、假兜底和“代码里写了 AI 但玩家端没有可用调用”的发布风险。
+- 影响了哪些模块：影响 100 个固定开场 A/B、后续幕和实时 Roll 的 A/B 语义、偏离度、本地/Worker DeepSeek 传输、AI 标识、互动空间三历史构建和发布检查；不改变四次决定、三张牌、三次 Roll、第一轮预生成、第二/第三轮实时生成、50 项超能力、长按/上划、永久解锁、重复游玩、双报告或普通产品 100 剧本。互动空间仍不嵌入本地 DeepSeek Key，真实玩家调用必须由平台托管火山凭据。
+- 验证：DeepSeek V4 Flash 100/100 个固定开场全部生成并通过结构与 A 语义审校；Vitest 37 文件 373/373、TypeScript、235 个运行时文件可移植性、默认 vinext 构建通过。真实三历史全 Roll 门禁覆盖赤壁、罗马大火和阿波罗 11 号，3/3 完整跑满四幕、12/12 Roll、3/3 双报告，9/9 续幕生成成功，人工重试 0、主场景无效输出/修复 0。真实浏览器完成 100 卡抽取、武则天循史长按/上划、第二幕 V4 Flash 生成、第一次预备 Roll、第二和第三次实时 AI Roll；360×667、390×844、430×932 无横向溢出，控制台错误 0。最终互动空间包 35 个文件、2,727,835 字节、MD5 `91e04bd478ecad42f76b760d72fcd418`，白名单外剧本泄漏 0、密钥 0、普通网络 0，仓库门禁和官方 `h5-validator` 的目录/ZIP 两轮全部通过。
+- 平台状态：只读回查 AppID `ttbb15cda8243f100b21` 仍为旧包审核拒绝状态 `3`，拒绝原因“涉及违反法律法规”，但 `AIEnabled: true`、竖屏和 ZIP 类型都已开启；本次按用户当前范围没有上传新 ZIP、修改平台作品或重新提审，避免在真机扫码验证火山凭据前误触发外部发布。
 
 ### 2026-07-29 18:41 - 合入 LLM Tap 请求调试面板
 

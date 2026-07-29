@@ -29,7 +29,7 @@ export type {
 } from "./deepseek-contract";
 
 const DEEPSEEK_PROXY_ENDPOINT = "/api/deepseek/completions";
-const DEEPSEEK_DIRECT_ENDPOINT = "https://api.deepseek.com/chat/completions";
+const DEEPSEEK_DIRECT_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [800, 1_800] as const;
@@ -98,8 +98,8 @@ function transportRequest(
     } as const;
   }
 
-  const key = nodeEnvironmentValue("DEEPSEEK_API_KEY")
-    ?? nodeEnvironmentValue("VITE_DEEPSEEK_API_KEY");
+  const key = nodeEnvironmentValue("VITE_DEEPSEEK_API_KEY")
+    ?? nodeEnvironmentValue("DEEPSEEK_API_KEY");
   if (!key) throw new DeepSeekError("missing_api_key", "未配置 DeepSeek API 密钥。");
   const model = nodeEnvironmentValue("DEEPSEEK_MODEL")
     ?? nodeEnvironmentValue("VITE_DEEPSEEK_MODEL")

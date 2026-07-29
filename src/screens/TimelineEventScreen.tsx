@@ -126,7 +126,7 @@ export function TimelineEventScreen({
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />
         <span className={`generation-source ${turn.generationSource === "fixed" ? "is-fixed" : "is-deepseek"}`}>
-          <i />{turn.generationSource === "fixed" ? "固定历史开场" : "DeepSeek 实时生成"}
+          <i />{turn.generationSource === "fixed" ? "AI 辅助创作 · 固定开场" : "AI 生成 · V4 Flash"}
         </span>
         <figcaption className="event-scene__caption">
           <span className="event-scene__time">{turn.yearLabel}</span>

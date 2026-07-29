@@ -5,7 +5,7 @@
 | 运行环境 | 通道 | 密钥位置 | 模型 | 用户等待策略 |
 | --- | --- | --- | --- | --- |
 | 抖音互动空间审核包 | `tt.callAIChatCompletion`，由平台转发至火山方舟 | 抖音平台 AI 服务配置 | `deepseek-v4-flash` | 第一幕固定；后续幕在结果页预取 |
-| 本地开发、Node 长测、Sites Worker | DeepSeek 官方 `https://api.deepseek.com/chat/completions` | 本地 `.env.local` 或服务端运行时变量 | `deepseek-v4-flash` | 第一幕固定；后续幕在结果页预取 |
+| 本地开发、Node 长测、Sites Worker | DeepSeek 官方 `https://api.deepseek.com/v1/chat/completions` | 本地 `.env.local` 或服务端运行时变量 | `deepseek-v4-flash` | 第一幕固定；后续幕在结果页预取 |
 
 两条通道都一次生成六张决定牌：首组三张立即展示，第二组三张只供本节点唯一一次 Roll 使用。Roll 不发起网络请求。
 

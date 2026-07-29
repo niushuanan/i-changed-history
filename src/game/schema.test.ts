@@ -383,6 +383,22 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(incompleteEcho)).toThrow();
   });
 
+  it("rejects a card whose immediate cost kills the four-act protagonist", () => {
+    const prematureDeath = JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice, index) => index === 1 ? {
+        ...choice,
+        instantEcho: {
+          ...choice.instantEcho,
+          unexpectedCost: "你被守军当场斩首示众",
+          payer: "你",
+        },
+      } : choice),
+    });
+
+    expect(() => parseTimelineTurn(prematureDeath)).toThrow(/四幕主角不能在卡牌即时结果中死亡或永久退场/);
+  });
+
   it("keeps exactly one modern-knowledge action", () => {
     const parsed = parseTimelineTurn(JSON.stringify(turnFixture));
     expect(parsed.choices.filter((choice) => choice.usesModernKnowledge)).toHaveLength(1);

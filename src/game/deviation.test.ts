@@ -8,7 +8,7 @@ import type { DecisionChapter } from "./timelinePlan";
 
 describe("deterministic historical deviation", () => {
   it("applies the fixed impact table and chapter multipliers", () => {
-    expect(calculateStepImpact("nudge", 1)).toBe(3);
+    expect(calculateStepImpact("nudge", 1)).toBe(0);
     expect(calculateStepImpact("reform", 2)).toBe(14);
     expect(calculateStepImpact("rupture", 4)).toBe(48);
   });
@@ -28,7 +28,14 @@ describe("deterministic historical deviation", () => {
       stepImpact: 14,
       nextDeviation: 23,
     });
-    expect(calculateDeviation(100, "nudge", 1).nextDeviation).toBe(100);
+    expect(calculateDeviation(0, "nudge", 1)).toEqual({
+      stepImpact: 0,
+      nextDeviation: 0,
+    });
+    expect(calculateDeviation(48, "nudge", 4)).toEqual({
+      stepImpact: 0,
+      nextDeviation: 48,
+    });
   });
 
   it.each([

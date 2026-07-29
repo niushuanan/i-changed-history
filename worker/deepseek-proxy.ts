@@ -5,7 +5,7 @@ import {
   TIMELINE_TURN_PROTOCOL,
 } from "../src/game/deepseekProtocol";
 
-const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
+const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const MAX_REQUEST_BYTES = 512 * 1024;
 const MAX_MESSAGE_CHARACTERS = 240_000;
@@ -458,9 +458,9 @@ export async function handleDeepSeekProxy(
     return jsonError("Request does not match the history simulation protocol.", 400);
   }
 
-  const apiKey = runtimeValue(env.DEEPSEEK_API_KEY) ?? (
-    isLocalRequest(request) ? runtimeValue(env.VITE_DEEPSEEK_API_KEY) : undefined
-  );
+  const apiKey = isLocalRequest(request)
+    ? runtimeValue(env.VITE_DEEPSEEK_API_KEY) ?? runtimeValue(env.DEEPSEEK_API_KEY)
+    : runtimeValue(env.DEEPSEEK_API_KEY);
   if (!apiKey) {
     return jsonError("The history simulation service is not configured.", 503);
   }

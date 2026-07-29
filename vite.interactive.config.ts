@@ -19,6 +19,10 @@ export default defineConfig({
         replacement: path.join(projectRoot, "src/data/fixedPowerChoices.interactive.generated.ts"),
       },
       {
+        find: "./fixedOpeningChoices.generated",
+        replacement: path.join(projectRoot, "src/data/fixedOpeningChoices.interactive.generated.ts"),
+      },
+      {
         find: "../services/deepseek",
         replacement: path.join(projectRoot, "src/services/deepseek.interactive.ts"),
       },
@@ -27,6 +31,9 @@ export default defineConfig({
         replacement: path.join(projectRoot, "src/services/htmlToImage.interactive.ts"),
       },
     ],
+  },
+  define: {
+    "import.meta.env.VITE_INTERACTIVE_SPACE": JSON.stringify("true"),
   },
   build: {
     outDir: "dist-interactive",

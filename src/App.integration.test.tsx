@@ -127,7 +127,7 @@ describe("complete four-decision player journey", () => {
 
     const replay = screen.getByRole("button", { name: /再次闯入：/ });
     await user.click(replay);
-    expect(screen.getByText("固定历史开场")).toBeVisible();
+    expect(screen.getByText("AI 辅助创作 · 固定开场")).toBeVisible();
     expect(screen.getByRole("list", { name: "四节点时间线" })).toBeVisible();
     expect(engine.generateNextTurn).toHaveBeenCalledTimes(3);
   });
@@ -138,7 +138,7 @@ describe("complete four-decision player journey", () => {
     await enterDrawnHistory(user);
 
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByText("固定历史开场")).toBeVisible();
+    expect(screen.getByText("AI 辅助创作 · 固定开场")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" }));
     expect(await screen.findByRole("button", { name: "重抽卡牌，还剩 2 次" }, { timeout: 2000 })).toBeVisible();

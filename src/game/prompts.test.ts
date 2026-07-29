@@ -280,6 +280,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.task).toContain("逐字带出至少一个当前快照中的专名或实物");
     expect(payload.task).toContain("不要把循史写成等待");
     expect(payload.task).toContain("不要把破局写成泛化的接管现场");
+    expect(payload.task).toContain("A 不得阻止、逆转、拖延、换掉掌权者或偷换结果");
+    expect(payload.task).toContain("B 必须改变既有轨道的控制点、命令方向或结果");
+    expect(payload.sceneTrajectoryContract.optionA).toContain("执行并完成当前既有轨道");
     expect(payload.task).toContain("powerId 必须逐字复制");
     expect(payload.task).toContain("actionSpec.actor 必须逐字为“你”");
     expect(payload.task).toContain("不能换能力、弱化成比喻");
@@ -320,6 +323,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("先像当事人开口，再从这句话中提取");
     expect(protocol).toContain("原定方案、新方案、现场众人、愿意跟随的人");
     expect(protocol).toContain("exactShapeExample 只示意字段结构");
+    expect(protocol).toContain("循史与温和程度无关");
+    expect(protocol).toContain("A 不得阻止、逆转、拖延到期限后");
+    expect(protocol).toContain("不得让主角死亡、被处死、失去意识、终身监禁");
     expect(protocol).not.toContain("按原计划出兵");
     expect(protocol).not.toContain("复核后照办");
     expect(payload.task).toContain("先在内部完成一次不输出的现场盘点");
@@ -330,6 +336,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.assignedPowers.rollChoicesC.powerId).toBe("stop-time");
     expect(payload.submissionChecklist.choices).toContain("不是同一动作换六种说法");
     expect(payload.submissionChecklist.choices).toContain("末尾不得停在连接词或待完成的动词");
+    expect(payload.sceneTrajectoryContract.optionA).toContain("让这条既有轨道真正落地");
+    expect(payload.sceneTrajectoryContract.optionB).toContain("改变既有轨道");
+    expect(protocol).toContain("他必须能以同一身体继续完成下一幕");
   });
 
 });

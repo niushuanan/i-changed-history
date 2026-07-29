@@ -1,6 +1,9 @@
 import { Archive, CardsThree, DiceFive, Sparkle, X } from "@phosphor-icons/react";
 
 export function GameAnnouncement({ onClose }: { onClose: () => void }) {
+  const announcementName = import.meta.env.VITE_INTERACTIVE_SPACE === "true"
+    ? "体验说明"
+    : "游戏说明";
   return (
     <div className="game-announcement-backdrop">
       <section
@@ -10,8 +13,8 @@ export function GameAnnouncement({ onClose }: { onClose: () => void }) {
         aria-labelledby="game-announcement-title"
       >
         <header>
-          <span><Sparkle size={15} weight="fill" /> 游戏说明</span>
-          <button type="button" aria-label="关闭游戏说明" onClick={onClose}>
+          <span><Sparkle size={15} weight="fill" /> {announcementName}</span>
+          <button type="button" aria-label={`关闭${announcementName}`} onClick={onClose}>
             <X size={18} weight="bold" />
           </button>
         </header>
@@ -27,7 +30,7 @@ export function GameAnnouncement({ onClose }: { onClose: () => void }) {
           </li>
           <li>
             <i><CardsThree size={24} weight="duotone" /></i>
-            <div><strong>每一幕，只选一张牌</strong><span>循史比较稳，破局会真正改史，天外则把想象力推到极致。</span></div>
+            <div><strong>每一幕，只选一张牌</strong><span>循史让眼前这条轨道照常落地，破局会扭转结果，天外则直接动用一种超能力。</span></div>
           </li>
           <li>
             <i><Sparkle size={24} weight="duotone" /></i>

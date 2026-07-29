@@ -159,7 +159,7 @@ async function requestChoices(seed, powers) {
   let validationErrors = [];
   let previousRejectedChoices = null;
   for (let attempt = 1; attempt <= 8; attempt += 1) {
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
+    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
