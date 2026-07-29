@@ -8,6 +8,8 @@ export type TapRecord = {
     responseHeadersMs?: number;
     firstReasoningTokenMs?: number;
     firstContentTokenMs?: number;
+    /** 请求发出时的 wall-clock 时间 (Date.now())，旧记录可能没有此字段 */
+    requestedAt?: number;
   };
   usage: {
     promptTokens?: number;
