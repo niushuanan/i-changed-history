@@ -64,7 +64,7 @@ describe("destiny draw history entry", () => {
     render(<PickerHarness />);
 
     expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
-    expect(screen.getByLabelText("本作品包含人工智能生成内容")).toHaveTextContent("AI 生成");
+    expect(screen.getByLabelText("本作品包含人工智能生成内容")).toHaveTextContent("AI生成");
     expect(screen.getByRole("article", { name: "尚未揭晓的命运卡牌" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: /随机滚动时间线/ })).not.toBeInTheDocument();

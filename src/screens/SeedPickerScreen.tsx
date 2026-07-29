@@ -220,8 +220,8 @@ export function SeedPickerScreen({
           className="seed-picker__ai-mark"
           aria-label="本作品包含人工智能生成内容"
         >
-          <i aria-hidden="true" />
-          AI 生成
+          <span aria-hidden="true">AI</span>
+          <span aria-hidden="true">生成</span>
         </small>
         <div className="seed-picker__settings" ref={settingsRef}>
           <button

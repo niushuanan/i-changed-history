@@ -3,6 +3,8 @@
   "aiEnabled": true,
   "chatModel": "deepseek-v4-flash-260425",
   "credentialMode": "platform-volcengine-api-key",
+  "minimumDouyinVersion": "39.5.0",
+  "aiDisclosureMinShortEdgePercent": 5,
   "screenDirection": 1,
   "packageType": 1,
   "maxZipBytes": 8388608

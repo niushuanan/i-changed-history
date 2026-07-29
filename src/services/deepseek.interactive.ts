@@ -51,6 +51,7 @@ type PlatformFailure = {
 type PlatformSseEvent = {
   eventName?: unknown;
   data?: unknown;
+  id?: unknown;
 };
 
 type PlatformTask = {
@@ -93,6 +94,12 @@ type StreamPayload = {
   }>;
   usage?: unknown;
 };
+
+type ParsedStreamData =
+  | { kind: "empty" }
+  | { kind: "done" }
+  | { kind: "provider"; payload: StreamPayload }
+  | { kind: "text"; content: string };
 
 function platformRuntime(): InteractiveSpaceRuntime | null {
   const candidate = (globalThis as typeof globalThis & { tt?: InteractiveSpaceRuntime }).tt;
@@ -293,19 +300,40 @@ function waitBeforeRetry(
   });
 }
 
-function parseStreamPayload(rawData: unknown): StreamPayload | "done" | null {
-  if (typeof rawData !== "string") return null;
-  const text = rawData.trim().replace(/^data:\s*/, "");
-  if (!text) return null;
-  if (text === "[DONE]") return "done";
+function parseStreamData(rawData: unknown): ParsedStreamData {
+  if (typeof rawData !== "string") return { kind: "empty" };
+  const content = rawData.replace(/^data:\s?/, "");
+  const trimmed = content.trim();
+  if (!trimmed) return { kind: "empty" };
+  if (trimmed === "[DONE]") return { kind: "done" };
   try {
-    const parsed: unknown = JSON.parse(text);
-    return typeof parsed === "object" && parsed !== null
-      ? parsed as StreamPayload
-      : null;
+    const parsed: unknown = JSON.parse(trimmed);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { kind: "text", content };
+    }
+    const candidate = parsed as StreamPayload;
+    if (Array.isArray(candidate.choices) || candidate.usage !== undefined) {
+      return { kind: "provider", payload: candidate };
+    }
+    return { kind: "text", content };
   } catch {
-    return null;
+    return { kind: "text", content };
   }
+}
+
+function streamFailure(rawData: unknown): PlatformFailure {
+  if (typeof rawData !== "string") {
+    return { errMsg: "互动空间 AI 流式连接异常", errorType: "F" };
+  }
+  try {
+    const parsed: unknown = JSON.parse(rawData);
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as PlatformFailure;
+    }
+  } catch {
+    // The platform also permits a plain-text error event.
+  }
+  return { errMsg: rawData, errorType: "F" };
 }
 
 function performRequest(
@@ -318,7 +346,7 @@ function performRequest(
   if (!callAIChatCompletion) {
     return Promise.reject(new DeepSeekError(
       "service_unavailable",
-      "当前预览环境没有互动空间 AI 能力，请在抖音互动空间中继续体验。",
+      "当前环境没有互动空间 AI 能力，请使用抖音 39.5.0 或更高版本继续体验。",
       undefined,
       undefined,
       false,
@@ -402,6 +430,19 @@ function performRequest(
       report("connected");
     };
 
+    const appendContent = (contentDelta: string) => {
+      if (!contentDelta) return;
+      firstContentTokenMs ??= clockNow() - startedAt;
+      report("writing");
+      content += contentDelta;
+      const draft = readablePartial(content);
+      if (!draft) return;
+      const serialized = JSON.stringify(draft);
+      if (serialized === lastDraft) return;
+      lastDraft = serialized;
+      reportPartial(options.onPartial, draft);
+    };
+
     const handleAbort = () => {
       try {
         task?.abort?.();
@@ -442,12 +483,27 @@ function performRequest(
         onSSE(event) {
           if (settled) return;
           markConnected();
-          const payload = parseStreamPayload(event.data);
-          if (payload === "done") {
+          const eventName = typeof event.eventName === "string"
+            ? event.eventName
+            : "message";
+          if (eventName === "open") return;
+          if (eventName === "error") {
+            const failure = streamFailure(event.data);
+            if (failure.errorType === "I") return;
+            finishError(platformError(failure));
+            return;
+          }
+          const streamData = parseStreamData(event.data);
+          if (streamData.kind === "done") {
             finishSuccess();
             return;
           }
-          if (!payload) return;
+          if (streamData.kind === "empty") return;
+          if (streamData.kind === "text") {
+            appendContent(streamData.content);
+            return;
+          }
+          const payload = streamData.payload;
           usage = normalizeUsage(payload.usage) ?? usage;
           const choice = payload.choices?.[0];
           if (choice?.finish_reason === "length") {
@@ -466,27 +522,18 @@ function performRequest(
             report("reasoning");
           }
           const contentDelta = choice?.delta?.content;
-          if (typeof contentDelta !== "string" || !contentDelta) return;
-          firstContentTokenMs ??= clockNow() - startedAt;
-          report("writing");
-          content += contentDelta;
-          const draft = readablePartial(content);
-          if (!draft) return;
-          const serialized = JSON.stringify(draft);
-          if (serialized === lastDraft) return;
-          lastDraft = serialized;
-          reportPartial(options.onPartial, draft);
+          if (typeof contentDelta === "string") appendContent(contentDelta);
         },
-        success(result) {
+        success() {
           if (settled) return;
           markConnected();
-          if (typeof result.data === "string" && result.data.trim()) {
-            content += result.data;
-            firstContentTokenMs ??= clockNow() - startedAt;
-            report("writing");
-          }
+          finishSuccess();
         },
         fail(error) {
+          if (error.errorType === "I") {
+            markConnected();
+            return;
+          }
           finishError(platformError(error));
         },
         complete() {

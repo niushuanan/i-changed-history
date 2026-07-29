@@ -1,6 +1,6 @@
 # AI 双通道
 
-产品只维护一套紧凑游戏协议、Schema 与字段修复策略；完整幕次使用 4096 token 输出上限，并发的两份结局各使用 2048，但按运行环境使用两条传输通道。
+产品只维护一套紧凑游戏协议、Schema 与字段修复策略；完整幕次使用 4096 token 输出上限，并发的两份结局各使用 2048，但按运行环境使用两条传输通道。互动空间流式接口以官方定义的 `onSSE(event.data)` 文本分片为主，同时兼容旧基础库透传的 OpenAI `choices[].delta` 包；流式完成不读取 `success.data`。
 
 | 运行环境 | 通道 | 密钥位置 | 模型 | 用户等待策略 |
 | --- | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ localhost 使用开发者自己的 Key，Sites 使用服务端 Key。两者都�
 
 - `src/services/deepseek.direct.test.ts`：Node 环境验证 DeepSeek 官方地址、Bearer 鉴权、V4 Flash、JSON 流式协议与 fast 非思考模式，也验证发布长测能切换到本地 Worker 且不携带密钥或供应商参数。
 - `src/services/deepseek.test.ts`：浏览器环境验证同源 Worker 代理不会暴露密钥。
-- `src/services/deepseek.interactive.test.ts`：互动空间环境验证 `tt.callAIChatCompletion`、平台 SSE 和固定 V4 Flash。
+- `src/services/deepseek.interactive.test.ts`：互动空间环境验证 `tt.callAIChatCompletion`、官方原始文本 SSE、旧版 provider SSE、平台信息事件和固定 V4 Flash。
 - `src/server/deepseekProxyContract.test.ts`：使用正式的幕次、Roll 和双结局 prompt 构造器生成请求，验证 Worker 接受产品真实协议和任务文案演进、拒绝错误系统协议，并确认公开请求不经过产品侧限流。
 
 涉及 prompt、幕次任务、DeepSeek 传输或 Worker 协议的发布，先启动本地产品，再执行：
