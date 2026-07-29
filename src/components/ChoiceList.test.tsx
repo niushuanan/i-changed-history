@@ -30,10 +30,9 @@ describe("roguelike history cards", () => {
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
     expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
     expect(container.querySelectorAll(".choice-card__surface")).toHaveLength(3);
-    expect(container.querySelector(".choice-roll__deck img")).toHaveAttribute(
-      "src",
-      "/assets/picker/vermilion-cloth-v2.webp",
-    );
+    expect(container.querySelectorAll(".choice-card__hold-cue")).toHaveLength(3);
+    expect(container.querySelector(".choice-roll__deck")).not.toBeInTheDocument();
+    expect(container.querySelector(".choice-roll__label")).toHaveTextContent("ROLL");
     expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toBeEnabled();
   });
@@ -57,15 +56,41 @@ describe("roguelike history cards", () => {
     act(() => vi.advanceTimersByTime(250));
     expect(onChoose).not.toHaveBeenCalled();
 
-    fireEvent.pointerDown(card, { clientY: 220, pointerId: 2 });
-    fireEvent.pointerMove(card, { clientY: 130, pointerId: 2 });
-    fireEvent.pointerUp(card, { clientY: 130, pointerId: 2 });
+    act(() => {
+      fireEvent.pointerDown(card, { clientY: 220, pointerId: 2 });
+      fireEvent.pointerMove(card, { clientY: 130, pointerId: 2 });
+      fireEvent.pointerUp(card, { clientY: 130, pointerId: 2 });
+    });
     expect(onChoose).not.toHaveBeenCalled();
     expect(card).toHaveClass("is-committing");
     expect(card.closest(".rogue-choice-table")).toHaveClass("is-committing");
-    act(() => vi.advanceTimersByTime(430));
+    act(() => vi.advanceTimersByTime(500));
     expect(onChoose).toHaveBeenCalledTimes(1);
     expect(onChoose).toHaveBeenCalledWith("A");
+  });
+
+  it("never commits a card when the browser cancels the pointer gesture", () => {
+    const onChoose = vi.fn();
+    render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={onChoose}
+        onRoll={vi.fn()}
+        rollUsed={false}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /破局牌/ });
+    act(() => {
+      fireEvent.pointerDown(card, { clientY: 220, pointerId: 7 });
+      fireEvent.pointerMove(card, { clientY: 120, pointerId: 7 });
+      fireEvent.pointerCancel(card, { clientY: 120, pointerId: 7 });
+    });
+    act(() => vi.advanceTimersByTime(600));
+
+    expect(card).not.toHaveClass("is-committing");
+    expect(onChoose).not.toHaveBeenCalled();
   });
 
   it("reveals the full canonical decision on long press without committing it", () => {
@@ -97,9 +122,14 @@ describe("roguelike history cards", () => {
 
     const card = screen.getByRole("button", { name: /循史牌/ });
     fireEvent.pointerDown(card, { clientY: 220, pointerId: 1 });
-    act(() => vi.advanceTimersByTime(450));
+    expect(card).toHaveClass("is-pressing");
+    expect(card.closest(".rogue-choice-table")).toHaveClass("is-holding");
+    act(() => vi.advanceTimersByTime(180));
+    expect(card).toHaveClass("is-pressing");
+    act(() => vi.advanceTimersByTime(340));
 
     const dialog = screen.getByRole("dialog", { name: "核验边军军令详细信息" });
+    expect(card).not.toHaveClass("is-pressing");
     expect(dialog).toHaveTextContent(canonical);
     expect(dialog).toHaveTextContent("公开核验军令");
     expect(dialog).toHaveTextContent(detailedChoices[0].instantEcho.unexpectedCost);
@@ -107,13 +137,35 @@ describe("roguelike history cards", () => {
       "src",
       "/assets/cards/choice-regular.png",
     );
+    expect(screen.getByRole("button", { name: "关闭卡牌详情" })).toHaveClass("choice-detail__close");
     expect(onChoose).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭卡牌详情" }));
     expect(dialog.closest(".choice-detail-backdrop")).toHaveClass("is-closing");
-    act(() => vi.advanceTimersByTime(220));
+    act(() => vi.advanceTimersByTime(260));
     expect(dialog).not.toBeInTheDocument();
     expect(card).toHaveFocus();
+  });
+
+  it("cancels the long-press lift as soon as the player starts swiping", () => {
+    render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={vi.fn()}
+        rollUsed={false}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /天外牌/ });
+    fireEvent.pointerDown(card, { clientY: 220, pointerId: 8 });
+    expect(card).toHaveClass("is-pressing");
+    fireEvent.pointerMove(card, { clientY: 198, pointerId: 8 });
+    expect(card).not.toHaveClass("is-pressing");
+    expect(card.closest(".rogue-choice-table")).not.toHaveClass("is-holding");
+    act(() => vi.advanceTimersByTime(360));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("reveals the prepared second trio once and never asks the model to wait", () => {
@@ -131,7 +183,7 @@ describe("roguelike history cards", () => {
     fireEvent.click(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" }));
     expect(onRoll).not.toHaveBeenCalled();
     expect(document.querySelector(".rogue-choice-table")).toHaveClass("is-collecting");
-    act(() => vi.advanceTimersByTime(270));
+    act(() => vi.advanceTimersByTime(190));
     expect(onRoll).toHaveBeenCalledTimes(1);
 
     rerender(

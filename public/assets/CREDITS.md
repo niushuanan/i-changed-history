@@ -14,3 +14,13 @@ All scene images are stored locally so the prototype remains playable without im
 | `tone-digital.webp` | [Classic ENIAC photograph](https://commons.wikimedia.org/wiki/File:Classic_shot_of_the_ENIAC_(full_resolution).jpg) | U.S. Army public domain |
 
 The interface direction was developed from the project-local ImageGen references under `design/visual-options/`; those references are design inputs rather than shipped scene assets.
+
+## Original Card Materials
+
+| Asset | Source | Rights |
+| --- | --- | --- |
+| `cards/frame-regular-v2.webp` | Project-owned ImageGen output, art-directed from the selected historical archive-table reference | Original project asset |
+| `cards/frame-radical-v2.webp` | Project-owned ImageGen output, art-directed from the selected historical archive-table reference | Original project asset |
+| `cards/frame-surreal-v2.webp` | Project-owned ImageGen output, art-directed from the selected historical archive-table reference | Original project asset |
+
+These three 2:3 material frames contain no text, logo, or UI state. The accessible card label, category emblem, interaction copy, and complete decision remain live product UI layered above them.

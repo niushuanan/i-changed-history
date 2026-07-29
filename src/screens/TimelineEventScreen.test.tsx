@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTimelineTurn } from "../game/schema";
@@ -8,7 +8,10 @@ import { TimelineEventScreen } from "./TimelineEventScreen";
 const gameStyles = readFileSync("src/styles/game.css", "utf8");
 
 describe("clear change event screen", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
   const openingTurn = parseTimelineTurn(JSON.stringify(turnFixture));
 
   it("keeps the complete history comparison behind a compact secondary entry", () => {
@@ -82,7 +85,34 @@ describe("clear change event screen", () => {
     expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toHaveTextContent("无需等待");
+    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toHaveTextContent("ROLL");
+    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).not.toHaveTextContent("无需等待");
+  });
+
+  it("moves the complete event surface into its exit transition before committing", () => {
+    vi.useFakeTimers();
+    const onChoose = vi.fn();
+    const { container } = render(<TimelineEventScreen
+      turn={openingTurn}
+      deviation={0}
+      rollUsed={false}
+      muted
+      onChoose={onChoose}
+      onRoll={vi.fn()}
+      onExit={vi.fn()}
+    />);
+
+    const card = screen.getByRole("button", { name: /破局牌/ });
+    act(() => {
+      fireEvent.pointerDown(card, { clientY: 220, pointerId: 11 });
+      fireEvent.pointerMove(card, { clientY: 125, pointerId: 11 });
+      fireEvent.pointerUp(card, { clientY: 125, pointerId: 11 });
+    });
+
+    expect(container.querySelector(".event-screen")).toHaveClass("is-card-committing");
+    expect(onChoose).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(500));
+    expect(onChoose).toHaveBeenCalledWith("B");
   });
 
   it("uses touch-first cards with project-owned generated artwork", () => {
@@ -102,6 +132,10 @@ describe("clear change event screen", () => {
     expect(container.querySelector('img[src="/assets/cards/choice-surreal.png"]')).toBeInTheDocument();
     expect(gameStyles).toContain("touch-action: none");
     expect(gameStyles).toContain(".choice-card.is-armed");
+    expect(gameStyles).toContain(".choice-card.is-pressing");
+    expect(gameStyles).toContain("/assets/cards/frame-regular-v2.webp");
+    expect(gameStyles).toContain("/assets/cards/frame-radical-v2.webp");
+    expect(gameStyles).toContain("/assets/cards/frame-surreal-v2.webp");
   });
 
   it("renders event time and location as separate caption rows", () => {

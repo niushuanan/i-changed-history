@@ -76,6 +76,7 @@ export function TimelineEventScreen({
   sceneImage?: string;
 }) {
   const [historyContextOpen, setHistoryContextOpen] = useState(false);
+  const [cardCommitting, setCardCommitting] = useState(false);
   const visibleChoices = rollUsed ? turn.rollChoices : turn.choices;
   const visibleCopyLength = [
     turn.headline,
@@ -92,6 +93,7 @@ export function TimelineEventScreen({
 
   useEffect(() => {
     setHistoryContextOpen(false);
+    setCardCommitting(false);
   }, [turn.chapter, turn.yearLabel]);
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export function TimelineEventScreen({
 
   return (
     <main
-      className="event-screen"
+      className={`event-screen${cardCommitting ? " is-card-committing" : ""}`}
       data-density={density}
       data-history-mode={turn.previousEcho ? "continuation" : "opening"}
       data-layout="image-overlay"
@@ -132,12 +134,13 @@ export function TimelineEventScreen({
         <section className="decision-zone" role="group" aria-label="本幕决定">
           <h2>
             <span>抽一张，改写这一刻</span>
-            <em>上划打出 · 长按详情</em>
+            <em>上划打出 · 按住读牌</em>
           </h2>
           <ChoiceList
             choices={visibleChoices}
             muted={muted}
             onChoose={onChoose}
+            onCommitVisualStart={() => setCardCommitting(true)}
             onRoll={onRoll}
             rollUsed={rollUsed}
           />
