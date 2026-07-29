@@ -122,6 +122,29 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it("retries a short public-proxy burst instead of treating it as a day-long quota", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 429,
+        headers: {
+          "Retry-After": "1",
+          "X-History-Rate-Limit": "burst",
+        },
+      }))
+      .mockResolvedValueOnce(completion());
+    vi.stubGlobal("fetch", fetcher);
+
+    const pending = requestCompletion(messages, { phase: "turn", reasoning: "fast" });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(pending).resolves.toBe('{"ok":true}');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("does not retry a hard quota response from the history proxy", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(null, {
       status: 429,

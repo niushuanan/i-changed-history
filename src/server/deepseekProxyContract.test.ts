@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { TIMELINE_SYSTEM_PROMPT, TIMELINE_TURN_PROTOCOL } from "../game/deepseekProtocol";
 import {
@@ -10,8 +10,12 @@ import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import {
   buildDeepSeekRequestBody,
+  handleDeepSeekProxy,
   parseProxyEnvelope,
+  publicRateLimitPolicy,
+  type D1DatabaseLike,
   type DeepSeekProxyEnvelope,
+  type WorkerExecutionContext,
 } from "../../worker/deepseek-proxy";
 
 const userMessage = {
@@ -73,7 +77,29 @@ function rerollEnvelope(): DeepSeekProxyEnvelope {
   };
 }
 
+function proxyRequest(origin: string) {
+  return new Request(`${origin}/api/deepseek/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: origin,
+    },
+    body: JSON.stringify(envelope()),
+  });
+}
+
+function workerContext(): WorkerExecutionContext {
+  return {
+    waitUntil: vi.fn(),
+    passThroughOnException: vi.fn(),
+  };
+}
+
 describe("DeepSeek proxy contract", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("accepts the game protocol and rebuilds provider-owned fields", () => {
     const parsed = parseProxyEnvelope(envelope());
     expect(parsed).not.toBeNull();
@@ -143,5 +169,99 @@ describe("DeepSeek proxy contract", () => {
         }),
       },
     ]))).toBeNull();
+  });
+
+  it("sizes the public minute window for hundreds of repeat players without a daily lockout", () => {
+    const database = {} as D1DatabaseLike;
+    const defaults = publicRateLimitPolicy({ DB: database });
+    expect(defaults).toEqual({
+      guestPerMinute: 120,
+      ipPerMinute: 1_800,
+      globalPerMinute: 2_400,
+    });
+    const sixHundredPlayersFinishingTogether = 600 * 2;
+    expect(defaults.guestPerMinute).toBeGreaterThan(13);
+    expect(defaults.ipPerMinute).toBeGreaterThanOrEqual(sixHundredPlayersFinishingTogether);
+    expect(defaults.globalPerMinute).toBeGreaterThanOrEqual(sixHundredPlayersFinishingTogether);
+    expect(publicRateLimitPolicy({
+      DB: database,
+      DEEPSEEK_GUEST_MINUTE_LIMIT: "240",
+      DEEPSEEK_IP_MINUTE_LIMIT: "3600",
+      DEEPSEEK_GLOBAL_MINUTE_LIMIT: "4800",
+    })).toEqual({
+      guestPerMinute: 240,
+      ipPerMinute: 3_600,
+      globalPerMinute: 4_800,
+    });
+  });
+
+  it("bypasses the public D1 limiter on localhost and still uses the local server key", async () => {
+    const prepare = vi.fn(() => {
+      throw new Error("local development must not touch the public rate-limit database");
+    });
+    const database = {
+      prepare,
+      batch: vi.fn(),
+    } as unknown as D1DatabaseLike;
+    const fetcher = vi.fn().mockResolvedValue(new Response("data: [DONE]\n\n", {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    }));
+    vi.stubGlobal("fetch", fetcher);
+
+    const response = await handleDeepSeekProxy(
+      proxyRequest("http://localhost:3003"),
+      {
+        DB: database,
+        VITE_DEEPSEEK_API_KEY: "project-local-key",
+        VITE_DEEPSEEK_MODEL: "deepseek-v4-flash",
+      },
+      workerContext(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+      headers: {
+        Authorization: "Bearer project-local-key",
+      },
+    });
+  });
+
+  it("uses a retryable minute burst response instead of a day-long production quota", async () => {
+    const statement = {
+      bind: vi.fn(),
+      run: vi.fn().mockResolvedValue({}),
+    };
+    statement.bind.mockReturnValue(statement);
+    const database = {
+      prepare: vi.fn(() => statement),
+      batch: vi.fn()
+        .mockResolvedValueOnce([
+          { results: [{ request_count: 121 }] },
+          { results: [{ request_count: 1 }] },
+          { results: [{ request_count: 1 }] },
+        ])
+        .mockResolvedValueOnce([]),
+    } as unknown as D1DatabaseLike;
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+
+    const response = await handleDeepSeekProxy(
+      proxyRequest("https://history.example.com"),
+      {
+        DB: database,
+        DEEPSEEK_API_KEY: "server-key",
+        RATE_LIMIT_SALT: "a-long-production-only-rate-limit-salt",
+      },
+      workerContext(),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("X-History-Rate-Limit")).toBe("burst");
+    expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(Number(response.headers.get("Retry-After"))).toBeLessThanOrEqual(60);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

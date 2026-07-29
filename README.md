@@ -94,8 +94,12 @@ cp .env.example .env.local
 DEEPSEEK_API_KEY=你的_DeepSeek_API_Key
 DEEPSEEK_MODEL=deepseek-v4-flash
 RATE_LIMIT_SALT=一段只放在服务端的随机长字符串
-DEEPSEEK_GLOBAL_DAILY_LIMIT=1000
+DEEPSEEK_GUEST_MINUTE_LIMIT=120
+DEEPSEEK_IP_MINUTE_LIMIT=1800
+DEEPSEEK_GLOBAL_MINUTE_LIMIT=2400
 ```
+
+localhost 使用开发者自己的 Key，不进入公开站点的 D1 配额。Sites 生产环境没有访客、IP 或全站每日封顶，只用上述一分钟窗口阻挡异常突发；默认容量按数百名玩家、共享网络和结局双请求设计，生产可通过服务端变量继续扩容。
 
 启动：
 

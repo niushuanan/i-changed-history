@@ -10,8 +10,11 @@ const DEFAULT_MODEL = "deepseek-v4-flash";
 const MAX_REQUEST_BYTES = 512 * 1024;
 const MAX_MESSAGE_CHARACTERS = 240_000;
 const GUEST_COOKIE = "history_guest";
-const DAY_MS = 24 * 60 * 60 * 1_000;
 const MINUTE_MS = 60 * 1_000;
+const RATE_LIMIT_RETENTION_MS = 2 * 24 * 60 * MINUTE_MS;
+const DEFAULT_GUEST_MINUTE_LIMIT = 120;
+const DEFAULT_IP_MINUTE_LIMIT = 1_800;
+const DEFAULT_GLOBAL_MINUTE_LIMIT = 2_400;
 
 const REQUEST_KINDS = new Set([
   "turn-primary",
@@ -66,7 +69,15 @@ export type DeepSeekProxyEnv = Readonly<{
   DEEPSEEK_MODEL?: string;
   VITE_DEEPSEEK_MODEL?: string;
   RATE_LIMIT_SALT?: string;
-  DEEPSEEK_GLOBAL_DAILY_LIMIT?: string;
+  DEEPSEEK_GUEST_MINUTE_LIMIT?: string;
+  DEEPSEEK_IP_MINUTE_LIMIT?: string;
+  DEEPSEEK_GLOBAL_MINUTE_LIMIT?: string;
+}>;
+
+export type PublicRateLimitPolicy = Readonly<{
+  guestPerMinute: number;
+  ipPerMinute: number;
+  globalPerMinute: number;
 }>;
 
 type RateLimitReservation = Readonly<{
@@ -288,16 +299,36 @@ async function ensureRateLimitSchema(database: D1DatabaseLike): Promise<void> {
       updated_at INTEGER NOT NULL,
       PRIMARY KEY (bucket, window_start)
     )
-  `).run().then(() => undefined).catch((error) => {
+  `).run().then(() => database.prepare(`
+    DELETE FROM ai_rate_limits
+    WHERE window_start < ?
+  `).bind(Date.now() - RATE_LIMIT_RETENTION_MS).run()).then(() => undefined).catch((error) => {
     rateLimitSchemaReady = undefined;
     throw error;
   });
   return rateLimitSchemaReady;
 }
 
-function globalDailyLimit(env: DeepSeekProxyEnv): number {
-  const configured = Number.parseInt(env.DEEPSEEK_GLOBAL_DAILY_LIMIT ?? "", 10);
-  return Number.isFinite(configured) && configured >= 100 ? configured : 1_000;
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const configured = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(configured) && configured > 0 ? configured : fallback;
+}
+
+export function publicRateLimitPolicy(env: DeepSeekProxyEnv): PublicRateLimitPolicy {
+  return {
+    guestPerMinute: positiveInteger(
+      env.DEEPSEEK_GUEST_MINUTE_LIMIT,
+      DEFAULT_GUEST_MINUTE_LIMIT,
+    ),
+    ipPerMinute: positiveInteger(
+      env.DEEPSEEK_IP_MINUTE_LIMIT,
+      DEFAULT_IP_MINUTE_LIMIT,
+    ),
+    globalPerMinute: positiveInteger(
+      env.DEEPSEEK_GLOBAL_MINUTE_LIMIT,
+      DEFAULT_GLOBAL_MINUTE_LIMIT,
+    ),
+  };
 }
 
 async function reservationsFor(
@@ -311,14 +342,31 @@ async function reservationsFor(
   const amount = reasoning === "high" ? 3 : 1;
   const ipHash = await hmac(`ip:${clientIp(request)}`, salt);
   const guestHash = await hmac(`guest-bucket:${guest.id}`, salt);
-  const dailyWindow = Math.floor(now / DAY_MS) * DAY_MS;
   const minuteWindow = Math.floor(now / MINUTE_MS) * MINUTE_MS;
+  const policy = publicRateLimitPolicy(env);
 
   return [
-    { bucket: `burst:${ipHash}`, windowStart: minuteWindow, amount, limit: 12, windowMs: MINUTE_MS },
-    { bucket: `guest:${guestHash}`, windowStart: dailyWindow, amount, limit: 80, windowMs: DAY_MS },
-    { bucket: `ip:${ipHash}`, windowStart: dailyWindow, amount, limit: 240, windowMs: DAY_MS },
-    { bucket: "global", windowStart: dailyWindow, amount, limit: globalDailyLimit(env), windowMs: DAY_MS },
+    {
+      bucket: `guest:${guestHash}`,
+      windowStart: minuteWindow,
+      amount,
+      limit: policy.guestPerMinute,
+      windowMs: MINUTE_MS,
+    },
+    {
+      bucket: `ip:${ipHash}`,
+      windowStart: minuteWindow,
+      amount,
+      limit: policy.ipPerMinute,
+      windowMs: MINUTE_MS,
+    },
+    {
+      bucket: "global",
+      windowStart: minuteWindow,
+      amount,
+      limit: policy.globalPerMinute,
+      windowMs: MINUTE_MS,
+    },
   ];
 }
 
@@ -458,36 +506,40 @@ export async function handleDeepSeekProxy(
     return jsonError("Request does not match the history simulation protocol.", 400);
   }
 
-  const apiKey = isLocalRequest(request)
+  const localRequest = isLocalRequest(request);
+  const apiKey = localRequest
     ? runtimeValue(env.VITE_DEEPSEEK_API_KEY) ?? runtimeValue(env.DEEPSEEK_API_KEY)
     : runtimeValue(env.DEEPSEEK_API_KEY);
   if (!apiKey) {
     return jsonError("The history simulation service is not configured.", 503);
   }
-  const salt = runtimeValue(env.RATE_LIMIT_SALT) ?? (
-    isLocalRequest(request) ? "local-history-rate-limit" : undefined
-  );
-  if (!salt) {
-    return jsonError("The history simulation limit is not configured.", 503);
-  }
 
-  const guest = await guestIdentity(request, salt);
-  let reserved: Awaited<ReturnType<typeof reserveRateLimit>>;
-  try {
-    reserved = await reserveRateLimit(request, env, guest, salt, envelope.reasoning);
-  } catch {
-    return jsonError("The history simulation limit is temporarily unavailable.", 503);
-  }
-  if (!reserved.allowed) {
-    return jsonError(
-      "Too many history simulation requests.",
-      429,
-      {
-        "Retry-After": String(reserved.retryAfterSeconds),
-        "X-History-Rate-Limit": "quota",
-        ...(guest.setCookie ? { "Set-Cookie": guest.setCookie } : {}),
-      },
-    );
+  let guest: GuestIdentity | undefined;
+  let reservations: readonly RateLimitReservation[] = [];
+  if (!localRequest) {
+    const salt = runtimeValue(env.RATE_LIMIT_SALT);
+    if (!salt) {
+      return jsonError("The history simulation limit is not configured.", 503);
+    }
+    guest = await guestIdentity(request, salt);
+    let reserved: Awaited<ReturnType<typeof reserveRateLimit>>;
+    try {
+      reserved = await reserveRateLimit(request, env, guest, salt, envelope.reasoning);
+    } catch {
+      return jsonError("The history simulation limit is temporarily unavailable.", 503);
+    }
+    if (!reserved.allowed) {
+      return jsonError(
+        "Too many history simulation requests.",
+        429,
+        {
+          "Retry-After": String(reserved.retryAfterSeconds),
+          "X-History-Rate-Limit": "burst",
+          ...(guest.setCookie ? { "Set-Cookie": guest.setCookie } : {}),
+        },
+      );
+    }
+    reservations = reserved.reservations;
   }
 
   const abortController = new AbortController();
@@ -517,16 +569,20 @@ export async function handleDeepSeekProxy(
   } catch (error) {
     cleanup();
     if (!request.signal.aborted) {
-      context.waitUntil(refundReservations(env.DB, reserved.reservations));
+      if (reservations.length > 0) {
+        context.waitUntil(refundReservations(env.DB, reservations));
+      }
       return jsonError("The history simulation service is unavailable.", 503);
     }
     throw error;
   }
 
-  const headers = proxyResponseHeaders(upstream, guest.setCookie);
+  const headers = proxyResponseHeaders(upstream, guest?.setCookie);
   if (!upstream.ok || !upstream.body) {
     cleanup();
-    context.waitUntil(refundReservations(env.DB, reserved.reservations));
+    if (reservations.length > 0) {
+      context.waitUntil(refundReservations(env.DB, reservations));
+    }
     return new Response(null, { status: upstream.status || 503, headers });
   }
 
