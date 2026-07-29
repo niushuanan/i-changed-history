@@ -339,9 +339,15 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
     const diagnostics: Array<{ stage: string; errors: readonly string[]; repairFields?: readonly string[] }> = [];
 
-    const result = await generateNextTurn(scenario, [playedTurn], 2, {
-      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
-    });
+    vi.useFakeTimers();
+    const result = await (async () => {
+      const promise = generateNextTurn(scenario, [playedTurn], 2, {
+        onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+      });
+      await vi.advanceTimersByTimeAsync(2_000);
+      await vi.advanceTimersByTimeAsync(3_000);
+      return promise;
+    })();
 
     expect(result.headline).toBe(second.headline);
     expect(fetcher).toHaveBeenCalledTimes(3);
@@ -360,16 +366,58 @@ describe("DeepSeek transport and structured generation", () => {
   });
 
   it("reports a terminal recovery failure without inventing a local scene", async () => {
+    vi.useFakeTimers();
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
     vi.stubGlobal("fetch", fetcher);
     const diagnostics: Array<{ stage: string }> = [];
 
-    await expect(generateNextTurn(scenario, [playedTurn], 2, {
+    const promise = generateNextTurn(scenario, [playedTurn], 2, {
       onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
-    })).rejects.toBeInstanceOf(StructuredGenerationError);
+    });
+    promise.catch(() => {}); // suppress unhandled-rejection detection until expect()
+    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(3_000);
+    await expect(promise).rejects.toBeInstanceOf(StructuredGenerationError);
 
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(diagnostics.at(-1)?.stage).toBe("recovery_invalid");
+  });
+
+  it("backs off before repair and recovery calls to reduce rate-limit risk", async () => {
+    vi.useFakeTimers();
+    const second = {
+      ...turnFixture,
+      chapter: 2, chapterName: "三日余波", lifeStage: "三日后",
+      previousEcho: playedTurn.resolvedEcho,
+    };
+    const responses = [
+      JSON.stringify({ ...second, headline: undefined }),
+      JSON.stringify({ headline: "" }),
+      JSON.stringify(second),
+    ];
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(responses.shift())));
+    vi.stubGlobal("fetch", fetcher);
+
+    const startedAt = Date.now();
+    const promise = generateNextTurn(scenario, [playedTurn], 2);
+
+    // Should NOT fetch again immediately — repair delay must be in effect
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    // Advance past the 1200ms repair backoff
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    // Repair fails → recovery backoff (2400ms) — should NOT fetch again yet
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    // Advance past the 2400ms recovery backoff
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+
+    await expect(promise).resolves.toMatchObject({ headline: second.headline });
   });
 
   it("rejects a continuation that negates an active player-authored fact", async () => {
@@ -402,7 +450,12 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
     vi.stubGlobal("fetch", fetcher);
 
-    await expect(generateNextTurn(scenario, [customPlayed], 2)).rejects.toBeInstanceOf(StructuredGenerationError);
+    vi.useFakeTimers();
+    const promise = generateNextTurn(scenario, [customPlayed], 2);
+    promise.catch(() => {}); // suppress unhandled-rejection detection until expect()
+    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(3_000);
+    await expect(promise).rejects.toBeInstanceOf(StructuredGenerationError);
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
@@ -466,9 +519,14 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
     const diagnostics: Array<{ stage: string; repairFields?: readonly string[] }> = [];
 
-    const result = await generateNextTurn(scenario, endingPlayedTurns.slice(0, 3), 4, {
-      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
-    });
+    vi.useFakeTimers();
+    const result = await (async () => {
+      const promise = generateNextTurn(scenario, endingPlayedTurns.slice(0, 3), 4, {
+        onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+      });
+      await vi.advanceTimersByTimeAsync(2_000);
+      return promise;
+    })();
 
     expect(result.role).toBe("江东水运总管");
     expect(fetcher).toHaveBeenCalledTimes(2);
@@ -567,7 +625,13 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(genericRuling))));
     vi.stubGlobal("fetch", fetcher);
 
-    const result = await adjudicateCustomAction(scenario, [], firstTurn, "我暗杀了皇帝且成功");
+    vi.useFakeTimers();
+    const result = await (async () => {
+      const promise = adjudicateCustomAction(scenario, [], firstTurn, "我暗杀了皇帝且成功");
+      await vi.advanceTimersByTimeAsync(2_000);
+      await vi.advanceTimersByTimeAsync(3_000);
+      return promise;
+    })();
 
     expect(result.declaredOutcome).toBe("我暗杀了皇帝且成功");
     expect(result.canonStatus).toBe("玩家钦定");
@@ -708,6 +772,8 @@ describe("DeepSeek transport and structured generation", () => {
     vi.stubGlobal("fetch", fetcher);
     const diagnostics: Array<{ target: string; stage: string; repairFields?: readonly string[] }> = [];
 
+    // Uses real timers because generateEnding runs parallel Promise.all
+    // that can produce orphaned rejections under fake timers.
     const ending = await generateEnding(scenario, endingPlayedTurns, {
       onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
     });
@@ -784,11 +850,15 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
     vi.stubGlobal("fetch", fetcher);
 
-    await expect(generateEnding(scenario, customPlayedTurns)).rejects.toBeInstanceOf(StructuredGenerationError);
+    // Uses real timers because parallel Promise.all in generateEnding
+    // creates orphaned rejections that fake timers can't clean up.
+    const promise = generateEnding(scenario, customPlayedTurns);
+    await expect(promise).rejects.toBeInstanceOf(StructuredGenerationError);
     expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
   it("keeps an invalid ending retryable instead of fabricating a local report", async () => {
+    // Uses real timers — see sibling test for why.
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion('{"bad":true}')));
     vi.stubGlobal("fetch", fetcher);
     await expect(generateEnding(scenario, endingPlayedTurns)).rejects.toBeInstanceOf(StructuredGenerationError);

@@ -87,6 +87,25 @@ class FieldValidationError extends Error {
   }
 }
 
+const REPAIR_BACKOFF_MS = 1_200;
+const RECOVERY_BACKOFF_MS = 2_400;
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(
+      new DeepSeekError("aborted", "本次推演已取消。", undefined, undefined, false),
+    );
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DeepSeekError("aborted", "本次推演已取消。", undefined, undefined, false));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 const DEFAULT_TURN_POWER_IDS = ["blink-self", "stop-time"] as const;
 const DEFAULT_ROLL_POWER_ID = "teleport-crowd" as const;
 
@@ -257,6 +276,7 @@ async function requestValidated<T>(
       ...(patchOnly ? { repairFields } : {}),
     });
     requestOptions.onProgress?.({ stage: "repairing" });
+    await delay(REPAIR_BACKOFF_MS, requestOptions.signal);
     const repairedRaw = await complete(
       buildContextualJsonRepairMessages(messages, raw, target, {
         ...repairDetails,
@@ -281,6 +301,7 @@ async function requestValidated<T>(
       diagnose({ stage: "repair_invalid", errors: summarizeValidationError(repairError) });
       diagnose({ stage: "recovery_started", errors: summarizeValidationError(repairError) });
       requestOptions.onProgress?.({ stage: "repairing" });
+      await delay(RECOVERY_BACKOFF_MS, requestOptions.signal);
       const recoveryRaw = await complete(
         buildContextualJsonRepairMessages(messages, repairedCandidate, target, {
           ...repairDetails,
