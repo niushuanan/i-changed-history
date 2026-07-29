@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ATMOSPHERE_PHRASES, POLISHING_PHRASES } from "../data/generatingPhrases";
 import { GeneratingScreen } from "./GeneratingScreen";
 
 const gameStyles = readFileSync("src/styles/game.css", "utf8");
@@ -43,8 +44,10 @@ describe("history developing room", () => {
   });
 
   it("uses player-facing waiting copy without naming the model", () => {
-    render(<GeneratingScreen chapter={3} ending={false} progressStage="writing" onCancel={vi.fn()} />);
-    expect(screen.getByText("新的历史现场即将出现")).toBeVisible();
+    const { container } = render(<GeneratingScreen chapter={3} ending={false} progressStage="writing" onCancel={vi.fn()} />);
+    const waitingNote = container.querySelector(".developing-note");
+    expect(waitingNote).toBeVisible();
+    expect(ATMOSPHERE_PHRASES).toContain(waitingNote?.textContent);
     expect(screen.queryByText(/DeepSeek|完成后直接进入现场/)).not.toBeInTheDocument();
   });
 
@@ -79,7 +82,9 @@ describe("history developing room", () => {
 
     expect(screen.getByText("盐路突然断绝")).toBeVisible();
     expect(screen.getByText("旧军令已经抬高盐价。商帮与守军正在城门争夺最后一批盐引。")).toBeVisible();
-    expect(screen.getByText("场景仍在写成，完整校验后才能决定")).toBeVisible();
+    const polishingNote = container.querySelector(".developing-draft em");
+    expect(polishingNote).toBeVisible();
+    expect(POLISHING_PHRASES).toContain(polishingNote?.textContent);
     expect(screen.queryByRole("button", { name: /选择/ })).not.toBeInTheDocument();
     expect(container.querySelector(".generating-screen")).toHaveClass("generating-screen--draft");
   });

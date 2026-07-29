@@ -61,6 +61,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-07-29 15:38 - 同步远端协作成果并归档赛事海报资产
+
+- 本次任务：把 `origin/main` 的最新协作提交快进到本地当前 `main`，并将此前尚未纳入版本控制的赛事海报成品、可复现制作脚本和补充主视觉整理为当前本地最新版本。
+- 改了哪些文件：远端新增 `src/data/generatingPhrases.ts`、`docs/superpowers/specs/2026-07-30-loading-phrases-design.md` 与三份历史玩法/剧本设计文档，修改 `src/screens/GeneratingScreen.tsx`、`src/styles/game.css`；本地修改 `src/screens/GeneratingScreen.test.tsx`，新增 `design/posters/2026-07-29/{poster-01-destiny-flip-a3,poster-02-roguelike-table-a3,poster-03-butterfly-effect-a3,a3-safe-zone-guide,generated-destiny-table-key-visual}.png`、`design/posters/2026-07-29/imagegen-prompts.md` 和 `scripts/build-hackathon-posters.mjs`；更新本文档。
+- 改了什么：本地 `main` 从 `f5c21ea` 纯快进到远端 `bd234c1`，生成页的等待氛围语、草稿打磨语和首幕三段进度语由固定文案改为分类随机文案，其中草稿打磨语每秒平滑轮换；同步把仍锁死旧固定文案的两条回归测试改为校验实际显示值属于受控文案池，避免随机结果造成误报；同时把三张 3508 × 4961 的 A3 海报、安全区参考、生成提示词、Sharp 重建脚本和额外竖版主视觉统一归档到 `design/posters/2026-07-29/`，不把无语义 UUID 文件留在项目根目录。
+- 为什么这样改：当前分支需要先吸收协作者已经提交的最新产品表达，再把本地已完成但尚未入库的比赛交付物纳入同一条权威代码线；生成页文案轮换降低长等待的机械重复感，海报资产集中归档则让成品、来源和复现路径可一起追踪。
+- 影响了哪些模块：生成中的首幕等待文案、草稿状态提示及动效发生变化，新增赛事设计交付物和历史玩法设计资料；不改变实际 SSE 进度、四决三 Roll、100 个剧本、玩家正史、AI 请求协议、存档、结局或互动空间三剧本打包边界。复核后第 1—3 节仍准确，无需改写。
+- 验证：海报重建脚本成功生成三张 A3 成品与安全区参考；全量 Vitest 36 文件 355/355、TypeScript、217 个运行时文件可移植性、vinext 生产构建和 `git diff --check` 全部通过。
+
 ### 2026-07-29 15:15 - 将平面闪动卡带重构为舒适的 3D 历史轮盘
 
 - 本次任务：保留“在历史卡片中随机抽取”的核心形式，但解决多张完整卡同时横向闪过造成的晃眼、缺少 3D 旋转感、卡片上下高度不足，以及停稳前就出现闯入/重抽操作、`换一个开局` 远离主行动的问题。
