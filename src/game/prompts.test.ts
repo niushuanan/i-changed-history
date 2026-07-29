@@ -275,9 +275,54 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.task).toContain("不要默认写坦克、神兽、飞船、召唤术");
     expect(payload.task).toContain("像现场的人在说一个能立刻执行的主意");
     expect(payload.task).toContain("禁止“夺取解释权、推进既有轨迹");
+    expect(payload.task).toContain("先在心里盘点 currentScene 与 historyMoment");
+    expect(payload.task).toContain("三张牌必须使用三种不同的现场杠杆");
+    expect(payload.task).toContain("逐字带出至少一个当前快照中的专名或实物");
+    expect(payload.task).toContain("不要把循史写成等待");
+    expect(payload.task).toContain("不要把破局写成泛化的接管现场");
+    expect(payload.task).toContain("天外必须让本幕已有的具体器物");
+    expect(payload.task).toContain("删掉超现实机制后仍能成立，就不算天外");
+    expect(payload.task).toContain("黑入、广播、泄密、伪造或破坏");
+    expect(payload.task).toContain("即使放到 2026 年也不可能自然发生");
+    expect(payload.task).toContain("不要输出盘点过程");
+    expect(payload.outputContract.label).toContain("必须以具体的人、物、地点或已经发生的结果收尾");
     expect(payload.outputContract.displayLabel).toContain("自然动宾短语");
     expect(payload.allPreviouslySeenCards).toHaveLength(6);
     expect(payload.currentScene.headline).toBe(parsedTurn.headline);
+  });
+
+  it("treats the historical snapshot as the source of every generated choice without changing the protocol shape", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{
+      turn: parsedTurn,
+      selectedChoiceId: "A" as const,
+      selectedChoiceLabel: parsedTurn.choices[0].label,
+      selectedDeviationClass: "nudge" as const,
+      resolvedEcho: parsedTurn.choices[0].instantEcho,
+    }];
+    const messages = buildContinuationMessages(scenario, played, 2);
+    const protocol = messages[1].content;
+    const payload = JSON.parse(messages.at(-1)!.content);
+
+    expect(messages).toHaveLength(3);
+    expect(protocol).toContain("历史快照不是背景资料，而是本幕所有行动的边界");
+    expect(protocol).toContain("三张牌必须分别使用不同的具体杠杆");
+    expect(protocol).toContain("每张牌至少逐字使用一个本幕已经出现的具体人物、机构、地点、器物、命令或程序");
+    expect(protocol).toContain("删掉超现实机制后仍然能执行，就不是天外");
+    expect(protocol).toContain("即使放到 2026 年也不可能自然发生");
+    expect(protocol).toContain("必须以具体的人、物、地点或已经发生的结果收尾");
+    expect(protocol).toContain("末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”");
+    expect(protocol).toContain("先像当事人开口，再从这句话中提取");
+    expect(protocol).toContain("原定方案、新方案、现场众人、愿意跟随的人");
+    expect(protocol).toContain("exactShapeExample 只示意字段结构");
+    expect(protocol).not.toContain("按原计划出兵");
+    expect(protocol).not.toContain("复核后照办");
+    expect(payload.task).toContain("先在内部完成一次不输出的现场盘点");
+    expect(payload.task).toContain("谁能被说服、什么东西能被拿走");
+    expect(payload.task).toContain("六张牌至少覆盖六种不同的现场杠杆");
+    expect(payload.task).toContain("删掉超现实机制后仍能执行，就不算天外");
+    expect(payload.submissionChecklist.choices).toContain("不是同一动作换六种说法");
+    expect(payload.submissionChecklist.choices).toContain("末尾不得停在连接词或待完成的动词");
   });
 
 });

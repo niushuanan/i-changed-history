@@ -81,6 +81,15 @@ function seedHash(seed: HistorySeed): number {
   ));
 }
 
+function eventSubject(seed: HistorySeed): string {
+  const subject = clean(seed.eventName)
+    .replace(/前的.*$/, "")
+    .replace(/前夕.*$/, "")
+    .replace(/的最后.*$/, "")
+    .trim();
+  return clip(subject || clean(seed.eventName), 8);
+}
+
 const SURREAL_TEMPLATES = [
   {
     displayLabel: "让谎言现形",
@@ -173,9 +182,10 @@ const SURREAL_TEMPLATES = [
 ] as const;
 
 function surrealChoice(seed: HistorySeed, offset: number): TimelineTurn["choices"][2] {
-  const eventKey = compactCompleteClause(clean(seed.eventName), 12, "历史现场");
+  const eventKey = `${eventSubject(seed)}现场`;
   const template = SURREAL_TEMPLATES[(seedHash(seed) + offset) % SURREAL_TEMPLATES.length];
   const deadline = clip(clean(seed.urgency), 20);
+  const playerActor = `以${clip(seed.role, 18)}身份到场的你`;
   return {
     id: "C",
     label: template.label(eventKey),
@@ -184,7 +194,7 @@ function surrealChoice(seed: HistorySeed, offset: number): TimelineTurn["choices
     deviationClass: "rupture",
     usesModernKnowledge: false,
     actionSpec: {
-      actor: template.actor,
+      actor: `${playerActor}，并联合${template.actor.replace(/^你与/, "")}`,
       action: template.action,
       target: clip(clean(seed.eventName), 28),
       deadline,
@@ -219,47 +229,54 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     28,
     `执行改变${eventKey}走向的关键命令`,
   );
+  const eventShort = eventSubject(seed);
+  const faceSubject = clip(eventShort, 6);
+  const playerActor = `以${clip(seed.role, 18)}身份到场的你`;
   const deadline = clip(clean(seed.urgency), 20);
   const reformVariants = [
     {
-      displayLabel: "接管现场",
-      label: "绕过原有指挥链，直接接管现场并执行相反方案",
-      action: "接管现场并执行相反方案",
-      result: "旧方案被截停，现场开始执行你的新命令",
-      cost: "原有指挥者立刻把你视为叛徒",
+      displayLabel: (subject: string) => `抢在${subject}前改令`,
+      label: (subject: string) => `抢在${subject}落定前扣下旧令，由你另发一份相反命令`,
+      action: (subject: string) => `扣下${subject}旧令并另发相反命令`,
+      result: (subject: string) => `${subject}原有命令被你当场截断`,
+      cost: "被绕过的负责人立即追究你的责任",
     },
     {
-      displayLabel: "公开改令",
-      label: "公开全部关键证据，召集在场众人推翻原定方案",
-      action: "公开证据并组织众人改令",
-      result: "原定方案失去支持，新的行动当场生效",
-      cost: "被揭穿的一方开始追查你的同伴",
+      displayLabel: (subject: string) => `摊开${subject}证据`,
+      label: (subject: string) => `把${subject}的关键事实当众说破，逼原负责人立即表态`,
+      action: (subject: string) => `公开${subject}关键事实并要求负责人表态`,
+      result: (subject: string) => `${subject}各方被迫公开各自立场`,
+      cost: "被点名的一方开始追查证据来源",
     },
     {
-      displayLabel: "另起人马",
-      label: "扣下原定方案，抢在最后期限前组织另一队人行动",
-      action: "扣下旧方案并组织另一队人行动",
-      result: "原有执行链被切断，新队伍立刻接手现场",
-      cost: "两队人马从此不再彼此信任",
+      displayLabel: (subject: string) => `${subject}当场换人`,
+      label: (subject: string) => `撤下负责${subject}的原执行者，另找一队人立刻接手`,
+      action: (subject: string) => `撤下负责${subject}的人并另派一队接手`,
+      result: (subject: string) => `${subject}改由另一批人负责执行`,
+      cost: "被撤下的人开始联手阻挠新命令",
     },
     {
-      displayLabel: "切断旧令",
-      label: "切断旧方案的执行链，由你当场下达一份新命令",
-      action: "切断旧执行链并下达新命令",
-      result: "旧命令无法继续传递，所有人转等你的决定",
-      cost: "一旦失败，全部责任都会落到你身上",
+      displayLabel: (subject: string) => `${subject}越级送令`,
+      label: (subject: string) => `绕过负责${subject}的上级，把相反命令直接送到一线`,
+      action: (subject: string) => `绕过负责${subject}的上级并送出相反命令`,
+      result: (subject: string) => `${subject}的命令第一次越过原负责人`,
+      cost: "命令一旦出错，全部责任都会落到你身上",
     },
   ] as const;
   const reform = reformVariants[seedHash(seed) % reformVariants.length];
+  const reformLabel = reform.label(eventShort);
+  const reformAction = reform.action(eventShort);
   return [
     {
       id: "A",
       label: action,
-      displayLabel: cardFaceFromAction(action),
+      displayLabel: cardFaceFromAction(action) === "按原计划行动"
+        ? `推进${faceSubject}`
+        : cardFaceFromAction(action),
       intent: "按原定方案继续行动",
       deviationClass: "nudge",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与负责执行的人", action, target: clip(event, 28), deadline },
+      actionSpec: { actor: playerActor, action, target: clip(event, 28), deadline },
       instantEcho: {
         directResult: "你下达命令后，现场众人立即照此行动",
         unexpectedCost: "真实历史中的旧矛盾继续累积",
@@ -269,17 +286,17 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     },
     {
       id: "B",
-      label: reform.label,
-      displayLabel: reform.displayLabel,
-      intent: "当场换掉原定行动方案",
+      label: reformLabel,
+      displayLabel: reform.displayLabel(faceSubject),
+      intent: `在${eventShort}完成前改变真实执行关系`,
       deviationClass: "reform",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与愿意跟随的人", action: reform.action, target: clip(eventKey, 28), deadline },
+      actionSpec: { actor: playerActor, action: reformAction, target: clip(eventKey, 28), deadline },
       instantEcho: {
-        directResult: reform.result,
+        directResult: reform.result(eventShort),
         unexpectedCost: reform.cost,
-        beneficiary: "愿意执行新方案的人",
-        payer: "仍然坚持旧方案的人",
+        beneficiary: `在${eventShort}中被旧命令压住的人`,
+        payer: `原先掌握${eventShort}执行权的人`,
       },
     },
     surrealChoice(seed, 0),
@@ -289,50 +306,89 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
 function rollChoices(seed: HistorySeed): TimelineTurn["rollChoices"] {
   const event = clean(seed.eventName);
   const eventKey = compactCompleteClause(event, 18, "这一历史现场");
+  const eventShort = eventSubject(seed);
+  const faceSubject = clip(eventShort, 6);
+  const playerActor = `以${clip(seed.role, 18)}身份到场的你`;
   const deadline = clip(clean(seed.urgency), 20);
   const cautiousVariants = [
-    ["复核后照办", "找两名见证人复核关键信息，再按原计划行动", "找见证人复核信息后执行原计划"],
-    ["查清再行动", "先确认情报从哪里来，再让原定方案继续执行", "核对情报来源后继续原方案"],
-    ["写明风险再做", "把眼前风险写进命令，仍由原班人马照常行动", "写明风险后让原班人马行动"],
-    ["再问一次", "争取最后一次复核，确认没有误判后执行原方案", "完成最后复核后执行原方案"],
+    {
+      displayLabel: (subject: string) => `核对${subject}消息`,
+      label: (subject: string) => `找两名知情者核对${subject}的关键消息，确认后再下令`,
+      action: (subject: string) => `让两名知情者核对${subject}消息后再下令`,
+    },
+    {
+      displayLabel: (subject: string) => `追问${subject}来路`,
+      label: (subject: string) => `先查清${subject}消息从谁手里传来，再亲自送出命令`,
+      action: (subject: string) => `追查${subject}消息来源后亲自送出命令`,
+    },
+    {
+      displayLabel: (subject: string) => `写明${subject}风险`,
+      label: (subject: string) => `把${subject}这件事的风险写进命令，再交给原执行者`,
+      action: (subject: string) => `写明${subject}风险后交给原执行者`,
+    },
+    {
+      displayLabel: (subject: string) => `叫${subject}知情者作答`,
+      label: (subject: string) => `请${subject}知情者当面作答，再决定是否放行`,
+      action: (subject: string) => `让${subject}知情者作答后决定是否放行`,
+    },
   ] as const;
   const radicalVariants = [
-    ["撤掉旧方案", "当众撤掉旧方案，把执行权交给愿意冒险的人", "撤掉旧方案并交出执行权"],
-    ["现场表决", "把关键事实摊开，让所有在场者当场选一条新路", "公开事实并组织现场表决"],
-    ["封住旧通道", "先封住旧方案的执行通道，再带一队人另行行动", "封住旧通道并组织另一队行动"],
-    ["越级下令", "绕过原来的负责人，直接向执行者下达相反命令", "越过负责人并下达相反命令"],
+    {
+      displayLabel: (subject: string) => `${subject}另换人手`,
+      label: (subject: string) => `撤下负责${subject}的原执行者，另派一队人立刻接手`,
+      action: (subject: string) => `撤下负责${subject}的人并另派一队接手`,
+    },
+    {
+      displayLabel: (subject: string) => `逼${subject}各方表态`,
+      label: (subject: string) => `把${subject}关键事实摊开，逼有决定权的人当场表态`,
+      action: (subject: string) => `公开${subject}事实并逼决策者表态`,
+    },
+    {
+      displayLabel: (subject: string) => `截断${subject}传令路`,
+      label: (subject: string) => `截断${subject}旧传令路，另派人把命令直接送到一线`,
+      action: (subject: string) => `截断${subject}旧传令路并另派人送出命令`,
+    },
+    {
+      displayLabel: (subject: string) => `${subject}越级送令`,
+      label: (subject: string) => `绕过负责${subject}的上级，把命令直接送到一线`,
+      action: (subject: string) => `越过负责${subject}的上级并把命令送到一线`,
+    },
   ] as const;
   const cautious = cautiousVariants[seedHash(seed) % cautiousVariants.length];
   const radical = radicalVariants[(seedHash(seed) + 1) % radicalVariants.length];
+  const cautiousLabel = cautious.label(eventShort);
+  const cautiousAction = cautious.action(eventShort);
+  const radicalLabel = radical.label(eventShort);
+  const radicalAction = radical.action(eventShort);
   return [
     {
       id: "A",
-      label: cautious[1],
-      displayLabel: cautious[0],
-      intent: "先复核，再按原计划行动",
+      label: cautiousLabel,
+      displayLabel: cautious.displayLabel(faceSubject),
+      intent: `核清${eventShort}的具体信息后再行动`,
       deviationClass: "nudge",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与两名现场见证人", action: cautious[2], target: clip(event, 28), deadline },
+      actionSpec: { actor: playerActor, action: cautiousAction, target: clip(event, 28), deadline },
       instantEcho: {
-        directResult: "关键信息重新核对，原计划随后开始执行",
-        unexpectedCost: "复核耗掉了最后一段准备时间",
-        beneficiary: "担心命令有误的人",
-        payer: "必须等待复核的执行者",
+        directResult: `${eventShort}的关键信息得到当面核实`,
+        unexpectedCost: "核实过程耗掉最后一段准备时间",
+        beneficiary: `会被${eventShort}直接影响的人`,
+        payer: `等待${eventShort}命令的执行者`,
       },
     },
     {
       id: "B",
-      label: radical[1],
-      displayLabel: radical[0],
-      intent: "越过原有负责人，立刻改走另一条路",
+      label: radicalLabel,
+      displayLabel: radical.displayLabel(faceSubject),
+      intent: `改变${eventShort}的执行者或传令关系`,
       deviationClass: "reform",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与支持改令的人", action: radical[2], target: clip(eventKey, 28), deadline },
+      actionSpec: { actor: playerActor, action: radicalAction, target: clip(eventKey, 28), deadline },
       instantEcho: {
-        directResult: "原来的行动停下，现场转而执行新方案",
-        unexpectedCost: "支持旧方案的人立刻与你决裂",
-        beneficiary: "愿意尝试新路线的人",
-        payer: "原有负责人和他的追随者",
+        directResult: `${eventShort}原有执行关系当场改变`,
+        unexpectedCost: "被绕过的人立刻追究命令来源",
+        beneficiary: `此前无权影响${eventShort}的人`,
+        payer: `原先掌握${eventShort}命令的人`,
       },
     },
     surrealChoice(seed, 3),

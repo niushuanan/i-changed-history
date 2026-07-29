@@ -74,4 +74,24 @@ describe("fixed first turns", () => {
     ))).toEqual([]);
     expect(apollo.choices[0].label).toContain("中止登月的口令");
   });
+
+  it("grounds every fixed opening card in the assigned historical role instead of generic followers", () => {
+    const wu = HISTORY_SEEDS.find((candidate) => candidate.id === "wu-zetian-690")!;
+    const opening = getFixedOpening(wu);
+    const allChoices = [...opening.choices, ...opening.rollChoices];
+
+    expect(allChoices.every((choice) => choice.actionSpec.actor.includes(opening.role.slice(0, 18)))).toBe(true);
+    expect(allChoices.map((choice) => choice.actionSpec.actor).join(" ")).not.toMatch(
+      /你与负责执行的人|你与愿意跟随的人|你与两名现场见证人|你与支持改令的人/,
+    );
+    expect(opening.choices[1].label).toContain("武则天称帝");
+    expect(opening.rollChoices[0].label).toContain("武则天称帝");
+    expect(opening.rollChoices[1].label).toContain("武则天称帝");
+    expect([
+      opening.choices[1].displayLabel,
+      opening.rollChoices[0].displayLabel,
+      opening.rollChoices[1].displayLabel,
+    ].every((label) => /武则天|称帝/.test(label))).toBe(true);
+    expect(opening.choices[2].label).toContain("武则天称帝现场");
+  });
 });
