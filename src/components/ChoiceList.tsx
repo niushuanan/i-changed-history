@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowsClockwise, CaretUp, Info, X } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { playCardSound } from "../services/cardAudio";
@@ -34,17 +34,32 @@ function ChoiceDetail({
   onClose: () => void;
 }) {
   const meta = CARD_META[choice.deviationClass];
+  const [closing, setClosing] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(onClose, 180);
+  }, [closing, onClose]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+  }, [requestClose]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  }, []);
 
   return (
-    <div className="choice-detail-backdrop" onPointerDown={onClose}>
+    <div
+      className={`choice-detail-backdrop${closing ? " is-closing" : ""}`}
+      onPointerDown={requestClose}
+    >
       <section
         aria-label={`${choice.displayLabel}详细信息`}
         aria-modal="true"
@@ -52,12 +67,15 @@ function ChoiceDetail({
         role="dialog"
         onPointerDown={(event) => event.stopPropagation()}
       >
+        <span className="choice-detail__art" aria-hidden="true">
+          <img src={meta.icon} alt="" />
+        </span>
         <header>
           <div>
             <span>{meta.name}牌 · 完整决定</span>
             <h2>{choice.displayLabel}</h2>
           </div>
-          <button type="button" aria-label="关闭卡牌详情" onClick={onClose}>
+          <button autoFocus type="button" aria-label="关闭卡牌详情" onClick={requestClose}>
             <X size={20} weight="bold" />
           </button>
         </header>
@@ -79,13 +97,15 @@ function ChoiceDetail({
 function ChoiceCard({
   choice,
   onChoose,
+  onCommitStart,
   onInspect,
   muted,
   dealIndex,
 }: {
   choice: Choice;
   onChoose: (id: "A" | "B" | "C") => void;
-  onInspect: (choice: Choice) => void;
+  onCommitStart: (id: "A" | "B" | "C") => void;
+  onInspect: (choice: Choice, trigger: HTMLButtonElement) => void;
   muted: boolean;
   dealIndex: number;
 }) {
@@ -113,11 +133,12 @@ function ChoiceCard({
     if (typeof event.currentTarget.setPointerCapture === "function") {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
+    const trigger = event.currentTarget;
     longPressRef.current = window.setTimeout(() => {
       inspectedRef.current = true;
       setDragging(false);
       setOffsetY(0);
-      onInspect(choice);
+      onInspect(choice, trigger);
     }, LONG_PRESS_MS);
   };
 
@@ -134,9 +155,14 @@ function ChoiceCard({
     setDragging(false);
     if (armed) {
       setCommitting(true);
-      setOffsetY(-260);
+      onCommitStart(choice.id);
+      setOffsetY(-Math.max(520, window.innerHeight * 0.86));
       playCardSound("commit", muted);
-      window.setTimeout(() => onChoose(choice.id), 210);
+      const commitDelay = typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? 90
+        : 420;
+      window.setTimeout(() => onChoose(choice.id), commitDelay);
       return;
     }
     setOffsetY(0);
@@ -151,7 +177,7 @@ function ChoiceCard({
       data-choice-id={choice.id}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onInspect(choice);
+        if (event.key === "Enter" || event.key === " ") onInspect(choice, event.currentTarget);
       }}
       onPointerCancel={finish}
       onPointerDown={begin}
@@ -163,15 +189,17 @@ function ChoiceCard({
       } as React.CSSProperties}
       type="button"
     >
-      <span className="choice-card__tier">{meta.name}</span>
-      <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
-      <strong>{choice.displayLabel}</strong>
-      <small>{meta.description}</small>
-      <span className="choice-card__gesture">
-        <CaretUp size={14} weight="bold" />
-        {armed ? "松手打出" : "上划选择"}
+      <span className="choice-card__surface">
+        <span className="choice-card__tier">{meta.name}</span>
+        <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
+        <strong>{choice.displayLabel}</strong>
+        <small>{meta.description}</small>
+        <span className="choice-card__gesture">
+          <CaretUp size={14} weight="bold" />
+          {armed ? "松手打出" : "上划选择"}
+        </span>
+        <span className="choice-card__inspect"><Info size={11} weight="fill" /> 长按详情</span>
       </span>
-      <span className="choice-card__inspect"><Info size={11} weight="fill" /> 长按详情</span>
     </button>
   );
 }
@@ -190,23 +218,51 @@ export function ChoiceList({
   muted?: boolean;
 }) {
   const [detailChoice, setDetailChoice] = useState<Choice | null>(null);
-  const [rolling, setRolling] = useState(false);
+  const [rollPhase, setRollPhase] = useState<"idle" | "collecting" | "dealing">("idle");
+  const [committingId, setCommittingId] = useState<"A" | "B" | "C" | null>(null);
+  const rollTimersRef = useRef<number[]>([]);
+  const inspectTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const rolling = rollPhase !== "idle";
 
   useEffect(() => {
     playCardSound("deal", muted);
   }, [choices, muted]);
 
+  useEffect(() => () => {
+    rollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+  }, []);
+
   const roll = () => {
     if (rollUsed || rolling) return;
-    setRolling(true);
+    setRollPhase("collecting");
     playCardSound("roll", muted);
-    window.setTimeout(() => onRoll(), 180);
-    window.setTimeout(() => setRolling(false), 230);
+    const reducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const collectDuration = reducedMotion ? 70 : 260;
+    const totalDuration = reducedMotion ? 120 : 720;
+    rollTimersRef.current.push(window.setTimeout(() => {
+      onRoll();
+      setRollPhase("dealing");
+    }, collectDuration));
+    rollTimersRef.current.push(window.setTimeout(() => setRollPhase("idle"), totalDuration));
+  };
+
+  const inspect = (choice: Choice, trigger: HTMLButtonElement) => {
+    inspectTriggerRef.current = trigger;
+    setDetailChoice(choice);
+  };
+
+  const closeDetail = () => {
+    setDetailChoice(null);
+    window.requestAnimationFrame(() => inspectTriggerRef.current?.focus());
   };
 
   return (
     <>
-      <div className={`rogue-choice-table${rolling ? " is-rolling" : ""}`}>
+      <div
+        className={`rogue-choice-table${rollPhase === "collecting" ? " is-collecting" : ""}${rollPhase === "dealing" ? " is-dealing" : ""}${committingId ? " is-committing" : ""}`}
+        data-committing-choice={committingId ?? undefined}
+      >
         <div className="choice-list" aria-label="三张历史选择卡牌">
           {choices.map((choice, index) => (
             <ChoiceCard
@@ -215,7 +271,8 @@ export function ChoiceList({
               key={`${rollUsed ? "roll" : "initial"}-${choice.id}`}
               muted={muted}
               onChoose={onChoose}
-              onInspect={setDetailChoice}
+              onCommitStart={setCommittingId}
+              onInspect={inspect}
             />
           ))}
         </div>
@@ -226,13 +283,20 @@ export function ChoiceList({
           onClick={roll}
           type="button"
         >
-          <ArrowsClockwise size={17} weight="bold" />
-          <span>{rollUsed ? "已重抽" : "ROLL"}</span>
+          <span className="choice-roll__deck" aria-hidden="true">
+            <img src="/assets/picker/vermilion-cloth-v2.webp" alt="" />
+            <img src="/assets/picker/vermilion-cloth-v2.webp" alt="" />
+            <img src="/assets/picker/vermilion-cloth-v2.webp" alt="" />
+          </span>
+          <span className="choice-roll__action">
+            <ArrowsClockwise size={17} weight="bold" />
+            <span>{rolling ? "洗牌中" : rollUsed ? "已重抽" : "ROLL"}</span>
+          </span>
           <strong>{rollUsed ? "本节点不可再用" : "本节点仅一次 · 无需等待"}</strong>
         </button>
       </div>
       {detailChoice ? (
-        <ChoiceDetail choice={detailChoice} onClose={() => setDetailChoice(null)} />
+        <ChoiceDetail choice={detailChoice} onClose={closeDetail} />
       ) : null}
     </>
   );

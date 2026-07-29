@@ -1,5 +1,17 @@
 # Design QA
 
+## 历史档案牌桌复刻与物理交互 QA（2026-07-29）
+
+- 视觉真值：`/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-8dee6cba-4520-4a0e-97f0-9a68c1d24451.png`，源图 853 × 1852；以 390 × 844 归一化后和真实浏览器实现逐像素并排检查。
+- 最终实现：`design/validation/archive-card-table-390x844.png`；完整并排图为 `design/validation/archive-card-fidelity-comparison.png`，牌桌与 Roll 聚焦对照为 `design/validation/archive-card-fidelity-focus.png`。实现保留了源图的煤黑电影表面、档案纸/木纹质感、黄铜/朱砂/青绿三类卡牌、左右内倾与中牌前置、卡牌厚边和实体抽屉式 Roll 装置；事件场景继续使用当前节点真实历史图，因此不会把周平王插画硬编码给另外 99 个入口。
+- 交互证据：`design/validation/archive-card-swipe-commit-390x844.png` 记录卡牌越过顶部的提交态；`archive-card-roll-collect-390x844.png` 与 `archive-card-roll-dealt-390x844.png` 记录旧牌收拢进牌匣和预生成第二组三张重新发出的两阶段动画；`archive-card-detail-390x844.png` 记录长按后把原牌抬到眼前的完整决定、行动目标、期限、直接结果和隐藏代价。详情关闭有回落动画并把焦点还给原牌；`prefers-reduced-motion` 下保留所有状态但压缩位移时长。
+- 真实手势：在 in-app browser 中使用真实坐标拖拽把中牌上划越过阈值，完整 canonical 选择同步进入时间线；Roll 只触发已经准备好的第二组三张，没有模型请求；长按阈值为 430ms，键盘 Enter/Space 提供同一详情入口，Escape/关闭按钮退出。
+- 响应式：390 × 844 为源图对照态；360 × 667 与 430 × 932 分别记录于 `archive-card-table-360x667.png` 和 `archive-card-table-430x932.png`。三个尺寸均无横向溢出，完整三卡、一次 Roll 与历史对照入口都在首屏可见；短屏卡面标题不低于 13px、分类和辅助信息不低于 11px。
+- 对照历史：第一轮暴露的是“平面网页按钮”问题，牌面没有厚度，Roll 只是普通按钮，详情像通用弹窗；第二轮加入扇形透视、材质、牌匣和实体详情后，真实拖拽又发现发牌动画的 `fill-mode: both` 会覆盖提交位移，这是 P1 交互问题；最终改为只在入场前回填关键帧并重跑真实拖拽。当前无 P0、P1 或 P2 偏差。保留的 P3 差异只有动态历史插画的具体笔触和 Roll 外框雕花密度，它们不改变选定稿的布局、层级、颜色、材质语言或交互模型。
+- 回归结果：36 个 Vitest 文件、360/360 测试通过；TypeScript、214 个运行时文件可移植性、vinext 生产构建和 `git diff --check` 通过；互动空间构建仍只含古腾堡、伽利略、阿波罗 11 三个审核剧本，非白名单泄漏 0，ZIP 2,639,062 字节，MD5 `90381a547193efcfb7485362739de203`。浏览器控制台错误/警告为 0。
+
+final result: passed
+
 ## Three-Start All-Custom Stability QA (2026-07-19)
 
 - Browser interaction: used the real local product at `http://127.0.0.1:4174/` to enter Red Cliffs, the Great Fire of Rome, and Apollo 11. Each opening received a different deliberately unconventional direct rewrite. All three exact player texts became visible canon and produced a complete chapter-2 scene with an enabled `下一步`; the scenes preserved every simultaneous fact instead of reducing them to a known keyword pattern.

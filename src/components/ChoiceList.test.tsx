@@ -29,6 +29,11 @@ describe("roguelike history cards", () => {
     expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
     expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
+    expect(container.querySelectorAll(".choice-card__surface")).toHaveLength(3);
+    expect(container.querySelector(".choice-roll__deck img")).toHaveAttribute(
+      "src",
+      "/assets/picker/vermilion-cloth-v2.webp",
+    );
     expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toBeEnabled();
   });
@@ -56,7 +61,9 @@ describe("roguelike history cards", () => {
     fireEvent.pointerMove(card, { clientY: 130, pointerId: 2 });
     fireEvent.pointerUp(card, { clientY: 130, pointerId: 2 });
     expect(onChoose).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(250));
+    expect(card).toHaveClass("is-committing");
+    expect(card.closest(".rogue-choice-table")).toHaveClass("is-committing");
+    act(() => vi.advanceTimersByTime(430));
     expect(onChoose).toHaveBeenCalledTimes(1);
     expect(onChoose).toHaveBeenCalledWith("A");
   });
@@ -96,10 +103,17 @@ describe("roguelike history cards", () => {
     expect(dialog).toHaveTextContent(canonical);
     expect(dialog).toHaveTextContent("公开核验军令");
     expect(dialog).toHaveTextContent(detailedChoices[0].instantEcho.unexpectedCost);
+    expect(dialog.querySelector(".choice-detail__art img")).toHaveAttribute(
+      "src",
+      "/assets/cards/choice-regular.png",
+    );
     expect(onChoose).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭卡牌详情" }));
+    expect(dialog.closest(".choice-detail-backdrop")).toHaveClass("is-closing");
+    act(() => vi.advanceTimersByTime(220));
     expect(dialog).not.toBeInTheDocument();
+    expect(card).toHaveFocus();
   });
 
   it("reveals the prepared second trio once and never asks the model to wait", () => {
@@ -116,7 +130,8 @@ describe("roguelike history cards", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" }));
     expect(onRoll).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(190));
+    expect(document.querySelector(".rogue-choice-table")).toHaveClass("is-collecting");
+    act(() => vi.advanceTimersByTime(270));
     expect(onRoll).toHaveBeenCalledTimes(1);
 
     rerender(
