@@ -34,6 +34,8 @@ describe("roguelike history cards", () => {
     expect(container.querySelectorAll(".choice-card__hold-cue")).toHaveLength(3);
     expect(container.querySelector(".choice-roll__deck")).not.toBeInTheDocument();
     expect(container.querySelector(".choice-roll__label")).toHaveTextContent("ROLL");
+    expect(screen.queryByText("上划选择")).not.toBeInTheDocument();
+    expect(screen.queryByText("按住读牌")).not.toBeInTheDocument();
     expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" })).toBeEnabled();
   });
@@ -173,7 +175,7 @@ describe("roguelike history cards", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("reveals the prepared trio instantly, then exposes two live rolls", () => {
+  it("gives even the prepared trio a deliberate shuffle beat, then exposes two live rolls", () => {
     const onRoll = vi.fn();
     const { rerender } = render(
       <ChoiceList
@@ -189,7 +191,10 @@ describe("roguelike history cards", () => {
     fireEvent.click(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" }));
     expect(onRoll).not.toHaveBeenCalled();
     expect(document.querySelector(".rogue-choice-table")).toHaveClass("is-collecting");
-    act(() => vi.advanceTimersByTime(190));
+    act(() => vi.advanceTimersByTime(900));
+    expect(onRoll).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("正在为这一刻换一手牌");
+    act(() => vi.advanceTimersByTime(320));
     expect(onRoll).toHaveBeenCalledTimes(1);
 
     rerender(
@@ -215,7 +220,8 @@ describe("roguelike history cards", () => {
         rollLoading
       />,
     );
-    expect(screen.getByRole("button", { name: "AI 正在现场发牌" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "正在洗牌" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("正在为这一刻换一手牌");
 
     rerender(
       <ChoiceList
@@ -233,22 +239,30 @@ describe("roguelike history cards", () => {
   });
 
   it("keeps the current cards playable and exposes an in-place live Roll retry", () => {
+    const onRoll = vi.fn();
     render(
       <ChoiceList
         choices={choices}
         muted
         onChoose={vi.fn()}
-        onRoll={vi.fn()}
+        onRoll={onRoll}
         rollCount={1}
         rollLoading={false}
-        rollError="新牌暂时没有发出来，点击 ROLL 再试。"
+        rollError="这手牌没洗出来，再 Roll 一次。"
       />,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("新牌暂时没有发出来，点击 ROLL 再试。");
+    expect(screen.getByRole("status")).toHaveTextContent("这手牌没洗出来，再 Roll 一次。");
+    expect(screen.getByRole("status")).not.toHaveTextContent("可再次尝试");
     expect(screen.getByRole("button", { name: "重抽卡牌，还剩 2 次" })).toBeEnabled();
     expect(screen.getByRole("button", { name: /循史牌/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /破局牌/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "重抽卡牌，还剩 2 次" }));
+    expect(screen.getByRole("status")).toHaveTextContent("正在为这一刻换一手牌");
+    expect(screen.queryByText("这手牌没洗出来，再 Roll 一次。")).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(380));
+    expect(onRoll).toHaveBeenCalledOnce();
   });
 });

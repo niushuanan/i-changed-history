@@ -42,6 +42,38 @@ function decisionAction(seed: HistorySeed): string {
   return clean(seed.decision).replace(/^是否/, "");
 }
 
+const CARD_FACE_VERBS = [
+  "免费开放", "同步发出", "公开处决", "强行接管", "集中攻击", "发动伏击",
+  "夜袭", "封锁", "接管", "撤回", "拒绝", "扣下", "烧毁", "护送",
+  "释放", "处决", "公开", "签署", "发布", "开放", "进攻", "撤退",
+  "齐射", "出战", "渡江", "突围", "交付", "传达", "写进", "拥立",
+  "放出", "担保", "反对", "封存", "唤醒", "接受", "组织", "暂压",
+  "下放", "坚持", "解开", "投向", "执行",
+] as const;
+
+function cardFaceFromAction(value: string): string {
+  const normalized = clean(value);
+  const clauses = normalized
+    .split(/[，,；;]/)
+    .map((clause) => clause
+      .replace(/^(?:在|趁|当|等到).*?(?=(?:立即|提前|公开|强行|集中|发动|夜袭|封锁|接管|撤回|拒绝|扣下|烧毁|护送|释放|处决|签署|发布|开放|进攻|撤退|齐射|出战|渡江|突围|交付|传达|写进|拥立|放出|担保|反对|封存|唤醒|接受|组织|暂压|下放|坚持|解开|投向|执行))/u, "")
+      .replace(/^(?:立即|提前|公开|当面|强行)/, "")
+      .replace(/^(?:并且|并|但|且|随后|然后|再)/, "")
+      .trim())
+    .filter(Boolean);
+
+  for (const clause of [...clauses].reverse()) {
+    if ([...clause].length >= 4 && [...clause].length <= 12) return clause;
+    for (const verb of CARD_FACE_VERBS) {
+      const verbIndex = clause.lastIndexOf(verb);
+      if (verbIndex < 0) continue;
+      const candidate = clause.slice(verbIndex);
+      if ([...candidate].length >= 4 && [...candidate].length <= 12) return candidate;
+    }
+  }
+  return "按原计划行动";
+}
+
 function seedHash(seed: HistorySeed): number {
   return Math.abs(seed.id.split("").reduce(
     (sum, character, index) => sum + character.charCodeAt(0) * (index + 1),
@@ -180,7 +212,6 @@ function fixedNarrative(seed: HistorySeed): string {
 
 function choices(seed: HistorySeed): TimelineTurn["choices"] {
   const originalAction = decisionAction(seed);
-  const fact = clean(seed.baselineFacts[0]);
   const event = clean(seed.eventName);
   const eventKey = compactCompleteClause(event, 18, "这一历史现场");
   const action = compactCompleteClause(
@@ -188,37 +219,67 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
     28,
     `执行改变${eventKey}走向的关键命令`,
   );
-  const factKey = compactCompleteClause(fact, 18, eventKey);
   const deadline = clip(clean(seed.urgency), 20);
+  const reformVariants = [
+    {
+      displayLabel: "接管现场",
+      label: "绕过原有指挥链，直接接管现场并执行相反方案",
+      action: "接管现场并执行相反方案",
+      result: "旧方案被截停，现场开始执行你的新命令",
+      cost: "原有指挥者立刻把你视为叛徒",
+    },
+    {
+      displayLabel: "公开改令",
+      label: "公开全部关键证据，召集在场众人推翻原定方案",
+      action: "公开证据并组织众人改令",
+      result: "原定方案失去支持，新的行动当场生效",
+      cost: "被揭穿的一方开始追查你的同伴",
+    },
+    {
+      displayLabel: "另起人马",
+      label: "扣下原定方案，抢在最后期限前组织另一队人行动",
+      action: "扣下旧方案并组织另一队人行动",
+      result: "原有执行链被切断，新队伍立刻接手现场",
+      cost: "两队人马从此不再彼此信任",
+    },
+    {
+      displayLabel: "切断旧令",
+      label: "切断旧方案的执行链，由你当场下达一份新命令",
+      action: "切断旧执行链并下达新命令",
+      result: "旧命令无法继续传递，所有人转等你的决定",
+      cost: "一旦失败，全部责任都会落到你身上",
+    },
+  ] as const;
+  const reform = reformVariants[seedHash(seed) % reformVariants.length];
   return [
     {
       id: "A",
       label: action,
-      displayLabel: compactCompleteClause(action, 14, "照史推进原定命令"),
-      intent: "依照真实历史的既有路径推进",
+      displayLabel: cardFaceFromAction(action),
+      intent: "按原定方案继续行动",
       deviationClass: "nudge",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与现场执行者", action, target: clip(event, 28), deadline },
+      actionSpec: { actor: "你与负责执行的人", action, target: clip(event, 28), deadline },
       instantEcho: {
-        directResult: clip(`你决定${action}，现场立即照办`, 80),
-        unexpectedCost: "原有矛盾提前爆发",
-        beneficiary: "支持这道命令的人",
-        payer: "承担现场风险的人",
+        directResult: "你下达命令后，现场众人立即照此行动",
+        unexpectedCost: "真实历史中的旧矛盾继续累积",
+        beneficiary: "依靠原计划行动的人",
+        payer: "原本希望改变结果的人",
       },
     },
     {
       id: "B",
-      label: `抢在各方反应前夺取${factKey}的现场解释权`,
-      displayLabel: "夺取现场解释权",
-      intent: "用强硬手段显著改写历史走向",
+      label: reform.label,
+      displayLabel: reform.displayLabel,
+      intent: "当场换掉原定行动方案",
       deviationClass: "reform",
-      usesModernKnowledge: true,
-      actionSpec: { actor: "你与可靠见证人", action: "抢先控制证据并重发命令", target: clip(fact, 28), deadline },
+      usesModernKnowledge: false,
+      actionSpec: { actor: "你与愿意跟随的人", action: reform.action, target: clip(eventKey, 28), deadline },
       instantEcho: {
-        directResult: "关键证据与命令解释权被你同时控制",
-        unexpectedCost: "旧有权力立即把你视为威胁",
-        beneficiary: "愿意追随新命令的人",
-        payer: "依赖原有秩序的执行者",
+        directResult: reform.result,
+        unexpectedCost: reform.cost,
+        beneficiary: "愿意执行新方案的人",
+        payer: "仍然坚持旧方案的人",
       },
     },
     surrealChoice(seed, 0),
@@ -229,40 +290,49 @@ function rollChoices(seed: HistorySeed): TimelineTurn["rollChoices"] {
   const event = clean(seed.eventName);
   const eventKey = compactCompleteClause(event, 18, "这一历史现场");
   const deadline = clip(clean(seed.urgency), 20);
-  const originalAction = compactCompleteClause(
-    decisionAction(seed),
-    28,
-    `执行改变${eventKey}走向的关键命令`,
-  );
+  const cautiousVariants = [
+    ["复核后照办", "找两名见证人复核关键信息，再按原计划行动", "找见证人复核信息后执行原计划"],
+    ["查清再行动", "先确认情报从哪里来，再让原定方案继续执行", "核对情报来源后继续原方案"],
+    ["写明风险再做", "把眼前风险写进命令，仍由原班人马照常行动", "写明风险后让原班人马行动"],
+    ["再问一次", "争取最后一次复核，确认没有误判后执行原方案", "完成最后复核后执行原方案"],
+  ] as const;
+  const radicalVariants = [
+    ["撤掉旧方案", "当众撤掉旧方案，把执行权交给愿意冒险的人", "撤掉旧方案并交出执行权"],
+    ["现场表决", "把关键事实摊开，让所有在场者当场选一条新路", "公开事实并组织现场表决"],
+    ["封住旧通道", "先封住旧方案的执行通道，再带一队人另行行动", "封住旧通道并组织另一队行动"],
+    ["越级下令", "绕过原来的负责人，直接向执行者下达相反命令", "越过负责人并下达相反命令"],
+  ] as const;
+  const cautious = cautiousVariants[seedHash(seed) % cautiousVariants.length];
+  const radical = radicalVariants[(seedHash(seed) + 1) % radicalVariants.length];
   return [
     {
       id: "A",
-      label: `封存争议情报，在最后时限照既有方案执行${originalAction}`,
-      displayLabel: "压到最后一刻",
-      intent: "更谨慎地保护真实历史的既有轨迹",
+      label: cautious[1],
+      displayLabel: cautious[0],
+      intent: "先复核，再按原计划行动",
       deviationClass: "nudge",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与原定执行者", action: "封存争议信息后照原令行动", target: clip(event, 28), deadline },
+      actionSpec: { actor: "你与两名现场见证人", action: cautious[2], target: clip(event, 28), deadline },
       instantEcho: {
-        directResult: "原定行动在最后时限照常发生",
-        unexpectedCost: "被压住的争议留下长期裂痕",
-        beneficiary: "依赖原计划的人",
-        payer: "要求立刻改变的人",
+        directResult: "关键信息重新核对，原计划随后开始执行",
+        unexpectedCost: "复核耗掉了最后一段准备时间",
+        beneficiary: "担心命令有误的人",
+        payer: "必须等待复核的执行者",
       },
     },
     {
       id: "B",
-      label: `当众撕毁原令，联合反对者接管${eventKey}的执行权`,
-      displayLabel: "撕令夺权",
-      intent: "把一次决定升级为公开的权力更替",
+      label: radical[1],
+      displayLabel: radical[0],
+      intent: "越过原有负责人，立刻改走另一条路",
       deviationClass: "reform",
       usesModernKnowledge: false,
-      actionSpec: { actor: "你与现场反对者", action: "撕毁原令并夺取执行权", target: clip(event, 28), deadline },
+      actionSpec: { actor: "你与支持改令的人", action: radical[2], target: clip(eventKey, 28), deadline },
       instantEcho: {
-        directResult: "原定执行链被你当众截断",
-        unexpectedCost: "现场立刻分裂为两套权力",
-        beneficiary: "被旧命令压制的人",
-        payer: "仍效忠原令的执行者",
+        directResult: "原来的行动停下，现场转而执行新方案",
+        unexpectedCost: "支持旧方案的人立刻与你决裂",
+        beneficiary: "愿意尝试新路线的人",
+        payer: "原有负责人和他的追随者",
       },
     },
     surrealChoice(seed, 3),

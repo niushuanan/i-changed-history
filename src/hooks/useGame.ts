@@ -32,6 +32,24 @@ const PROGRESS_RANK: Record<DeepSeekProgressStage, number> = {
   repairing: 4,
 };
 
+const LIVE_ROLL_RITUAL_MS = 900;
+
+function waitForRollRitual(startedAt: number, signal: AbortSignal): Promise<void> {
+  const remaining = LIVE_ROLL_RITUAL_MS - (Date.now() - startedAt);
+  if (remaining <= 0 || signal.aborted) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, remaining);
+    const onAbort = () => {
+      window.clearTimeout(timer);
+      reject(new DOMException("Roll cancelled", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 function resolveDependencies(overrides: Partial<UseGameDependencies>): UseGameDependencies {
   return {
     generateNextTurn,
@@ -112,6 +130,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     };
 
     const run = async () => {
+      const requestStartedAt = Date.now();
       try {
         if (request.kind === "roll-choices") {
           if (!state.currentTurn) throw new Error("当前历史现场已经离开，无法继续发牌。");
@@ -127,6 +146,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
               onMetrics,
             },
           );
+          await waitForRollRitual(requestStartedAt, controller.signal);
           if (active) {
             dispatch({
               type: "ROLL_CHOICES_RESOLVED",
@@ -157,10 +177,16 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
         if (!active) return;
         const details = errorDetails(error);
         if (request.kind === "roll-choices") {
+          try {
+            await waitForRollRitual(requestStartedAt, controller.signal);
+          } catch {
+            return;
+          }
+          if (!active) return;
           dispatch({
             type: "ROLL_CHOICES_FAILED",
             requestId: request.id,
-            message: "新牌暂时没有发出来，点击 ROLL 再试。",
+            message: "这手牌没洗出来，再 Roll 一次。",
           });
         } else {
           dispatch({ type: "REQUEST_FAILED", requestId: request.id, ...details });

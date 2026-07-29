@@ -59,8 +59,8 @@ function completedEnding() {
 }
 
 async function enterDrawnHistory(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "我知道了，开抽" }));
-  await user.click(screen.getByRole("button", { name: "抽取我的命运" }));
+  await user.click(screen.getByRole("button", { name: "开始抽取" }));
+  await user.click(screen.getByRole("button", { name: "随机抽一个开局" }));
   const entry = await screen.findByRole("button", { name: /闯入这一刻：/ });
   await user.click(entry);
 }
@@ -84,11 +84,11 @@ describe("complete four-decision player journey", () => {
   it("introduces the complete player-facing rules on entry", () => {
     render(<App />);
 
-    expect(screen.getByRole("dialog", { name: "这一次，先抽历史" })).toBeVisible();
-    expect(screen.getByText("抽中一段命运")).toBeVisible();
-    expect(screen.getByText("四次抉择，活完一生")).toBeVisible();
-    expect(screen.getByText("每幕可以 Roll 3 次")).toBeVisible();
-    expect(screen.getByText("完成才会解锁")).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "抽一段历史，亲手改写它" })).toBeVisible();
+    expect(screen.getByText("先抽一个历史开局")).toBeVisible();
+    expect(screen.getByText("每一幕，只选一张牌")).toBeVisible();
+    expect(screen.getByText("不满意，就 Roll 换牌")).toBeVisible();
+    expect(screen.getByText("四次选择，走完一生")).toBeVisible();
   });
 
   it("plays one protagonist through four decisions, unlocks the history, and reaches 2026", async () => {
@@ -135,7 +135,7 @@ describe("complete four-decision player journey", () => {
     expect(screen.getByText("固定历史开场")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" }));
-    expect(await screen.findByText("压到最后一刻")).toBeVisible();
+    expect(await screen.findByRole("button", { name: "重抽卡牌，还剩 2 次" }, { timeout: 2000 })).toBeVisible();
     expect(engine.generateRerolledChoices).not.toHaveBeenCalled();
 
     const secondRoll = screen.getByRole("button", { name: "重抽卡牌，还剩 2 次" });
@@ -143,24 +143,32 @@ describe("complete four-decision player journey", () => {
     await user.click(secondRoll);
     await waitFor(() => expect(engine.generateRerolledChoices).toHaveBeenCalledTimes(1));
 
-    const thirdRoll = await screen.findByRole("button", { name: "重抽卡牌，还剩 1 次" });
+    const thirdRoll = await screen.findByRole(
+      "button",
+      { name: "重抽卡牌，还剩 1 次" },
+      { timeout: 2500 },
+    );
     await waitFor(() => expect(thirdRoll).toBeEnabled());
     await user.click(thirdRoll);
     await waitFor(() => expect(engine.generateRerolledChoices).toHaveBeenCalledTimes(2));
-    expect(await screen.findByRole("button", { name: "本节点三次重抽已经用完" })).toBeDisabled();
+    expect(await screen.findByRole(
+      "button",
+      { name: "本节点三次重抽已经用完" },
+      { timeout: 2500 },
+    )).toBeDisabled();
   });
 
   it("keeps audio, archive, and the rules announcement in one secondary menu", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "我知道了，开抽" }));
+    await user.click(screen.getByRole("button", { name: "开始抽取" }));
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
     expect(score.toggleMuted).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitem", { name: /玩法公告/ }));
-    expect(screen.getByRole("dialog", { name: "这一次，先抽历史" })).toBeVisible();
+    await user.click(screen.getByRole("menuitem", { name: /游戏说明/ }));
+    expect(screen.getByRole("dialog", { name: "抽一段历史，亲手改写它" })).toBeVisible();
   });
 });
