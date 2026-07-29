@@ -28,6 +28,7 @@
 - `db/` 与 `drizzle/`：AI 请求限额表定义及 Sites 部署迁移。
 - `build/` 与 `.openai/hosting.json`：Sites 构建元数据打包和 D1 / R2 逻辑绑定。
 - `src/screens/` 和 `src/components/`：从命运抽取、游戏说明、解锁档案、三卡牌桌、三次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
+- `src/components/CardCommitFlight.tsx`：脱离事件页裁剪层的固定轨道飞行、产品容器居中停驻、真实卡面像素纸灰消散和捕获失败后备。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
 - `src/soak/`：显式运行的真实 DeepSeek 四决策完整局压力测试；默认覆盖十个不同开局并在每幕选择预生成 Roll 组，也支持用 `SOAK_ALL_ROLL=1` 对指定开局执行相同的全幕、最低成功率与强制延迟门槛，结果只写入被忽略的 `tmp/soak/`。第二、第三次实时 Roll 的请求、恢复与错误重试由 reducer、组件和应用集成测试覆盖。
@@ -52,7 +53,7 @@
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
 - `src/game/powers.ts`：50 项超能力定义、无放回抽取和模型注入格式入口。
 - `src/game/schema.ts` 与 `src/game/reducer.ts`：六张首发牌、三次 Roll、动态牌组、永久解锁、存档状态和卡牌提交的权威入口。
-- `src/components/ChoiceList.tsx`：三卡牌桌、长按详情、上划提交、三次 Roll 与即时音效入口。
+- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：三卡牌桌、长按详情、上划提交、三次 Roll、即时音效，以及顶层固定轨道飞行与纸灰消散入口。
 - `src/screens/SeedPickerScreen.tsx` 与 `src/components/GameAnnouncement.tsx`：百节点 3D 轮盘随机停靠、未显影/揭晓卡、已解锁档案和首次玩法说明入口。
 - `src/data/fixedOpenings.ts` 与 `src/data/fixedOpeningChoices.generated.ts`：100 张历史卡的固定第一幕，以及 AI 生成、历史语义审校后的两组循史/破局牌构建入口。
 - `src/data/fixedPowerChoices.generated.ts`：100×6 张历史快照专属固定天外候选的运行时权威数据；只由生成脚本更新。
@@ -77,6 +78,15 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-29 21:34 - 重做上划出牌的顶层轨道与纸灰消散
+
+- 本次任务：基于本地最新 commit 新建隔离 worktree，修复循史、破局、天外卡上划后被事件图和文案层遮挡的问题，并把提交过程重做成类似肉鸽卡牌游戏的上方居中停驻与关键消散仪式。
+- 改了哪些文件：新增 `src/components/CardCommitFlight.tsx`；修改 `src/components/ChoiceList.tsx`、`src/components/ChoiceList.test.tsx`、`src/screens/TimelineEventScreen.test.tsx`、`src/App.integration.test.tsx`、`src/services/htmlToImage.interactive.ts`、`src/styles/game.css`、`AGENTS.md` 和 `PROJECT_CONTEXT.md`。
+- 改了什么：所选卡先测量自身与产品容器几何，再通过挂到 `document.body` 的顶层 portal 沿统一弧形轨道移动到产品容器上方正中；560ms 飞行后停驻 160ms，再把项目真实卡面栅格为像素，用噪声错开从下至上的碎裂时序，让循史金、破局朱砂、天外青绿各自化成向右上方飘散的纸灰。其他两卡和事件内容同步后退，完整提交约 1.46 秒后才进入结果页；卡面栅格与粒子循环只在实际出牌时运行，像素捕获失败走蒙版后备，降低移动端首屏与可靠性风险。
+- 为什么这样改：单纯提高 `z-index` 无法越过祖先裁剪与层叠上下文，直线冲出顶部又会让实体卡牌突然消失；把飞行层放到页面顶层才能保证它永远在场景之上，而真实卡面像素消散比统一烟雾或透明度淡出更贴合档案纸张、历史被改写和三类收藏卡的物质感。
+- 影响了哪些模块：只影响循史、破局、天外三类卡的上划提交视觉、提交等待时长、降级动画、互动空间同源 DOM 栅格能力和对应组件测试；不改变上划阈值、`pointercancel` 安全、长按详情、三次 Roll、决定正史、请求数量、AI 模型、存档、结局或互动空间三剧本边界。第 1 节产品目的仍准确；第 2—3 节已补充顶层飞行组件及入口。
+- 验证：Vitest 38 文件 377/377、TypeScript、238 个运行时文件可移植性、普通 vinext 构建、互动空间三剧本构建与 `git diff --check` 全部通过；审核 ZIP 35 个文件、2,732,332 字节、MD5 `7ec17fa78e8e1486daaa6702ca4ca571`，白名单外剧本泄漏 0、密钥/普通网络标记 0。真实 in-app browser 在 390×844 验收循史卡、360×667 验收破局与天外卡，停驻卡中心与产品容器中心差小于 0.01px，三次均越过事件图/文案层并进入像素粒子消散，结果页正常接续，控制台错误与警告为 0。
 
 ### 2026-07-29 20:22 - 消除玩家界面的英文协议字段与能力 ID
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { ArrowsClockwise, CaretUp, X } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { playCardSound } from "../services/cardAudio";
+import { CardCommitFlight, type CardCommitOrigin } from "./CardCommitFlight";
 
 type Choice = TimelineTurn["choices"][number];
 type CardOrigin = {
@@ -13,7 +14,6 @@ type CardOrigin = {
 
 const SWIPE_THRESHOLD = 48;
 const LONG_PRESS_MS = 320;
-const COMMIT_DURATION_MS = 480;
 const PREPARED_ROLL_RITUAL_MS = 1200;
 const LIVE_ROLL_START_MS = 360;
 
@@ -22,16 +22,22 @@ const CARD_META = {
     name: "循史",
     description: "让眼前结果照常发生",
     icon: "/assets/cards/choice-regular.png",
+    frame: "/assets/cards/frame-regular-v2.webp",
+    accent: "#d5b56f",
   },
   reform: {
     name: "破局",
     description: "当场扭转眼前结果",
     icon: "/assets/cards/choice-radical.png",
+    frame: "/assets/cards/frame-radical-v2.webp",
+    accent: "#e25a45",
   },
   rupture: {
     name: "天外",
     description: "让现实换套规则",
     icon: "/assets/cards/choice-surreal.png",
+    frame: "/assets/cards/frame-surreal-v2.webp",
+    accent: "#72c5be",
   },
 } as const;
 
@@ -154,6 +160,7 @@ function ChoiceCard({
   const [pressing, setPressing] = useState(false);
   const [armed, setArmed] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [commitOrigin, setCommitOrigin] = useState<CardCommitOrigin | null>(null);
   const cardRef = useRef<HTMLButtonElement | null>(null);
   const startYRef = useRef(0);
   const draggingRef = useRef(false);
@@ -162,7 +169,6 @@ function ChoiceCard({
   const pendingOffsetRef = useRef(0);
   const pointerIdRef = useRef<number | null>(null);
   const longPressRef = useRef<number | null>(null);
-  const commitTimerRef = useRef<number | null>(null);
   const inspectedRef = useRef(false);
   const committedRef = useRef(false);
   const meta = CARD_META[choice.deviationClass];
@@ -264,23 +270,40 @@ function ChoiceCard({
     setHoldActive(false);
     if (offsetYRef.current <= -SWIPE_THRESHOLD) {
       committedRef.current = true;
+      const cardRect = event.currentTarget.getBoundingClientRect();
+      const eventScreen = event.currentTarget.closest<HTMLElement>(".event-screen");
+      const screenRect = eventScreen?.getBoundingClientRect() ?? {
+        left: 0,
+        top: 0,
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+      setCommitOrigin({
+        left: cardRect.left,
+        top: cardRect.top,
+        width: cardRect.width,
+        height: cardRect.height,
+        screenLeft: screenRect.left,
+        screenTop: screenRect.top,
+        screenWidth: screenRect.width,
+        screenHeight: screenRect.height,
+      });
       setCommitting(true);
       setArmed(false);
       onCommitStart(choice.id);
       playCardSound("commit", muted);
-      window.requestAnimationFrame(() => {
-        writeCardOffset(-Math.max(560, window.innerHeight * 1.02));
-      });
-      const reducedMotion = typeof window.matchMedia === "function"
-        && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      commitTimerRef.current = window.setTimeout(
-        () => onChoose(choice.id),
-        reducedMotion ? 100 : COMMIT_DURATION_MS,
-      );
       return;
     }
     resetGesture();
   };
+
+  const completeCommit = useCallback(() => {
+    onChoose(choice.id);
+  }, [choice.id, onChoose]);
+
+  const prefersReducedMotion = typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const cancel = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (committedRef.current) return;
@@ -290,41 +313,56 @@ function ChoiceCard({
   useEffect(() => () => {
     clearLongPress();
     if (dragFrameRef.current !== null) window.cancelAnimationFrame(dragFrameRef.current);
-    if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
   }, []);
 
   return (
-    <button
-      aria-label={`${meta.name}牌，${choice.displayLabel}，向上划选择，长按查看详情`}
-      className={`choice-card choice-card--${choice.deviationClass}${pressing ? " is-pressing" : ""}${dragging ? " is-dragging" : ""}${armed ? " is-armed" : ""}${committing ? " is-committing" : ""}`}
-      data-choice-id={choice.id}
-      disabled={disabled}
-      onContextMenu={(event) => event.preventDefault()}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onInspect(choice, event.currentTarget);
-        }
-      }}
-      onPointerCancel={cancel}
-      onPointerDown={begin}
-      onPointerMove={move}
-      onPointerUp={finish}
-      ref={cardRef}
-      style={{
-        "--card-y": "0px",
-        "--deal-index": dealIndex,
-      } as React.CSSProperties}
-      type="button"
-    >
-      <span className="choice-card__surface">
-        <span className="choice-card__hold-cue" aria-hidden="true"><i /></span>
-        <span className="choice-card__tier">{meta.name}</span>
-        <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
-        <strong>{choice.displayLabel}</strong>
-        <small>{meta.description}</small>
-      </span>
-    </button>
+    <>
+      <button
+        aria-label={`${meta.name}牌，${choice.displayLabel}，向上划选择，长按查看详情`}
+        className={`choice-card choice-card--${choice.deviationClass}${pressing ? " is-pressing" : ""}${dragging ? " is-dragging" : ""}${armed ? " is-armed" : ""}${committing ? " is-committing" : ""}`}
+        data-choice-id={choice.id}
+        disabled={disabled}
+        onContextMenu={(event) => event.preventDefault()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onInspect(choice, event.currentTarget);
+          }
+        }}
+        onPointerCancel={cancel}
+        onPointerDown={begin}
+        onPointerMove={move}
+        onPointerUp={finish}
+        ref={cardRef}
+        style={{
+          "--card-y": "0px",
+          "--deal-index": dealIndex,
+        } as React.CSSProperties}
+        type="button"
+      >
+        <span className="choice-card__surface">
+          <span className="choice-card__hold-cue" aria-hidden="true"><i /></span>
+          <span className="choice-card__tier">{meta.name}</span>
+          <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
+          <strong>{choice.displayLabel}</strong>
+          <small>{meta.description}</small>
+        </span>
+      </button>
+      {committing && commitOrigin ? (
+        <CardCommitFlight
+          accent={meta.accent}
+          description={meta.description}
+          displayLabel={choice.displayLabel}
+          frame={meta.frame}
+          icon={meta.icon}
+          onComplete={completeCommit}
+          origin={commitOrigin}
+          reducedMotion={prefersReducedMotion}
+          startRotation={choice.id === "A" ? -3.4 : choice.id === "C" ? 3.4 : 0}
+          tier={meta.name}
+        />
+      ) : null}
+    </>
   );
 }
 

@@ -68,7 +68,11 @@ describe("roguelike history cards", () => {
     expect(onChoose).not.toHaveBeenCalled();
     expect(card).toHaveClass("is-committing");
     expect(card.closest(".rogue-choice-table")).toHaveClass("is-committing");
-    act(() => vi.advanceTimersByTime(500));
+    expect(document.querySelector(".card-commit-flight")).toHaveAttribute("data-phase", "flying");
+    act(() => vi.advanceTimersByTime(760));
+    expect(document.querySelector(".card-commit-flight")).toHaveAttribute("data-phase", "dissolving");
+    expect(onChoose).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(750));
     expect(onChoose).toHaveBeenCalledTimes(1);
     expect(onChoose).toHaveBeenCalledWith("A");
   });

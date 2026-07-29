@@ -104,7 +104,7 @@ describe("complete four-decision player journey", () => {
       fireEvent.pointerDown(firstChoice!, { clientY: 220, pointerId: chapter });
       fireEvent.pointerMove(firstChoice!, { clientY: 120, pointerId: chapter });
       fireEvent.pointerUp(firstChoice!, { clientY: 120, pointerId: chapter });
-      expect(await screen.findByText("这件事已经发生")).toBeVisible();
+      expect(await screen.findByText("这件事已经发生", {}, { timeout: 2_200 })).toBeVisible();
       const continueButton = await screen.findByRole("button", { name: /看看接下来发生什么|查看最终历史/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);

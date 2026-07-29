@@ -143,10 +143,10 @@ function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   });
 }
 
-export async function toBlob(
+async function renderToCanvas(
   node: HTMLElement,
   options: RenderOptions = {},
-): Promise<Blob | null> {
+): Promise<HTMLCanvasElement | null> {
   const width = Math.max(1, Math.ceil(options.width ?? node.scrollWidth ?? node.clientWidth));
   const height = Math.max(1, Math.ceil(options.height ?? node.scrollHeight ?? node.clientHeight));
   const pixelRatio = Math.max(1, options.pixelRatio ?? 1);
@@ -180,5 +180,23 @@ export async function toBlob(
   context.fillStyle = options.backgroundColor ?? "transparent";
   context.fillRect(0, 0, width, height);
   context.drawImage(image, 0, 0, width, height);
+  return canvas;
+}
+
+export async function toCanvas(
+  node: HTMLElement,
+  options: RenderOptions = {},
+): Promise<HTMLCanvasElement> {
+  const canvas = await renderToCanvas(node, options);
+  if (!canvas) throw new Error("当前浏览器无法准备卡牌画面。");
+  return canvas;
+}
+
+export async function toBlob(
+  node: HTMLElement,
+  options: RenderOptions = {},
+): Promise<Blob | null> {
+  const canvas = await renderToCanvas(node, options);
+  if (!canvas) return null;
   return await canvasBlob(canvas);
 }
