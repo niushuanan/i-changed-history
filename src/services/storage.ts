@@ -2,15 +2,20 @@ import { z } from "zod";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import type { GameState } from "../game/reducer";
 import { createInitialGameState } from "../game/reducer";
-import { alternatePresentSchema, storedAlternatePresentSchema, storedTimelineTurnSchema } from "../game/schema";
+import {
+  alternatePresentSchema,
+  storedAlternatePresentSchema,
+  storedChoiceSetSchema,
+  storedTimelineTurnSchema,
+} from "../game/schema";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v14";
+export const GAME_STORAGE_KEY = "i-changed-history:session:v15";
 const LEGACY_GAME_STORAGE_KEYS = [
-  "i-changed-history:session:v13", "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
+  "i-changed-history:session:v14", "i-changed-history:session:v13", "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
   "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5",
   "i-changed-history:session:v4",
 ] as const;
-const STORAGE_VERSION = 14;
+const STORAGE_VERSION = 15;
 const ACTIVE_HISTORY_SEED_IDS = new Set(HISTORY_SEEDS.map((seed) => seed.id));
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingEnding" | "echo">;
@@ -42,23 +47,32 @@ const playedSchema = z.strictObject({
   causalMechanism: z.string().optional(),
 });
 const retrySchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12) }),
+  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(4) }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const requestSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(12), id: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(4), id: z.number().int().positive() }),
   z.strictObject({ kind: z.literal("ending"), id: z.number().int().positive() }),
+  z.strictObject({
+    kind: z.literal("roll-choices"),
+    rollNumber: z.union([z.literal(2), z.literal(3)]),
+    id: z.number().int().positive(),
+  }),
 ]);
 const errorSchema = z.strictObject({ code: z.string(), message: z.string(), retry: retrySchema });
 const stateSchema = z.strictObject({
   phase: z.enum(["selecting", "generating", "event", "ending", "result", "error"]),
   scenario: scenarioSchema.nullable(),
   currentTurn: storedTimelineTurnSchema.nullable(),
-  playedTurns: z.array(playedSchema).max(12),
+  playedTurns: z.array(playedSchema).max(4),
   deviation: z.number().int().min(0).max(100),
   lastImpact: z.number().int().min(0).max(100),
   customActionsUsed: z.number().int().min(0),
-  rollUsed: z.boolean().default(false),
+  rollCount: z.number().int().min(0).max(3).default(0),
+  dynamicChoices: storedChoiceSetSchema.nullable().default(null),
+  rollLoading: z.boolean().default(false),
+  rollError: z.string().nullable().default(null),
+  unlockedSeedIds: z.array(z.string()).max(100).default([]),
   request: requestSchema.nullable(),
   pendingTurn: storedTimelineTurnSchema.nullable().default(null),
   result: storedAlternatePresentSchema.nullable(),
@@ -67,6 +81,7 @@ const stateSchema = z.strictObject({
 }).superRefine((state, context) => {
   if (["generating", "event", "ending", "result", "error"].includes(state.phase) && !state.scenario) context.addIssue({ code: "custom", message: "缺少历史场景" });
   if (state.phase === "event" && !state.currentTurn) context.addIssue({ code: "custom", message: "事件缺少幕次" });
+  if (state.rollLoading && state.request?.kind !== "roll-choices") context.addIssue({ code: "custom", message: "现场发牌缺少可恢复请求" });
   if (state.phase === "result" && !state.result) context.addIssue({ code: "custom", message: "结局缺失" });
   if (state.phase === "error" && !state.error) context.addIssue({ code: "custom", message: "错误恢复信息缺失" });
   if (state.phase === "generating" && !state.request && !state.pendingTurn) context.addIssue({ code: "custom", message: "生成阶段缺少请求或待揭晓场景" });
@@ -79,7 +94,13 @@ function base(state: GameState) {
   return {
     scenario: state.scenario, currentTurn: state.currentTurn,
     playedTurns: state.playedTurns, deviation: state.deviation, lastImpact: state.lastImpact,
-    customActionsUsed: state.customActionsUsed, rollUsed: state.rollUsed, pendingTurn: state.pendingTurn,
+    customActionsUsed: state.customActionsUsed,
+    rollCount: state.rollCount,
+    dynamicChoices: state.dynamicChoices,
+    rollLoading: state.rollLoading,
+    rollError: state.rollError,
+    unlockedSeedIds: state.unlockedSeedIds,
+    pendingTurn: state.pendingTurn,
     result: state.result, nextRequestId: state.nextRequestId,
   };
 }
@@ -87,6 +108,14 @@ function base(state: GameState) {
 function toStored(state: GameState): StoredState | null {
   if (state.pendingTurn) return { ...base(state), phase: "generating", request: null, error: null };
   if (state.pendingEnding) return { ...base(state), phase: "result", result: state.pendingEnding, request: null, error: null };
+  if (state.request?.kind === "roll-choices") {
+    return {
+      ...base(state),
+      phase: "event",
+      request: state.request,
+      error: null,
+    };
+  }
   if (state.request) return {
     ...base(state),
     phase: state.request.kind === "ending" ? "ending" : "generating",
@@ -126,11 +155,16 @@ export function loadGameSnapshot(storage: StorageLike = localStorage): GameState
         remove(storage);
         return createInitialGameState(parsed.data.state.nextRequestId);
       }
-      const loaded = { ...parsed.data.state, pendingEnding: null, echo: null } as GameState;
+      const loaded = {
+        ...parsed.data.state,
+        unlockedSeedIds: parsed.data.state.unlockedSeedIds.filter((id) => ACTIVE_HISTORY_SEED_IDS.has(id)),
+        pendingEnding: null,
+        echo: null,
+      } as GameState;
       if (loaded.phase === "result" && loaded.result) {
         const completeResult = alternatePresentSchema.safeParse(loaded.result);
         if (completeResult.success) return { ...loaded, result: completeResult.data };
-        if (loaded.playedTurns.length !== 12) { remove(storage); return null; }
+        if (loaded.playedTurns.length !== 4) { remove(storage); return null; }
         const requestId = loaded.nextRequestId;
         return {
           ...loaded,

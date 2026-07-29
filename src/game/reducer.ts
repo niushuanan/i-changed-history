@@ -12,7 +12,10 @@ export type GameScenario = { seed: HistorySeed };
 export type RetryIntent =
   | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> }
   | { kind: "ending" };
-export type RequestIntent = RetryIntent & { id: number };
+export type RequestIntent =
+  | (RetryIntent & { id: number })
+  | { kind: "roll-choices"; rollNumber: 2 | 3; id: number };
+type RequestWithoutId = RetryIntent | { kind: "roll-choices"; rollNumber: 2 | 3 };
 
 export type EchoState = {
   source: "ai_choice" | "custom_action";
@@ -37,7 +40,11 @@ export type GameState = {
   deviation: number;
   lastImpact: number;
   customActionsUsed: number;
-  rollUsed: boolean;
+  rollCount: number;
+  dynamicChoices: TimelineTurn["choices"] | null;
+  rollLoading: boolean;
+  rollError: string | null;
+  unlockedSeedIds: string[];
   echo: EchoState | null;
   request: RequestIntent | null;
   pendingTurn: TimelineTurn | null;
@@ -50,6 +57,8 @@ export type GameState = {
 export type GameAction =
   | { type: "START_SCENARIO"; seed: HistorySeed }
   | { type: "ROLL_CHOICES" }
+  | { type: "ROLL_CHOICES_RESOLVED"; requestId: number; choices: TimelineTurn["choices"] }
+  | { type: "ROLL_CHOICES_FAILED"; requestId: number; message: string }
   | { type: "COMMIT_AI_CHOICE"; choiceId: "A" | "B" | "C" }
   | { type: "SUBMIT_CUSTOM_ACTION"; action: string }
   | { type: "TURN_RESOLVED"; requestId: number; turn: TimelineTurn }
@@ -63,22 +72,27 @@ export type GameAction =
 export function createInitialGameState(nextRequestId = 1): GameState {
   return {
     phase: "selecting", scenario: null, currentTurn: null, playedTurns: [],
-    deviation: 0, lastImpact: 0, customActionsUsed: 0, rollUsed: false, echo: null, request: null,
+    deviation: 0, lastImpact: 0, customActionsUsed: 0,
+    rollCount: 0, dynamicChoices: null, rollLoading: false, rollError: null, unlockedSeedIds: [],
+    echo: null, request: null,
     pendingTurn: null, pendingEnding: null, result: null, error: null, nextRequestId,
   };
 }
 
-function withRequest(state: GameState, intent: RetryIntent) {
+function withRequest(state: GameState, intent: RequestWithoutId) {
   return { request: { ...intent, id: state.nextRequestId } as RequestIntent, nextRequestId: state.nextRequestId + 1 };
 }
 
 function cleanSession(state: GameState): GameState {
-  return createInitialGameState(state.nextRequestId);
+  return {
+    ...createInitialGameState(state.nextRequestId),
+    unlockedSeedIds: state.unlockedSeedIds,
+  };
 }
 
 function requestAfterChoice(state: GameState) {
   const chapter = state.currentTurn?.chapter;
-  if (chapter === 12) return withRequest(state, { kind: "ending" });
+  if (chapter === 4) return withRequest(state, { kind: "ending" });
   if (!chapter) return { request: null, nextRequestId: state.nextRequestId };
   return withRequest(state, { kind: "next-turn", targetChapter: (chapter + 1) as Exclude<DecisionChapter, 1> });
 }
@@ -92,16 +106,66 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         phase: "event",
         scenario: { seed: action.seed },
         currentTurn: getFixedOpening(action.seed),
-        rollUsed: false,
+        rollCount: 0,
+        dynamicChoices: null,
+        rollLoading: false,
+        rollError: null,
         request: null,
         error: null,
       };
     case "ROLL_CHOICES":
-      if (state.phase !== "event" || !state.currentTurn || state.rollUsed) return state;
-      return { ...state, rollUsed: true };
+      if (state.phase !== "event" || !state.currentTurn || state.rollLoading || state.rollCount >= 3) return state;
+      if (state.rollCount === 0) {
+        return {
+          ...state,
+          rollCount: 1,
+          dynamicChoices: null,
+          rollError: null,
+        };
+      }
+      return {
+        ...state,
+        rollLoading: true,
+        rollError: null,
+        ...withRequest(state, {
+          kind: "roll-choices",
+          rollNumber: (state.rollCount + 1) as 2 | 3,
+        }),
+      };
+    case "ROLL_CHOICES_RESOLVED":
+      if (
+        state.phase !== "event"
+        || state.request?.kind !== "roll-choices"
+        || state.request.id !== action.requestId
+      ) return state;
+      return {
+        ...state,
+        rollCount: state.request.rollNumber,
+        dynamicChoices: action.choices,
+        rollLoading: false,
+        rollError: null,
+        request: null,
+      };
+    case "ROLL_CHOICES_FAILED":
+      if (
+        state.phase !== "event"
+        || state.request?.kind !== "roll-choices"
+        || state.request.id !== action.requestId
+      ) return state;
+      return {
+        ...state,
+        rollLoading: false,
+        rollError: action.message,
+        request: null,
+      };
     case "COMMIT_AI_CHOICE": {
-      if (state.phase !== "event" || !state.currentTurn) return state;
-      const visibleChoices = state.rollUsed ? state.currentTurn.rollChoices : state.currentTurn.choices;
+      if (state.phase !== "event" || !state.currentTurn || state.rollLoading) return state;
+      const visibleChoices = state.rollCount === 0
+        ? state.currentTurn.choices
+        : state.rollCount === 1
+          ? state.currentTurn.rollChoices
+          : state.dynamicChoices;
+      if (!visibleChoices) return state;
       const choice = visibleChoices.find((candidate) => candidate.id === action.choiceId);
       if (!choice) return state;
       const impact = calculateDeviation(state.deviation, choice.deviationClass, state.currentTurn.chapter);
@@ -149,7 +213,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const impact = calculateDeviation(state.deviation, "rupture", state.currentTurn.chapter);
       return {
         ...state,
-        phase: state.currentTurn.chapter === 12 ? "ending" : "generating",
+        phase: state.currentTurn.chapter === 4 ? "ending" : "generating",
         playedTurns: [...state.playedTurns, playedTurn],
         deviation: impact.nextDeviation,
         lastImpact: impact.stepImpact,
@@ -168,9 +232,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, pendingTurn: action.turn, request: null, error: null };
     case "ENDING_RESOLVED":
       if (state.request?.id !== action.requestId || state.request.kind !== "ending") return state;
-      if (state.phase === "echo") return { ...state, pendingEnding: action.ending, request: null };
+      const unlockedSeedIds = state.scenario && !state.unlockedSeedIds.includes(state.scenario.seed.id)
+        ? [...state.unlockedSeedIds, state.scenario.seed.id]
+        : state.unlockedSeedIds;
+      if (state.phase === "echo") return { ...state, pendingEnding: action.ending, request: null, unlockedSeedIds };
       if (state.phase !== "ending") return state;
-      return { ...state, phase: "result", result: action.ending, request: null, pendingEnding: null, error: null };
+      return {
+        ...state,
+        phase: "result",
+        result: action.ending,
+        request: null,
+        pendingEnding: null,
+        error: null,
+        unlockedSeedIds,
+      };
     case "CONTINUE_TIMELINE":
       if (state.phase !== "echo") return state;
       if (state.error) return { ...state, phase: "error", echo: null };
@@ -184,12 +259,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         phase: "event",
         currentTurn: state.pendingTurn,
-        rollUsed: false,
+        rollCount: 0,
+        dynamicChoices: null,
+        rollLoading: false,
+        rollError: null,
         pendingTurn: null,
         error: null,
       };
     case "REQUEST_FAILED":
       if (state.request?.id !== action.requestId) return state;
+      if (state.request.kind === "roll-choices") {
+        return {
+          ...state,
+          rollLoading: false,
+          rollError: action.message,
+          request: null,
+        };
+      }
       return {
         ...state,
         error: {

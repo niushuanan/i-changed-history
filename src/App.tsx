@@ -15,6 +15,7 @@ import {
   sharePreparedReport,
 } from "./services/share";
 import type { ResultReportPage } from "./components/ResultFrontPage";
+import { GameAnnouncement } from "./components/GameAnnouncement";
 import { historyAssetForSeed, visualAssetForTurn } from "./data/visualAssets";
 import "./styles/game.css";
 
@@ -22,6 +23,7 @@ export function App() {
   const game = useGame();
   const { state } = game;
   const [pickerContext, setPickerContext] = useState(DEFAULT_PICKER_CONTEXT);
+  const [announcementOpen, setAnnouncementOpen] = useState(() => state.phase === "selecting");
   const [isMobileSave] = useState(() => isMobileSavePlatform());
 
   const prepareResultImage = async (
@@ -43,8 +45,10 @@ export function App() {
       <SeedPickerScreen
         context={pickerContext}
         muted={game.muted}
+        unlockedSeedIds={state.unlockedSeedIds}
         onContextChange={setPickerContext}
         onSelect={game.selectSeed}
+        onShowAnnouncement={() => setAnnouncementOpen(true)}
         onToggleMute={game.toggleMute}
       />
     );
@@ -53,12 +57,15 @@ export function App() {
       <TimelineEventScreen
         turn={state.currentTurn}
         deviation={state.deviation}
-        rollUsed={state.rollUsed}
+        rollCount={state.rollCount}
+        dynamicChoices={state.dynamicChoices}
+        rollLoading={state.rollLoading}
+        rollError={state.rollError}
         muted={game.muted}
         onChoose={game.choose}
         onRoll={game.rollChoices}
         onExit={game.restart}
-        sceneImage={state.currentTurn.chapter <= 3 && state.scenario
+        sceneImage={state.currentTurn.chapter <= 2 && state.scenario
           ? historyAssetForSeed(state.scenario.seed)
           : visualAssetForTurn(state.currentTurn)}
       />
@@ -67,11 +74,11 @@ export function App() {
     screen = (
       <ButterflyEchoScreen
         echo={state.echo}
-        isFinal={state.currentTurn?.chapter === 12}
+        isFinal={state.currentTurn?.chapter === 4}
         onContinue={game.continueTimeline}
         onExit={game.restart}
         sceneImage={state.currentTurn
-          ? state.currentTurn.chapter <= 3 && state.scenario
+          ? state.currentTurn.chapter <= 2 && state.scenario
             ? historyAssetForSeed(state.scenario.seed)
             : visualAssetForTurn(state.currentTurn)
           : undefined}
@@ -99,7 +106,7 @@ export function App() {
       : undefined;
     const targetChapter = state.request?.kind === "next-turn"
       ? state.request.targetChapter
-      : Math.min(12, (state.currentTurn?.chapter ?? 0) + 1);
+      : Math.min(4, (state.currentTurn?.chapter ?? 0) + 1);
     screen = (
       <GeneratingScreen
         chapter={targetChapter}
@@ -134,6 +141,9 @@ export function App() {
           </button>
         ) : null}
         {screen}
+        {announcementOpen && state.phase === "selecting" ? (
+          <GameAnnouncement onClose={() => setAnnouncementOpen(false)} />
+        ) : null}
       </div>
     </div>
   );

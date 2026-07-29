@@ -6,7 +6,7 @@ function BiographyPage({ result }: { result: AlternatePresent }) {
   return (
     <article className="result-front-page biography-report">
       <header className="report-masthead">
-        <span>穿越者列传 · 十二决</span>
+        <span>穿越者列传 · 四决</span>
         <h1>{result.protagonistName}列传</h1>
         <p>{result.lifespanSummary}</p>
       </header>
@@ -16,8 +16,8 @@ function BiographyPage({ result }: { result: AlternatePresent }) {
         <p>{result.deathScene.finalMoment}</p>
       </section>
 
-      <section className="biography-decisions" aria-label="一生十二次决定">
-        <h2>一生十二决</h2>
+      <section className="biography-decisions" aria-label="一生四次决定">
+        <h2>一生四决</h2>
         <ol>
           {result.historyTimeline.map((item) => (
             <li key={item.chapter}>

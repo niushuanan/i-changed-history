@@ -21,7 +21,7 @@ export function TimelineProgress({
         <span>{chapter}/{TOTAL_NODE_COUNT} · {JUMP_LABELS[chapter - 1]}</span>
         <strong>历史改变 {deviation}% · {stage.label}</strong>
       </div>
-      <ol aria-label="十二节点时间线">
+      <ol aria-label="四节点时间线">
         {JUMP_LABELS.map((name, index) => {
           const value = index + 1;
           return (

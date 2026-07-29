@@ -49,7 +49,7 @@ export function visualAssetForTurn(
 
   const year = numericYear(turn.yearLabel);
   if (year === null) return VISUAL_ASSETS[turn.visualTone];
-  if (year >= 1990) return turn.chapter >= 11
+  if (year >= 1990) return turn.chapter >= 4
     ? "/assets/stage-2026.webp"
     : sceneFrom(["/assets/tone-digital.webp", "/assets/stage-2026.webp"], turn.chapter);
   if (year >= 1950) return sceneFrom(MID_CENTURY_SCENES, turn.chapter);
@@ -64,6 +64,9 @@ export function visualAssetForTurn(
       return VISUAL_ASSETS[turn.visualTone];
     }
     if (turn.visualTone === "war") return "/assets/stage-aftermath.webp";
+    if (turn.visualTone === "space" || turn.visualTone === "digital") {
+      return "/assets/stage-early-modern.webp";
+    }
     return turn.chapter % 2 === 0
       ? "/assets/stage-early-modern.webp"
       : "/assets/stage-aftermath.webp";

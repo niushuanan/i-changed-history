@@ -414,8 +414,8 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("continues after five rewrites by carrying only the three active mandates", async () => {
-    const fiveCustom = endingPlayedTurns.slice(0, 5).map((played, index) => {
+  it("continues after three rewrites by carrying all active mandates into the final turn", async () => {
+    const threeCustom = endingPlayedTurns.slice(0, 3).map((played, index) => {
       const result = `第${index + 1}幕玩家改写已经成为正史`;
       return {
         ...played,
@@ -428,30 +428,30 @@ describe("DeepSeek transport and structured generation", () => {
         causalMechanism: `第${index + 1}幕命令经驿站进入官署`,
       };
     });
-    const node = getTimelineNode(6, scenario.seed.year);
-    const sixth = {
+    const node = getTimelineNode(4, scenario.seed.year);
+    const fourth = {
       ...turnFixture,
-      chapter: 6,
-      chapterName: CHAPTER_NAMES[6],
+      chapter: 4,
+      chapterName: CHAPTER_NAMES[4],
       protagonistAge: node.protagonistAge,
       lifeStage: node.lifeStage,
-      previousEcho: fiveCustom[4].resolvedEcho,
+      previousEcho: threeCustom[2].resolvedEcho,
       role: "江东新政军政总管",
       location: "建业石头城中军堂",
       headline: "江东新法进入军营",
       narrative: "第五幕颁下的军政命令已经沿长江驿站抵达建业，各郡守军开始按新法重新登记兵粮。孙权旧部与新任郡守正在石头城争夺军册和粮仓印信，堂外已有士卒拒绝旧将调遣。你以军政总管身份掌握新印与传令船，必须在日落前决定由谁接管江防，否则两套军令会在前线直接冲突。",
       causalLedger: [],
     };
-    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(sixth))));
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(fourth))));
     vi.stubGlobal("fetch", fetcher);
 
-    const result = await generateNextTurn(scenario, fiveCustom, 6);
+    const result = await generateNextTurn(scenario, threeCustom, 4);
 
-    expect(result.causalLedger.map((entry) => entry.causedByChapter)).toEqual([3, 4, 5]);
+    expect(result.causalLedger.map((entry) => entry.causedByChapter)).toEqual([1, 2, 3]);
     expect(result.causalLedger.map((entry) => entry.fact)).toEqual(
-      fiveCustom.slice(2).map((played) => played.selectedChoiceLabel),
+      threeCustom.map((played) => played.selectedChoiceLabel),
     );
-    expect(result.narrative).toBe(sixth.narrative);
+    expect(result.narrative).toBe(fourth.narrative);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
@@ -512,16 +512,15 @@ describe("DeepSeek transport and structured generation", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps all twelve player choices authoritative in the ending", async () => {
+  it("keeps all four player choices authoritative in the ending", async () => {
     const wrong = { ...endingFixture, historyTimeline: endingFixture.historyTimeline.map((item) => ({ ...item, playerChoice: "错误选择" })) };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(wrong)))); vi.stubGlobal("fetch", fetcher);
     const ending = await generateEnding(scenario, endingPlayedTurns);
     expect(ending.historyTimeline.map((item) => item.playerChoice)).toEqual(endingPlayedTurns.map((item) => item.selectedChoiceLabel));
   });
 
-  it("keeps five long custom choices authoritative without duplicating them in consequences", async () => {
+  it("keeps four long custom choices authoritative without duplicating them in consequences", async () => {
     const customPlayedTurns = endingPlayedTurns.map((played, index) => {
-      if (index >= 5) return played;
       const result = `第${index + 1}幕我亲自颁布的新制度已经在全国生效并由各地官署执行`;
       return {
         ...played,

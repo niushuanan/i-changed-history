@@ -7,6 +7,7 @@ import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./game/tim
 
 const engine = vi.hoisted(() => ({
   generateNextTurn: vi.fn(),
+  generateRerolledChoices: vi.fn(),
   adjudicateCustomAction: vi.fn(),
   generateEnding: vi.fn(),
 }));
@@ -37,7 +38,6 @@ function turnFor(chapter: DecisionChapter) {
   const node = getTimelineNode(chapter, 208);
   return parseTimelineTurn(JSON.stringify({
     ...turnFixture,
-    timelineName: "无王航线",
     chapter,
     chapterName: CHAPTER_NAMES[chapter],
     protagonistAge: node.protagonistAge,
@@ -58,32 +58,48 @@ function completedEnding() {
   }));
 }
 
-describe("complete player journey", () => {
+async function enterDrawnHistory(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "我知道了，开抽" }));
+  await user.click(screen.getByRole("button", { name: "抽取我的命运" }));
+  const entry = await screen.findByRole("button", { name: /闯入这一刻：/ });
+  await user.click(entry);
+}
+
+describe("complete four-decision player journey", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Math, "random").mockReturnValue(0.12);
     engine.generateNextTurn.mockImplementation(
       (_scenario, _playedTurns, chapter: Exclude<DecisionChapter, 1>) => Promise.resolve(turnFor(chapter)),
     );
+    engine.generateRerolledChoices.mockResolvedValue(turnFixture.choices);
     engine.generateEnding.mockResolvedValue(completedEnding());
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
-  it("plays one protagonist through twelve decisions, death, and a 2026 legacy report", async () => {
-    const user = userEvent.setup();
+  it("introduces the complete player-facing rules on entry", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
-    expect(score.start).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(100);
-    await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
-    expect(score.start).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog", { name: "这一次，先抽历史" })).toBeVisible();
+    expect(screen.getByText("抽中一段命运")).toBeVisible();
+    expect(screen.getByText("四次抉择，活完一生")).toBeVisible();
+    expect(screen.getByText("每幕可以 Roll 3 次")).toBeVisible();
+    expect(screen.getByText("完成才会解锁")).toBeVisible();
+  });
 
-    for (let chapter = 1; chapter <= 12; chapter += 1) {
-      expect(await screen.findByRole("heading", { name: chapter === 1 ? "罗马大火开始蔓延" : `第${chapter}幕局势` })).toBeVisible();
-      expect(screen.getByRole("list", { name: "十二节点时间线" })).toBeVisible();
-      const decisionGroup = screen.getByRole("group", { name: "本幕决定" });
-      const firstChoice = decisionGroup.querySelector<HTMLButtonElement>("button.choice-card");
+  it("plays one protagonist through four decisions, unlocks the history, and reaches 2026", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await enterDrawnHistory(user);
+
+    for (let chapter = 1; chapter <= 4; chapter += 1) {
+      expect(await screen.findByRole("list", { name: "四节点时间线" })).toBeVisible();
+      const firstChoice = screen.getByRole("group", { name: "本幕决定" })
+        .querySelector<HTMLButtonElement>("button.choice-card");
       expect(firstChoice).not.toBeNull();
       fireEvent.pointerDown(firstChoice!, { clientY: 220, pointerId: chapter });
       fireEvent.pointerMove(firstChoice!, { clientY: 120, pointerId: chapter });
@@ -92,105 +108,59 @@ describe("complete player journey", () => {
       const continueButton = await screen.findByRole("button", { name: /看看接下来发生什么|查看最终历史/ });
       await waitFor(() => expect(continueButton).toBeEnabled());
       await user.click(continueButton);
-      if (chapter < 12) {
+      if (chapter < 4) {
         expect(await screen.findByText("场景已经完成")).toBeVisible();
         await user.click(screen.getByRole("button", { name: /下一步/ }));
       }
     }
 
     expect(await screen.findByRole("heading", { name: "沈砚列传" })).toBeVisible();
-    expect(screen.getByText("白话本纪")).toBeVisible();
-    expect(screen.getByText("史臣曰 · 文言")).toBeVisible();
-    expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(12);
+    expect(screen.getByText("一生四决")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByRole("heading", { name: "公议纪元" })).toBeVisible();
     expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(endingFixture.ordinaryLife2026.join("；"));
-    expect(screen.getByRole("button", { name: "保存这一页" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "再改一次历史" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "再改一次历史" }));
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /已解锁档案/ }));
+    expect(screen.getByRole("heading", { name: "已解锁 1 个瞬间" })).toBeVisible();
   });
 
-  it("unlocks the score for keyboard-first play", async () => {
-    render(<App />);
-
-    fireEvent.keyDown(screen.getByRole("heading", { name: "哎！我改变了历史？" }), { key: "Enter" });
-
-    await waitFor(() => expect(score.start).toHaveBeenCalledTimes(1));
-  });
-
-  it("keeps audio and browsing controls operable from the selecting settings menu", async () => {
+  it("uses one prepared Roll and two live AI Rolls without exposing free text", async () => {
     const user = userEvent.setup();
     render(<App />);
+    await enterDrawnHistory(user);
 
-    expect(screen.queryByRole("button", { name: "静音配乐" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByText("固定历史开场")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" }));
+    expect(await screen.findByText("压到最后一刻")).toBeVisible();
+    expect(engine.generateRerolledChoices).not.toHaveBeenCalled();
+
+    const secondRoll = screen.getByRole("button", { name: "重抽卡牌，还剩 2 次" });
+    await waitFor(() => expect(secondRoll).toBeEnabled());
+    await user.click(secondRoll);
+    await waitFor(() => expect(engine.generateRerolledChoices).toHaveBeenCalledTimes(1));
+
+    const thirdRoll = await screen.findByRole("button", { name: "重抽卡牌，还剩 1 次" });
+    await waitFor(() => expect(thirdRoll).toBeEnabled());
+    await user.click(thirdRoll);
+    await waitFor(() => expect(engine.generateRerolledChoices).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("button", { name: "本节点三次重抽已经用完" })).toBeDisabled();
+  });
+
+  it("keeps audio, archive, and the rules announcement in one secondary menu", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "我知道了，开抽" }));
+
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
     expect(score.toggleMuted).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "true");
-  });
-
-  it("offers one instant prepared roll and never exposes free text", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "闯入这一刻：罗马大火开始蔓延" }));
-    expect(await screen.findByText("固定历史开场")).toBeVisible();
-    expect(engine.generateNextTurn).not.toHaveBeenCalled();
-    expect(screen.getAllByText(/城市水道和消防队的值夜主管/).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByText(/直接改写结果|钦定历史/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" }));
-    expect(await screen.findByText("压到最后一刻")).toBeVisible();
-    expect(screen.getByRole("button", { name: "本节点已经重抽过一次" })).toBeDisabled();
-    expect(engine.generateNextTurn).not.toHaveBeenCalled();
-  });
-
-  it("always exposes one chronological one-hundred-moment filmstrip and exits an active run", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /闯入这一刻：/ })).toHaveLength(100);
-    expect(screen.getAllByRole("button", { name: /定位到公元/ })).toHaveLength(100);
-    expect(screen.queryByText(/展开全部|收回精选|为你的画像精选|换一批/)).not.toBeInTheDocument();
-    const dates = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
-    expect(dates).toEqual([...dates].sort((left, right) => left - right));
-    await user.click(screen.getAllByRole("button", { name: /闯入这一刻：/ })[0]);
-
-    expect(await screen.findByRole("button", { name: "退出本次推演" })).toBeVisible();
-    expect(await screen.findByText("固定历史开场")).toBeVisible();
-    expect(screen.queryByText(/人格|INTP|因果侦探/)).not.toBeInTheDocument();
-  });
-
-  it("restores grid mode, query, and current seed after exiting an active run", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
-    const search = screen.getByRole("searchbox", { name: "搜索历史瞬间" });
-    await user.type(search, "罗马大火");
-    const seedCard = screen.getByRole("button", { name: /罗马大火开始蔓延/ });
-    await user.click(seedCard);
-
-    expect(await screen.findByText("固定历史开场")).toBeVisible();
-    expect(engine.generateNextTurn).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "退出本次推演" }));
-
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toHaveValue("罗马大火");
-    expect(screen.getByRole("button", { name: /罗马大火开始蔓延/ })).toHaveAttribute("aria-current", "true");
-    expect(screen.queryAllByRole("article")).toHaveLength(0);
+    await user.click(screen.getByRole("menuitem", { name: /玩法公告/ }));
+    expect(screen.getByRole("dialog", { name: "这一次，先抽历史" })).toBeVisible();
   });
 });

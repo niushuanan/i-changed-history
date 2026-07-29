@@ -7,7 +7,7 @@ import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v14 roguelike-card single-history storage", () => {
+describe("v15 four-decision roguelike storage", () => {
   it("persists the historical picker and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
@@ -75,7 +75,7 @@ describe("v14 roguelike-card single-history storage", () => {
       customActionsUsed: 0,
       request: null,
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -90,7 +90,7 @@ describe("v14 roguelike-card single-history storage", () => {
       request: null,
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
   });
 
   it.each([
@@ -117,8 +117,8 @@ describe("v14 roguelike-card single-history storage", () => {
     expect(storage.getItem(GAME_STORAGE_KEY)).toBeNull();
   });
 
-  it("automatically resumes the posthumous report without losing twelve decisions", () => {
-    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
+  it("automatically resumes the posthumous report without losing four decisions", () => {
+    const playedTurns = Array.from({ length: 4 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
       selectedChoiceId: "A" as const,
       selectedChoiceLabel: turnFixture.choices[0].label,
@@ -130,7 +130,7 @@ describe("v14 roguelike-card single-history storage", () => {
       ...createInitialGameState(12),
       phase: "ending" as const,
       scenario: { seed: HISTORY_SEEDS[0] },
-      currentTurn: playedTurns[11].turn,
+      currentTurn: playedTurns[3].turn,
       playedTurns,
       request: { kind: "ending" as const, id: 11 },
     };
@@ -141,11 +141,11 @@ describe("v14 roguelike-card single-history storage", () => {
       playedTurns: expect.arrayContaining([expect.objectContaining({ selectedChoiceId: "A" })]),
       request: { kind: "ending", id: 11 },
     });
-    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
+    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(4);
   });
 
-  it("round-trips twelve completed decisions", () => {
-    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
+  it("round-trips four completed decisions", () => {
+    const playedTurns = Array.from({ length: 4 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
       selectedChoiceId: "A" as const,
       selectedChoiceLabel: turnFixture.choices[0].label,
@@ -153,9 +153,9 @@ describe("v14 roguelike-card single-history storage", () => {
       resolvedEcho: turnFixture.choices[0].instantEcho,
     }));
     const storage = memoryStorage();
-    const state = { ...createInitialGameState(), phase: "event" as const, scenario: { seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[11].turn, playedTurns };
+    const state = { ...createInitialGameState(), phase: "event" as const, scenario: { seed: HISTORY_SEEDS[0] }, currentTurn: playedTurns[3].turn, playedTurns };
     expect(saveGameSnapshot(state as never, storage)).toBe(true);
-    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(12);
+    expect(loadGameSnapshot(storage)?.playedTurns).toHaveLength(4);
   });
 
   it("preserves a current run whose narrative predates the richer three-sentence contract", () => {
@@ -224,9 +224,9 @@ describe("v14 roguelike-card single-history storage", () => {
     });
   });
 
-  it("preserves all twelve decisions and regenerates a legacy report whose prose was cut mid-sentence", () => {
-    const playedTurns = Array.from({ length: 12 }, (_, index) => {
-      const custom = index === 4;
+  it("preserves all four decisions and regenerates a legacy report whose prose was cut mid-sentence", () => {
+    const playedTurns = Array.from({ length: 4 }, (_, index) => {
+      const custom = index === 1;
       return {
         turn: parseTimelineTurn(JSON.stringify({
           ...turnFixture,
@@ -272,12 +272,12 @@ describe("v14 roguelike-card single-history storage", () => {
       request: { kind: "ending", id: 23 },
       nextRequestId: 24,
     });
-    expect(loaded?.playedTurns).toHaveLength(12);
+    expect(loaded?.playedTurns).toHaveLength(4);
     expect(loaded?.playedTurns).toEqual(playedTurns);
   });
 
   it("regenerates a legacy report whose 2026 life detail has no completed ending", () => {
-    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
+    const playedTurns = Array.from({ length: 4 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({
         ...turnFixture,
         chapter: index + 1,
@@ -315,8 +315,8 @@ describe("v14 roguelike-card single-history storage", () => {
     });
   });
 
-  it("preserves twelve decisions when an older report contains prose beyond the new limits", () => {
-    const playedTurns = Array.from({ length: 12 }, (_, index) => ({
+  it("preserves four decisions when an older report contains prose beyond the new limits", () => {
+    const playedTurns = Array.from({ length: 4 }, (_, index) => ({
       turn: parseTimelineTurn(JSON.stringify({
         ...turnFixture,
         chapter: index + 1,
@@ -381,7 +381,7 @@ describe("v14 roguelike-card single-history storage", () => {
       currentTurn: null,
       playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
@@ -431,6 +431,6 @@ describe("v14 roguelike-card single-history storage", () => {
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":14');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
   });
 });

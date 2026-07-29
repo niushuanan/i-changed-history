@@ -41,13 +41,13 @@ function played(chapter: DecisionChapter, custom = false): PlayedTurn {
 
 describe("compact narrative context", () => {
   it("keeps every decision while detailing only the latest three consequences", () => {
-    const turns = Array.from({ length: 8 }, (_, index) => played((index + 1) as DecisionChapter));
+    const turns = Array.from({ length: 4 }, (_, index) => played((index + 1) as DecisionChapter));
     const context = buildNarrativeContext(turns);
 
-    expect(context.lifeIndex).toHaveLength(8);
+    expect(context.lifeIndex).toHaveLength(4);
     expect(context.lifeIndex.map((item) => item.decision)).toEqual(turns.map((item) => item.selectedChoiceLabel));
     expect(context.activeConsequences).toHaveLength(3);
-    expect(context.activeConsequences.map((item) => item.chapter)).toEqual([6, 7, 8]);
+    expect(context.activeConsequences.map((item) => item.chapter)).toEqual([2, 3, 4]);
     expect(JSON.stringify(context)).not.toContain(turns[0].turn.narrative);
   });
 
@@ -65,16 +65,16 @@ describe("compact narrative context", () => {
     expect(context.recentScenes).toHaveLength(3);
   });
 
-  it("injects only the previous three player rewrites as active current mandates", () => {
-    const turns = [1, 2, 3, 4, 5].map((chapter) => played(chapter as DecisionChapter, true));
-    const context = buildNarrativeContext(turns, 6);
+  it("injects the previous three player rewrites as active current mandates", () => {
+    const turns = [1, 2, 3].map((chapter) => played(chapter as DecisionChapter, true));
+    const context = buildNarrativeContext(turns, 4);
 
-    expect(context.playerCanon).toHaveLength(5);
-    expect(context.activePlayerCanon.map((item) => item.chapter)).toEqual([3, 4, 5]);
+    expect(context.playerCanon).toHaveLength(3);
+    expect(context.activePlayerCanon.map((item) => item.chapter)).toEqual([1, 2, 3]);
     expect(context.activePlayerCanon.map((item) => item.sourceText)).toEqual([
+      "第1幕玩家钦定结果已经发生",
+      "第2幕玩家钦定结果已经发生",
       "第3幕玩家钦定结果已经发生",
-      "第4幕玩家钦定结果已经发生",
-      "第5幕玩家钦定结果已经发生",
     ]);
   });
 });

@@ -47,7 +47,7 @@ describe("epic score controller", () => {
     await controller.start();
     vi.advanceTimersByTime(2_000);
 
-    controller.setChapter(5);
+    controller.setChapter(4);
     vi.advanceTimersByTime(2_000);
     expect(audio.volume).toBeCloseTo(0.4, 2);
 

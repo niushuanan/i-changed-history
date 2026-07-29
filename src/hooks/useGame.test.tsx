@@ -7,7 +7,7 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { useGame, type UseGameDependencies } from "./useGame";
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
 const deps = (): UseGameDependencies => ({
-  generateNextTurn: vi.fn(), generateEnding: vi.fn(),
+  generateNextTurn: vi.fn(), generateRerolledChoices: vi.fn(), generateEnding: vi.fn(),
   loadSnapshot: vi.fn(() => null), saveSnapshot: vi.fn(() => true),
   audio: { start: vi.fn().mockResolvedValue(true), stop: vi.fn(), setChapter: vi.fn(), isMuted: vi.fn(() => false), setMuted: vi.fn(), toggleMuted: vi.fn(() => true), dispose: vi.fn() },
 });
@@ -76,6 +76,28 @@ describe("useGame single-life orchestration", () => {
     await waitFor(() => expect(result.current.state.pendingTurn).not.toBeNull());
 
     expect(result.current.generationStage).toBe("writing");
+  });
+
+  it("preserves the current hand and retries a failed live Roll", async () => {
+    const dependencies = deps();
+    vi.mocked(dependencies.generateRerolledChoices)
+      .mockRejectedValueOnce(new Error("provider unavailable"))
+      .mockResolvedValueOnce(turn.choices);
+    const { result } = renderHook(() => useGame(dependencies));
+
+    act(() => result.current.selectSeed(HISTORY_SEEDS[0]));
+    act(() => result.current.rollChoices());
+    expect(result.current.state.rollCount).toBe(1);
+    act(() => result.current.rollChoices());
+
+    await waitFor(() => expect(result.current.state.rollError).toBe("新牌暂时没有发出来，点击 ROLL 再试。"));
+    expect(result.current.state.rollCount).toBe(1);
+    expect(result.current.state.currentTurn).not.toBeNull();
+
+    act(() => result.current.rollChoices());
+    await waitFor(() => expect(result.current.state.rollCount).toBe(2));
+    expect(result.current.state.dynamicChoices).toEqual(turn.choices);
+    expect(dependencies.generateRerolledChoices).toHaveBeenCalledTimes(2);
   });
 
   it("automatically runs a restored ending request after refresh", async () => {

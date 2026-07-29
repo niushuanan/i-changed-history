@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。玩家从按年份排列的 100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）选择入口；中国节点全部早于 1949 年，不包含 1949 年及以后发生在中国的事件，也不包含以中国共产党、中华人民共和国或“新中国”为主题的政治题材，苏联史仍属于允许的世界史范围。玩家可在横向时间胶片与纵向两列网格间切换，并在网格中搜索或按年代、地域、主题筛选。进入节点后立即装载该卡片固定且经过 schema 校验的第一幕；每幕一次生成六张决定牌，前端先展示循史、破局、天外三张，用户可在本节点唯一一次 Roll 中立即换成已预生成的第二组三张。牌面是 4-12 字摘要，长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。DeepSeek 在同一个有固定姓名和身体的历史主角一生中实时生成第 2 至第 12 次重大决策，第 12 次选择后生成《史记》式人物列传和延伸至 2026 的小说式蝴蝶效应报告。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
+《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，百节点时间线疾驰并随机停在一个历史现场；系统优先命中尚未通关的节点。揭晓仍复用完整档案海报卡，玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次零等待换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。牌面是 4-12 字摘要，长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定，第四次后生成《史记》式人物列传和延伸至 2026 的小说式蝴蝶效应报告；完整结局会永久解锁该开局并收入“已解锁档案”。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
 
 当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，原样流式转发 SSE，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子限额；浏览器产物不再包含 API Key。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地音频继续构建史诗氛围；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。游戏存档仍按设备和站点域名保存在浏览器 `localStorage`。
 
@@ -13,23 +13,23 @@
 - `src/data/`：100 张著名历史转折点、与其一一对应的固定第一幕、搜索筛选目录，以及按年份/阶段选取的视觉资产映射。
 - `src/data/historySeeds/`：历史剧本模块边界；`scripts/<seed-id>/index.ts` 每个目录只拥有一个剧本，`shared.ts` 提供公共构造器与标签，`index.ts` 显式维护完整 100 节点的唯一聚合顺序。
 - `src/data/historySeeds/interactive.ts`：只供互动空间构建别名使用的三个低敏剧本聚合；普通产品和测试默认不经过该入口。
-- `src/game/`：游戏领域层，包含单一主角一生 12 决策时间计划、每幕六张牌与一次 Roll 状态、不可撤销世界正史、重大节点编排、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
+- `src/game/`：游戏领域层，包含单一主角一生四决策时间计划、每幕首发六张牌与三次 Roll 状态、不可撤销世界正史、重大节点编排、结构化 schema、DeepSeek prompts、生成引擎、确定性偏离度和纯 reducer。
 - `src/hooks/`：`useGame.ts` 负责请求取消、下一幕预取、卡组 Roll、即时回响、存储、音频和重试编排。
 - `src/services/`：DeepSeek 官方 / Sites Worker 传输、互动空间火山平台传输、卡牌即时音效、版本化本地存储、史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
 - `app/`：vinext App Router 页面、中文 metadata，以及禁止服务端预渲染现有浏览器游戏的 client-only 边界。
 - `worker/`：Sites Cloudflare Worker 入口、固定协议校验、D1 用量限制、DeepSeek 服务端密钥注入和透明 SSE 转发。
 - `db/` 与 `drizzle/`：AI 请求限额表定义及 Sites 部署迁移。
 - `build/` 与 `.openai/hosting.json`：Sites 构建元数据打包和 D1 / R2 逻辑绑定。
-- `src/screens/` 和 `src/components/`：从历史档案选择、三卡牌桌、一次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
+- `src/screens/` 和 `src/components/`：从命运抽取、玩法公告、解锁档案、三卡牌桌、三次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
-- `src/soak/`：显式运行的真实 DeepSeek 十二节点长局压力测试；默认覆盖十个不同开局、每局四到五次 Roll，也支持用 `SOAK_ALL_ROLL=1` 让指定长局十二幕全部选择预生成第二组、最低成功率与强制延迟门槛，结果只写入被忽略的 `tmp/soak/`。
+- `src/soak/`：显式运行的真实 DeepSeek 四决策完整局压力测试；默认覆盖十个不同开局并在每幕选择预生成 Roll 组，也支持用 `SOAK_ALL_ROLL=1` 对指定开局执行相同的全幕、最低成功率与强制延迟门槛，结果只写入被忽略的 `tmp/soak/`。第二、第三次实时 Roll 的请求、恢复与错误重试由 reducer、组件和应用集成测试覆盖。
 - `design/`：历史视觉稿与 360×667 / 390×844 真实浏览器验收截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、三套原创透明卡面图标、CC0 史诗配乐及授权记录。
 - `scripts/package-interactive-review.mjs`、`scripts/interactive-review-catalog.mjs`、`scripts/prepare-interactive-build.mjs`、`scripts/verify-interactive-review-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：定义三个审核剧本、构建平台运行时、删除其他历史图、扫描非白名单剧本泄漏、优化移动资源、执行未压缩与 ZIP 双体积闸门，并生成唯一待提交 ZIP；Sites 正式版继续使用全部 100 剧本和原始资源。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
-实际数据流是：在胶片或筛选网格中选择真实历史卡 -> 客户端同步装载该卡固定第一幕、固定主角与两组三张牌 -> 玩家可直接从首组三张选择，也可用本节点唯一一次 Roll 无网络等待地换成预生成第二组 -> 长按查看完整字段，向上划出一张 -> reducer 把该牌完整 `label`、偏离类型与即时结果固化为不可撤销 `WorldCanon`，并在结果页预取下一幕 -> 从第 2 幕起，客户端把全部已选牌压成分层叙事上下文并提交同源固定协议 -> Worker 校验协议与用量后向 DeepSeek 官方接口发起 SSE 推演；互动空间构建则用 `tt.callAIChatCompletion` 走火山平台 -> 每次模型响应同时返回首组和 Roll 组六张牌 -> Zod 校验人物连续性、两组三档牌和因果账本，缺失可见文案时仅补失败字段 -> 主事件页通过二级入口打开完整历史对照 -> 第 12 张牌 -> 主角死亡 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 客户端合并并导出完整 2x PNG。
+实际数据流是：未显影卡牌 -> 客户端从尚未解锁的 100 节点池随机选择并驱动时间线疾驰停靠 -> 揭晓既有历史档案海报 -> 同步装载该卡固定第一幕、固定主角与两组三张牌 -> 玩家可直接选首组，也可第一次 Roll 无网络等待地换成预生成第二组；第二、第三次 Roll 把当前现场和所有已看牌提交给模型，只接收新的 A/B/C 三张 -> 长按查看完整字段，向上划出一张 -> reducer 把完整 `label`、偏离类型与即时结果固化为不可撤销 `WorldCanon`，并在结果页预取下一幕 -> 第 2 至第 4 幕把全部已选牌压成分层叙事上下文，Sites/本地由 Worker 向 DeepSeek 官方接口发起 SSE 推演，互动空间由 `tt.callAIChatCompletion` 走火山平台 -> Zod 校验人物连续性、两组三档牌和因果账本，缺失可见文案时仅补失败字段 -> 第 4 张牌成为最后决定 -> 主角死亡 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 客户端解锁该开局、合并报告并导出完整 2x PNG。
 
 ## 3. 关键入口在哪里
 
@@ -37,16 +37,16 @@
 - `app/layout.tsx`：中文根布局、站点 metadata 和两份全局样式入口。
 - `worker/index.ts`：Cloudflare Worker 总入口。
 - `worker/deepseek-proxy.ts`：固定游戏协议、DeepSeek 服务端代理、SSE 透传、取消和 D1 用量保护入口。
-- `src/App.tsx`：根组件，负责历史胶片入口、游戏 phase 切换和结局导出。
+- `src/App.tsx`：根组件，负责首次玩法公告、命运抽取入口、游戏 phase 切换和结局导出。
 - `src/hooks/useGame.ts`：运行时编排入口。
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
-- `src/game/schema.ts` 与 `src/game/reducer.ts`：六张牌协议、一次 Roll、存档状态和卡牌提交的权威入口。
-- `src/components/ChoiceList.tsx`：三卡牌桌、长按详情、上划提交、一次 Roll 与即时音效入口。
+- `src/game/schema.ts` 与 `src/game/reducer.ts`：六张首发牌、三次 Roll、动态牌组、永久解锁、存档状态和卡牌提交的权威入口。
+- `src/components/ChoiceList.tsx`：三卡牌桌、长按详情、上划提交、三次 Roll 与即时音效入口。
+- `src/screens/SeedPickerScreen.tsx` 与 `src/components/GameAnnouncement.tsx`：百节点随机停靠、未显影/揭晓卡、已解锁档案和首次玩法说明入口。
 - `src/data/fixedOpenings.ts`：100 张历史卡的固定第一幕与两组三张牌构建入口。
 - `src/game/worldCanon.ts`：把玩家决定固化为世界正史，并生成下一幕的重大节点编排约束。
 - `src/data/historySeeds/index.ts`：100 个单剧本模块的显式聚合与历史卡牌数据入口。
 - `src/data/historySeeds/interactive.ts`：互动空间构建专用三剧本入口；由 Vite 别名替换普通聚合，不改变源码主卡组。
-- `src/data/historyCatalog.ts`：历史网格的搜索、年代、地域与主题筛选入口。
 - `src/services/share.ts`：完整报告图片准备、移动系统分享、桌面下载和 object URL 回收入口。
 - `src/services/deepseek.ts`、`src/services/deepseek.interactive.ts` 与 `docs/ai-transports.md`：DeepSeek 官方、Sites 同源 Worker 和互动空间火山平台双通道入口与说明。
 - `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
@@ -60,6 +60,15 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-29 13:00 - 用命运抽取贯穿开局，并将完整人生压缩为四决三 Roll
+
+- 本次任务：取消开局面对 100 个历史节点的自由选择，把 Roll 的爽感提前到“从哪里开始”；完成历史节点后才解锁档案；首次进入用玩家口吻说明规则；把单局从十二次决定压缩为四次，并让每幕拥有三次 Roll，最后仍输出一生与 2026 的双报告。
+- 改了哪些文件：新增 `src/components/GameAnnouncement.tsx`；重构 `src/screens/SeedPickerScreen.tsx`、`src/App.tsx`、`src/components/ChoiceList.tsx`、`src/screens/TimelineEventScreen.tsx`、`src/hooks/useGame.ts`、`src/game/{timelinePlan,reducer,schema,prompts,engine,deepseekProtocol,deviation,worldCanon}.ts`、`src/services/{storage,deepseek-contract}.ts`、`src/data/fixedOpenings.ts`、`src/styles/game.css` 与相关单元/集成/soak 测试；同步更新 `README.md`、`AGENTS.md`、`design-qa.md` 和本文档。
+- 改了什么：首页默认是一张阴影中的实体命运牌和一条遮蔽的 100 节点时间轴，抽取时经过 18 个 staged 落点后停在唯一节点，优先未解锁且尽量避开上次结果；停稳后原样复用既有历史档案卡，完整结局才把 seed ID 写入持久化解锁集合。首次挂载弹出四步玩法公告，设置菜单可重看。权威时间计划改为四幕，偏离倍率重新分配到四次决定，结局 schema 固定接收四条人生选择。每幕 `rollCount` 上限为 3：第一次直接发预生成 `rollChoices`，后两次经新增 `choice_set` 协议现场生成并避开所有已看牌；请求可刷新恢复，失败保留当前牌并在 Roll 原位重试。天外牌提示与固定开场扩展为时间、语言、记忆、物质、空间、制度感知和因果等多类奇想，不再默认聚焦坦克或神兽。
+- 为什么这样改：开局的一百选一让玩家在真正体验游戏前先承担决策成本；把“随机但有仪式感”的抽取放到入口，把“有限但可主动追求惊喜”的三次 Roll 放到每一幕，能让随机性成为统一机制。四次重大抉择保留完整人生弧线，同时把单局时长压到适合移动端反复游玩的范围；完成才解锁则把通关结果变成明确的收藏反馈。
+- 影响了哪些模块：首页导航与持久化解锁、玩法公告、完整幕次数、偏离度、牌组状态、两次实时发牌请求、模型协议、固定开场奇想、结局输入、长测门禁与产品文档全部改变；100 个剧本内容与模块结构、既有历史档案卡视觉、活动牌桌的藏品级卡面/长按/上划交互、完整 canonical 决定、双报告内容和互动空间三剧本打包边界保持不变。真实 in-app browser 已在 360 × 667、390 × 844、430 × 932 完成公告、未显影卡、随机停靠、历史卡揭晓、进入第一幕、第一次零等待 Roll、实时 Roll 错误原位重试与空档案路径；短屏页面无纵向溢出，四节点和全部主控件同屏。
+- 验证与打包：全量 Vitest 36 文件 355/355、TypeScript、215 个运行时文件可移植性、vinext 生产构建和 `git diff --check` 通过；互动空间包仍只含古腾堡、伽利略、阿波罗 11 三个白名单剧本，非白名单泄漏 0，34 个文件，ZIP 2,711,059 字节，MD5 `c7b3d0b571bb87959e4c72a334dd62ae`。按门禁启动了三开局四幕真实 soak，但本地已保存的 DeepSeek 凭证被官方返回 `unauthorized`，三局都在第二幕请求前停止；没有把这次外部凭证失败计作模型链路通过，脱敏证据保存在已忽略的 `tmp/soak/destiny-four-turn-20260729/`。
 
 ### 2026-07-29 12:08 - 将三卡牌桌升级为藏品级实体牌并补齐按住蓄力
 

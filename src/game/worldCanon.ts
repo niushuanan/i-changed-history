@@ -71,7 +71,7 @@ export function buildWorldCanon(
       sourceChapter: turn.turn.chapter,
       sourceText: turn.selectedChoiceLabel,
       playerAuthored: true,
-      activeThroughChapter: Math.min(12, turn.turn.chapter + 3),
+      activeThroughChapter: Math.min(4, turn.turn.chapter + 3),
       propagationMechanism: turn.causalMechanism ?? turn.turn.causalBridge,
       directResult: turn.resolvedEcho.directResult,
       unexpectedCost: turn.resolvedEcho.unexpectedCost,

@@ -1,249 +1,183 @@
-import { FilmStrip, GearSix, SpeakerHigh, SpeakerSlash, SquaresFour } from "@phosphor-icons/react";
+import {
+  Archive,
+  DiceFive,
+  GearSix,
+  Megaphone,
+  SpeakerHigh,
+  SpeakerSlash,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HistorySeed } from "../game/types";
 import { HistoryCard } from "../components/HistoryCard";
-import { HistoryGridCard, HISTORY_THEME_LABELS } from "../components/HistoryGridCard";
-import {
-  EMPTY_FILTERS,
-  filterHistorySeeds,
-  type HistoryBrowseMode,
-  type HistoryFilters,
-  type HistoryPeriod,
-  type HistoryRegion,
-  type HistoryTheme,
-} from "../data/historyCatalog";
+import { HistoryGridCard } from "../components/HistoryGridCard";
 import { browseHistorySeeds } from "../data/historySeeds";
 import { formatHistoricalYear } from "../data/historicalYear";
+import { playCardSound } from "../services/cardAudio";
 
-const CARD_STEP = 312;
 const HISTORY_CARDS = browseHistorySeeds();
-
-const PERIOD_LABELS: ReadonlyArray<{ value: HistoryPeriod; label: string }> = [
-  { value: "all", label: "全部时间" },
-  { value: "bce", label: "公元前" },
-  { value: "before-500", label: "公元 1—499 年" },
-  { value: "500-1499", label: "公元 500—1499 年" },
-  { value: "1500-1899", label: "公元 1500—1899 年" },
-  { value: "after-1900", label: "公元 1900 年后" },
-];
-
-const REGION_LABELS: ReadonlyArray<{ value: HistoryRegion; label: string }> = [
-  { value: "all", label: "全部地域" },
-  { value: "china", label: "中国" },
-  { value: "world", label: "世界" },
-];
-
-const THEME_LABELS: ReadonlyArray<{ value: HistoryTheme; label: string }> = [
-  { value: "all", label: "全部属性" },
-  ...Object.entries(HISTORY_THEME_LABELS).map(([value, label]) => ({ value: value as HistoryTheme, label })),
-];
+const DRAW_STEPS = 18;
+const DRAW_DURATION_MS = 1880;
 
 export type PickerContext = {
-  mode: HistoryBrowseMode;
+  mode: "draw" | "archive";
   activeSeedId: string;
-  filters: HistoryFilters;
 };
 
 export const DEFAULT_PICKER_CONTEXT: PickerContext = {
-  mode: "filmstrip",
+  mode: "draw",
   activeSeedId: HISTORY_CARDS[0].id,
-  filters: EMPTY_FILTERS,
 };
 
 type SeedPickerScreenProps = {
   context: PickerContext;
   muted: boolean;
+  unlockedSeedIds: readonly string[];
   onContextChange: (context: PickerContext) => void;
   onSelect: (seed: HistorySeed) => void;
+  onShowAnnouncement: () => void;
   onToggleMute: () => void;
 };
 
-function moveScroller(element: HTMLElement, left: number) {
-  if (typeof element.scrollTo === "function") {
-    element.scrollTo({ left, behavior: "auto" });
-  } else {
-    element.scrollLeft = left;
-  }
-}
-
-function hasFilters(filters: HistoryFilters): boolean {
-  return filters.search.trim() !== ""
-    || filters.period !== "all"
-    || filters.region !== "all"
-    || filters.theme !== "all";
+export function chooseDestinySeed(
+  cards: readonly HistorySeed[],
+  unlockedSeedIds: readonly string[],
+  currentSeedId: string,
+  random: () => number = Math.random,
+): HistorySeed {
+  const unlocked = new Set(unlockedSeedIds);
+  const lockedPool = cards.filter((seed) => !unlocked.has(seed.id));
+  const primaryPool = lockedPool.length > 0 ? lockedPool : cards;
+  const pool = primaryPool.length > 1
+    ? primaryPool.filter((seed) => seed.id !== currentSeedId)
+    : primaryPool;
+  const safePool = pool.length > 0 ? pool : primaryPool;
+  const index = Math.min(
+    safePool.length - 1,
+    Math.max(0, Math.floor(random() * safePool.length)),
+  );
+  return safePool[index] ?? cards[0];
 }
 
 export function SeedPickerScreen({
   context,
   muted,
+  unlockedSeedIds,
   onContextChange,
   onSelect,
+  onShowAnnouncement,
   onToggleMute,
 }: SeedPickerScreenProps) {
-  const cards = HISTORY_CARDS;
-  const activeIndex = Math.max(0, cards.findIndex((seed) => seed.id === context.activeSeedId));
-  const activeSeed = cards[activeIndex];
-  const filteredCards = useMemo(
-    () => filterHistorySeeds(cards, context.filters),
-    [cards, context.filters],
-  );
-  const isActiveSeedVisible = filteredCards.some((seed) => seed.id === activeSeed.id);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const timelineRef = useRef<HTMLElement>(null);
-  const timelineNodes = useRef<Array<HTMLButtonElement | null>>([]);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const programmaticCardIndex = useRef<number | null>(null);
-  const gestureSyncedIndex = useRef<number | null>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const [drawState, setDrawState] = useState<"ready" | "drawing" | "revealed">("ready");
+  const [previewIndex, setPreviewIndex] = useState(() => (
+    Math.max(0, HISTORY_CARDS.findIndex((seed) => seed.id === context.activeSeedId))
+  ));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const timelineRef = useRef<HTMLElement | null>(null);
+  const timelineNodesRef = useRef<Array<HTMLSpanElement | null>>([]);
+  const settingsRef = useRef<HTMLDivElement | null>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const timersRef = useRef<number[]>([]);
+  const unlockedSet = useMemo(() => new Set(unlockedSeedIds), [unlockedSeedIds]);
+  const unlockedCards = useMemo(
+    () => HISTORY_CARDS.filter((seed) => unlockedSet.has(seed.id)),
+    [unlockedSet],
+  );
+  const previewSeed = HISTORY_CARDS[previewIndex] ?? HISTORY_CARDS[0];
+  const revealed = drawState === "revealed";
 
-  const cardStep = () => {
-    const first = carouselRef.current?.children[0] as HTMLElement | undefined;
-    const second = carouselRef.current?.children[1] as HTMLElement | undefined;
-    const measured = first && second ? second.offsetLeft - first.offsetLeft : 0;
-    return measured > 0 ? measured : CARD_STEP;
+  const clearDrawTimers = () => {
+    timersRef.current.forEach((timer) => window.clearTimeout(timer));
+    timersRef.current = [];
   };
 
-  const centerTimelineNode = (index: number) => {
-    const timeline = timelineRef.current;
-    const node = timelineNodes.current[index];
-    if (!timeline || !node) return;
-    moveScroller(timeline, node.offsetLeft - timeline.clientWidth / 2 + node.clientWidth / 2);
-  };
-
-  const setActiveSeed = (seed: HistorySeed) => {
-    if (seed.id === context.activeSeedId) return;
-    onContextChange({ ...context, activeSeedId: seed.id });
-  };
-
-  const scrollCardsTo = (index: number) => {
-    const carousel = carouselRef.current;
-    if (!carousel) return;
-    const targetCard = carousel.children[index] as HTMLElement | undefined;
-    const targetLeft = targetCard
-      ? Math.max(0, targetCard.offsetLeft - (carousel.clientWidth - targetCard.clientWidth) / 2)
-      : index * cardStep();
-    if (Math.abs(carousel.scrollLeft - targetLeft) <= 1) {
-      programmaticCardIndex.current = null;
-      return;
-    }
-    programmaticCardIndex.current = index;
-    moveScroller(carousel, targetLeft);
-  };
-
-  const focusCard = (index: number) => {
-    const seed = cards[index];
-    if (!seed) return;
-    scrollCardsTo(index);
-    setActiveSeed(seed);
-    centerTimelineNode(index);
-  };
-
-  const syncFromCards = () => {
-    const carousel = carouselRef.current;
-    const firstCard = carousel?.children[0] as HTMLElement | undefined;
-    const firstCenteredLeft = carousel && firstCard
-      ? Math.max(0, firstCard.offsetLeft - (carousel.clientWidth - firstCard.clientWidth) / 2)
-      : 0;
-    const index = Math.max(0, Math.min(cards.length - 1, Math.round(((carousel?.scrollLeft ?? 0) - firstCenteredLeft) / cardStep())));
-    const targetIndex = programmaticCardIndex.current;
-    if (targetIndex !== null) {
-      if (index === targetIndex) programmaticCardIndex.current = null;
-      return;
-    }
-    const seed = cards[index];
-    if (!seed || seed.id === activeSeed.id) return;
-    gestureSyncedIndex.current = index;
-    setActiveSeed(seed);
-    centerTimelineNode(index);
-  };
-
-  const beginCardGesture = () => {
-    programmaticCardIndex.current = null;
-  };
-
-  const setMode = (mode: HistoryBrowseMode) => {
-    if (mode !== context.mode) onContextChange({ ...context, mode });
-    settingsTriggerRef.current?.focus();
-    setSettingsOpen(false);
-  };
-
-  const setFilters = (patch: Partial<HistoryFilters>) => {
-    onContextChange({ ...context, filters: { ...context.filters, ...patch } });
-  };
+  useEffect(() => clearDrawTimers, []);
 
   useEffect(() => {
-    if (context.mode === "filmstrip") {
-      if (gestureSyncedIndex.current === activeIndex) {
-        gestureSyncedIndex.current = null;
-      } else {
-        scrollCardsTo(activeIndex);
-      }
-      centerTimelineNode(activeIndex);
-      return;
+    const timeline = timelineRef.current;
+    const node = timelineNodesRef.current[previewIndex];
+    if (!timeline || !node || drawState === "ready") return;
+    const left = node.offsetLeft - timeline.clientWidth / 2 + node.clientWidth / 2;
+    if (typeof timeline.scrollTo === "function") {
+      timeline.scrollTo({
+        left,
+        behavior: drawState === "drawing" ? "smooth" : "auto",
+      });
+    } else {
+      timeline.scrollLeft = left;
     }
-
-    const currentCard = gridRef.current?.querySelector<HTMLElement>('[aria-current="true"]');
-    if (typeof currentCard?.scrollIntoView === "function") {
-      currentCard.scrollIntoView({ block: "nearest" });
-    }
-  }, [activeIndex, context.mode, isActiveSeedVisible]);
+  }, [drawState, previewIndex]);
 
   useEffect(() => {
     if (!settingsOpen) return undefined;
-
     settingsRef.current?.querySelector<HTMLButtonElement>('[role^="menuitem"]')?.focus();
-
-    const closeOnPointerDown = (event: PointerEvent) => {
+    const closeOnOutside = (event: PointerEvent) => {
       if (!settingsRef.current?.contains(event.target as Node)) setSettingsOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      event.preventDefault();
-      settingsTriggerRef.current?.focus();
       setSettingsOpen(false);
+      settingsTriggerRef.current?.focus();
     };
-
-    document.addEventListener("pointerdown", closeOnPointerDown);
+    document.addEventListener("pointerdown", closeOnOutside);
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("pointerdown", closeOnOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [settingsOpen]);
 
+  const switchMode = (mode: PickerContext["mode"]) => {
+    onContextChange({ ...context, mode });
+    setSettingsOpen(false);
+    settingsTriggerRef.current?.focus();
+  };
+
+  const draw = () => {
+    if (drawState === "drawing") return;
+    clearDrawTimers();
+    const target = chooseDestinySeed(
+      HISTORY_CARDS,
+      unlockedSeedIds,
+      revealed ? previewSeed.id : context.activeSeedId,
+    );
+    const targetIndex = HISTORY_CARDS.findIndex((seed) => seed.id === target.id);
+    const startIndex = previewIndex;
+    const reducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = import.meta.env.MODE === "test" || reducedMotion ? 40 : DRAW_DURATION_MS;
+    setDrawState("drawing");
+    playCardSound("roll", muted);
+
+    for (let step = 1; step <= DRAW_STEPS; step += 1) {
+      const progress = step / DRAW_STEPS;
+      const eased = 1 - Math.pow(1 - progress, 2.4);
+      const travel = Math.max(HISTORY_CARDS.length + 11, Math.abs(targetIndex - startIndex) + 42);
+      const rollingIndex = step === DRAW_STEPS
+        ? targetIndex
+        : (startIndex + Math.round(travel * eased)) % HISTORY_CARDS.length;
+      timersRef.current.push(window.setTimeout(() => {
+        setPreviewIndex(rollingIndex);
+        if (step !== DRAW_STEPS) return;
+        setDrawState("revealed");
+        onContextChange({ ...context, activeSeedId: target.id, mode: "draw" });
+        playCardSound("deal", muted);
+      }, Math.round(duration * progress)));
+    }
+  };
+
   const toggleAudio = () => {
     onToggleMute();
+    setSettingsOpen(false);
     settingsTriggerRef.current?.focus();
-    setSettingsOpen(false);
   };
 
-  const moveSettingsFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Tab") {
-      window.setTimeout(() => setSettingsOpen(false), 0);
-      return;
-    }
-    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]'));
-    if (items.length === 0) return;
-    event.preventDefault();
-    const currentIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
-    const nextIndex = event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? items.length - 1
-        : (currentIndex + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-    items[nextIndex].focus();
-  };
-
-  const closeSettingsWhenFocusLeaves = (event: React.FocusEvent<HTMLDivElement>) => {
-    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+  const openAnnouncement = () => {
     setSettingsOpen(false);
+    onShowAnnouncement();
   };
 
   return (
-    <main className={`seed-picker seed-picker--${context.mode}`}>
+    <main className={`seed-picker seed-picker--${context.mode} destiny-picker`} data-draw-state={drawState}>
       <header className="seed-picker__brand">
         <h1 className="seed-picker__wordmark">
           <img src="/assets/brand/history-wordmark.png" alt="哎！我改变了历史？" />
@@ -256,28 +190,28 @@ export function SeedPickerScreen({
             aria-label="首页设置"
             aria-haspopup="menu"
             aria-expanded={settingsOpen}
-            aria-controls="picker-settings-menu"
             onClick={() => setSettingsOpen((open) => !open)}
           >
             <GearSix size={22} weight="bold" />
           </button>
           {settingsOpen ? (
             <div
-              id="picker-settings-menu"
               className="seed-picker__settings-menu"
               role="menu"
               aria-label="首页设置菜单"
-              onBlur={closeSettingsWhenFocusLeaves}
-              onKeyDown={moveSettingsFocus}
             >
-              <span className="seed-picker__settings-kicker">浏览与声音</span>
-              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "filmstrip"} onClick={() => setMode("filmstrip")}>
-                <FilmStrip size={20} weight="bold" />
-                <span><strong>胶片</strong><small>左右滑动历史</small></span>
+              <span className="seed-picker__settings-kicker">命运与档案</span>
+              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "draw"} onClick={() => switchMode("draw")}>
+                <DiceFive size={20} weight="bold" />
+                <span><strong>抽命运</strong><small>随机坠入历史</small></span>
               </button>
-              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "grid"} onClick={() => setMode("grid")}>
-                <SquaresFour size={20} weight="bold" />
-                <span><strong>表格</strong><small>上下浏览全部</small></span>
+              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "archive"} onClick={() => switchMode("archive")}>
+                <Archive size={20} weight="bold" />
+                <span><strong>已解锁档案</strong><small>{unlockedCards.length} / {HISTORY_CARDS.length}</small></span>
+              </button>
+              <button type="button" role="menuitem" tabIndex={-1} onClick={openAnnouncement}>
+                <Megaphone size={20} weight="bold" />
+                <span><strong>玩法公告</strong><small>重新查看规则</small></span>
               </button>
               <button type="button" role="menuitemcheckbox" tabIndex={-1} aria-checked={!muted} onClick={toggleAudio}>
                 {muted ? <SpeakerSlash size={20} weight="bold" /> : <SpeakerHigh size={20} weight="bold" />}
@@ -288,115 +222,93 @@ export function SeedPickerScreen({
         </div>
       </header>
 
-      {context.mode === "filmstrip" ? (
+      {context.mode === "draw" ? (
         <>
-          <section className="history-time" aria-label="历史时间轴">
-            <div className="history-time__readout">
-              <strong>{formatHistoricalYear(activeSeed.year)}</strong>
-              <div className="history-time__meta">
-                <span className="history-time__hint">（滑动可切换不同的历史瞬间）</span>
-                <small>{activeIndex + 1} / {cards.length}</small>
-              </div>
-            </div>
-            <span className="history-time__axis" data-testid="history-time-axis" aria-hidden="true" />
-            <nav className="history-time__track" ref={timelineRef} aria-label={`历史年份，共 ${cards.length} 个节点`}>
-              {cards.map((seed, index) => (
-                <button
+          <section className="destiny-readout" aria-live="polite">
+            <span>{drawState === "ready" ? "命运尚未显影" : drawState === "drawing" ? "时间正在寻找你" : "你的命运停在"}</span>
+            <strong>{drawState === "ready" ? "???? 年" : formatHistoricalYear(previewSeed.year)}</strong>
+            <small>已解锁 {unlockedCards.length} / {HISTORY_CARDS.length}</small>
+          </section>
+
+          <section className="destiny-timeline" aria-label="命运时间轴">
+            <span className="destiny-timeline__axis" aria-hidden="true" />
+            <nav ref={timelineRef} aria-label={`随机滚动时间线，共 ${HISTORY_CARDS.length} 个节点`}>
+              {HISTORY_CARDS.map((seed, index) => (
+                <span
                   key={seed.id}
-                  ref={(node) => { timelineNodes.current[index] = node; }}
-                  type="button"
-                  className={index === activeIndex ? "is-active" : ""}
-                  aria-current={index === activeIndex ? "step" : undefined}
-                  aria-label={`定位到${formatHistoricalYear(seed.year)}`}
-                  onClick={() => focusCard(index)}
+                  ref={(node) => { timelineNodesRef.current[index] = node; }}
+                  className={drawState !== "ready" && index === previewIndex ? "is-active" : ""}
+                  aria-current={drawState !== "ready" && index === previewIndex ? "step" : undefined}
+                  aria-label={drawState === "revealed" && index === previewIndex
+                    ? formatHistoricalYear(seed.year)
+                    : "未揭晓历史节点"}
                 >
                   <i />
-                  <span>{formatHistoricalYear(seed.year)}</span>
-                </button>
+                </span>
               ))}
             </nav>
           </section>
 
-          <div
-            className="history-carousel"
-            ref={carouselRef}
-            onPointerDown={beginCardGesture}
-            onTouchStart={beginCardGesture}
-            onWheel={beginCardGesture}
-            onScroll={syncFromCards}
-            aria-label="按时间排列的历史瞬间"
-          >
-            {cards.map((seed, index) => (
-              <div key={seed.id} className={index === activeIndex ? "is-active" : ""} onFocus={() => focusCard(index)}>
-                <HistoryCard
-                  seed={seed}
-                  position={index + 1}
-                  total={cards.length}
-                  onSelect={() => {
-                    onContextChange({ ...context, activeSeedId: seed.id });
-                    onSelect(seed);
-                  }}
-                />
-              </div>
-            ))}
+          <section className={`destiny-stage${revealed ? " is-revealed" : ""}`}>
+            {revealed ? (
+              <HistoryCard
+                seed={previewSeed}
+                position={previewIndex + 1}
+                total={HISTORY_CARDS.length}
+                onSelect={() => onSelect(previewSeed)}
+              />
+            ) : (
+              <article className="destiny-card-back" aria-label={drawState === "drawing" ? "命运卡牌正在显影" : "尚未揭晓的命运卡牌"}>
+                <div className="destiny-card-back__frame">
+                  <img src="/assets/cards/frame-regular-v2.webp" alt="" />
+                  <span className="destiny-card-back__seal"><DiceFive size={42} weight="duotone" /></span>
+                  <strong>{drawState === "drawing" ? "正在穿过时间" : "命运待定"}</strong>
+                  <small>{drawState === "drawing" ? "别眨眼，它就要停下了" : "一百个真实瞬间，只会命中一个"}</small>
+                </div>
+              </article>
+            )}
+          </section>
+
+          <div className="destiny-actions">
+            <button
+              className="destiny-draw-button"
+              type="button"
+              disabled={drawState === "drawing"}
+              onClick={draw}
+            >
+              <DiceFive size={23} weight="fill" />
+              <span>{drawState === "drawing" ? "时间疾驰中" : revealed ? "再抽一次命运" : "抽取我的命运"}</span>
+            </button>
+            <small>{revealed ? "不满意可以重抽；一旦闯入，四次抉择将写完这一生" : "优先抽到尚未解锁的历史"}</small>
           </div>
         </>
       ) : (
-        <section className="history-grid-browser" aria-label="历史网格浏览">
-          <div className="history-grid-browser__controls">
-            <input
-              type="search"
-              aria-label="搜索历史瞬间"
-              placeholder="搜索事件、地点或角色"
-              value={context.filters.search}
-              onChange={(event) => setFilters({ search: event.target.value })}
-            />
-            <div className="history-grid-browser__filters">
-              <label>
-                <span>时间</span>
-                <select aria-label="时间" value={context.filters.period} onChange={(event) => setFilters({ period: event.target.value as HistoryPeriod })}>
-                  {PERIOD_LABELS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-              <label>
-                <span>地域</span>
-                <select aria-label="地域" value={context.filters.region} onChange={(event) => setFilters({ region: event.target.value as HistoryRegion })}>
-                  {REGION_LABELS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-              <label>
-                <span>属性</span>
-                <select aria-label="属性" value={context.filters.theme} onChange={(event) => setFilters({ theme: event.target.value as HistoryTheme })}>
-                  {THEME_LABELS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-            </div>
-            <div className="history-grid-browser__summary">
-              <strong>{filteredCards.length} 个结果</strong>
-              {hasFilters(context.filters) && filteredCards.length > 0 ? (
-                <button type="button" onClick={() => onContextChange({ ...context, filters: EMPTY_FILTERS })}>清除筛选</button>
-              ) : null}
-            </div>
-          </div>
-
-          {filteredCards.length > 0 ? (
-            <div className="history-grid" ref={gridRef}>
-              {filteredCards.map((seed) => (
+        <section className="destiny-archive" aria-label="已解锁历史档案">
+          <header>
+            <span>你的历史收藏</span>
+            <h2>已解锁 {unlockedCards.length} 个瞬间</h2>
+            <p>完整走完四次人生抉择，那个历史节点才会永久点亮。</p>
+          </header>
+          {unlockedCards.length > 0 ? (
+            <div className="history-grid">
+              {unlockedCards.map((seed) => (
                 <HistoryGridCard
                   key={seed.id}
                   seed={seed}
                   isCurrent={seed.id === context.activeSeedId}
-                  onSelect={(selectedSeed) => {
-                    onContextChange({ ...context, activeSeedId: selectedSeed.id });
-                    onSelect(selectedSeed);
+                  onSelect={(selected) => {
+                    onContextChange({ ...context, activeSeedId: selected.id });
+                    onSelect(selected);
                   }}
                 />
               ))}
             </div>
           ) : (
-            <div className="history-grid-empty">
-              <strong>没有符合条件的历史瞬间</strong>
-              <button type="button" onClick={() => onContextChange({ ...context, filters: EMPTY_FILTERS })}>清除筛选</button>
+            <div className="destiny-archive__empty">
+              <Archive size={42} weight="duotone" />
+              <strong>档案还没有被点亮</strong>
+              <p>先抽一次命运，完整活完那段人生。</p>
+              <button type="button" onClick={() => switchMode("draw")}>去抽命运</button>
             </div>
           )}
         </section>

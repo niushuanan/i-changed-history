@@ -8,17 +8,9 @@ export const BASE_IMPACT = Object.freeze({
 
 export const CHAPTER_MULTIPLIER = Object.freeze([
   1,
-  1.15,
-  1.3,
-  1.45,
-  1.6,
-  1.72,
-  1.84,
-  1.96,
-  2.08,
+  1.35,
+  1.75,
   2.2,
-  2.35,
-  2.5,
 ] as const);
 
 export type DeviationStage = {

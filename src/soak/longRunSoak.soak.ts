@@ -171,7 +171,7 @@ async function runGame(
     let currentTurn = getFixedOpening(seed);
     const playedTurns: PlayedTurn[] = [];
 
-    for (let chapter = 1; chapter <= 12; chapter += 1) {
+    for (let chapter = 1; chapter <= 4; chapter += 1) {
       expect(currentTurn.chapter).toBe(chapter);
       const rolled = soakCase.rollChapters.includes(chapter);
       const actionStartedAt = Date.now();
@@ -200,7 +200,7 @@ async function runGame(
       };
       run.completedChapters = chapter;
 
-      if (chapter < 12) {
+      if (chapter < 4) {
         const nextChapter = (chapter + 1) as Exclude<DecisionChapter, 1>;
         const requestStartedAt = Date.now();
         let firstReadableMs: number | undefined;
@@ -225,7 +225,7 @@ async function runGame(
       }
     }
 
-    expect(playedTurns).toHaveLength(12);
+    expect(playedTurns).toHaveLength(4);
     expect(run.rolledChoices).toHaveLength(soakCase.rollChapters.length);
     const ending = await retryOnce(
       "ending",
@@ -236,7 +236,7 @@ async function runGame(
       run,
     );
     run.endingMs = ending.durationMs;
-    expect(ending.value.historyTimeline).toHaveLength(12);
+    expect(ending.value.historyTimeline).toHaveLength(4);
     expect(ending.value.historyTimeline.map((item) => item.playerChoice))
       .toEqual(playedTurns.map((played) => played.selectedChoiceLabel));
     run.ending = ending.value;
@@ -273,7 +273,7 @@ function latencySummary(values: readonly number[]) {
   };
 }
 
-describe("real DeepSeek twelve-node long-run stability", () => {
+describe("real DeepSeek four-decision full-run stability", () => {
   it("meets the configured success, continuity, and latency thresholds", async () => {
     const outputDirectory = path.join(OUTPUT_ROOT, BATCH_ID);
     await mkdir(outputDirectory, { recursive: true });
@@ -314,7 +314,7 @@ describe("real DeepSeek twelve-node long-run stability", () => {
       0,
     );
     const generatedTurns = successfulResults.reduce((sum, result) => sum + Math.max(0, result.completedChapters - 1), 0);
-    const plannedGeneratedTurns = selectedCases.length * 11;
+    const plannedGeneratedTurns = selectedCases.length * 3;
     const completedGeneratedTurns = results.reduce(
       (sum, result) => sum + Math.max(0, result.completedChapters - 1),
       0,
@@ -380,10 +380,9 @@ describe("real DeepSeek twelve-node long-run stability", () => {
     expect(new Set(selectedCases.map((item) => item.seedId)).size).toBe(selectedCases.length);
     selectedCases.forEach((item) => {
       if (SOAK_ALL_ROLL) {
-        expect(item.rollChapters).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        expect(item.rollChapters).toEqual([1, 2, 3, 4]);
       } else {
-        expect(item.rollChapters.length).toBeGreaterThanOrEqual(4);
-        expect(item.rollChapters.length).toBeLessThanOrEqual(5);
+        expect(item.rollChapters).toHaveLength(4);
       }
     });
     results.filter((result) => result.success).forEach((result) => {
