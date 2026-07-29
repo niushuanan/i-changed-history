@@ -8,7 +8,7 @@ const MAX_STORED_RECORDS = 200;
 function isTapMessage(data: unknown): data is TapChannelMessage {
   if (typeof data !== "object" || data === null) return false;
   const msg = data as Record<string, unknown>;
-  return msg.type === "request" || msg.type === "sync-request" || msg.type === "sync-reply";
+  return msg.type === "request" || msg.type === "sync-request" || msg.type === "sync-reply" || msg.type === "clear";
 }
 
 function loadPersisted(): TapRecord[] {
@@ -57,6 +57,7 @@ export function useTapChannel(initialGoLatest = true) {
     setRecords([]);
     setCurrentIndex(-1);
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    channelRef.current?.postMessage({ type: "clear" } satisfies TapChannelMessage);
   }, []);
 
   const exportJson = useCallback(() => {
@@ -109,6 +110,11 @@ export function useTapChannel(initialGoLatest = true) {
           type: "sync-reply",
           payload: recordsRef.current,
         } satisfies TapChannelMessage);
+      } else if (event.data.type === "clear") {
+        recordsRef.current = [];
+        setRecords([]);
+        setCurrentIndex(-1);
+        try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
       } else if (event.data.type === "sync-reply") {
         const incoming = event.data.payload;
         if (incoming.length > recordsRef.current.length) {
