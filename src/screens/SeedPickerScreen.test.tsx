@@ -64,7 +64,7 @@ describe("destiny draw history entry", () => {
     render(<PickerHarness />);
 
     expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
-    expect(screen.getByLabelText("本作品包含人工智能生成内容")).toHaveTextContent("AI 生成");
+    expect(screen.getByLabelText("本作品包含人工智能生成内容")).toHaveTextContent("AI生成");
     expect(screen.getByRole("article", { name: "尚未揭晓的命运卡牌" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: /随机滚动时间线/ })).not.toBeInTheDocument();
@@ -80,11 +80,12 @@ describe("destiny draw history entry", () => {
     fireEvent.click(screen.getByRole("button", { name: "随机抽一个开局" }));
     expect(playCardSound).toHaveBeenCalledWith("page-turn", false);
     expect(screen.getByTestId("destiny-carousel")).toBeVisible();
-    expect(container.querySelectorAll(".destiny-carousel__card")).toHaveLength(5);
-    expect(container.querySelectorAll(".destiny-carousel .history-card__poster-stack")).toHaveLength(5);
+    expect(container.querySelectorAll(".destiny-carousel__card")).toHaveLength(3);
+    expect(container.querySelectorAll(".destiny-carousel .history-card__poster-stack")).toHaveLength(3);
     expect(container.querySelector('.destiny-carousel__card[data-slot="current"]')).toBeTruthy();
-    expect(container.querySelector('.destiny-carousel__card[data-slot="far-previous"]')).toBeTruthy();
-    expect(container.querySelector('.destiny-carousel__card[data-slot="far-next"]')).toBeTruthy();
+    expect(container.querySelector('.destiny-carousel__card[data-slot="previous"]')).toBeTruthy();
+    expect(container.querySelector('.destiny-carousel__card[data-slot="next"]')).toBeTruthy();
+    expect(container.querySelectorAll(".destiny-carousel img[loading=\"eager\"]")).toHaveLength(3);
     expect(screen.getByText("历史流转，即将揭晓")).toHaveAttribute("role", "status");
     const drawDelays = timeoutSpy.mock.calls
       .map(([, delay]) => Number(delay))

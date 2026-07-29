@@ -37,7 +37,8 @@ describe("roguelike history cards", () => {
     expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
-    expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
+    expect(container.querySelectorAll(".choice-card__art img")).toHaveLength(3);
+    expect(container.querySelectorAll(".choice-card__frame-image")).toHaveLength(3);
     expect(container.querySelectorAll(".choice-card__surface")).toHaveLength(3);
     expect(container.querySelectorAll(".choice-card__hold-cue")).toHaveLength(3);
     expect(container.querySelector(".choice-roll__deck")).not.toBeInTheDocument();
@@ -74,6 +75,11 @@ describe("roguelike history cards", () => {
     });
     expect(document.querySelector(".card-drag-layer")).toBeInTheDocument();
     expect(document.querySelector(".card-drag-lift")).toHaveTextContent(choices[0].displayLabel);
+    expect(document.querySelector(".card-drag-lift")).toHaveClass("choice-card");
+    expect(document.querySelector(".card-drag-lift .choice-card__frame-image")).toHaveAttribute(
+      "src",
+      "/assets/cards/frame-regular-v2.webp",
+    );
     act(() => {
       fireEvent.pointerUp(card, { clientY: 130, pointerId: 2 });
     });
@@ -84,6 +90,11 @@ describe("roguelike history cards", () => {
     expect(document.querySelector(".card-commit-layer")).toBeInTheDocument();
     expect(document.querySelector(".card-commit-flight")).toHaveAttribute("data-phase", "flying");
     expect(document.querySelector(".card-commit-flight")).toHaveAttribute("data-target-top", "8");
+    expect(document.querySelector(".card-commit-flight__card")).toHaveClass("choice-card");
+    expect(document.querySelector(".card-commit-flight__card .choice-card__frame-image")).toHaveAttribute(
+      "src",
+      "/assets/cards/frame-regular-v2.webp",
+    );
     expect(document.querySelector(".card-commit-flight__particles")).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(640));
     expect(document.querySelector(".card-commit-flight")).toHaveAttribute("data-phase", "dissolving");

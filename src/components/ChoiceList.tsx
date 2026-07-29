@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { TimelineTurn } from "../game/schema";
 import { playCardSound, type CardSound } from "../services/cardAudio";
 import { CardCommitFlight, type CardCommitOrigin } from "./CardCommitFlight";
+import { ChoiceCardFace } from "./ChoiceCardFace";
 
 type Choice = TimelineTurn["choices"][number];
 type CardOrigin = {
@@ -378,18 +379,20 @@ function ChoiceCard({
         } as React.CSSProperties}
         type="button"
       >
-        <span className="choice-card__surface">
-          <span className="choice-card__hold-cue" aria-hidden="true"><i /></span>
-          <span className="choice-card__tier">{meta.name}</span>
-          <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
-          <strong>{choice.displayLabel}</strong>
-          <small>{meta.description}</small>
-        </span>
+        <ChoiceCardFace
+          description={meta.description}
+          displayLabel={choice.displayLabel}
+          frame={meta.frame}
+          icon={meta.icon}
+          showHoldCue
+          tier={meta.name}
+        />
       </button>
       {committing && commitOrigin ? (
         <CardCommitFlight
           accent={meta.accent}
           description={meta.description}
+          deviationClass={choice.deviationClass}
           displayLabel={choice.displayLabel}
           frame={meta.frame}
           icon={meta.icon}
@@ -403,7 +406,7 @@ function ChoiceCard({
       {dragging && dragLiftOrigin && typeof document !== "undefined" ? createPortal(
         <div className="card-drag-layer" aria-hidden="true">
           <div
-            className={`card-drag-lift choice-card--${choice.deviationClass}${armed ? " is-armed" : ""}`}
+            className={`choice-card card-drag-lift choice-card--${choice.deviationClass}${armed ? " is-armed" : ""}`}
             ref={dragLiftRef}
             style={{
               "--card-y": `${offsetYRef.current}px`,
@@ -416,12 +419,13 @@ function ChoiceCard({
               height: `${dragLiftOrigin.height}px`,
             } as React.CSSProperties}
           >
-            <span className="choice-card__surface">
-              <span className="choice-card__tier">{meta.name}</span>
-              <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
-              <strong>{choice.displayLabel}</strong>
-              <small>{meta.description}</small>
-            </span>
+            <ChoiceCardFace
+              description={meta.description}
+              displayLabel={choice.displayLabel}
+              frame={meta.frame}
+              icon={meta.icon}
+              tier={meta.name}
+            />
           </div>
         </div>,
         document.body,

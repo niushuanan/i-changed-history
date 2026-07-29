@@ -80,6 +80,9 @@ export function SeedPickerScreen({
     Math.max(0, HISTORY_CARDS.findIndex((seed) => seed.id === context.activeSeedId))
   ));
   const [previousPreviewIndex, setPreviousPreviewIndex] = useState(previewIndex);
+  const [nextPreviewIndex, setNextPreviewIndex] = useState(
+    (previewIndex + 1) % HISTORY_CARDS.length,
+  );
   const [drawTick, setDrawTick] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +150,7 @@ export function SeedPickerScreen({
     const motionScale = import.meta.env.MODE === "test" || reducedMotion ? 0.01 : 1;
     setDrawState("drawing");
     setPreviousPreviewIndex(startIndex);
+    setNextPreviewIndex((startIndex + 1) % HISTORY_CARDS.length);
     setDrawTick(0);
     playSound("page-turn");
 
@@ -161,14 +165,10 @@ export function SeedPickerScreen({
     });
 
     if (typeof window.Image === "function") {
-      const preloadIndices = new Set<number>();
-      rollingIndices.forEach((index) => {
-        [-2, -1, 0, 1, 2].forEach((offset) => {
-          preloadIndices.add((index + offset + HISTORY_CARDS.length) % HISTORY_CARDS.length);
-        });
-      });
+      const preloadIndices = new Set<number>([startIndex, ...rollingIndices]);
       preloadIndices.forEach((index) => {
         const image = new window.Image();
+        image.decoding = "async";
         image.src = historyAssetForSeed(seedAt(index));
       });
     }
@@ -181,6 +181,9 @@ export function SeedPickerScreen({
       timersRef.current.push(window.setTimeout(() => {
         setPreviousPreviewIndex(index === 0 ? startIndex : rollingIndices[index - 1]);
         setPreviewIndex(rollingIndex);
+        setNextPreviewIndex(
+          rollingIndices[index + 1] ?? ((rollingIndex + 1) % HISTORY_CARDS.length),
+        );
         setDrawTick(step);
       }, elapsed));
     });
@@ -217,8 +220,8 @@ export function SeedPickerScreen({
           className="seed-picker__ai-mark"
           aria-label="本作品包含人工智能生成内容"
         >
-          <i aria-hidden="true" />
-          AI 生成
+          <span aria-hidden="true">AI</span>
+          <span aria-hidden="true">生成</span>
         </small>
         <div className="seed-picker__settings" ref={settingsRef}>
           <button
@@ -299,43 +302,26 @@ export function SeedPickerScreen({
                 <div
                   className="destiny-carousel__ring"
                   data-draw-tick={drawTick}
+                  data-tick-parity={drawTick % 2}
                   style={{ "--carousel-step-ms": `${DRAW_STEP_MS}ms` } as CSSProperties}
                 >
-                  {drawTick > 0 && previousPreviewIndex !== previewIndex ? (
-                    <div
-                      className="destiny-carousel__card"
-                      data-slot="outgoing"
-                      aria-hidden="true"
-                      key={`outgoing-${drawTick}-${previousPreviewIndex}`}
-                    >
-                      <div className="destiny-carousel__face">
-                        <HistoryCard
-                          seed={seedAt(previousPreviewIndex)}
-                          position={previousPreviewIndex + 1}
-                          total={HISTORY_CARDS.length}
-                          eager
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                  {(drawTick > 0 ? [-2, 0, 1, 2] : [-2, -1, 0, 1, 2]).map((offset) => {
-                    const index = (previewIndex + offset + HISTORY_CARDS.length) % HISTORY_CARDS.length;
+                  {[
+                    {
+                      slot: drawTick > 0 ? "outgoing" : "previous",
+                      index: drawTick > 0
+                        ? previousPreviewIndex
+                        : (previewIndex - 1 + HISTORY_CARDS.length) % HISTORY_CARDS.length,
+                    },
+                    { slot: "current", index: previewIndex },
+                    { slot: "next", index: nextPreviewIndex },
+                  ].map(({ slot, index }) => {
                     const seed = seedAt(index);
-                    const slot = offset === 0
-                      ? "current"
-                      : offset === -1
-                        ? "previous"
-                        : offset === 1
-                          ? "next"
-                          : offset < 0
-                            ? "far-previous"
-                            : "far-next";
                     return (
                       <div
                         className="destiny-carousel__card"
                         data-slot={slot}
-                        aria-hidden={offset === 0 ? undefined : true}
-                        key={`${drawTick}-${seed.id}-${offset}`}
+                        aria-hidden={slot === "current" ? undefined : true}
+                        key={`carousel-${slot}`}
                       >
                         <div className="destiny-carousel__face">
                           <HistoryCard

@@ -14,13 +14,15 @@ await access(path.join(outputRoot, "index.html"));
 
 if (
   releaseConfig.aiEnabled !== true
-  || releaseConfig.chatModel !== "deepseek-v4-flash"
+  || releaseConfig.chatModel !== "deepseek-v4-flash-260425"
   || releaseConfig.credentialMode !== "platform-volcengine-api-key"
+  || releaseConfig.minimumDouyinVersion !== "39.5.0"
+  || releaseConfig.aiDisclosureMinShortEdgePercent !== 5
   || releaseConfig.screenDirection !== 1
   || releaseConfig.packageType !== 1
   || releaseConfig.maxZipBytes !== 8 * 1024 * 1024
 ) {
-  throw new Error("Interactive release configuration must keep AI enabled, V4 Flash, platform credentials, portrait mode, package type 1, and the 8MB limit.");
+  throw new Error("Interactive release configuration must keep AI enabled, V4 Flash, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
 }
 
 async function collectFiles(directory) {
@@ -94,7 +96,7 @@ for (const match of indexHtml.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
 
 const requiredRuntimeMarkers = [
   "callAIChatCompletion",
-  "deepseek-v4-flash",
+  "deepseek-v4-flash-260425",
   "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",
@@ -102,6 +104,9 @@ const requiredRuntimeMarkers = [
 const missingRuntimeMarkers = requiredRuntimeMarkers.filter((marker) => !bundledText.includes(marker));
 if (missingRuntimeMarkers.length > 0) {
   throw new Error(`Interactive runtime is missing compliance markers: ${missingRuntimeMarkers.join(", ")}.`);
+}
+if (!/\.seed-picker__ai-mark\{[^}]*font-size:20px/.test(bundledText)) {
+  throw new Error("Interactive runtime must render the opening AI disclosure at no less than 5% of the 390px product short edge.");
 }
 if (bundledText.includes("游戏说明")) {
   throw new Error("Interactive runtime must use 体验说明 instead of 游戏说明.");
@@ -139,6 +144,8 @@ console.log(JSON.stringify({
   aiEnabled: releaseConfig.aiEnabled,
   chatModel: releaseConfig.chatModel,
   credentialMode: releaseConfig.credentialMode,
+  minimumDouyinVersion: releaseConfig.minimumDouyinVersion,
+  aiDisclosureMinShortEdgePercent: releaseConfig.aiDisclosureMinShortEdgePercent,
   maxZipBytes: releaseConfig.maxZipBytes,
   complianceMarkers: requiredRuntimeMarkers,
   forbiddenRuntimeMarkers: 0,

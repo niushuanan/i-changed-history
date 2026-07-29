@@ -133,7 +133,8 @@ describe("clear change event screen", () => {
       onExit={vi.fn()}
     />);
 
-    expect(container.querySelectorAll(".choice-card img")).toHaveLength(3);
+    expect(container.querySelectorAll(".choice-card__art img")).toHaveLength(3);
+    expect(container.querySelectorAll(".choice-card__frame-image")).toHaveLength(3);
     expect(container.querySelector('img[src="/assets/cards/choice-regular.png"]')).toBeInTheDocument();
     expect(container.querySelector('img[src="/assets/cards/choice-radical.png"]')).toBeInTheDocument();
     expect(container.querySelector('img[src="/assets/cards/choice-surreal.png"]')).toBeInTheDocument();
