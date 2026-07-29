@@ -41,7 +41,7 @@ describe("ResultFrontPage", () => {
     const paragraph = within(section).getByLabelText("2026普通人的一天");
     expect(paragraph.tagName).toBe("P");
     expect(paragraph).toHaveTextContent(result.ordinaryLife2026.join("；"));
-    expect(screen.getByText("AI 生成 · V4 Flash")).toBeVisible();
+    expect(screen.queryByText("AI 生成 · V4 Flash")).not.toBeInTheDocument();
     expect(within(section).queryByRole("list")).not.toBeInTheDocument();
   });
 });

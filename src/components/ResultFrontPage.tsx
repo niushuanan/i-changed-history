@@ -7,7 +7,6 @@ function BiographyPage({ result }: { result: AlternatePresent }) {
     <article className="result-front-page biography-report">
       <header className="report-masthead">
         <span>穿越者列传 · 一生</span>
-        <small className="report-ai-mark">AI 生成 · V4 Flash</small>
         <h1>{result.protagonistName}列传</h1>
         <p>{result.lifespanSummary}</p>
       </header>
@@ -32,7 +31,6 @@ function WorldPage({ result }: { result: AlternatePresent }) {
     <article className="result-front-page world-report">
       <header className="report-masthead">
         <span>蝴蝶效应 · 截至 2026</span>
-        <small className="report-ai-mark">AI 生成 · V4 Flash</small>
         <h1>{result.worldName}</h1>
         <p>{result.frontPageHeadline}</p>
       </header>

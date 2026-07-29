@@ -12,6 +12,12 @@ type CardOrigin = {
   width: number;
   height: number;
 };
+type DragLiftOrigin = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 const SWIPE_THRESHOLD = 48;
 const LONG_PRESS_MS = 320;
@@ -174,7 +180,9 @@ function ChoiceCard({
   const [armed, setArmed] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [commitOrigin, setCommitOrigin] = useState<CardCommitOrigin | null>(null);
+  const [dragLiftOrigin, setDragLiftOrigin] = useState<DragLiftOrigin | null>(null);
   const cardRef = useRef<HTMLButtonElement | null>(null);
+  const dragLiftRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef(0);
   const draggingRef = useRef(false);
   const offsetYRef = useRef(0);
@@ -205,6 +213,7 @@ function ChoiceCard({
     dragFrameRef.current = window.requestAnimationFrame(() => {
       dragFrameRef.current = null;
       cardRef.current?.style.setProperty("--card-y", `${pendingOffsetRef.current}px`);
+      dragLiftRef.current?.style.setProperty("--card-y", `${pendingOffsetRef.current}px`);
     });
   };
 
@@ -227,6 +236,7 @@ function ChoiceCard({
     inspectedRef.current = false;
     draggingRef.current = false;
     setDragging(false);
+    setDragLiftOrigin(null);
     setHoldActive(false);
     setArmed(false);
     writeCardOffset(0);
@@ -238,6 +248,13 @@ function ChoiceCard({
     committedRef.current = false;
     pointerIdRef.current = event.pointerId;
     startYRef.current = event.clientY;
+    const cardRect = event.currentTarget.getBoundingClientRect();
+    setDragLiftOrigin({
+      left: cardRect.left,
+      top: cardRect.top,
+      width: cardRect.width,
+      height: cardRect.height,
+    });
     draggingRef.current = true;
     writeCardOffset(0);
     setArmed(false);
@@ -251,6 +268,7 @@ function ChoiceCard({
       inspectedRef.current = true;
       draggingRef.current = false;
       setDragging(false);
+      setDragLiftOrigin(null);
       setHoldActive(false);
       setArmed(false);
       writeCardOffset(0);
@@ -280,6 +298,7 @@ function ChoiceCard({
     if (inspectedRef.current || committedRef.current) return;
     draggingRef.current = false;
     setDragging(false);
+    setDragLiftOrigin(null);
     setHoldActive(false);
     if (offsetYRef.current <= -SWIPE_THRESHOLD) {
       committedRef.current = true;
@@ -380,6 +399,32 @@ function ChoiceCard({
           startRotation={choice.id === "A" ? -3.4 : choice.id === "C" ? 3.4 : 0}
           tier={meta.name}
         />
+      ) : null}
+      {dragging && dragLiftOrigin && typeof document !== "undefined" ? createPortal(
+        <div className="card-drag-layer" aria-hidden="true">
+          <div
+            className={`card-drag-lift choice-card--${choice.deviationClass}${armed ? " is-armed" : ""}`}
+            ref={dragLiftRef}
+            style={{
+              "--card-y": `${offsetYRef.current}px`,
+              "--card-accent": meta.accent,
+              "--card-glow": `${meta.accent}55`,
+              "--card-frame": `url("${meta.frame}")`,
+              left: `${dragLiftOrigin.left}px`,
+              top: `${dragLiftOrigin.top}px`,
+              width: `${dragLiftOrigin.width}px`,
+              height: `${dragLiftOrigin.height}px`,
+            } as React.CSSProperties}
+          >
+            <span className="choice-card__surface">
+              <span className="choice-card__tier">{meta.name}</span>
+              <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
+              <strong>{choice.displayLabel}</strong>
+              <small>{meta.description}</small>
+            </span>
+          </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

@@ -59,7 +59,6 @@ function HistoryContextDialog({
 
 export function TimelineEventScreen({
   turn,
-  deviation,
   rollCount = 0,
   dynamicChoices = null,
   rollLoading = false,
@@ -125,12 +124,9 @@ export function TimelineEventScreen({
       data-history-mode={turn.previousEcho ? "continuation" : "opening"}
       data-layout="image-overlay"
     >
-      <TimelineProgress chapter={turn.chapter} deviation={deviation} onExit={onExit} />
+      <TimelineProgress chapter={turn.chapter} onExit={onExit} />
       <figure className="event-scene">
         <img src={sceneImage ?? visualAssetForTurn(turn)} alt="" />
-        <span className={`generation-source ${turn.generationSource === "fixed" ? "is-fixed" : "is-deepseek"}`}>
-          <i />{turn.generationSource === "fixed" ? "AI 辅助创作 · 固定开场" : "AI 生成 · V4 Flash"}
-        </span>
         <figcaption className="event-scene__caption">
           <span className="event-scene__time">{turn.yearLabel}</span>
           <strong className="event-scene__location">{turn.location}</strong>

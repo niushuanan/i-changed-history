@@ -71,8 +71,13 @@ describe("roguelike history cards", () => {
     act(() => {
       fireEvent.pointerDown(card, { clientY: 220, pointerId: 2 });
       fireEvent.pointerMove(card, { clientY: 130, pointerId: 2 });
+    });
+    expect(document.querySelector(".card-drag-layer")).toBeInTheDocument();
+    expect(document.querySelector(".card-drag-lift")).toHaveTextContent(choices[0].displayLabel);
+    act(() => {
       fireEvent.pointerUp(card, { clientY: 130, pointerId: 2 });
     });
+    expect(document.querySelector(".card-drag-layer")).not.toBeInTheDocument();
     expect(onChoose).not.toHaveBeenCalled();
     expect(card).toHaveClass("is-committing");
     expect(card.closest(".rogue-choice-table")).toHaveClass("is-committing");

@@ -1,4 +1,3 @@
-import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useGame } from "./hooks/useGame";
 import { DEFAULT_PICKER_CONTEXT, SeedPickerScreen } from "./screens/SeedPickerScreen";
@@ -133,17 +132,6 @@ export function App() {
       onKeyDownCapture={() => { void game.startExperience(); }}
     >
       <div className="mobile-prototype game-shell">
-        {state.phase !== "selecting" ? (
-          <button
-            className="sound-toggle icon-button"
-            type="button"
-            onClick={game.toggleMute}
-            aria-label={game.muted ? "打开配乐" : "静音配乐"}
-            title={game.muted ? "打开配乐" : "静音配乐"}
-          >
-            {game.muted ? <SpeakerSlash size={21} weight="bold" /> : <SpeakerHigh size={21} weight="bold" />}
-          </button>
-        ) : null}
         {screen}
         {announcementOpen && state.phase === "selecting" ? (
           <GameAnnouncement onClose={() => setAnnouncementOpen(false)} />

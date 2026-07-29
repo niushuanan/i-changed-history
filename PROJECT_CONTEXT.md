@@ -8,7 +8,7 @@
 
 本地开发环境还提供独立的 `/tap.html` LLM Tap 调试页。浏览器端 DeepSeek 传输会通过同源 `BroadcastChannel("llm-tap-v1")` 旁路广播每次请求的完整输入、输出、状态、时序和 token 用量；调试页最多保存 200 条记录，支持请求翻页、输入/输出/指标切换、JSON 导出和清空。广播失败始终静默，不得影响游戏请求；`tap.html` 与 `src/tap/` 不进入普通生产构建和互动空间审核包。
 
-项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，模型固定 `deepseek-v4-flash`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页标题栏角落持续显示小型 `AI 生成` 标识，成品事件和两页报告显示更完整的 AI 来源标识，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
+项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，模型固定 `deepseek-v4-flash`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页标题栏角落保留小型 `AI 生成` 合规标识，事件现场和两页报告不再重复展示固定开场、AI 来源或模型版本，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
 
 ## 2. 代码结构是什么
 
@@ -26,7 +26,7 @@
 - `worker/`：Sites Cloudflare Worker 入口、稳定游戏协议校验、DeepSeek 服务端密钥注入和无产品侧限流的透明 SSE 转发。
 - `build/` 与 `.openai/hosting.json`：Sites 构建元数据、项目 ID 和无 D1 / R2 绑定的托管配置。
 - `src/screens/` 和 `src/components/`：从命运抽取、游戏说明、解锁档案、三卡牌桌、三次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
-- `src/components/CardCommitFlight.tsx`：脱离事件页裁剪层的页面最高层飞行、距产品顶部约 8px 的居中停驻、连续弧线轨道，以及 GPU 卡面裁切配合轻量纸灰粒子的无栅格消散。
+- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：手指拖动阶段即把完整卡面和文字镜像到 `body` 最高层，松手后无缝衔接距产品顶部约 8px 的居中飞行、连续弧线轨道，以及 GPU 卡面裁切配合轻量纸灰粒子的无栅格消散。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
 - `src/soak/`：显式运行的真实 DeepSeek 四决策完整局压力测试；至少以五个不同开局检验 20 个生成阶段中完成不少于 19 个、五局中完整双结局不少于四局，也支持用 `SOAK_ALL_ROLL=1` 对指定开局执行相同的全幕与成功率门槛。发布门禁通过 `SOAK_PROXY_BASE_URL` 让 Node 测试走浏览器同款本地 Worker 协议，并由 `SOAK_REQUIRE_PROXY=1` 强制拒绝误用直连模式；报告记录真实传输类型与每幕、双结局是否达到十秒优化目标，但不会因超过十秒中止健康生成，结果只写入被忽略的 `tmp/soak/`。第二、第三次实时 Roll 的请求、恢复与错误重试由 reducer、组件和应用集成测试覆盖。
@@ -45,13 +45,13 @@
 - `app/page.tsx` 与 `app/game-client.tsx`：Sites 页面入口；用 `next/dynamic(..., { ssr: false })` 保证现有游戏只在浏览器挂载。
 - `app/layout.tsx`：中文根布局、站点 metadata 和两份全局样式入口。
 - `worker/index.ts`：Cloudflare Worker 总入口。
-- `worker/deepseek-proxy.ts`：固定游戏协议、DeepSeek 服务端代理、SSE 透传、取消、localhost 配额旁路和 Sites 分钟级 D1 反滥用入口。
+- `worker/deepseek-proxy.ts`：固定游戏协议、DeepSeek 服务端代理、SSE 透传、取消和无产品侧速率限制的请求转发入口。
 - `src/App.tsx`：根组件，负责首次游戏说明、命运抽取入口、游戏 phase 切换和结局导出。
 - `src/hooks/useGame.ts`：运行时编排入口。
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
 - `src/game/powers.ts`：50 项超能力定义、无放回抽取和模型注入格式入口。
 - `src/game/schema.ts` 与 `src/game/reducer.ts`：六张首发牌、三次 Roll、动态牌组、永久解锁、存档状态和卡牌提交的权威入口。
-- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：三卡牌桌、固定卡框/中部独立滚动的顶层长按详情、上划提交、三次 Roll、即时音效，以及顶层固定轨道飞行与纸灰消散入口。
+- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：三卡牌桌、固定卡框/中部独立滚动的顶层长按详情、从拖动第一帧开始的顶层卡面镜像、上划提交、三次 Roll、即时音效，以及顶层固定轨道飞行与纸灰消散入口。
 - `src/services/audio.ts` 与 `src/services/cardAudio.ts`：低响度章节配乐、交互音效逐项增益、按音效时长自动压低并恢复配乐的混音入口。
 - `src/screens/SeedPickerScreen.tsx` 与 `src/components/GameAnnouncement.tsx`：百节点 3D 轮盘随机停靠、未显影/揭晓卡、已解锁档案和首次玩法说明入口。
 - `src/data/fixedOpenings.ts` 与 `src/data/fixedOpeningChoices.generated.ts`：100 张历史卡的固定第一幕，以及 AI 生成、历史语义审校后的两组循史/破局牌构建入口。
@@ -76,6 +76,15 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-30 00:09 - 收净事件页文案并让上划卡牌从拖动阶段全程置顶
+
+- 本次任务：按实机截图只处理五个前端问题：替换生成完成页的生硬系统文案，移除事件与报告中的 AI 来源/模型版本标签，隐藏事件页偏离度与顶层音量键，并彻底解决卡牌在手指上划阶段仍被事件文案裁住的问题。
+- 改了哪些文件：修改 `src/{App,components/ChoiceList,components/TimelineProgress,components/ResultFrontPage,screens/GeneratingScreen,screens/TimelineEventScreen}.tsx`、`src/styles/game.css` 及对应前端测试；同步更新 `AGENTS.md` 和本文档。
+- 改了什么：`现场已经写成 / 场景已经完成` 改为 `下一幕，就从这里开始 / 可以继续了`；事件和结局报告不再渲染 `AI 辅助创作 · 固定开场`、`AI 生成 · V4 Flash`；事件进度头只保留当前幕次和四段轨道，删除偏离百分比/阶段及游玩页音量按钮。上划手势一旦形成位移，完整卡面与实时文字便通过 `body` portal 进入最高层，原按钮只保留 pointer capture；松手后同层衔接既有弧线飞行与纸灰消散。
+- 为什么这样改：完成页应该告诉玩家下一步能做什么，而不是暴露制作过程；事件主页面只需要现场、决定和进度，不应被模型标签、数值解释和音量控件抢占。此前只有 pointerup 后的提交飞行位于顶层，pointermove 阶段的原卡仍受 `.event-body` 滚动裁剪，所以继续堆 `z-index` 无法解决；把拖动可视副本直接放到 `body` 顶层才覆盖完整手势生命周期。
+- 影响了哪些模块：只影响生成完成页、事件头、事件/报告可见标签和三类卡牌的上划视觉；不改变生成来源、偏离度计算、音频播放、首页设置中的音频入口、卡牌选择结果、四幕三 Roll、AI 请求、存档或结局内容。复核后第 1—3 节已同步刷新可见披露与卡牌动效入口。
+- 验证：按用户要求未运行额外测试、构建或浏览器验收，只完成精准前端修改与提交前静态差异复核。
 
 ### 2026-07-30 00:03 - 移除产品侧 AI 限流并消除结局年龄重复
 

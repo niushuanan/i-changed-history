@@ -117,7 +117,7 @@ export function GeneratingScreen({
       {readableDraft ? (
         <section className={`developing-draft${customCanonText ? " developing-draft--with-canon" : ""}`} aria-label="正在写成的历史现场">
           {canonReceipt}
-          <span>{ready ? "现场已经写成" : "现场正在写成"}</span>
+          <span>{ready ? "下一幕，就从这里开始" : "下一幕正在展开"}</span>
           <h1>{draft?.headline}</h1>
           <p>{draft?.narrative}</p>
           {(draft?.location || draft?.role) && (
@@ -125,7 +125,7 @@ export function GeneratingScreen({
           )}
           {ready ? (
             <div className="developing-ready">
-              <strong><Check size={16} weight="bold" />场景已经完成</strong>
+              <strong><Check size={16} weight="bold" />可以继续了</strong>
               <button type="button" onClick={onContinue}>
                 下一步 <ArrowRight size={18} weight="bold" />
               </button>
