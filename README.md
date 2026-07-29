@@ -66,7 +66,7 @@
 - `src/game/prompts.ts`：六张决定牌、续幕和结局提示协议
 - `src/game/engine.ts`：模型生成、校验和修复
 - `src/services/deepseek.ts`：浏览器同源代理传输、SSE 解析与 Node 长测直连传输
-- `src/services/deepseek.interactive.ts`：抖音互动空间 `tt.callAIChatCompletion` / 火山平台传输
+- `src/services/deepseek.interactive.ts`：抖音互动空间 `tt.callAIChatCompletion` / 火山平台传输，固定使用火山方舟 Model ID `deepseek-v4-flash-260425`
 - `src/components/ChoiceList.tsx`：三张卡牌、三次 Roll、长按详情和上划提交
 - `src/services/share.ts`：完整报告图片准备、移动系统分享与桌面下载
 - `src/hooks/useGame.ts`：请求、存档、音频与恢复编排

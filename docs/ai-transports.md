@@ -4,7 +4,7 @@
 
 | 运行环境 | 通道 | 密钥位置 | 模型 | 用户等待策略 |
 | --- | --- | --- | --- | --- |
-| 抖音互动空间审核包 | `tt.callAIChatCompletion`，由平台转发至火山方舟 | 抖音平台 AI 服务配置 | `deepseek-v4-flash` | 第一幕固定；后续幕在结果页预取 |
+| 抖音互动空间审核包 | `tt.callAIChatCompletion`，由平台转发至火山方舟 | 抖音平台 AI 服务配置 | `deepseek-v4-flash-260425` | 第一幕固定；后续幕在结果页预取 |
 | 本地浏览器、发布长测、Sites Worker | 浏览器/长测先请求同源 `/api/deepseek/completions`，Worker 再转发 DeepSeek 官方接口 | 本地 `.env.local` 或服务端运行时变量 | `deepseek-v4-flash` | 第一幕固定；后续幕在结果页预取 |
 | Node 诊断长测 | DeepSeek 官方 `https://api.deepseek.com/v1/chat/completions` | 本地 `.env.local` | `deepseek-v4-flash` | 只用于区分供应商与产品代理故障，不作为发布门禁 |
 

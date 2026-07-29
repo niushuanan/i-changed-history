@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ChoiceCardFace } from "./ChoiceCardFace";
 
 export type CardCommitOrigin = {
   left: number;
@@ -30,7 +31,8 @@ const DISSOLVE_MS = 620;
 const DISSOLVE_START_MS = FLIGHT_MS + SETTLE_MS;
 export const CARD_COMMIT_DURATION_MS = DISSOLVE_START_MS + DISSOLVE_MS + 20;
 const PARTICLE_PADDING = 48;
-const ASH_PARTICLE_COUNT = 220;
+const MIN_ASH_PARTICLE_COUNT = 96;
+const MAX_ASH_PARTICLE_COUNT = 150;
 
 function seededNoise(x: number, y: number, salt: number) {
   const value = Math.sin(x * 12.9898 + y * 78.233 + salt * 37.719) * 43758.5453;
@@ -62,7 +64,11 @@ function runAshDissolve({
   context.imageSmoothingEnabled = false;
 
   const palette = [accent, "#e8dcc0", "#9d8f75", "#403a31", "#211e1a"];
-  const particles: AshParticle[] = Array.from({ length: ASH_PARTICLE_COUNT }, (_, index) => {
+  const particleCount = Math.max(
+    MIN_ASH_PARTICLE_COUNT,
+    Math.min(MAX_ASH_PARTICLE_COUNT, Math.round(width * height / 220)),
+  );
+  const particles: AshParticle[] = Array.from({ length: particleCount }, (_, index) => {
     const xNoise = seededNoise(index, 1, 1);
     const yNoise = seededNoise(index, 2, 2);
     const motionNoise = seededNoise(index, 3, 3);
@@ -169,6 +175,7 @@ export function getFlightGeometry(origin: CardCommitOrigin) {
 export function CardCommitFlight({
   origin,
   tier,
+  deviationClass,
   displayLabel,
   description,
   icon,
@@ -180,6 +187,7 @@ export function CardCommitFlight({
 }: {
   origin: CardCommitOrigin;
   tier: string;
+  deviationClass: "nudge" | "reform" | "rupture";
   displayLabel: string;
   description: string;
   icon: string;
@@ -258,13 +266,14 @@ export function CardCommitFlight({
           "--particle-padding": `${PARTICLE_PADDING}px`,
         } as React.CSSProperties}
       >
-        <div className="card-commit-flight__card">
-          <span className="card-commit-flight__surface">
-            <span className="card-commit-flight__tier">{tier}</span>
-            <span className="card-commit-flight__art"><img src={icon} alt="" /></span>
-            <strong>{displayLabel}</strong>
-            <small>{description}</small>
-          </span>
+        <div className={`choice-card choice-card--${deviationClass} card-commit-flight__card`}>
+          <ChoiceCardFace
+            description={description}
+            displayLabel={displayLabel}
+            frame={frame}
+            icon={icon}
+            tier={tier}
+          />
         </div>
         <canvas className="card-commit-flight__particles" ref={particleCanvasRef} />
       </div>

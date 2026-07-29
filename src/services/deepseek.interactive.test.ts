@@ -86,7 +86,7 @@ describe("Interactive Space DeepSeek transport", () => {
     expect(call.mock.calls[0]?.[0]).toMatchObject({
       type: "text",
       stream: true,
-      model: "deepseek-v4-flash",
+      model: "deepseek-v4-flash-260425",
       maxTokens: 4096,
       messages: [
         { role: "system", content: "只返回 JSON" },

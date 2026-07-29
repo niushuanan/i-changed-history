@@ -80,11 +80,12 @@ describe("destiny draw history entry", () => {
     fireEvent.click(screen.getByRole("button", { name: "随机抽一个开局" }));
     expect(playCardSound).toHaveBeenCalledWith("page-turn", false);
     expect(screen.getByTestId("destiny-carousel")).toBeVisible();
-    expect(container.querySelectorAll(".destiny-carousel__card")).toHaveLength(5);
-    expect(container.querySelectorAll(".destiny-carousel .history-card__poster-stack")).toHaveLength(5);
+    expect(container.querySelectorAll(".destiny-carousel__card")).toHaveLength(3);
+    expect(container.querySelectorAll(".destiny-carousel .history-card__poster-stack")).toHaveLength(3);
     expect(container.querySelector('.destiny-carousel__card[data-slot="current"]')).toBeTruthy();
-    expect(container.querySelector('.destiny-carousel__card[data-slot="far-previous"]')).toBeTruthy();
-    expect(container.querySelector('.destiny-carousel__card[data-slot="far-next"]')).toBeTruthy();
+    expect(container.querySelector('.destiny-carousel__card[data-slot="previous"]')).toBeTruthy();
+    expect(container.querySelector('.destiny-carousel__card[data-slot="next"]')).toBeTruthy();
+    expect(container.querySelectorAll(".destiny-carousel img[loading=\"eager\"]")).toHaveLength(3);
     expect(screen.getByText("命运匀速掠过，即将揭晓")).toHaveAttribute("role", "status");
     const drawDelays = timeoutSpy.mock.calls
       .map(([, delay]) => Number(delay))

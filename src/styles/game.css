@@ -2408,6 +2408,24 @@
   background-size: 100% 100%;
   box-shadow: inset 0 -5px rgba(3, 3, 2, .34);
 }
+.choice-card__frame-image {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+.choice-card__tier,
+.choice-card__art,
+.choice-card__surface > strong,
+.choice-card__surface > small {
+  position: relative;
+  z-index: 1;
+}
 .choice-card--nudge { --card-frame: url("/assets/cards/frame-regular-v2.webp"); }
 .choice-card--reform {
   --card-accent: #cf4b40;
@@ -2537,8 +2555,13 @@
 }
 .card-drag-lift {
   position: absolute;
+  min-width: 0;
+  margin: 0;
+  padding: 0 1px 7px;
   overflow: visible;
   border-radius: 13px;
+  animation: none;
+  transition: none;
   transform:
     translate3d(0, var(--card-y), 0)
     scale(1.04);
@@ -2573,85 +2596,22 @@
 .card-commit-flight__card {
   position: absolute;
   inset: 0;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 1px 7px;
   overflow: hidden;
   border-radius: 13px;
+  animation: none;
   backface-visibility: hidden;
+  filter: none;
+  transition: none;
   will-change: clip-path, opacity, transform;
   transform: translateZ(0);
   box-shadow:
     0 26px 24px rgba(0, 0, 0, .72),
     0 0 12px color-mix(in srgb, var(--flight-accent) 42%, transparent);
-}
-.card-commit-flight__surface {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  padding: 20px 13px 15px;
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 12px;
-  background-color: #151411;
-  background-image: var(--flight-frame);
-  background-position: center;
-  background-size: 100% 100%;
-  box-shadow: inset 0 -5px rgba(3, 3, 2, .34);
-}
-.card-commit-flight__surface::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow:
-    inset 0 0 0 1px rgba(244, 226, 177, .12),
-    inset 0 -22px 30px rgba(0, 0, 0, .16);
-  pointer-events: none;
-}
-.card-commit-flight__tier {
-  width: 100%;
-  color: var(--flight-accent);
-  font-family: var(--serif);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: .16em;
-  line-height: 1;
-  text-align: center;
-  text-indent: .16em;
-}
-.card-commit-flight__art {
-  width: clamp(60px, 17vw, 76px);
-  height: clamp(60px, 17vw, 76px);
-  margin: 5px 0 3px;
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .38));
-}
-.card-commit-flight__art img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.card-commit-flight__surface > strong {
-  min-height: 2.45em;
-  display: grid;
-  place-items: center;
-  color: #f4efe4;
-  font-family: var(--serif);
-  font-size: clamp(15px, 4.55vw, 19px);
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-  text-shadow: 0 2px 2px rgba(0, 0, 0, .9);
-  overflow-wrap: anywhere;
-}
-.card-commit-flight__surface > small {
-  margin-top: 6px;
-  color: #aaa293;
-  font-family: var(--serif);
-  font-size: 10.5px;
-  line-height: 1.16;
-  text-align: center;
 }
 .card-commit-flight.is-dissolving .card-commit-flight__card {
   animation: card-commit-paper-dissolve 620ms linear forwards;
@@ -2783,7 +2743,7 @@
   margin-top: 6px;
   color: #aaa293;
   font-family: var(--serif);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.16;
 }
 .choice-roll {
@@ -3229,24 +3189,34 @@
   backface-visibility: hidden;
   transform-style: preserve-3d;
   transform-origin: 50% 64%;
-  will-change: transform, filter, opacity;
+  will-change: transform, opacity;
 }
 .destiny-carousel__face {
+  position: relative;
   width: 100%;
   transform-style: preserve-3d;
+  border-radius: 12px;
+  box-shadow: 0 24px 28px rgba(0, 0, 0, .66);
 }
 .destiny-carousel__card[data-slot="current"] {
   z-index: 5;
   opacity: 1;
-  filter: brightness(.98) saturate(.9);
   transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
 }
-.destiny-carousel__ring:not([data-draw-tick="0"]) .destiny-carousel__card[data-slot="current"] {
-  animation: destiny-carousel-arrive var(--carousel-step-ms) linear both;
+.destiny-carousel__ring[data-tick-parity="1"] .destiny-carousel__card[data-slot="current"] {
+  animation: destiny-carousel-arrive-odd var(--carousel-step-ms) linear both;
+}
+.destiny-carousel__ring[data-tick-parity="0"]:not([data-draw-tick="0"]) .destiny-carousel__card[data-slot="current"] {
+  animation: destiny-carousel-arrive-even var(--carousel-step-ms) linear both;
 }
 .destiny-carousel__card[data-slot="outgoing"] {
   z-index: 4;
-  animation: destiny-carousel-depart var(--carousel-step-ms) linear both;
+}
+.destiny-carousel__ring[data-tick-parity="1"] .destiny-carousel__card[data-slot="outgoing"] {
+  animation: destiny-carousel-depart-odd var(--carousel-step-ms) linear both;
+}
+.destiny-carousel__ring[data-tick-parity="0"] .destiny-carousel__card[data-slot="outgoing"] {
+  animation: destiny-carousel-depart-even var(--carousel-step-ms) linear both;
 }
 .destiny-carousel__card[data-slot="previous"] {
   z-index: 2;
@@ -3256,7 +3226,6 @@
   padding: 0;
   overflow: hidden;
   opacity: .22;
-  filter: brightness(.48) saturate(.36);
   transform: translate3d(0, -50%, -190px);
 }
 .destiny-carousel__card[data-slot="next"] {
@@ -3268,7 +3237,6 @@
   padding: 0;
   overflow: hidden;
   opacity: .24;
-  filter: brightness(.5) saturate(.38);
   transform: translate3d(0, -50%, -190px);
 }
 .destiny-carousel__card[data-slot="previous"] .destiny-carousel__face,
@@ -3288,20 +3256,14 @@
   transform: translateY(-50%);
   transform-origin: 0 50%;
 }
-.destiny-carousel__card[data-slot="far-previous"] {
-  z-index: 1;
-  opacity: .14;
-  filter: brightness(.32) saturate(.28);
-  transform: translate3d(-154%, -45%, -310px) rotateY(68deg) scale(.64);
-}
-.destiny-carousel__card[data-slot="far-next"] {
-  z-index: 1;
-  opacity: .17;
-  filter: brightness(.36) saturate(.3);
-  transform: translate3d(54%, -45%, -310px) rotateY(-68deg) scale(.64);
-}
-.destiny-carousel .history-card {
-  filter: drop-shadow(0 24px 28px rgba(0, 0, 0, .66));
+.destiny-carousel__card[data-slot="previous"] .destiny-carousel__face::after,
+.destiny-carousel__card[data-slot="next"] .destiny-carousel__face::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  background: rgba(0, 0, 0, .54);
+  pointer-events: none;
 }
 .destiny-card-back {
   position: relative;
@@ -3720,27 +3682,43 @@
   from { transform: rotateY(-6deg) translateY(2px); filter: brightness(.72); }
   to { transform: rotateY(6deg) translateY(-4px); filter: brightness(.94); }
 }
-@keyframes destiny-carousel-arrive {
+@keyframes destiny-carousel-arrive-odd {
   from {
     opacity: .48;
-    filter: brightness(.68) saturate(.54);
     transform: translate3d(28%, -48%, -170px) rotateY(-58deg) scale(.82);
   }
   to {
     opacity: 1;
-    filter: brightness(.98) saturate(.9);
     transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
   }
 }
-@keyframes destiny-carousel-depart {
+@keyframes destiny-carousel-arrive-even {
+  from {
+    opacity: .48;
+    transform: translate3d(28%, -48%, -170px) rotateY(-58deg) scale(.82);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
+  }
+}
+@keyframes destiny-carousel-depart-odd {
   from {
     opacity: 1;
-    filter: brightness(.98) saturate(.9);
     transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
   }
   to {
     opacity: .3;
-    filter: brightness(.54) saturate(.42);
+    transform: translate3d(-128%, -48%, -170px) rotateY(58deg) scale(.82);
+  }
+}
+@keyframes destiny-carousel-depart-even {
+  from {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(1);
+  }
+  to {
+    opacity: .3;
     transform: translate3d(-128%, -48%, -170px) rotateY(58deg) scale(.82);
   }
 }
@@ -3868,7 +3846,12 @@
   .choice-card__tier { font-size: 10.5px; }
   .choice-card__art { width: 52px; height: 52px; margin: 2px 0 1px; }
   .choice-card__surface > strong { min-height: 2.3em; font-size: 14px; }
-  .choice-card__surface > small { display: none; }
+  .choice-card__surface > small {
+    margin-top: 4px;
+    display: block;
+    font-size: 11px;
+    line-height: 1.12;
+  }
   .choice-roll {
     width: 88px;
     height: 36px;

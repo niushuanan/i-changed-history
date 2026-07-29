@@ -14,7 +14,7 @@ await access(path.join(outputRoot, "index.html"));
 
 if (
   releaseConfig.aiEnabled !== true
-  || releaseConfig.chatModel !== "deepseek-v4-flash"
+  || releaseConfig.chatModel !== "deepseek-v4-flash-260425"
   || releaseConfig.credentialMode !== "platform-volcengine-api-key"
   || releaseConfig.screenDirection !== 1
   || releaseConfig.packageType !== 1
@@ -94,7 +94,7 @@ for (const match of indexHtml.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
 
 const requiredRuntimeMarkers = [
   "callAIChatCompletion",
-  "deepseek-v4-flash",
+  "deepseek-v4-flash-260425",
   "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",

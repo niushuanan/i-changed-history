@@ -28,7 +28,7 @@ export type {
   DeepSeekUsage,
 } from "./deepseek-contract";
 
-const INTERACTIVE_SPACE_MODEL = "deepseek-v4-flash";
+const INTERACTIVE_SPACE_MODEL = "deepseek-v4-flash-260425";
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
 const MAX_RETRY_DELAY_MS = 15_000;

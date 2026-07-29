@@ -8,7 +8,7 @@
 
 本地开发环境还提供独立的 `/tap.html` LLM Tap 调试页。浏览器端 DeepSeek 传输会通过同源 `BroadcastChannel("llm-tap-v1")` 旁路广播每次请求的完整输入、输出、状态、时序和 token 用量；调试页最多保存 200 条记录，支持请求翻页、输入/输出/指标切换、JSON 导出和清空。广播失败始终静默，不得影响游戏请求；`tap.html` 与 `src/tap/` 不进入普通生产构建和互动空间审核包。
 
-项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，模型固定 `deepseek-v4-flash`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页标题栏角落保留小型 `AI 生成` 合规标识，事件现场和两页报告不再重复展示固定开场、AI 来源或模型版本，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
+项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，火山方舟 Model ID 固定为 `deepseek-v4-flash-260425`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页标题栏角落保留小型 `AI 生成` 合规标识，事件现场和两页报告不再重复展示固定开场、AI 来源或模型版本，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。当前发布目标是在既有 AppID `tt8b1afda71430200121` 上更新完整产品包并提交审核。
 
 ## 2. 代码结构是什么
 
@@ -76,6 +76,15 @@
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-30 00:52 - 修复互动空间手机卡顿与上划卡面断层并校正火山模型
+
+- 本次任务：针对互动空间手机实测修复首页历史卡横向轮播卡顿、短屏主动砍掉三张卡说明、上划阶段卡框和文字样式断层，并把平台调用从模型短名改为火山方舟真实版本化 Model ID，为既有 AppID `tt8b1afda71430200121` 生成新的完整审核包。
+- 改了哪些文件：新增 `src/components/ChoiceCardFace.tsx`；修改 `src/screens/SeedPickerScreen.tsx`、`src/components/{ChoiceList,CardCommitFlight}.tsx`、`src/styles/game.css` 及对应测试；修改 `src/services/deepseek.interactive.ts`、互动空间传输测试、`interactive-space.release.json`、`scripts/verify-interactive-review-build.mjs`、`README.md`、`docs/{ai-transports,interactive-space-release-checklist}.md`、`AGENTS.md` 和本文档。
+- 改了什么：首页九步匀速抽卡从每步重新挂载五张完整档案、预载最多约 45 张历史图，改为三个稳定物理卡槽和仅预载实际九步候选，删除移动过程中的动态 CSS 滤镜，使用交替动画名让同一 DOM 卡槽持续复用并稳定重启动画。三张决定牌、拖动镜像和提交飞行共用同一 `ChoiceCardFace`，收藏框从仅依赖 CSS 背景升级为已解码的真实 `<img>` 图层；短屏仍显示三类牌的完整说明，纸灰粒子按卡面面积控制在 96—150 个。互动空间唯一 Model ID 改为 `deepseek-v4-flash-260425`，本地和 Sites 的 DeepSeek 官方通道继续使用原模型名，互不影响；发布契约 AppID 改为用户指定的既有作品。
+- 为什么这样改：移动 WebView 的帧预算无法承受每 180ms 重建五棵复杂档案卡 DOM、并发解码几十张大图和同时动画滤镜；稳定少量卡槽、只做 transform/opacity 才能保留原有 3D 轮盘而不丢帧。卡面内容属于可玩决策，不能为塞进短屏直接删除；拖动和飞行如果重造不同结构，平台合成层一旦丢帧就会露出无框文字，因此必须让所有阶段共享同一真实卡面。火山平台调用必须使用控制台对应的版本化 ID，短名会被平台按无效模型处理。
+- 影响了哪些模块：首页命运抽取的渲染负载、移动端三卡可读性、拖动/飞行/消散性能、互动空间 AI 模型参数、发布契约和平台审核目标发生变化；不改变 100 剧本、随机命中、九步固定节奏、四幕三 Roll、卡牌决定、正史存档、结局内容、本地/Sites AI 通道或现有视觉方向。复核后第 1 节同步更新互动空间模型和发布目标，第 2—3 节结构与入口仍准确。
+- 验证：定向 3 文件 18/18、全量 Vitest 39 文件 367/367、TypeScript、236 个运行时文件可移植性、vinext 正式构建和 `git diff --check` 通过。390×667 真实页面三张说明均为 `display:block`、三个真实卡框均加载，页面仍恰好 667px 高；上划飞行卡保留完整 `choice-card` 样式、真实框图和说明。4 倍 CPU 降速下抽卡 DOM 从 5 张/210 个后代节点降到 3 张/127 个，约两秒过程的 `TaskDuration` 从修复前 0.630 秒降至 0.378 秒，控制台错误/警告为 0。互动空间包含 100/100 剧本和 100/100 历史图，140 个文件、5,938,740 字节、MD5 `090e51d55acb0346774afb0d97357bd6`，仓库门禁与官方 `h5-validator` 对目录、ZIP 两轮全部通过。
 
 ### 2026-07-30 00:21 - 用最新完整包覆盖互动空间并成功提交审核
 
