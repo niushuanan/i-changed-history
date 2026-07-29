@@ -8,6 +8,7 @@ type HistoryCardProps = {
   position: number;
   total: number;
   onSelect?: () => void;
+  eager?: boolean;
 };
 
 function visibleYearParts(seed: HistorySeed) {
@@ -20,7 +21,7 @@ function visibleYearParts(seed: HistorySeed) {
   };
 }
 
-export function HistoryCard({ seed, position, total, onSelect }: HistoryCardProps) {
+export function HistoryCard({ seed, position, total, onSelect, eager = false }: HistoryCardProps) {
   const visibleYear = visibleYearParts(seed);
 
   return (
@@ -30,7 +31,7 @@ export function HistoryCard({ seed, position, total, onSelect }: HistoryCardProp
           <img
             src={historyAssetForSeed(seed)}
             alt={seed.eventName}
-            loading="lazy"
+            loading={eager ? "eager" : "lazy"}
             onError={(event) => { event.currentTarget.src = VISUAL_ASSETS[seed.visualTone]; }}
           />
           <div className="history-card__year-rail" data-testid="history-card-year-rail">
@@ -60,11 +61,7 @@ export function HistoryCard({ seed, position, total, onSelect }: HistoryCardProp
         <button className="history-card__action" data-testid="history-card-action" type="button" aria-label={`闯入这一刻：${seed.eventName}`} onClick={onSelect}>
           <span>闯入这一刻</span><ArrowRight size={24} weight="bold" />
         </button>
-      ) : (
-        <div className="history-card__action history-card__action--preview" aria-hidden="true">
-          <span>闯入这一刻</span><ArrowRight size={24} weight="bold" />
-        </div>
-      )}
+      ) : null}
     </article>
   );
 }

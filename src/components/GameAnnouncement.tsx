@@ -23,7 +23,7 @@ export function GameAnnouncement({ onClose }: { onClose: () => void }) {
         <ol>
           <li>
             <i><DiceFive size={24} weight="duotone" /></i>
-            <div><strong>先抽一个历史开局</strong><span>卡牌会沿时间滑动，随机停在一个真实历史现场。</span></div>
+            <div><strong>先抽一个历史开局</strong><span>卡牌会沿时间旋转，逐渐停在一个真实历史现场。</span></div>
           </li>
           <li>
             <i><CardsThree size={24} weight="duotone" /></i>

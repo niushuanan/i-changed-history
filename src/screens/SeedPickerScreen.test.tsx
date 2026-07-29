@@ -65,15 +65,20 @@ describe("destiny draw history entry", () => {
     expect(screen.getByText("会优先抽到你还没通关的历史")).toBeVisible();
   });
 
-  it("slides complete history posters past the player, then reveals one unchanged history card", () => {
+  it("rotates full-height history posters in depth, then reveals entry controls only after settling", () => {
     const onSelect = vi.fn();
     const { container } = render(<PickerHarness onSelect={onSelect} />);
 
     fireEvent.click(screen.getByRole("button", { name: "随机抽一个开局" }));
-    expect(screen.getByTestId("destiny-filmstrip")).toBeVisible();
-    expect(container.querySelectorAll(".destiny-filmstrip__card")).toHaveLength(3);
-    expect(container.querySelectorAll(".destiny-filmstrip .history-card__poster-stack")).toHaveLength(3);
-    expect(screen.getByRole("button", { name: "正在抽取" })).toBeDisabled();
+    expect(screen.getByTestId("destiny-carousel")).toBeVisible();
+    expect(container.querySelectorAll(".destiny-carousel__card")).toHaveLength(5);
+    expect(container.querySelectorAll(".destiny-carousel .history-card__poster-stack")).toHaveLength(5);
+    expect(container.querySelector('.destiny-carousel__card[data-slot="current"]')).toBeTruthy();
+    expect(container.querySelector('.destiny-carousel__card[data-slot="far-previous"]')).toBeTruthy();
+    expect(container.querySelector('.destiny-carousel__card[data-slot="far-next"]')).toBeTruthy();
+    expect(screen.getByText("命运正在减速，等它停稳")).toHaveAttribute("role", "status");
+    expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "换一个开局" })).not.toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(60));
 
