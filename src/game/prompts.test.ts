@@ -229,7 +229,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("一个可见历史锚点");
     expect(protocol).toContain("失败代价");
     expect(protocol).toContain("displayLabel 为牌面标题");
-    expect(protocol).toContain("第一次 Roll 的零等待结果");
+    expect(protocol).toContain("第一次 Roll 的预先准备结果");
+    expect(protocol).toContain("经过洗牌动效后发出");
     expect(protocol).toContain("禁止默认套用坦克、神兽");
     expect(protocol).toContain("不能重复同一召唤");
     expect(protocol).toContain("只写真实历史的对应结果");
@@ -240,7 +241,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("每个短字段必须以完整短句收尾");
     expect(protocol).toContain("目标年份仍在世、在任或确实存在");
     expect(protocol).toContain("label 为 18-42 字");
-    expect(protocol).toContain("每张 displayLabel 为牌面标题，4-12 个汉字");
+    expect(protocol).toContain("每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字");
     expect(protocol).toContain('"intent"');
     expect(protocol).toContain("clientOwnedFields");
     expect(protocol).toContain("禁止输出");
@@ -272,6 +273,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.task).toContain("第 2 次 Roll");
     expect(payload.task).toContain("只输出 choices");
     expect(payload.task).toContain("不要默认写坦克、神兽、飞船、召唤术");
+    expect(payload.task).toContain("像现场的人在说一个能立刻执行的主意");
+    expect(payload.task).toContain("禁止“夺取解释权、推进既有轨迹");
+    expect(payload.outputContract.displayLabel).toContain("自然动宾短语");
     expect(payload.allPreviouslySeenCards).toHaveLength(6);
     expect(payload.currentScene.headline).toBe(parsedTurn.headline);
   });

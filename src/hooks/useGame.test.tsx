@@ -90,12 +90,15 @@ describe("useGame single-life orchestration", () => {
     expect(result.current.state.rollCount).toBe(1);
     act(() => result.current.rollChoices());
 
-    await waitFor(() => expect(result.current.state.rollError).toBe("新牌暂时没有发出来，点击 ROLL 再试。"));
+    await waitFor(
+      () => expect(result.current.state.rollError).toBe("这手牌没洗出来，再 Roll 一次。"),
+      { timeout: 2000 },
+    );
     expect(result.current.state.rollCount).toBe(1);
     expect(result.current.state.currentTurn).not.toBeNull();
 
     act(() => result.current.rollChoices());
-    await waitFor(() => expect(result.current.state.rollCount).toBe(2));
+    await waitFor(() => expect(result.current.state.rollCount).toBe(2), { timeout: 2000 });
     expect(result.current.state.dynamicChoices).toEqual(turn.choices);
     expect(dependencies.generateRerolledChoices).toHaveBeenCalledTimes(2);
   });

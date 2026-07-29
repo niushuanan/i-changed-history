@@ -143,7 +143,6 @@ export function TimelineEventScreen({
 
         <section className="decision-zone" role="group" aria-label="本幕决定">
           <h2>
-            <span>抽一张，改写这一刻</span>
             <em>上划打出 · 按住读牌 · 每幕可 Roll 3 次</em>
           </h2>
           <ChoiceList

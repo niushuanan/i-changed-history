@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowsClockwise, CaretUp, Info, X } from "@phosphor-icons/react";
+import { ArrowsClockwise, CaretUp, X } from "@phosphor-icons/react";
 import type { TimelineTurn } from "../game/schema";
 import { playCardSound } from "../services/cardAudio";
 
@@ -14,21 +14,23 @@ type CardOrigin = {
 const SWIPE_THRESHOLD = 48;
 const LONG_PRESS_MS = 320;
 const COMMIT_DURATION_MS = 480;
+const PREPARED_ROLL_RITUAL_MS = 1200;
+const LIVE_ROLL_START_MS = 360;
 
 const CARD_META = {
   nudge: {
     name: "循史",
-    description: "顺着既有历史",
+    description: "照原计划行动",
     icon: "/assets/cards/choice-regular.png",
   },
   reform: {
     name: "破局",
-    description: "激进改写局势",
+    description: "当场换一条路",
     icon: "/assets/cards/choice-radical.png",
   },
   rupture: {
     name: "天外",
-    description: "让不可能降临",
+    description: "让现实换套规则",
     icon: "/assets/cards/choice-surreal.png",
   },
 } as const;
@@ -321,11 +323,6 @@ function ChoiceCard({
         <span className="choice-card__art"><img src={meta.icon} alt="" /></span>
         <strong>{choice.displayLabel}</strong>
         <small>{meta.description}</small>
-        <span className="choice-card__gesture">
-          <CaretUp size={14} weight="bold" />
-          {armed ? "松手打出" : "上划选择"}
-        </span>
-        <span className="choice-card__inspect"><Info size={11} weight="fill" /> 按住读牌</span>
       </span>
     </button>
   );
@@ -392,7 +389,11 @@ export function ChoiceList({
     playCardSound("roll", muted);
     const reducedMotion = typeof window.matchMedia === "function"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const collectDuration = reducedMotion ? 60 : 180;
+    const collectDuration = reducedMotion
+      ? 160
+      : rollCount === 0
+        ? PREPARED_ROLL_RITUAL_MS
+        : LIVE_ROLL_START_MS;
     rollTimersRef.current.push(window.setTimeout(() => {
       onRoll();
       setRollPhase("waiting");
@@ -449,8 +450,8 @@ export function ChoiceList({
         <button
           aria-label={remainingRolls === 0
             ? "本节点三次重抽已经用完"
-            : rollLoading
-              ? "AI 正在现场发牌"
+            : rolling
+              ? "正在洗牌"
               : `重抽卡牌，还剩 ${remainingRolls} 次`}
           className="choice-roll"
           disabled={remainingRolls === 0 || rolling}
@@ -460,10 +461,11 @@ export function ChoiceList({
         >
           <span className="choice-roll__label">
             <ArrowsClockwise size={17} weight="bold" />
-            <span>{rollPhase === "waiting" || rollLoading ? "发牌中" : remainingRolls === 0 ? "已用完" : `ROLL · ${remainingRolls}`}</span>
+            <span>{rolling ? "洗牌中" : remainingRolls === 0 ? "已用完" : `ROLL · ${remainingRolls}`}</span>
           </span>
         </button>
-        {rollError ? <small className="choice-roll__error" role="status">{rollError} · 可再次尝试</small> : null}
+        {rolling ? <small className="choice-roll__status" role="status">正在为这一刻换一手牌…</small> : null}
+        {rollError && !rolling ? <small className="choice-roll__error" role="status">{rollError}</small> : null}
       </div>
       {detailState ? (
         <ChoiceDetail choice={detailState.choice} origin={detailState.origin} onClose={closeDetail} />

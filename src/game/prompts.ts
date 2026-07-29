@@ -66,8 +66,8 @@ function turnContract() {
       divergenceProof: "42 字以内；一句话只写真实历史的对应结果，字段正文不要重复写‘真实历史中’，不得复述当前架空线；必须含至少一个可核验的真实人物、机构、地点或事件",
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念；输出前核对人物、机构与制度在目标年份仍在世、在任或确实存在，目标年份以 authoritativeTimelineNode.targetYear 为准；若因玩家正史改变则在 narrative 中说明",
-      choices: "首组三张已预生成卡，严格为 A/B/C。A=nudge：按史实既有轨迹推进的正规方案；B=reform：显著改史、更加激进但仍可由人执行；C=rupture：引入一个真正改变现实规则、信息结构、时间秩序、物质性质或群体认知的奇想，并把它当作已经出现的现实条件。天外牌必须跨类别想象，禁止默认套用坦克、神兽或反复召唤某种东西。每张 displayLabel 为牌面标题，4-12 个汉字；label 为 18-42 字的完整详细决定，供后续推演写入正史。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec；actionSpec 必须含 actor、action、target、deadline",
-      rollChoices: "第二组三张预生成卡，字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture。不得只是改写首组三张的措辞：三张都必须提供不同的行动载体、对象或奇想机制；尤其天外牌必须与首组跨类别，不能重复同一召唤、武器、神兽或机械意象。客户端会把本组作为第一次 Roll 的零等待结果",
+      choices: "首组三张已预生成卡，严格为 A/B/C。A=nudge：按史实既有轨迹推进的正规方案；B=reform：显著改史、更加激进但仍可由人执行；C=rupture：引入一个真正改变现实规则、信息结构、时间秩序、物质性质或群体认知的奇想，并把它当作已经出现的现实条件。天外牌必须跨类别想象，禁止默认套用坦克、神兽或反复召唤某种东西。六张牌都要像一个人在紧急现场说出的具体主意：先写动作，再写对象和期限；禁止“夺取现场解释权、推进既有轨迹、改变历史走向、重塑秩序、综合施策、稳妥处置”这类抽象套话。每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字；label 为 18-42 字的完整详细决定，供后续推演写入正史。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec；actionSpec 必须含 actor、action、target、deadline",
+      rollChoices: "第二组三张预生成卡，字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture。不得只是改写首组三张的措辞：三张都必须提供不同的行动载体、对象或奇想机制；尤其天外牌必须与首组跨类别，不能重复同一召唤、武器、神兽或机械意象。牌名必须说人话，让玩家不读说明也知道自己要做什么；不得用产品术语、历史评论口吻或抽象政治口号。客户端会把本组作为第一次 Roll 的预先准备结果，经过洗牌动效后发出",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       causalLedger: "最多三项，只写模型新增的普通因果，每项含 fact、causedByChapter、mustAffect，fact 与 mustAffect 控制在 28 字以内。客户端会优先注入 narrativeContext.activePlayerCanon；不要在这里机械复制玩家原文，活跃正史占满三项时返回空数组",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
@@ -85,13 +85,13 @@ function turnContract() {
       divergenceProof: "只写实际发生的真实结果与直接后果",
       historicalAnchors: ["真实人物", "真实机构", "时代器物"],
       choices: [
-        { id: "A", displayLabel: "照原令推进", label: "依照既有军令在日落前完成原定部署", intent: "按史实轨迹推进", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "B", displayLabel: "夺令改制", label: "扣下旧令并联合前线将领重组指挥权", intent: "激进改写权力结构", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "A", displayLabel: "按原计划出兵", label: "依照既有军令，在日落前让前军完成原定部署", intent: "让既定行动继续发生", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", displayLabel: "扣令换将", label: "扣下旧令，联合前线将领当场撤换主帅", intent: "中断旧命令并更换执行者", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
         { id: "C", displayLabel: "让谎言现形", label: "让全场说出的谎言化为黑烟并在日落前公开审讯", intent: "改变语言与真相的物理规则", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
       rollChoices: [
-        { id: "A", displayLabel: "稳住原局", label: "封存争议情报并在最后时限照常执行原令", intent: "谨慎维持原轨迹", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
-        { id: "B", displayLabel: "撕令夺权", label: "当众撕毁原令并联合反对者接管现场", intent: "把决定升级为夺权", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "A", displayLabel: "复核后照办", label: "找两名见证人复核情报，再按原计划行动", intent: "先核实信息再执行旧方案", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
+        { id: "B", displayLabel: "现场表决", label: "公开关键事实，让所有在场者当场选择新方案", intent: "把决定权交给现场众人", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
         { id: "C", displayLabel: "借来明日记忆", label: "让在场众人先记住明日后果再于此刻重新表决", intent: "折叠记忆与时间的先后次序", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "谁", action: "做什么", target: "对谁或什么", deadline: "何时前" }, instantEcho: { directResult: "结果", unexpectedCost: "代价", beneficiary: "受益者", payer: "承担者" } },
       ],
       causalLedger: [{ fact: "因果事实", causedByChapter: 0, mustAffect: "后续对象" }], visualTone: "war",
@@ -175,7 +175,7 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
       location: "若目标年份早于 1900 年，再检查一次地点中没有议事厅、会议室、办公室、指挥中心、控制室等现代通用空间名",
       historicalAnchors: "数组必须有 2—4 项，且每一项都在本幕正文真实出现或被明确指向",
       choiceIds: ["A", "B", "C"],
-      choices: "choices 与 rollChoices 都必须恰好三个完整对象；每张 displayLabel 控制在 4-12 字，每个 label 都以具体对象或已完成结果收尾，禁止省略第三项或用悬空动词结尾",
+      choices: "choices 与 rollChoices 都必须恰好三个完整对象；每张 displayLabel 控制在 4-12 字并使用一眼能懂的自然动宾短语，每个 label 都以具体对象或已完成结果收尾，禁止省略第三项、用悬空动词结尾，或写成抽象口号与历史评论",
     },
   });
 }
@@ -198,7 +198,7 @@ export function buildRerollMessages(
   ];
 
   return messages({
-    task: `为当前同一历史现场发出第 ${rollNumber} 次 Roll 的三张全新卡牌。不要续写场景，不要改变人物、年份、地点或已经发生的历史；只输出 choices。三张牌严格依次为 A 循史、B 破局、C 天外。必须与 allPreviouslySeenCards 的行动对象、手段和核心机制明显不同。C 要极具想象力并真正改变现实规则、时间、语言、记忆、物质、空间、制度感知或因果关系中的一种；不要默认写坦克、神兽、飞船、召唤术，也不要只给旧奇想换名。`,
+    task: `为当前同一历史现场发出第 ${rollNumber} 次 Roll 的三张全新卡牌。不要续写场景，不要改变人物、年份、地点或已经发生的历史；只输出 choices。三张牌严格依次为 A 循史、B 破局、C 天外。必须与 allPreviouslySeenCards 的行动对象、手段和核心机制明显不同。六个文字字段都要像现场的人在说一个能立刻执行的主意，不像报告、评论或产品说明；禁止“夺取解释权、推进既有轨迹、改变历史走向、重塑秩序、综合施策、稳妥处置”等抽象套话。C 要极具想象力并真正改变现实规则、时间、语言、记忆、物质、空间、制度感知或因果关系中的一种；不要默认写坦克、神兽、飞船、召唤术，也不要只给旧奇想换名。`,
     ...scenarioPayload(scenario),
     playedHistory: selectedHistory(playedTurns),
     currentScene: {
@@ -219,8 +219,8 @@ export function buildRerollMessages(
     outputContract: {
       requiredFields: ["choices"],
       exactCount: "choices 恰好三项，id 依次为 A/B/C，deviationClass 依次为 nudge/reform/rupture",
-      displayLabel: "4-12 个汉字，最多 16 字",
-      label: "18-42 字的完整具体决定",
+      displayLabel: "4-12 个汉字，最多 16 字；自然动宾短语，玩家一眼知道要做什么",
+      label: "18-42 字的完整具体决定；先写动作，再写对象与期限，不写抽象口号",
       requiredChoiceFields: ["id", "displayLabel", "label", "intent", "deviationClass", "usesModernKnowledge", "actionSpec", "instantEcho"],
       actionSpec: "必须含 actor、action、target、deadline，且能在当前现场执行",
       instantEcho: "必须含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",

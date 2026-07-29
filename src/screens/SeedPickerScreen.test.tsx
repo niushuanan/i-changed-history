@@ -60,18 +60,20 @@ describe("destiny draw history entry", () => {
     expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
     expect(screen.getByRole("article", { name: "尚未揭晓的命运卡牌" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "随机滚动时间线，共 100 个节点" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "抽取我的命运" })).toBeEnabled();
-    expect(screen.getByText("优先抽到尚未解锁的历史")).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: /随机滚动时间线/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "随机抽一个开局" })).toBeEnabled();
+    expect(screen.getByText("会优先抽到你还没通关的历史")).toBeVisible();
   });
 
-  it("rushes across the timeline then reveals exactly one unchanged history card", () => {
+  it("slides complete history posters past the player, then reveals one unchanged history card", () => {
     const onSelect = vi.fn();
-    render(<PickerHarness onSelect={onSelect} />);
+    const { container } = render(<PickerHarness onSelect={onSelect} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "抽取我的命运" }));
-    expect(screen.getByRole("article", { name: "命运卡牌正在显影" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "时间疾驰中" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "随机抽一个开局" }));
+    expect(screen.getByTestId("destiny-filmstrip")).toBeVisible();
+    expect(container.querySelectorAll(".destiny-filmstrip__card")).toHaveLength(3);
+    expect(container.querySelectorAll(".destiny-filmstrip .history-card__poster-stack")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "正在抽取" })).toBeDisabled();
 
     act(() => vi.advanceTimersByTime(60));
 
@@ -80,7 +82,7 @@ describe("destiny draw history entry", () => {
     expect(within(revealedCard).getByTestId("history-card-poster-stack")).toBeVisible();
     expect(within(revealedCard).getByTestId("history-card-dossier")).toHaveAttribute("aria-label", "闯入信息");
     expect(within(revealedCard).getByTestId("history-card-action")).toBe(entry);
-    expect(screen.getByRole("button", { name: "再抽一次命运" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "换一个开局" })).toBeEnabled();
 
     fireEvent.click(entry);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
@@ -131,7 +133,7 @@ describe("destiny draw history entry", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitem", { name: /玩法公告/ }));
+    await user.click(screen.getByRole("menuitem", { name: /游戏说明/ }));
     expect(onShowAnnouncement).toHaveBeenCalledOnce();
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));

@@ -7,7 +7,7 @@ type HistoryCardProps = {
   seed: HistorySeed;
   position: number;
   total: number;
-  onSelect: () => void;
+  onSelect?: () => void;
 };
 
 function visibleYearParts(seed: HistorySeed) {
@@ -56,9 +56,15 @@ export function HistoryCard({ seed, position, total, onSelect }: HistoryCardProp
           </div>
         </section>
       </div>
-      <button className="history-card__action" data-testid="history-card-action" type="button" aria-label={`闯入这一刻：${seed.eventName}`} onClick={onSelect}>
-        <span>闯入这一刻</span><ArrowRight size={24} weight="bold" />
-      </button>
+      {onSelect ? (
+        <button className="history-card__action" data-testid="history-card-action" type="button" aria-label={`闯入这一刻：${seed.eventName}`} onClick={onSelect}>
+          <span>闯入这一刻</span><ArrowRight size={24} weight="bold" />
+        </button>
+      ) : (
+        <div className="history-card__action history-card__action--preview" aria-hidden="true">
+          <span>闯入这一刻</span><ArrowRight size={24} weight="bold" />
+        </div>
+      )}
     </article>
   );
 }

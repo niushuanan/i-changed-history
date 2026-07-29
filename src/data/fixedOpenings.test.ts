@@ -62,11 +62,16 @@ describe("fixed first turns", () => {
   it("keeps all opening card details as complete canonical clauses", () => {
     const openings = HISTORY_SEEDS.map(getFixedOpening);
     const labels = openings.flatMap((opening) => opening.choices.map((choice) => choice.label));
+    const allChoices = openings.flatMap((opening) => [...opening.choices, ...opening.rollChoices]);
     const apollo = openings[HISTORY_SEEDS.findIndex((seed) => seed.id === "apollo-11-1969")];
 
     expect(labels).toHaveLength(300);
     expect(labels.every((label) => [...label].length <= 36)).toBe(true);
     expect(labels.filter((label) => /(?:的|并|，以|而非中|出资补)$/.test(label))).toEqual([]);
+    expect(allChoices.every((choice) => [...choice.displayLabel].length >= 4 && [...choice.displayLabel].length <= 12)).toBe(true);
+    expect(allChoices.filter((choice) => /夺取现场解释权|照史推进原定命令|压到最后一刻|撕令夺权/.test(
+      `${choice.displayLabel}${choice.label}`,
+    ))).toEqual([]);
     expect(apollo.choices[0].label).toContain("中止登月的口令");
   });
 });
