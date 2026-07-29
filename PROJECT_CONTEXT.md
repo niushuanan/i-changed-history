@@ -2,13 +2,15 @@
 
 ## 1. 这个项目是干什么的
 
-《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。循史不再等同于温和或少改变，而是让当前掌权者、命令方向与既有结果按时落地；它即使执行战争、政变或拒绝也属于循史，并且不会新增偏离度。100 个固定第一幕的两组 A/B 都在开发期由 DeepSeek V4 Flash 编写，A 逐条对照真实结局审校，B 才负责改变控制关系、命令或结果。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕再从该历史快照专属的六张 AI 天外候选里随机取两张，因此不增加任何首屏等待。牌面以 4-7 字为生成目标（schema 兼容上限 16），长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。所有面向玩家的生成文案必须使用自然中文：`powerId`、`deadline`、`actionSpec` 和 `reverse-cause` 一类协议字段或能力 ID 只能存在于结构化数据中，新输出一旦泄漏就进入字段修复，旧存档只把这些确定的机器词迁移成权威中文能力名；NASA、CERN、U-2 等真实历史专名缩写仍可保留。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待自然普通话的《一生纪事》和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
+《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由当前运行环境的 AI 实时生成新三张。循史不再等同于温和或少改变，而是让当前掌权者、命令方向与既有结果按时落地；它即使执行战争、政变或拒绝也属于循史，并且不会新增偏离度。100 个固定第一幕的两组 A/B 都在开发期由 DeepSeek V4 Flash 编写，A 逐条对照真实结局审校，B 才负责改变控制关系、命令或结果。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕再从该历史快照专属的六张 AI 天外候选里随机取两张，因此不增加任何首屏等待。牌面以 4-7 字为生成目标（schema 兼容上限 16），长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。所有面向玩家的生成文案必须使用自然中文：`powerId`、`deadline`、`actionSpec` 和 `reverse-cause` 一类协议字段或能力 ID 只能存在于结构化数据中，新输出一旦泄漏就进入字段修复，旧存档只把这些确定的机器词迁移成权威中文能力名；NASA、CERN、U-2 等真实历史专名缩写仍可保留。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待自然普通话的《一生纪事》和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
 
 当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，并通过官方 `/v1/chat/completions` 原样流式转发 SSE；浏览器产物不再包含 API Key。localhost 和 Sites 都不设置产品侧访客、IP、全站、分钟或每日请求限额，也不再创建 D1 用量桶；通过版本、同源、系统协议、阶段、请求类型和 JSON 结构校验的游戏请求会立即转发。Worker 不再检查具体中文 `task` 文案，因此 prompt 演进不会再次触发产品侧 400；DeepSeek 上游仍可能按供应商容量或账户状态返回 429。互动空间完全绕过该 Worker，只通过 `tt.callAIChatCompletion` 使用平台托管的火山凭据；按平台最新 API 定义直接拼接 `onSSE(event.data)` 文本分片，同时兼容旧基础库透传的 OpenAI `choices[].delta` 包。健康流已有正文时忽略可能重复的 `success.data`；若平台结束空流，则通过同一个官方 API 自动以 `stream=false` 重试一次并读取完整 `success.data`。平台五位业务错误码不会再被误当成 HTTP 5xx，错误类型和错误码会保留在玩家可见的重试信息中。本地与 Node 长测优先读取项目 `.env.local` 的当前 Key，避免失效的系统环境 Key 覆盖用户刚配置的凭据；发布长测必须通过本地 Worker 代理运行，直连官方接口的 Node 长测只用于拆分上游故障，不能证明浏览器产品可用。后续幕次使用九位场景数组加两组三牌数组的低延迟协议，只传对连续性、校验或可见故事有真实消费方的上下文，完整中文决定与结果仍由模型编写；常规幕次使用 4096 输出 token，并发双结局各使用 2048，全部走 V4 Flash 非思考快速路径；十秒只作为真实长测中的优化目标，不是运行时截止线，超过十秒的健康请求会继续流式生成，完整文案、字段修复和剧情连续性优先。Zod 继续校验结构化输出，也会在本地补齐无语义变化的句末标点、接纳完整的自然长度，并在模型多写身后时代时保留最早三段与最终 2026 段；人物结局中的死亡年份和年龄由客户端权威渲染，模型只提供纯地点，若新响应或旧存档在地点前重复年龄，schema 会在显示前去重。前端公式继续计算历史偏离度，本地 CC0 配乐以低响度随章节缓慢变化，八项交互音效作为前景反馈并在播放时短暂压低配乐；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
 
 本地开发环境还提供独立的 `/tap.html` LLM Tap 调试页。浏览器端 DeepSeek 传输会通过同源 `BroadcastChannel("llm-tap-v1")` 旁路广播每次请求的完整输入、输出、状态、时序和 token 用量；调试页最多保存 200 条记录，支持请求翻页、输入/输出/指标切换、JSON 导出和清空。广播失败始终静默，不得影响游戏请求；`tap.html` 与 `src/tap/` 不进入普通生产构建和互动空间审核包。
 
-项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，火山方舟 Model ID 固定为 `deepseek-v4-flash-260425`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页起始画面标题栏角落保留清晰的双行 `AI / 生成` 合规标识，20px 字高不低于 390px 产品画面短边的 5%，事件现场和两页报告不再重复展示固定开场、AI 来源或模型版本，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把当前发布目标 AppID、竖屏、ZIP、AI 开启、火山平台凭据、真实模型 ID、抖音 39.5.0 最低测试版本和显式标识下限写成机器可查的发布契约，`20107` 会阻断提审。为避免覆盖原审核作品，当前发布目标是新建的 AppID `ttc88abe3757a063ed21`；它已使用 AI 稳定性修复包提交审核，平台状态为 `2`（审核中），原 AppID `tt8b1afda71430200121` 保持原审核状态且未被修改。
+项目还保留一个与正式游戏完全隔离的互动空间 AI 最小诊断页 `diagnostics/interactive-ai-mvp/`。它只使用官方最小非流式调用：`type=text`、精确 Model ID `doubao-seed-2-0-lite-260428`、一条 `user` 消息和 `stream=false`，不带 system prompt、温度、复杂 JSON、SSE、自动重试或游戏 schema，并把 `success`、`fail`、`complete` 原始回调直接显示在手机页面。`npm run build:interactive-ai-mvp` 只生成被忽略的 `release/interactive-ai-mvp.zip` 诊断包，不进入、替换或改变正式 `npm run build:interactive` 产品包。平台独立草稿 AppID `tt18806e3d87aab3e421` 只服务扫码诊断，不提交产品审核。
+
+项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，火山方舟 Model ID 固定为 `doubao-seed-2-0-lite-260428`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页起始画面标题栏角落保留清晰的双行 `AI / 生成` 合规标识，20px 字高不低于 390px 产品画面短边的 5%，事件现场和两页报告不再重复展示固定开场、AI 来源或模型版本，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把当前发布目标 AppID、竖屏、ZIP、AI 开启、火山平台凭据、真实模型 ID、抖音 39.5.0 最低测试版本和显式标识下限写成机器可查的发布契约，`20107` 会阻断提审。为避免覆盖原审核作品，当前发布目标是新建的 AppID `tt68891e34f7a3c3e821`；它已经装载本次 Doubao Seed 2.0 Lite 完整产品包并保持草稿状态，供扫码实测后再决定是否提审。上一独立作品 `ttc88abe3757a063ed21` 保留其既有审核版本，原 AppID `tt8b1afda71430200121` 也未被更新、撤审或删除。
 
 ## 2. 代码结构是什么
 
@@ -22,6 +24,7 @@
 - `src/hooks/`：`useGame.ts` 负责请求取消、下一幕预取、卡组 Roll、即时回响、存储、音频和重试编排。
 - `src/services/`：DeepSeek 官方 / Sites Worker 传输、互动空间火山平台传输、带短时配乐 ducking 的前景卡牌音效、版本化当前局存储、独立永久解锁收藏、低响度史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
 - `tap.html` 与 `src/tap/`：仅供本地开发的 LLM Tap 独立 React 页面；通过同源 BroadcastChannel 接收 DeepSeek 输入、输出、时序、状态与 token 用量，并提供三视图、翻页、持久化、导出和清空。
+- `diagnostics/interactive-ai-mvp/`：独立的互动空间原生 AI 最小诊断页；无 React、无游戏逻辑、无普通网络请求，只调用一次非流式 `tt.callAIChatCompletion` 并展示原始平台回调。
 - `app/`：vinext App Router 页面、中文 metadata，以及禁止服务端预渲染现有浏览器游戏的 client-only 边界。
 - `worker/`：Sites Cloudflare Worker 入口、稳定游戏协议校验、DeepSeek 服务端密钥注入和无产品侧限流的透明 SSE 转发。
 - `build/` 与 `.openai/hosting.json`：Sites 构建元数据、项目 ID 和无 D1 / R2 绑定的托管配置。
@@ -33,6 +36,7 @@
 - `design/`：历史视觉稿与 360×667 / 390×844 真实浏览器验收截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、三套原创透明卡面图标、CC0 史诗配乐、八项纸张/卡牌交互音效及完整授权来源记录。
 - `scripts/package-interactive-review.mjs`、`scripts/prepare-interactive-build.mjs`、`scripts/verify-interactive-review-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：构建包含全部 100 个剧本的平台运行时、检查完整剧本和历史图、优化移动资源、执行未压缩与 ZIP 双体积闸门，并生成唯一待提交 ZIP。
+- `scripts/package-interactive-ai-mvp.mjs`：只打包最小诊断页，检查根级 `index.html`、禁止外网请求与 8MB 上限，产出不进入 Git 的 `release/interactive-ai-mvp.zip`。
 - `interactive-space.release.json` 与 `docs/interactive-space-release-checklist.md`：互动空间 AppID、AI 开关、V4 Flash 真实模型 ID、平台火山凭据、抖音 39.5.0 最低测试版本、起始画面 5% AI 显式标识、竖屏、ZIP 上限、`20107` 阻断与提审前真机门禁。
 - `scripts/generate-fixed-opening-choices.mjs`：批量生成、结构校验、历史语义审校并断点续跑 100 个固定开场 A/B；任何 AI 失败都会终止且不会写入本地模板兜底。
 - `scripts/generate-fixed-power-choices.mjs`：批量生成、校验并可断点续跑 100×6 张固定开局天外候选，输出网页与互动空间共用的全量权威数据；正常运行时不会调用它。
@@ -62,6 +66,7 @@
 - `src/services/storage.ts`：版本化当前局存档与独立永久解锁档案的保存、合并、旧版本迁移和损坏恢复入口。
 - `src/services/deepseek.ts`、`src/services/deepseek.interactive.ts` 与 `docs/ai-transports.md`：DeepSeek 官方、Sites 同源 Worker 和互动空间火山平台双通道入口；互动空间入口直接拼接官方原始文本 SSE，同时兼容旧版 provider SSE 包。
 - `tap.html` 与 `src/tap/main.tsx`：本地 LLM Tap 独立页面与 React 挂载入口；`src/tap/hooks/useTapChannel.ts` 负责调试广播、最多 200 条本地持久化、同步、导出和清空。
+- `diagnostics/interactive-ai-mvp/{index.html,main.js,styles.css}`：互动空间 AI 最小调用、容器能力检查、原始回调展示和移动端诊断界面入口。
 - `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker 本地开发配置。
 - `vite.interactive.config.ts`：互动空间纯静态 Vite 构建和 `tt.callAIChatCompletion` / 本地报告导出适配入口。
 - `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测可直连模型做上游诊断，发布门禁则必须通过本地 Worker 代理运行。
@@ -71,11 +76,47 @@
 - `interactive-space.release.json` 与 `docs/interactive-space-release-checklist.md`：火山 AI、模型、包体、AI 标识、官方校验与提审阻断规则入口。
 - `scripts/generate-fixed-opening-choices.mjs`：固定开场循史/破局的开发期 AI 生成、结构/历史语义审校、断点续跑和全量权威数据输出入口。
 - `scripts/generate-fixed-power-choices.mjs`：固定开局天外候选的开发期 AI 生成、校验、断点续跑和全量权威数据输出入口。
-- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 和 `npm run build:interactive` 命令入口；其中 `build:interactive` 已固定为完整 100 剧本互动空间打包链路。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run build:interactive-ai-mvp` 命令入口；其中 `build:interactive` 仍是完整 100 剧本正式互动空间打包链路，MVP 命令只生成独立诊断包。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-30 03:16 - 确认真机跑通并固化为本地 zhuanghongkai 最新版本
+
+- 本次任务：在用户通过抖音互动空间扫码实测确认新豆包版本已经跑通后，把这套真实可用版本固化到本地 `zhuanghongkai` 分支，作为后续开发的最新基线。
+- 改了哪些文件：更新本文档；本次提交同时收纳 03:07 模型切换与 03:13 新作品上传所列的全部代码、测试、发布契约、诊断页和说明文件。
+- 改了什么：从本地最新 `main` 创建 `zhuanghongkai` 分支，保留已验证的 `doubao-seed-2-0-lite-260428` 互动空间调用链、新发布目标 AppID `tt68891e34f7a3c3e821`、最小诊断 MVP 与对应构建门禁，并将它们作为一个完整版本提交。
+- 为什么这样改：平台回读只能证明上传配置一致，用户在真实手机互动空间中实际跑通才完成“代码、平台凭据、模型授权、容器 API”整条链路的最终验证；此时建立清晰的本地分支基线，能避免后续开发重新落回仍使用旧 DeepSeek 模型的版本。
+- 影响了哪些模块：只影响本地 Git 分支基线、项目状态记录以及后续默认维护版本；不改动已经跑通的玩法、AI 请求、100 剧本、交互、视觉、平台草稿内容或既有审核作品。
+- 验证：用户明确反馈新互动空间版本已经跑通；此前同一产物已经通过互动空间定向测试、TypeScript、仓库完整包门禁、官方 `h5-validator` 目录与 ZIP 双重校验，平台包 MD5 与本地一致。
+
+### 2026-07-30 03:13 - 新建并上传 Doubao Seed 2.0 Lite 完整互动空间作品
+
+- 本次任务：把已经切换为 `doubao-seed-2-0-lite-260428` 的完整 100 剧本产品作为一个全新的互动空间作品上传，不覆盖任何既有作品。
+- 改了哪些文件：修改 `interactive-space.release.json` 和本文档；平台新增作品 AppID `tt68891e34f7a3c3e821`。
+- 改了什么：重新构建完整互动空间 ZIP，分别上传产品包与 300×300 项目图标，以创建操作生成全新竖屏作品并开启 AI；发布契约随后切换到新 AppID。新作品只保持草稿状态，没有自动提交审核。
+- 为什么这样改：当前需要先在真实抖音扫码环境验证平台托管火山凭据能否调用已授权的豆包模型；新建作品既能承载最新代码和模型配置，也不会扰动旧审核版本，便于把模型授权问题与历史包状态隔离。
+- 影响了哪些模块：影响互动空间平台作品、当前发布目标和项目状态记录；不改变四幕三卡三 Roll、100 剧本、prompt/schema、视觉、存档、本地/Sites DeepSeek 通道，也不更新、撤审或删除任何旧 AppID。
+- 验证：仓库门禁确认 100/100 剧本、100/100 历史图、`AIEnabled=true`、模型 `doubao-seed-2-0-lite-260428` 且禁止运行时标记为 0；官方 `h5-validator` 对构建目录和最终 ZIP 两轮全部通过。ZIP 共 140 个文件、5,939,193 字节、MD5 `5ca199e6be362d55f2840c4e28f80b6e`。平台回读新作品为状态 `1`（草稿）、`AIEnabled=true`、竖屏、包 URI 与图标 URI 有效，平台包 MD5 与本地完全一致。
+
+### 2026-07-30 03:07 - 将互动空间运行模型切换为已授权的 Doubao Seed 2.0 Lite
+
+- 本次任务：根据火山方舟 API Key 的真实资源授权，把正式互动空间产品与最小诊断 MVP 从未包含在 Key 授权范围内的 `deepseek-v4-flash-260425` 切换到已明确授权的 `doubao-seed-2-0-lite-260428`。
+- 改了哪些文件：修改 `src/services/deepseek.interactive.ts` 及其测试、`interactive-space.release.json`、`scripts/verify-interactive-review-build.mjs`、`diagnostics/interactive-ai-mvp/{index.html,main.js}`、`scripts/package-interactive-ai-mvp.mjs`、`README.md`、`docs/{ai-transports,interactive-space-release-checklist}.md`、`AGENTS.md` 与本文档；平台更新独立诊断草稿 AppID `tt18806e3d87aab3e421`。
+- 改了什么：互动空间 `tt.callAIChatCompletion` 的固定 Model ID、MVP 最小非流式请求、发布契约、包内强制标识和测试断言统一改为 `doubao-seed-2-0-lite-260428`；互动空间空结果与截断提示改成模型中立文案。本地浏览器、Sites Worker 和 Node 诊断仍使用原 DeepSeek 官方通道，不随本次迁移变化。
+- 为什么这样改：用户提供的火山 Key 载荷明确只授权五个 `presetendpoint`，其中包含 Doubao Seed 2.0 Lite、Pro、Evolving、Seedream 和 Seedance，但不包含 DeepSeek V4 Flash。继续请求 DeepSeek 即使平台成功取得 Key 也无法形成可靠授权闭环；切到 Key 已覆盖的文本对话模型，才能先验证互动空间托管凭证与 AI 基础链路。
+- 影响了哪些模块：影响互动空间第 2—4 幕、第二/第三次实时 Roll、字段修复、双结局和独立诊断草稿使用的火山模型；不改变 prompt/schema、4096/2048 token 边界、四幕三卡三 Roll、100 剧本、固定第一幕、存档、交互、视觉、本地/Sites DeepSeek 通道或审核中的正式平台版本。
+- 验证：互动空间定向 Vitest 7/7、TypeScript 和 `git diff --check` 通过；诊断 ZIP 为 3 个文件、4,354 字节、MD5 `7abd5c6ae7354b6c4e154c70a9e8c20c`。正式互动空间包包含 100/100 剧本、100/100 历史图、140 个文件，ZIP 5,939,193 字节、MD5 `46b684491b9788e0d4ea70b116fc6ac6`，仓库门禁确认模型为豆包、普通网络/密钥违规标识为 0。平台回读确认诊断 App 仍为草稿、`AIEnabled=true`、竖屏且包 MD5 与本地一致；正式审核 App 未更新。
+
+### 2026-07-30 02:45 - 建立互动空间 AI 最小诊断 MVP
+
+- 本次任务：从最简单的 API 调用重新研究互动空间火山方舟接入，把平台基础能力、账号配置和模型权限从复杂游戏提示词、SSE、JSON schema、自动重试及状态机中彻底隔离。
+- 改了哪些文件：新增 `diagnostics/interactive-ai-mvp/{index.html,main.js,styles.css}` 和 `scripts/package-interactive-ai-mvp.mjs`；修改 `package.json` 与本文档；平台新增独立草稿 AppID `tt18806e3d87aab3e421`。
+- 改了什么：诊断页按官方非流式示例只传 `type: "text"`、`model: "deepseek-v4-flash-260425"`、`stream: false` 和一条 `user` 消息，不带 system prompt、温度、maxTokens、SSE、JSON、重试或任何游戏协议；手机页面先显示 `tt.callAIChatCompletion` 是否被容器注入，再原样展示 `success/fail/complete` 回调、错误类型、错误码与耗时。独立打包器拒绝普通外网请求，检查根入口和 8MB 上限，并固定 ZIP 条目时间戳，保证相同源码重复构建的 MD5 稳定。
+- 为什么这样改：正式游戏的复杂链路无法直接证明 `F/999975` 出现在平台基础调用、火山账号/模型授权还是产品流式解析阶段。最小非流式请求把变量压到官方必填参数，若扫码仍返回同一错误，就能排除游戏 prompt、输出长度、SSE 拼接、schema 校验和重试策略。
+- 影响了哪些模块：只新增诊断源码、诊断构建命令、被忽略的 4,350 字节 ZIP 和独立平台草稿；不修改正式游戏运行时、`src/services/deepseek.interactive.ts`、100 剧本、玩法、正式互动空间包、现有 AppID 或审核状态。
+- 验证：`npm run build:interactive-ai-mvp` 连续两次成功且得到同一 MD5 `91778632115a5586577ab06fb558afcf`；ZIP 根级只有 `index.html/main.js/styles.css` 三个文件，源码无普通网络请求和密钥；`node --check` 与 `git diff --check` 通过。本地真实浏览器确认页面能识别非互动空间环境并禁用调用按钮。平台回读确认诊断 App 状态 `1`（草稿）、`AIEnabled=true`、竖屏、包 MD5 与本地一致；尚未提交审核，真实 AI 结果必须由抖音扫码得出。
 
 ### 2026-07-30 02:07 - 新建独立互动空间作品并提交 AI 修复包审核
 

@@ -28,7 +28,7 @@ export type {
   DeepSeekUsage,
 } from "./deepseek-contract";
 
-const INTERACTIVE_SPACE_MODEL = "deepseek-v4-flash-260425";
+const INTERACTIVE_SPACE_MODEL = "doubao-seed-2-0-lite-260428";
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
 const MAX_RETRY_DELAY_MS = 15_000;
@@ -414,7 +414,7 @@ function performRequest(
       if (!content.trim()) {
         finishError(new DeepSeekError(
           "invalid_response",
-          "DeepSeek 返回了空结果，请重新推演。",
+          "互动空间 AI 返回了空结果，请重新推演。",
           undefined,
           undefined,
           false,
@@ -541,7 +541,7 @@ function performRequest(
           if (choice?.finish_reason === "length") {
             finishError(new DeepSeekError(
               "invalid_response",
-              "DeepSeek 输出被截断，请重新推演。",
+              "互动空间 AI 输出被截断，请重新推演。",
               undefined,
               undefined,
               false,

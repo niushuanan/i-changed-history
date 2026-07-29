@@ -14,7 +14,7 @@ await access(path.join(outputRoot, "index.html"));
 
 if (
   releaseConfig.aiEnabled !== true
-  || releaseConfig.chatModel !== "deepseek-v4-flash-260425"
+  || releaseConfig.chatModel !== "doubao-seed-2-0-lite-260428"
   || releaseConfig.credentialMode !== "platform-volcengine-api-key"
   || releaseConfig.minimumDouyinVersion !== "39.5.0"
   || releaseConfig.aiDisclosureMinShortEdgePercent !== 5
@@ -22,7 +22,7 @@ if (
   || releaseConfig.packageType !== 1
   || releaseConfig.maxZipBytes !== 8 * 1024 * 1024
 ) {
-  throw new Error("Interactive release configuration must keep AI enabled, V4 Flash, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
+  throw new Error("Interactive release configuration must keep AI enabled, Doubao Seed 2.0 Lite, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
 }
 
 async function collectFiles(directory) {
@@ -96,7 +96,7 @@ for (const match of indexHtml.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
 
 const requiredRuntimeMarkers = [
   "callAIChatCompletion",
-  "deepseek-v4-flash-260425",
+  "doubao-seed-2-0-lite-260428",
   "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",

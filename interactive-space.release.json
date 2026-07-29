@@ -1,7 +1,7 @@
 {
-  "appId": "ttc88abe3757a063ed21",
+  "appId": "tt68891e34f7a3c3e821",
   "aiEnabled": true,
-  "chatModel": "deepseek-v4-flash-260425",
+  "chatModel": "doubao-seed-2-0-lite-260428",
   "credentialMode": "platform-volcengine-api-key",
   "minimumDouyinVersion": "39.5.0",
   "aiDisclosureMinShortEdgePercent": 5,

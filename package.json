@@ -9,6 +9,7 @@
     "prebuild": "node scripts/clean-build.mjs",
     "build": "vinext build",
     "build:interactive": "node scripts/package-interactive-review.mjs",
+    "build:interactive-ai-mvp": "node scripts/package-interactive-ai-mvp.mjs",
     "verify:interactive": "node scripts/verify-interactive-review-build.mjs",
     "start": "vinext start",
     "test": "vitest run --config vitest.config.mjs",

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#10100f" />
+    <title>互动空间 AI 最小调用测试</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <p class="eyebrow">互动空间 · 火山方舟</p>
+        <p class="ai-disclosure" aria-label="内容由 AI 生成">AI 生成</p>
+      </header>
+
+      <section class="intro">
+        <h1>最小 AI 调用测试</h1>
+        <p>
+          只发送一句话，不使用流式输出、复杂提示词、JSON 解析或自动重试。
+        </p>
+      </section>
+
+      <section class="runtime-card" aria-labelledby="runtime-title">
+        <div>
+          <p class="label" id="runtime-title">容器能力</p>
+          <p class="runtime-value" id="runtime-value">正在检查…</p>
+        </div>
+        <span class="status-dot" id="runtime-dot" aria-hidden="true"></span>
+      </section>
+
+      <button class="call-button" id="call-button" type="button" disabled>
+        调用一次 AI
+      </button>
+
+      <section class="result-card" aria-live="polite" aria-atomic="false">
+        <div class="result-heading">
+          <p class="label">调用结果</p>
+          <p class="elapsed" id="elapsed"></p>
+        </div>
+        <p class="result-state" id="result-state">尚未调用</p>
+        <p class="answer" id="answer"></p>
+        <pre class="raw-result" id="raw-result">等待平台回调</pre>
+      </section>
+
+      <footer>
+        <p>Model ID</p>
+        <code>doubao-seed-2-0-lite-260428</code>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>

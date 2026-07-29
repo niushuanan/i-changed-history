@@ -36,7 +36,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Interactive Space DeepSeek transport", () => {
+describe("Interactive Space Ark transport", () => {
   it("concatenates the official raw-text SSE fragments from the platform runtime", async () => {
     const stages: DeepSeekProgressStage[] = [];
     const drafts: Array<{ headline?: string }> = [];
@@ -81,7 +81,7 @@ describe("Interactive Space DeepSeek transport", () => {
     expect(call.mock.calls[0]?.[0]).toMatchObject({
       type: "text",
       stream: true,
-      model: "deepseek-v4-flash-260425",
+      model: "doubao-seed-2-0-lite-260428",
       maxTokens: 4096,
       messages: [
         { role: "system", content: "只返回 JSON" },
