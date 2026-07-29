@@ -1,4 +1,4 @@
-import { Archive, CardsThree, DiceFive, Sparkle, X } from "@phosphor-icons/react";
+import { Archive, CardsThree, Stack, Sparkle, X } from "@phosphor-icons/react";
 
 export function GameAnnouncement({ onClose }: { onClose: () => void }) {
   const announcementName = import.meta.env.VITE_INTERACTIVE_SPACE === "true"
@@ -20,13 +20,13 @@ export function GameAnnouncement({ onClose }: { onClose: () => void }) {
         </header>
         <div className="game-announcement__title">
           <small>一局约 3—5 分钟</small>
-          <h2 id="game-announcement-title">抽一段历史，亲手改写它</h2>
-          <p>你会随机进入一个真实历史转折点，成为当时的一名关键人物。接下来的四次选择，会写完他的一生，也会改变 2026。</p>
+          <h2 id="game-announcement-title">选一段历史，亲手改写它</h2>
+          <p>先挑一个你感兴趣的时代，再选择其中的真实历史转折点。接下来的四次抉择，会写完同一个人的一生，也会改变 2026。</p>
         </div>
         <ol>
           <li>
-            <i><DiceFive size={24} weight="duotone" /></i>
-            <div><strong>先抽一个历史开局</strong><span>卡牌会沿时间匀速旋转，随后揭晓一个真实历史现场。</span></div>
+            <i><Stack size={24} weight="duotone" /></i>
+            <div><strong>先选剧本组，再选现场</strong><span>第一次可免费打开任意一组；之后由你决定下一个解锁方向。</span></div>
           </li>
           <li>
             <i><CardsThree size={24} weight="duotone" /></i>
@@ -38,11 +38,11 @@ export function GameAnnouncement({ onClose }: { onClose: () => void }) {
           </li>
           <li>
             <i><Archive size={24} weight="duotone" /></i>
-            <div><strong>四次选择，走完一生</strong><span>第四次选择落定就解锁这段历史；档案可以反复重玩，结局继续写到 2026。</span></div>
+            <div><strong>通关得币，继续开新组</strong><span>结局报告生成后，首次通关奖励 1 枚解锁代币；重玩不会重复得币。</span></div>
           </li>
         </ol>
         <button className="game-announcement__action" type="button" onClick={onClose}>
-          开始抽取
+          开始选组
         </button>
       </section>
     </div>

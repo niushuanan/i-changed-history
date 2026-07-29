@@ -1,100 +1,85 @@
 import {
-  Archive,
-  ArrowsClockwise,
-  DiceFive,
+  ArrowLeft,
+  Coins,
   GearSix,
   Megaphone,
   SpeakerHigh,
   SpeakerSlash,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { HistorySeed } from "../game/types";
-import { HistoryCard } from "../components/HistoryCard";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HistoryGridCard } from "../components/HistoryGridCard";
-import { browseHistorySeeds } from "../data/historySeeds";
-import { formatHistoricalYear } from "../data/historicalYear";
-import { historyAssetForSeed } from "../data/visualAssets";
+import { HistoryGroupCard } from "../components/HistoryGroupCard";
+import {
+  HISTORY_GROUPS,
+  historyGroupById,
+  seedsForHistoryGroup,
+  type HistoryGroup,
+} from "../data/historyGroups";
+import { HISTORY_SEEDS } from "../data/historySeeds";
+import type { HistorySeed } from "../game/types";
 import { playCardSound, type CardSound } from "../services/cardAudio";
 
-const HISTORY_CARDS = browseHistorySeeds();
-const DRAW_STEP_COUNT = 9;
-const DRAW_STEP_MS = 180;
-const DRAW_SETTLE_MS = 240;
-
 export type PickerContext = {
-  mode: "draw" | "archive";
+  mode: "groups" | "seeds";
+  activeGroupId: string | null;
   activeSeedId: string;
 };
 
 export const DEFAULT_PICKER_CONTEXT: PickerContext = {
-  mode: "draw",
-  activeSeedId: HISTORY_CARDS[0].id,
+  mode: "groups",
+  activeGroupId: null,
+  activeSeedId: HISTORY_SEEDS[0].id,
 };
 
 type SeedPickerScreenProps = {
   context: PickerContext;
   muted: boolean;
-  unlockedSeedIds: readonly string[];
+  unlockedGroupIds: readonly string[];
+  completedSeedIds: readonly string[];
+  tokens: number;
   onContextChange: (context: PickerContext) => void;
   onPlaySound?: (sound: CardSound) => void;
   onSelect: (seed: HistorySeed) => void;
+  onUnlockGroup: (groupId: string) => boolean;
   onShowAnnouncement: () => void;
   onToggleMute: () => void;
 };
 
-export function chooseDestinySeed(
-  cards: readonly HistorySeed[],
-  unlockedSeedIds: readonly string[],
-  currentSeedId: string,
-  random: () => number = Math.random,
-): HistorySeed {
-  const unlocked = new Set(unlockedSeedIds);
-  const lockedPool = cards.filter((seed) => !unlocked.has(seed.id));
-  const primaryPool = lockedPool.length > 0 ? lockedPool : cards;
-  const pool = primaryPool.length > 1
-    ? primaryPool.filter((seed) => seed.id !== currentSeedId)
-    : primaryPool;
-  const safePool = pool.length > 0 ? pool : primaryPool;
-  const index = Math.min(
-    safePool.length - 1,
-    Math.max(0, Math.floor(random() * safePool.length)),
-  );
-  return safePool[index] ?? cards[0];
-}
-
 export function SeedPickerScreen({
   context,
   muted,
-  unlockedSeedIds,
+  unlockedGroupIds,
+  completedSeedIds,
+  tokens,
   onContextChange,
   onPlaySound,
   onSelect,
+  onUnlockGroup,
   onShowAnnouncement,
   onToggleMute,
 }: SeedPickerScreenProps) {
   const announcementName = import.meta.env.VITE_INTERACTIVE_SPACE === "true"
     ? "体验说明"
     : "游戏说明";
-  const [drawState, setDrawState] = useState<"ready" | "drawing" | "revealed">("ready");
-  const [previewIndex, setPreviewIndex] = useState(() => (
-    Math.max(0, HISTORY_CARDS.findIndex((seed) => seed.id === context.activeSeedId))
-  ));
-  const [previousPreviewIndex, setPreviousPreviewIndex] = useState(previewIndex);
-  const [nextPreviewIndex, setNextPreviewIndex] = useState(
-    (previewIndex + 1) % HISTORY_CARDS.length,
-  );
-  const [drawTick, setDrawTick] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recentlyUnlocked, setRecentlyUnlocked] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const timersRef = useRef<number[]>([]);
-  const unlockedSet = useMemo(() => new Set(unlockedSeedIds), [unlockedSeedIds]);
-  const unlockedCards = useMemo(
-    () => HISTORY_CARDS.filter((seed) => unlockedSet.has(seed.id)),
-    [unlockedSet],
+  const unlockedSet = useMemo(() => new Set(unlockedGroupIds), [unlockedGroupIds]);
+  const completedSet = useMemo(() => new Set(completedSeedIds), [completedSeedIds]);
+  const activeGroup = context.activeGroupId
+    ? historyGroupById(context.activeGroupId)
+    : undefined;
+  const canShowActiveGroup = Boolean(
+    context.mode === "seeds"
+    && activeGroup
+    && unlockedSet.has(activeGroup.id),
   );
-  const previewSeed = HISTORY_CARDS[previewIndex] ?? HISTORY_CARDS[0];
-  const revealed = drawState === "revealed";
+  const activeSeeds = activeGroup && canShowActiveGroup
+    ? seedsForHistoryGroup(activeGroup)
+    : [];
+  const firstGroupIsFree = unlockedGroupIds.length === 0;
+
   const playSound = (sound: CardSound) => {
     if (onPlaySound) {
       onPlaySound(sound);
@@ -102,13 +87,6 @@ export function SeedPickerScreen({
     }
     playCardSound(sound, muted);
   };
-
-  const clearDrawTimers = () => {
-    timersRef.current.forEach((timer) => window.clearTimeout(timer));
-    timersRef.current = [];
-  };
-
-  useEffect(() => clearDrawTimers, []);
 
   useEffect(() => {
     if (!settingsOpen) return undefined;
@@ -129,75 +107,26 @@ export function SeedPickerScreen({
     };
   }, [settingsOpen]);
 
-  const switchMode = (mode: PickerContext["mode"]) => {
-    onContextChange({ ...context, mode });
-    setSettingsOpen(false);
-    settingsTriggerRef.current?.focus();
-  };
-
-  const draw = () => {
-    if (drawState === "drawing") return;
-    clearDrawTimers();
-    const target = chooseDestinySeed(
-      HISTORY_CARDS,
-      unlockedSeedIds,
-      revealed ? previewSeed.id : context.activeSeedId,
-    );
-    const targetIndex = HISTORY_CARDS.findIndex((seed) => seed.id === target.id);
-    const startIndex = previewIndex;
-    const reducedMotion = typeof window.matchMedia === "function"
-      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const motionScale = import.meta.env.MODE === "test" || reducedMotion ? 0.01 : 1;
-    setDrawState("drawing");
-    setPreviousPreviewIndex(startIndex);
-    setNextPreviewIndex((startIndex + 1) % HISTORY_CARDS.length);
-    setDrawTick(0);
-    playSound("page-turn");
-
-    const forwardDistance = HISTORY_CARDS.length
-      + ((targetIndex - startIndex + HISTORY_CARDS.length) % HISTORY_CARDS.length);
-    const rollingIndices = Array.from({ length: DRAW_STEP_COUNT }, (_, index) => {
-      const step = index + 1;
-      return step === DRAW_STEP_COUNT
-        ? targetIndex
-        : (startIndex + Math.round(forwardDistance * step / DRAW_STEP_COUNT))
-          % HISTORY_CARDS.length;
-    });
-
-    if (typeof window.Image === "function") {
-      const preloadIndices = new Set<number>([startIndex, ...rollingIndices]);
-      preloadIndices.forEach((index) => {
-        const image = new window.Image();
-        image.decoding = "async";
-        image.src = historyAssetForSeed(seedAt(index));
-      });
+  const openGroup = (group: HistoryGroup) => {
+    const alreadyUnlocked = unlockedSet.has(group.id);
+    if (!alreadyUnlocked && !onUnlockGroup(group.id)) return;
+    if (!alreadyUnlocked) {
+      setRecentlyUnlocked(group.name);
+      playSound("deal");
+    } else {
+      playSound("page-turn");
     }
-
-    let elapsed = 0;
-    rollingIndices.forEach((rollingIndex, index) => {
-      const step = index + 1;
-      const stepDuration = Math.max(1, Math.round(DRAW_STEP_MS * motionScale));
-      elapsed += stepDuration;
-      timersRef.current.push(window.setTimeout(() => {
-        setPreviousPreviewIndex(index === 0 ? startIndex : rollingIndices[index - 1]);
-        setPreviewIndex(rollingIndex);
-        setNextPreviewIndex(
-          rollingIndices[index + 1] ?? ((rollingIndex + 1) % HISTORY_CARDS.length),
-        );
-        setDrawTick(step);
-      }, elapsed));
+    onContextChange({
+      mode: "seeds",
+      activeGroupId: group.id,
+      activeSeedId: group.seedIds[0] ?? context.activeSeedId,
     });
-
-    timersRef.current.push(window.setTimeout(() => {
-        setDrawState("revealed");
-        onContextChange({ ...context, activeSeedId: target.id, mode: "draw" });
-        playSound("deal");
-    }, elapsed + Math.max(8, Math.round(DRAW_SETTLE_MS * motionScale))));
   };
 
-  const seedAt = (index: number) => (
-    HISTORY_CARDS[(index + HISTORY_CARDS.length) % HISTORY_CARDS.length] ?? HISTORY_CARDS[0]
-  );
+  const returnToGroups = () => {
+    playSound("page-turn");
+    onContextChange({ ...context, mode: "groups", activeGroupId: null });
+  };
 
   const toggleAudio = () => {
     onToggleMute();
@@ -211,7 +140,7 @@ export function SeedPickerScreen({
   };
 
   return (
-    <main className={`seed-picker seed-picker--${context.mode} destiny-picker`} data-draw-state={drawState}>
+    <main className={`seed-picker group-picker seed-picker--${canShowActiveGroup ? "group-detail" : "groups"}`}>
       <header className="seed-picker__brand">
         <h1 className="seed-picker__wordmark">
           <img src="/assets/brand/history-wordmark.png" alt="哎！我改变了历史？" />
@@ -241,18 +170,10 @@ export function SeedPickerScreen({
               role="menu"
               aria-label="首页设置菜单"
             >
-              <span className="seed-picker__settings-kicker">命运与档案</span>
-              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "draw"} onClick={() => switchMode("draw")}>
-                <DiceFive size={20} weight="bold" />
-                <span><strong>抽命运</strong><small>随机坠入历史</small></span>
-              </button>
-              <button type="button" role="menuitemradio" tabIndex={-1} aria-checked={context.mode === "archive"} onClick={() => switchMode("archive")}>
-                <Archive size={20} weight="bold" />
-                <span><strong>已解锁档案</strong><small>{unlockedCards.length} / {HISTORY_CARDS.length}</small></span>
-              </button>
+              <span className="seed-picker__settings-kicker">玩法与声音</span>
               <button type="button" role="menuitem" tabIndex={-1} onClick={openAnnouncement}>
                 <Megaphone size={20} weight="bold" />
-                <span><strong>{announcementName}</strong><small>玩法与通关目标</small></span>
+                <span><strong>{announcementName}</strong><small>选组、四次抉择与解锁</small></span>
               </button>
               <button type="button" role="menuitemcheckbox" tabIndex={-1} aria-checked={!muted} onClick={toggleAudio}>
                 {muted ? <SpeakerSlash size={20} weight="bold" /> : <SpeakerHigh size={20} weight="bold" />}
@@ -263,144 +184,82 @@ export function SeedPickerScreen({
         </div>
       </header>
 
-      {context.mode === "draw" ? (
-        <>
-          <section className="destiny-readout" aria-live="polite">
-            <span>{drawState === "ready" ? `${HISTORY_CARDS.length} 个历史现场，随机抽一个开局` : drawState === "drawing" ? "历史正在你眼前掠过" : "这一次，你来到"}</span>
-            <strong>{drawState === "ready" ? "???? 年" : formatHistoricalYear(previewSeed.year)}</strong>
-            <small>已解锁 {unlockedCards.length} / {HISTORY_CARDS.length}</small>
-          </section>
-
-          <section className={`destiny-stage${revealed ? " is-revealed" : ""}`}>
-            {revealed ? (
-              <div className="destiny-revealed">
-                <HistoryCard
-                  seed={previewSeed}
-                  position={previewIndex + 1}
-                  total={HISTORY_CARDS.length}
-                  eager
-                  onSelect={() => {
-                    playSound("enter-history");
-                    onSelect(previewSeed);
-                  }}
-                />
-                <button
-                  className="destiny-draw-button destiny-draw-button--secondary"
-                  type="button"
-                  onClick={draw}
-                >
-                  <ArrowsClockwise size={19} weight="bold" />
-                  <span>换一个开局</span>
-                </button>
-              </div>
-            ) : drawState === "drawing" ? (
-              <div
-                className="destiny-carousel"
-                data-testid="destiny-carousel"
-                aria-label={`历史卡牌正在环绕旋转，当前是${previewSeed.eventName}`}
-              >
-                <div
-                  className="destiny-carousel__ring"
-                  data-draw-tick={drawTick}
-                  data-tick-parity={drawTick % 2}
-                  style={{ "--carousel-step-ms": `${DRAW_STEP_MS}ms` } as CSSProperties}
-                >
-                  {[
-                    {
-                      slot: drawTick > 0 ? "outgoing" : "previous",
-                      index: drawTick > 0
-                        ? previousPreviewIndex
-                        : (previewIndex - 1 + HISTORY_CARDS.length) % HISTORY_CARDS.length,
-                    },
-                    { slot: "current", index: previewIndex },
-                    { slot: "next", index: nextPreviewIndex },
-                  ].map(({ slot, index }) => {
-                    const seed = seedAt(index);
-                    return (
-                      <div
-                        className="destiny-carousel__card"
-                        data-slot={slot}
-                        aria-hidden={slot === "current" ? undefined : true}
-                        key={`carousel-${slot}`}
-                      >
-                        <div className="destiny-carousel__face">
-                          <HistoryCard
-                            seed={seed}
-                            position={index + 1}
-                            total={HISTORY_CARDS.length}
-                            eager
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <article className="destiny-card-back" aria-label="尚未揭晓的命运卡牌">
-                <div className="destiny-card-back__frame">
-                  <img src="/assets/cards/frame-regular-v2.webp" alt="" />
-                  <span className="destiny-card-back__seal"><DiceFive size={42} weight="duotone" /></span>
-                  <strong>尚未揭晓</strong>
-                  <small>历史就此展开</small>
-                </div>
-              </article>
-            )}
-          </section>
-
-          {!revealed ? <div className={`destiny-actions destiny-actions--${drawState}`}>
-            {drawState === "drawing" ? (
-              <span className="destiny-actions__motion" role="status">历史流转，即将揭晓</span>
-            ) : (
-              <button
-                className="destiny-draw-button destiny-draw-button--primary"
-                type="button"
-                aria-label="随机抽一个开局"
-                onClick={draw}
-              >
-                <span className="destiny-draw-button__seal" aria-hidden="true">
-                  <DiceFive size={24} weight="fill" />
-                </span>
-                <span className="destiny-draw-button__copy">
-                  <small>让命运替你选择</small>
-                  <strong>随机抽一个开局</strong>
-                </span>
-                <span className="destiny-draw-button__chevron" aria-hidden="true" />
-              </button>
-            )}
-            {drawState === "ready" ? <small>会优先抽到你还没通关的历史</small> : null}
-          </div> : null}
-        </>
-      ) : (
-        <section className="destiny-archive" aria-label="已解锁历史档案">
-          <header>
-            <span>你的历史收藏</span>
-            <h2>已解锁 {unlockedCards.length} 个瞬间</h2>
-            <p>完成四次人生抉择便会永久点亮；点击任意档案，可从第一幕重新游玩。</p>
+      {canShowActiveGroup && activeGroup ? (
+        <section className="history-group-detail" aria-label={`${activeGroup.name}剧本组`}>
+          <header className="history-group-detail__header">
+            <button type="button" onClick={returnToGroups}>
+              <ArrowLeft size={18} weight="bold" />
+              返回剧本组
+            </button>
+            <span>{activeGroup.region === "china" ? "中国史" : "世界史"} · {activeGroup.period}</span>
+            <h2>{activeGroup.name}</h2>
+            <p>{activeGroup.description}。选择一个真实转折点，进入固定第一幕。</p>
+            <div>
+              <strong>{activeSeeds.filter((seed) => completedSet.has(seed.id)).length} / {activeSeeds.length} 已通关</strong>
+              <small><Coins size={15} weight="fill" /> 解锁代币 {tokens}</small>
+            </div>
           </header>
-          {unlockedCards.length > 0 ? (
-            <div className="history-grid">
-              {unlockedCards.map((seed) => (
-                <HistoryGridCard
-                  key={seed.id}
-                  seed={seed}
-                  isCurrent={seed.id === context.activeSeedId}
-                  onSelect={(selected) => {
-                    playSound("enter-history");
-                    onContextChange({ ...context, activeSeedId: selected.id });
-                    onSelect(selected);
-                  }}
-                />
-              ))}
+          {recentlyUnlocked === activeGroup.name ? (
+            <p className="history-group-unlocked-notice" role="status">
+              《{activeGroup.name}》已经解锁，选一个现场开始。
+            </p>
+          ) : null}
+          <div className="history-grid history-group-detail__grid">
+            {activeSeeds.map((seed) => (
+              <HistoryGridCard
+                key={seed.id}
+                seed={seed}
+                isCurrent={seed.id === context.activeSeedId}
+                completed={completedSet.has(seed.id)}
+                onSelect={(selected) => {
+                  playSound("enter-history");
+                  onContextChange({ ...context, activeSeedId: selected.id });
+                  onSelect(selected);
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="history-group-browser" aria-label="历史剧本组">
+          <header className="history-group-browser__intro">
+            <span>100 个真实转折点 · 13 个剧本组</span>
+            <h2>{firstGroupIsFree ? "先选一段你熟悉的历史" : "下一段历史，由你决定"}</h2>
+            <p>{firstGroupIsFree
+              ? "首组选定不花代币。通关任意一个剧本，就能解锁下一组。"
+              : "翻开已解锁卷宗继续游玩，或用通关获得的代币打开新组。"}</p>
+            <div className="history-group-browser__ledger">
+              <span><small>已开剧本组</small><strong>{unlockedGroupIds.length} / {HISTORY_GROUPS.length}</strong></span>
+              <span><small>{firstGroupIsFree ? "首组权益" : "解锁代币"}</small><strong>{firstGroupIsFree ? "免费" : tokens}</strong></span>
+              <span><small>已通关剧本</small><strong>{completedSeedIds.length} / {HISTORY_SEEDS.length}</strong></span>
             </div>
-          ) : (
-            <div className="destiny-archive__empty">
-              <Archive size={42} weight="duotone" />
-              <strong>档案还没有被点亮</strong>
-              <p>先抽一次命运，完整活完那段人生。</p>
-              <button type="button" onClick={() => switchMode("draw")}>去抽命运</button>
-            </div>
-          )}
+          </header>
+          {(["china", "world"] as const).map((region) => (
+            <section className="history-group-browser__region" key={region}>
+              <header>
+                <span>{region === "china" ? "CHINA" : "WORLD"}</span>
+                <h3>{region === "china" ? "中国史九组" : "世界史四组"}</h3>
+              </header>
+              <div className="history-group-list">
+                {HISTORY_GROUPS.filter((group) => group.region === region).map((group) => {
+                  const unlocked = unlockedSet.has(group.id);
+                  const available = !unlocked && (firstGroupIsFree || tokens > 0);
+                  const completedCount = group.seedIds.filter((seedId) => completedSet.has(seedId)).length;
+                  return (
+                    <HistoryGroupCard
+                      key={group.id}
+                      group={group}
+                      unlocked={unlocked}
+                      available={available}
+                      firstFree={firstGroupIsFree}
+                      completedCount={completedCount}
+                      onOpen={openGroup}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </section>
       )}
     </main>

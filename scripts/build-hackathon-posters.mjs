@@ -256,7 +256,7 @@ async function posterOne() {
 
   const title = await titleLayers({
     tagline: "命运只翻开一张",
-    subline: "100 个真实历史现场 · 随机抽一个开局",
+    subline: "100 个真实历史现场 · 13 组渐进解锁",
   });
 
   await sharp(background)

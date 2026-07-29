@@ -1,4 +1,4 @@
-import { ArrowCounterClockwise } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, ArrowRight, CheckCircle } from "@phosphor-icons/react";
 import type { HistorySeed } from "../game/types";
 import { formatHistoricalYear } from "../data/historicalYear";
 import { themeForSeed, type HistoryTheme } from "../data/historyCatalog";
@@ -15,16 +15,22 @@ export const HISTORY_THEME_LABELS: Record<Exclude<HistoryTheme, "all">, string> 
 type HistoryGridCardProps = {
   seed: HistorySeed;
   isCurrent: boolean;
+  completed?: boolean;
   onSelect: (seed: HistorySeed) => void;
 };
 
-export function HistoryGridCard({ seed, isCurrent, onSelect }: HistoryGridCardProps) {
+export function HistoryGridCard({
+  seed,
+  isCurrent,
+  completed = false,
+  onSelect,
+}: HistoryGridCardProps) {
   return (
     <button
       type="button"
-      className="history-grid-card"
+      className={`history-grid-card${completed ? " is-completed" : ""}`}
       aria-current={isCurrent ? "true" : undefined}
-      aria-label={`再次闯入：${seed.eventName}`}
+      aria-label={`${completed ? "再次闯入" : "闯入"}：${seed.eventName}`}
       onClick={() => onSelect(seed)}
     >
       <img
@@ -38,8 +44,9 @@ export function HistoryGridCard({ seed, isCurrent, onSelect }: HistoryGridCardPr
       <span className="history-grid-card__location">{seed.location}</span>
       <span className="history-grid-card__theme">{HISTORY_THEME_LABELS[themeForSeed(seed)]}</span>
       <span className="history-grid-card__replay">
-        <ArrowCounterClockwise size={14} weight="bold" />
-        再次闯入
+        {completed
+          ? <><CheckCircle size={14} weight="fill" /> 已通关 · 再次闯入 <ArrowCounterClockwise size={14} weight="bold" /></>
+          : <>闯入这一刻 <ArrowRight size={14} weight="bold" /></>}
       </span>
     </button>
   );

@@ -115,7 +115,9 @@ const requiredRuntimeMarkers = [
   "auto",
   "本作品包含人工智能生成内容",
   "体验说明",
-  "个历史现场，随机抽一个开局",
+  "100 个真实转折点 · 13 个剧本组",
+  "首组选定不花代币",
+  "解锁代币",
 ];
 const missingRuntimeMarkers = requiredRuntimeMarkers.filter((marker) => !bundledText.includes(marker));
 if (missingRuntimeMarkers.length > 0) {

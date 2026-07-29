@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useGame } from "./hooks/useGame";
+import { useUnlockProgress } from "./hooks/useUnlockProgress";
 import { DEFAULT_PICKER_CONTEXT, SeedPickerScreen } from "./screens/SeedPickerScreen";
 import { TimelineEventScreen } from "./screens/TimelineEventScreen";
 import { ButterflyEchoScreen } from "./screens/ButterflyEchoScreen";
@@ -23,9 +24,23 @@ const REPORT_SHARE_LINE = "我在《哎！我改变了历史？》走完了一�
 export function App() {
   const game = useGame();
   const { state } = game;
+  const unlockProgress = useUnlockProgress(state.unlockedSeedIds);
   const [pickerContext, setPickerContext] = useState(DEFAULT_PICKER_CONTEXT);
   const [announcementOpen, setAnnouncementOpen] = useState(() => state.phase === "selecting");
   const [isMobileSave] = useState(() => isMobileSavePlatform());
+  const [completionRewardSeedId, setCompletionRewardSeedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const seedId = state.scenario?.seed.id;
+    if (state.phase !== "result" || !state.result || !seedId) return;
+    if (unlockProgress.completeSeed(seedId)) setCompletionRewardSeedId(seedId);
+  }, [state.phase, state.result, state.scenario?.seed.id, unlockProgress.completeSeed]);
+
+  const restartToGroups = useCallback(() => {
+    setPickerContext(DEFAULT_PICKER_CONTEXT);
+    setCompletionRewardSeedId(null);
+    game.restart();
+  }, [game.restart]);
 
   const prepareResultImage = async (
     result: NonNullable<typeof state.result>,
@@ -46,9 +61,12 @@ export function App() {
       <SeedPickerScreen
         context={pickerContext}
         muted={game.muted}
-        unlockedSeedIds={state.unlockedSeedIds}
+        unlockedGroupIds={unlockProgress.unlockedGroups}
+        completedSeedIds={unlockProgress.completedSeeds}
+        tokens={unlockProgress.tokens}
         onContextChange={setPickerContext}
         onSelect={game.selectSeed}
+        onUnlockGroup={unlockProgress.unlockGroup}
         onPlaySound={game.playSound}
         onShowAnnouncement={() => setAnnouncementOpen(true)}
         onToggleMute={game.toggleMute}
@@ -67,7 +85,7 @@ export function App() {
         onChoose={game.choose}
         onPlaySound={game.playSound}
         onRoll={game.rollChoices}
-        onExit={game.restart}
+        onExit={restartToGroups}
         sceneImage={state.currentTurn.chapter <= 2 && state.scenario
           ? historyAssetForSeed(state.scenario.seed)
           : visualAssetForTurn(state.currentTurn)}
@@ -79,7 +97,7 @@ export function App() {
         echo={state.echo}
         isFinal={state.currentTurn?.chapter === 4}
         onContinue={game.continueTimeline}
-        onExit={game.restart}
+        onExit={restartToGroups}
         sceneImage={state.currentTurn
           ? state.currentTurn.chapter <= 2 && state.scenario
             ? historyAssetForSeed(state.scenario.seed)
@@ -88,7 +106,7 @@ export function App() {
       />
     );
   } else if (state.phase === "error" && state.error) {
-    screen = <ErrorScreen error={state.error} onRetry={game.retry} onRestart={game.restart} />;
+    screen = <ErrorScreen error={state.error} onRetry={game.retry} onRestart={restartToGroups} />;
   } else if (state.phase === "result" && state.result) {
     screen = (
       <AlternatePresentScreen
@@ -99,7 +117,10 @@ export function App() {
         onShare={sharePreparedReport}
         onDownload={downloadPreparedReport}
         onDispose={disposePreparedReport}
-        onRestart={game.restart}
+        onRestart={restartToGroups}
+        unlockReward={completionRewardSeedId === state.scenario?.seed.id
+          ? { tokens: unlockProgress.tokens }
+          : undefined}
       />
     );
   } else {
@@ -120,7 +141,7 @@ export function App() {
         progressStage={game.generationStage}
         ready={Boolean(state.pendingTurn)}
         onContinue={game.revealGeneratedTurn}
-        onCancel={game.restart}
+        onCancel={restartToGroups}
       />
     );
   }

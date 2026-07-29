@@ -30,6 +30,7 @@ export function AlternatePresentScreen({
   onDownload,
   onDispose,
   onRestart,
+  unlockReward,
 }: {
   result: AlternatePresent;
   deviation: number;
@@ -39,6 +40,7 @@ export function AlternatePresentScreen({
   onDownload: (prepared: PreparedReportImage) => "downloaded";
   onDispose: (prepared: PreparedReportImage) => void;
   onRestart: () => void;
+  unlockReward?: { tokens: number };
 }) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState<string | null>(null);
@@ -155,11 +157,20 @@ export function AlternatePresentScreen({
   const busy = saveState === "preparing" || saveState === "sharing";
 
   return (
-    <main className={`result-screen is-${page}`}>
+    <main className={`result-screen is-${page}${unlockReward ? " has-unlock-reward" : ""}`}>
       <nav className="result-report-tabs" aria-label="切换最终报告">
         <button type="button" disabled={busy} className={page === "biography" ? "is-active" : ""} onClick={() => changePage("biography")}>穿越者列传</button>
         <button type="button" disabled={busy} className={page === "world" ? "is-active" : ""} onClick={() => changePage("world")}>被改变的 2026</button>
       </nav>
+      {unlockReward ? (
+        <aside className="result-unlock-reward" role="status">
+          <span><CheckCircle size={20} weight="fill" /></span>
+          <div>
+            <strong>首次通关 · 解锁代币 +1</strong>
+            <small>现在持有 {unlockReward.tokens} 枚，可回到剧本组打开新历史。</small>
+          </div>
+        </aside>
+      ) : null}
       <ResultFrontPage result={result} page={page} reportId="result-capture" />
       <div className="result-actions">
         <button className="primary-command" type="button" onClick={() => void primaryAction()} disabled={busy}>

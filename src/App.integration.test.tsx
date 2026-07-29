@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { endingFixture, turnFixture } from "./test/fixtures";
 import { parseAlternatePresent, parseTimelineTurn } from "./game/schema";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./game/timelinePlan";
+import { UNLOCK_PROGRESS_STORAGE_KEY } from "./services/unlockProgress";
 
 const engine = vi.hoisted(() => ({
   generateNextTurn: vi.fn(),
@@ -59,16 +60,17 @@ function completedEnding() {
   }));
 }
 
-async function enterDrawnHistory(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "开始抽取" }));
-  await user.click(screen.getByRole("button", { name: "随机抽一个开局" }));
-  const entry = await screen.findByRole("button", { name: /闯入这一刻：/ });
+async function enterGroupedHistory(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "开始选组" }));
+  await user.click(screen.getByRole("button", { name: "免费解锁剧本组：三国" }));
+  const [entry] = await screen.findAllByRole("button", { name: /^闯入：/ });
   await user.click(entry);
 }
 
 describe("complete four-decision player journey", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     vi.spyOn(Math, "random").mockReturnValue(0.12);
     engine.generateNextTurn.mockImplementation(
       (_scenario, _playedTurns, chapter: Exclude<DecisionChapter, 1>) => Promise.resolve(turnFor(chapter)),
@@ -85,17 +87,17 @@ describe("complete four-decision player journey", () => {
   it("introduces the complete player-facing rules on entry", () => {
     render(<App />);
 
-    expect(screen.getByRole("dialog", { name: "抽一段历史，亲手改写它" })).toBeVisible();
-    expect(screen.getByText("先抽一个历史开局")).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "选一段历史，亲手改写它" })).toBeVisible();
+    expect(screen.getByText("先选剧本组，再选现场")).toBeVisible();
     expect(screen.getByText("每一幕，只选一张牌")).toBeVisible();
     expect(screen.getByText("不满意，就 Roll 换牌")).toBeVisible();
-    expect(screen.getByText("四次选择，走完一生")).toBeVisible();
+    expect(screen.getByText("通关得币，继续开新组")).toBeVisible();
   });
 
-  it("plays one protagonist through four decisions, unlocks the history, and reaches 2026", async () => {
+  it("plays one protagonist through four decisions, earns one token, and keeps the history replayable", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await enterDrawnHistory(user);
+    await enterGroupedHistory(user);
 
     for (let chapter = 1; chapter <= 4; chapter += 1) {
       expect(await screen.findByRole("list", { name: "四节点时间线" })).toBeVisible();
@@ -116,6 +118,16 @@ describe("complete four-decision player journey", () => {
     }
 
     expect(await screen.findByRole("heading", { name: "沈砚列传" })).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("首次通关 · 解锁代币 +1");
+    expect(screen.getByRole("status")).toHaveTextContent("现在持有 1 枚");
+    expect(JSON.parse(localStorage.getItem(UNLOCK_PROGRESS_STORAGE_KEY)!)).toMatchObject({
+      version: 1,
+      progress: {
+        unlockedGroups: ["three-kingdoms"],
+        completedSeeds: [expect.any(String)],
+        tokens: 1,
+      },
+    });
     expect(screen.getByText("一生纪事")).toBeVisible();
     expect(screen.queryByText("一生四决")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
@@ -123,11 +135,12 @@ describe("complete four-decision player journey", () => {
     expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(endingFixture.ordinaryLife2026.join("；"));
 
     await user.click(screen.getByRole("button", { name: "再改一次历史" }));
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /已解锁档案/ }));
-    expect(screen.getByRole("heading", { name: "已解锁 1 个瞬间" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "下一段历史，由你决定" })).toBeVisible();
+    expect(screen.getByText("1 / 13")).toBeVisible();
+    expect(screen.getByText("1 / 100")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "打开剧本组：三国" }));
 
-    const replay = screen.getByRole("button", { name: /再次闯入：/ });
+    const replay = screen.getByRole("button", { name: /^再次闯入：/ });
     await user.click(replay);
     expect(screen.queryByText("AI 辅助创作 · 固定开场")).not.toBeInTheDocument();
     expect(screen.getByRole("list", { name: "四节点时间线" })).toBeVisible();
@@ -137,7 +150,7 @@ describe("complete four-decision player journey", () => {
   it("uses one prepared Roll and two live AI Rolls without exposing free text", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await enterDrawnHistory(user);
+    await enterGroupedHistory(user);
 
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText("AI 辅助创作 · 固定开场")).not.toBeInTheDocument();
@@ -166,10 +179,10 @@ describe("complete four-decision player journey", () => {
     )).toBeDisabled();
   });
 
-  it("keeps audio, archive, and the rules announcement in one secondary menu", async () => {
+  it("keeps audio and the rules announcement in one secondary menu", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "开始抽取" }));
+    await user.click(screen.getByRole("button", { name: "开始选组" }));
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
@@ -177,6 +190,6 @@ describe("complete four-decision player journey", () => {
 
     await user.click(screen.getByRole("button", { name: "首页设置" }));
     await user.click(screen.getByRole("menuitem", { name: /游戏说明/ }));
-    expect(screen.getByRole("dialog", { name: "抽一段历史，亲手改写它" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "选一段历史，亲手改写它" })).toBeVisible();
   });
 });

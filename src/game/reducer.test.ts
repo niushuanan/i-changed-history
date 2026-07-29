@@ -138,7 +138,7 @@ describe("single-life choice-only game reducer", () => {
     expect(chosen.echo?.choiceLabel).toBe(canonical);
   });
 
-  it("restarts at the destiny draw while preserving unlocked histories", () => {
+  it("restarts at the group browser while preserving legacy unlocked histories", () => {
     const selecting = createInitialGameState();
     const started = {
       ...gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] }),
