@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
 import { parseTimelineTurn } from "./schema";
-import { buildBiographyMessages, buildContinuationMessages, buildWorldReportMessages } from "./prompts";
+import {
+  buildBiographyMessages,
+  buildContinuationMessages,
+  buildRerollMessages,
+  buildWorldReportMessages,
+} from "./prompts";
 import type { PlayedTurn } from "./prompts";
 import type { GameScenario } from "./reducer";
 import { CHAPTER_NAMES, getTimelineNode, type DecisionChapter } from "./timelinePlan";
@@ -73,11 +78,11 @@ describe("modern traveler AI prompt contract", () => {
   it("serializes one compact narrative context instead of duplicated histories", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
-    const continuationMessages = buildContinuationMessages(scenario, played, 8);
+    const continuationMessages = buildContinuationMessages(scenario, played, 4);
     const continuation = continuationMessages.at(-1)!.content;
     const protocol = continuationMessages[1].content;
-    const biography = buildBiographyMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
-    const worldReport = buildWorldReportMessages(scenario, Array(12).fill(played[0])).at(-1)!.content;
+    const biography = buildBiographyMessages(scenario, Array(4).fill(played[0])).at(-1)!.content;
+    const worldReport = buildWorldReportMessages(scenario, Array(4).fill(played[0])).at(-1)!.content;
     expect(continuation).toContain('"narrativeContext"');
     expect(continuation).toContain('"lifeIndex"');
     expect(continuation).toContain('"activeConsequences"');
@@ -87,15 +92,15 @@ describe("modern traveler AI prompt contract", () => {
     expect(biography).not.toContain("customIntervention");
     expect(worldReport).not.toContain("customIntervention");
     expect(continuation).toContain(turnFixture.choices[0].label);
-    expect(continuation).toContain("盛年危局");
-    expect(continuation).toContain("1927");
-    expect(biography).toContain("十二次选择");
+    expect(continuation).toContain("生命终章");
+    expect(continuation).toContain(String(getTimelineNode(4, scenario.seed.year).targetYear));
+    expect(biography).toContain("四次选择");
     expect(worldReport).toContain("2026");
   });
 
   it("gives the two concurrent ending writers disjoint output ownership", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const played = Array(12).fill({ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho });
+    const played = Array(4).fill({ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho });
     const biography = buildBiographyMessages(scenario, played).at(-1)!.content;
     const worldReport = buildWorldReportMessages(scenario, played).at(-1)!.content;
 
@@ -112,7 +117,7 @@ describe("modern traveler AI prompt contract", () => {
 
   it("asks for three concise complete ordinary-life sentences", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
-    const played = Array(12).fill({ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho });
+    const played = Array(4).fill({ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho });
     const worldReport = buildWorldReportMessages(scenario, played).at(-1)!.content;
 
     expect(worldReport).toContain("恰好三个互不重复");
@@ -126,7 +131,7 @@ describe("modern traveler AI prompt contract", () => {
   it("forces one aging protagonist through butterfly-effect topic changes", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
-    const continuationMessages = buildContinuationMessages(scenario, played, 8);
+    const continuationMessages = buildContinuationMessages(scenario, played, 4);
     const continuation = continuationMessages.at(-1)!.content;
     const protocol = continuationMessages[1].content;
 
@@ -192,12 +197,12 @@ describe("modern traveler AI prompt contract", () => {
   });
 
   it("keeps all rewrites immutable but injects only three active mandates into the current turn", () => {
-    const continuation = buildContinuationMessages(scenario, customHistory(5), 6);
+    const continuation = buildContinuationMessages(scenario, customHistory(3), 4);
     const payload = JSON.parse(continuation.at(-1)!.content);
 
-    expect(payload.narrativeContext.playerCanon).toHaveLength(5);
+    expect(payload.narrativeContext.playerCanon).toHaveLength(3);
     expect(payload.narrativeContext.activePlayerCanon.map((item: { chapter: number }) => item.chapter))
-      .toEqual([3, 4, 5]);
+      .toEqual([1, 2, 3]);
     expect(payload.task).toContain("activePlayerCanon");
     expect(payload.task).not.toContain("对 narrativeContext.playerCanon 的每项玩家正史：causalLedger");
   });
@@ -205,7 +210,7 @@ describe("modern traveler AI prompt contract", () => {
   it("prefers familiar Chinese anchors without forcing a geographic jump", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
-    const continuation = buildContinuationMessages(scenario, played, 8).at(-1)!.content;
+    const continuation = buildContinuationMessages(scenario, played, 4).at(-1)!.content;
 
     expect(continuation).toContain("允许留在同一地区");
     expect(continuation).toContain("中国玩家；先给熟悉的真实历史锚点");
@@ -224,7 +229,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("一个可见历史锚点");
     expect(protocol).toContain("失败代价");
     expect(protocol).toContain("displayLabel 为牌面标题");
-    expect(protocol).toContain("玩家本节点唯一一次 Roll");
+    expect(protocol).toContain("第一次 Roll 的零等待结果");
+    expect(protocol).toContain("禁止默认套用坦克、神兽");
+    expect(protocol).toContain("不能重复同一召唤");
     expect(protocol).toContain("只写真实历史的对应结果");
     expect(protocol).toContain('"causalBridge":"24-30 字的单个完整短句');
     expect(protocol).toContain("不要使用逗号或分号");
@@ -246,6 +253,27 @@ describe("modern traveler AI prompt contract", () => {
 
     expect(continuation).toContain("本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同");
     expect(continuation).toContain("至少逐字写出一个核心人物、制度、地点、器物或动作名");
+  });
+
+  it("makes the second and third Rolls live, novel, and scene-preserving", () => {
+    const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const played = [{
+      turn: parsedTurn,
+      selectedChoiceId: "A" as const,
+      selectedChoiceLabel: parsedTurn.choices[0].label,
+      selectedDeviationClass: "nudge" as const,
+      resolvedEcho: parsedTurn.choices[0].instantEcho,
+    }];
+    const messages = buildRerollMessages(scenario, played, parsedTurn, 2, [
+      ...parsedTurn.rollChoices,
+    ]);
+    const payload = JSON.parse(messages.at(-1)!.content);
+
+    expect(payload.task).toContain("第 2 次 Roll");
+    expect(payload.task).toContain("只输出 choices");
+    expect(payload.task).toContain("不要默认写坦克、神兽、飞船、召唤术");
+    expect(payload.allPreviouslySeenCards).toHaveLength(6);
+    expect(payload.currentScene.headline).toBe(parsedTurn.headline);
   });
 
 });

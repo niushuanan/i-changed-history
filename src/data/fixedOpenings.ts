@@ -42,6 +42,130 @@ function decisionAction(seed: HistorySeed): string {
   return clean(seed.decision).replace(/^是否/, "");
 }
 
+function seedHash(seed: HistorySeed): number {
+  return Math.abs(seed.id.split("").reduce(
+    (sum, character, index) => sum + character.charCodeAt(0) * (index + 1),
+    0,
+  ));
+}
+
+const SURREAL_TEMPLATES = [
+  {
+    displayLabel: "让谎言现形",
+    label: (event: string) => `让${event}所有谎言化为黑烟并在期限前公开审判`,
+    intent: "改变语言与真相的物理规则",
+    actor: "你与被迫说真话的在场者",
+    action: "让谎言化为可见黑烟并公开核验",
+    result: "所有隐瞒当场留下可见证据",
+    cost: "沉默也会被误判为欺骗",
+    beneficiary: "长期被蒙蔽的人",
+    payer: "依赖秘密维系统治的人",
+  },
+  {
+    displayLabel: "借来明日记忆",
+    label: (event: string) => `让${event}众人先记住明日后果再于此刻重新表决`,
+    intent: "折叠记忆与时间的先后次序",
+    actor: "你与提前拥有明日记忆的众人",
+    action: "把明日后果写入众人记忆后重新表决",
+    result: "众人带着后果记忆重做决定",
+    cost: "真实经历与未来记忆开始混淆",
+    beneficiary: "原本无法预见代价的人",
+    payer: "靠信息差获利的权威",
+  },
+  {
+    displayLabel: "折叠地平线",
+    label: (event: string) => `折叠${event}两地距离让援军与粮秣同时抵达现场`,
+    intent: "改变空间距离与后勤秩序",
+    actor: "你与跨过折叠地平线的队伍",
+    action: "折叠两地距离并搬运援军粮秣",
+    result: "远方资源在一刻内抵达现场",
+    cost: "被折叠的边界再也无法稳定",
+    beneficiary: "原本等不到援助的人",
+    payer: "依靠地理封锁的一方",
+  },
+  {
+    displayLabel: "让文字拒绝服从",
+    label: (event: string) => `命令${event}所有文书自行删去谎言只保留真实条款`,
+    intent: "让文字获得拒绝虚假命令的能力",
+    actor: "你与突然觉醒的所有文字",
+    action: "让文书删去谎言并重排真实条款",
+    result: "伪令与密约在纸面自行消失",
+    cost: "私人书信也不再能够保密",
+    beneficiary: "被文书权力压制的人",
+    payer: "操纵档案与诏令的人",
+  },
+  {
+    displayLabel: "冻结一刻因果",
+    label: (event: string) => `冻结${event}一刻钟因果让所有人先看清每种结局`,
+    intent: "暂停因果并公开所有选择后果",
+    actor: "你与停在因果之外的现场众人",
+    action: "冻结一刻因果并展示每种结局",
+    result: "所有人同时看见各自选择的后果",
+    cost: "有人开始拒绝承担任何未知",
+    beneficiary: "过去无权知情的人",
+    payer: "依靠仓促决策的人",
+  },
+  {
+    displayLabel: "让誓言长出锁链",
+    label: (event: string) => `让${event}每句誓言化为锁链束缚违背承诺的人`,
+    intent: "把政治承诺变成不可逃避的实体",
+    actor: "你与被誓言锁链缠住的各方",
+    action: "让公开誓言化为约束违约者的锁链",
+    result: "所有承诺立即获得实体约束",
+    cost: "善意的变通也会触发惩罚",
+    beneficiary: "长期遭受背约的人",
+    payer: "习惯反复毁约的强者",
+  },
+  {
+    displayLabel: "唤醒器物作证",
+    label: (event: string) => `唤醒${event}关键器物让它们逐件陈述亲历的真相`,
+    intent: "让沉默的物证拥有记忆与证词",
+    actor: "你与突然能够作证的历史器物",
+    action: "唤醒关键器物并公开其全部记忆",
+    result: "现场物证逐件说出亲历事实",
+    cost: "无人还能隐藏器物见过的秘密",
+    beneficiary: "缺少人证的受害者",
+    payer: "销毁证词却保留器物的人",
+  },
+  {
+    displayLabel: "打开未来旁听席",
+    label: (event: string) => `打开${event}通往未来的旁听席让后世民众现场质询`,
+    intent: "让未来社会直接审视此刻的决定",
+    actor: "你与从未来旁听席发问的民众",
+    action: "打开未来旁听席并接受后世公开质询",
+    result: "后世民众当场参与这次决定",
+    cost: "当代秩序失去解释自己的特权",
+    beneficiary: "将承担长期后果的普通人",
+    payer: "只对当下负责的掌权者",
+  },
+] as const;
+
+function surrealChoice(seed: HistorySeed, offset: number): TimelineTurn["choices"][2] {
+  const eventKey = compactCompleteClause(clean(seed.eventName), 12, "历史现场");
+  const template = SURREAL_TEMPLATES[(seedHash(seed) + offset) % SURREAL_TEMPLATES.length];
+  const deadline = clip(clean(seed.urgency), 20);
+  return {
+    id: "C",
+    label: template.label(eventKey),
+    displayLabel: template.displayLabel,
+    intent: template.intent,
+    deviationClass: "rupture",
+    usesModernKnowledge: false,
+    actionSpec: {
+      actor: template.actor,
+      action: template.action,
+      target: clip(clean(seed.eventName), 28),
+      deadline,
+    },
+    instantEcho: {
+      directResult: template.result,
+      unexpectedCost: template.cost,
+      beneficiary: template.beneficiary,
+      payer: template.payer,
+    },
+  };
+}
+
 function fixedNarrative(seed: HistorySeed): string {
   const first = `${clip(clean(seed.baselineFacts[0]), 30)}，${clip(clean(seed.baselineFacts[1]), 28)}。`;
   const second = `${clip(clean(seed.baselineFacts[2]), 30)}，你以${clip(clean(seed.role), 22)}的身份抵达现场。`;
@@ -97,21 +221,7 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
         payer: "依赖原有秩序的执行者",
       },
     },
-    {
-      id: "C",
-      label: `召来钢铁巨兽，以轰鸣逼迫${eventKey}各方立即停手`,
-      displayLabel: "召来钢铁巨兽",
-      intent: "以超越时代常识的力量撕开历史",
-      deviationClass: "rupture",
-      usesModernKnowledge: true,
-      actionSpec: { actor: "你与突然降临的钢铁巨兽", action: "以装甲与轰鸣封锁现场", target: clip(event, 28), deadline },
-      instantEcho: {
-        directResult: clip(`${eventKey}各方因钢铁巨兽当场停手`, 80),
-        unexpectedCost: "所有阵营开始争夺异物",
-        beneficiary: "被原定冲突卷入的人",
-        payer: "无法解释神迹的旧权威",
-      },
-    },
+    surrealChoice(seed, 0),
   ];
 }
 
@@ -155,21 +265,7 @@ function rollChoices(seed: HistorySeed): TimelineTurn["rollChoices"] {
         payer: "仍效忠原令的执行者",
       },
     },
-    {
-      id: "C",
-      label: `召来山海异兽驮走${eventKey}的关键器物，让全场改奉兽谕`,
-      displayLabel: "请神兽改写诏令",
-      intent: "让神话实体直接进入历史因果链",
-      deviationClass: "rupture",
-      usesModernKnowledge: false,
-      actionSpec: { actor: "你与降临现场的山海异兽", action: "驮走关键器物并颁下兽谕", target: clip(event, 28), deadline },
-      instantEcho: {
-        directResult: "关键器物被异兽带离现场",
-        unexpectedCost: "民众开始把神迹凌驾于制度",
-        beneficiary: "借神谕摆脱旧令的人",
-        payer: "依靠文书与礼法的权威",
-      },
-    },
+    surrealChoice(seed, 3),
   ];
 }
 

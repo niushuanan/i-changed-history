@@ -13,11 +13,10 @@ const completeReportSentence = (max: number, label: string, min = 1) => z.string
   },
   `${label}必须以完整句结束，不能停在半句话中`,
 );
-const chapterSchema = z.number().int().min(1).max(12).transform((value) => value as DecisionChapter);
-const causalChapterSchema = z.number().int().min(0).max(12);
+const chapterSchema = z.number().int().min(1).max(4).transform((value) => value as DecisionChapter);
+const causalChapterSchema = z.number().int().min(0).max(4);
 const chapterNameSchema = z.enum([
-  "历史现场", "三日余波", "六周震荡", "立足之年", "声名渐起", "执掌一方",
-  "生涯转折", "盛年危局", "守成之争", "暮年抉择", "最后布局", "生命终章",
+  "历史现场", "三日余波", "人生转折", "生命终章",
 ]);
 const lifeStageSchema = z.enum(JUMP_LABELS);
 const deviationClassSchema = z.enum(["nudge", "reform", "rupture"]);
@@ -589,6 +588,11 @@ export const storedTimelineTurnSchema = z.preprocess(
   compatibleStoredTimelineTurnSchema,
 );
 
+export const storedChoiceSetSchema = z.preprocess(
+  normalizeChoiceSet,
+  choicesSchema,
+);
+
 const historyTimelineItemSchema = z.object({
   chapter: chapterSchema,
   yearLabel: requiredString,
@@ -614,7 +618,7 @@ const biographyFields = {
       finalMoment: completeReportSentence(180, "临终场景"),
       lastingLegacy: completeReportSentence(180, "身后遗产"),
     }),
-    historyTimeline: z.array(historyTimelineItemSchema).length(12),
+    historyTimeline: z.array(historyTimelineItemSchema).length(4),
 } as const;
 
 const posthumousChronicleItemSchema = z.object({
@@ -671,7 +675,7 @@ const alternatePresentObjectSchema = z
         context.addIssue({
           code: "custom",
           path: ["historyTimeline", index, "chapter"],
-          message: "结局时间线必须按第一节点到第十二节点排列",
+          message: "结局时间线必须按第一节点到第四节点排列",
         });
       }
     });
@@ -696,7 +700,7 @@ const compatibleStoredAlternatePresentObjectSchema = z
       yearLabel: requiredString,
       playerChoice: requiredString,
       consequence: requiredString,
-    })).length(12),
+    })).length(4),
     ordinaryLife2026: z.tuple([boundedString(72), boundedString(72), boundedString(72)]),
     posthumousChronicle: z.tuple([
       z.object({ period: boundedString(18), title: boundedString(22), narrative: boundedString(128), inheritedChange: boundedString(96) }),
@@ -714,7 +718,7 @@ const compatibleStoredAlternatePresentObjectSchema = z
         context.addIssue({
           code: "custom",
           path: ["historyTimeline", index, "chapter"],
-          message: "结局时间线必须按第一节点到第十二节点排列",
+          message: "结局时间线必须按第一节点到第四节点排列",
         });
       }
     });
@@ -730,6 +734,7 @@ export const storedAlternatePresentSchema = z.preprocess(
 );
 
 export type TimelineTurn = z.infer<typeof timelineTurnSchema>;
+export type ChoiceSet = z.infer<typeof choicesSchema>;
 export type AlternatePresent = z.infer<typeof alternatePresentSchema>;
 export type BiographyReport = z.infer<typeof biographyReportSchema>;
 export type WorldReport = z.infer<typeof worldReportSchema>;
@@ -855,6 +860,16 @@ export function parseTimelineTurn(
 
 export function parseCustomActionResolution(raw: string): CustomActionResolution {
   return customActionResolutionSchema.parse(parseJsonObject(raw));
+}
+
+export function parseChoiceSet(raw: string): ChoiceSet {
+  const parsed = parseJsonObject(raw);
+  const candidate = asRecord(parsed);
+  const choices = choicesSchema.parse(normalizeChoiceSet(candidate?.choices ?? parsed));
+  if (new Set(choices.map((choice) => choice.deviationClass)).size !== 3) {
+    throw new Error("现场发出的三张牌必须恰好覆盖循史、破局和天外三种强度");
+  }
+  return choices;
 }
 
 export function parseBiographyReport(

@@ -137,6 +137,7 @@ function ChoiceCard({
   onInspect,
   muted,
   dealIndex,
+  disabled,
 }: {
   choice: Choice;
   onChoose: (id: "A" | "B" | "C") => void;
@@ -145,6 +146,7 @@ function ChoiceCard({
   onInspect: (choice: Choice, trigger: HTMLButtonElement) => void;
   muted: boolean;
   dealIndex: number;
+  disabled: boolean;
 }) {
   const [dragging, setDragging] = useState(false);
   const [pressing, setPressing] = useState(false);
@@ -210,7 +212,7 @@ function ChoiceCard({
   };
 
   const begin = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (committing) return;
+    if (committing || disabled) return;
     inspectedRef.current = false;
     committedRef.current = false;
     pointerIdRef.current = event.pointerId;
@@ -294,6 +296,7 @@ function ChoiceCard({
       aria-label={`${meta.name}牌，${choice.displayLabel}，向上划选择，长按查看详情`}
       className={`choice-card choice-card--${choice.deviationClass}${pressing ? " is-pressing" : ""}${dragging ? " is-dragging" : ""}${armed ? " is-armed" : ""}${committing ? " is-committing" : ""}`}
       data-choice-id={choice.id}
+      disabled={disabled}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -330,48 +333,70 @@ function ChoiceCard({
 
 export function ChoiceList({
   choices,
-  rollUsed,
+  rollCount = 0,
+  rollLoading = false,
+  rollError,
   onChoose,
   onRoll,
   onCommitVisualStart,
   muted = false,
 }: {
   choices: TimelineTurn["choices"];
-  rollUsed: boolean;
+  rollCount?: number;
+  rollLoading?: boolean;
+  rollError?: string | null;
   onChoose: (id: "A" | "B" | "C") => void;
   onRoll: () => void;
   onCommitVisualStart?: (id: "A" | "B" | "C") => void;
   muted?: boolean;
 }) {
   const [detailState, setDetailState] = useState<{ choice: Choice; origin: CardOrigin } | null>(null);
-  const [rollPhase, setRollPhase] = useState<"idle" | "collecting" | "dealing">("idle");
+  const [rollPhase, setRollPhase] = useState<"idle" | "collecting" | "waiting" | "dealing">("idle");
   const [committingId, setCommittingId] = useState<"A" | "B" | "C" | null>(null);
   const [holdingId, setHoldingId] = useState<"A" | "B" | "C" | null>(null);
   const rollTimersRef = useRef<number[]>([]);
+  const previousRollCountRef = useRef(rollCount);
   const inspectTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const rolling = rollPhase !== "idle";
+  const rolling = rollPhase !== "idle" || rollLoading;
+  const remainingRolls = Math.max(0, 3 - rollCount);
 
   useEffect(() => {
     playCardSound("deal", muted);
   }, [choices, muted]);
+
+  useEffect(() => {
+    const previous = previousRollCountRef.current;
+    previousRollCountRef.current = rollCount;
+    if (rollCount <= previous || rollPhase !== "waiting") return;
+    setRollPhase("dealing");
+    const reducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    rollTimersRef.current.push(window.setTimeout(
+      () => setRollPhase("idle"),
+      reducedMotion ? 80 : 360,
+    ));
+  }, [rollCount, rollPhase]);
+
+  useEffect(() => {
+    if (!rollError || rollPhase !== "waiting") return;
+    setRollPhase("idle");
+  }, [rollError, rollPhase]);
 
   useEffect(() => () => {
     rollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
   }, []);
 
   const roll = () => {
-    if (rollUsed || rolling) return;
+    if (remainingRolls === 0 || rolling) return;
     setRollPhase("collecting");
     playCardSound("roll", muted);
     const reducedMotion = typeof window.matchMedia === "function"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const collectDuration = reducedMotion ? 60 : 180;
-    const totalDuration = reducedMotion ? 110 : 460;
     rollTimersRef.current.push(window.setTimeout(() => {
       onRoll();
-      setRollPhase("dealing");
+      setRollPhase("waiting");
     }, collectDuration));
-    rollTimersRef.current.push(window.setTimeout(() => setRollPhase("idle"), totalDuration));
   };
 
   const inspect = (choice: Choice, trigger: HTMLButtonElement) => {
@@ -402,7 +427,7 @@ export function ChoiceList({
   return (
     <>
       <div
-        className={`rogue-choice-table${rollPhase === "collecting" ? " is-collecting" : ""}${rollPhase === "dealing" ? " is-dealing" : ""}${committingId ? " is-committing" : ""}${holdingId ? " is-holding" : ""}`}
+        className={`rogue-choice-table${rollPhase === "collecting" ? " is-collecting" : ""}${rollPhase === "waiting" ? " is-waiting" : ""}${rollPhase === "dealing" ? " is-dealing" : ""}${committingId ? " is-committing" : ""}${holdingId ? " is-holding" : ""}`}
         data-committing-choice={committingId ?? undefined}
         data-holding-choice={holdingId ?? undefined}
       >
@@ -411,7 +436,8 @@ export function ChoiceList({
             <ChoiceCard
               choice={choice}
               dealIndex={index}
-              key={`${rollUsed ? "roll" : "initial"}-${choice.id}`}
+              disabled={rolling}
+              key={`${rollCount}-${choice.id}-${choice.displayLabel}`}
               muted={muted}
               onChoose={onChoose}
               onCommitStart={beginCommit}
@@ -421,18 +447,23 @@ export function ChoiceList({
           ))}
         </div>
         <button
-          aria-label={rollUsed ? "本节点已经重抽过一次" : "立即重抽三张预生成卡牌"}
+          aria-label={remainingRolls === 0
+            ? "本节点三次重抽已经用完"
+            : rollLoading
+              ? "AI 正在现场发牌"
+              : `重抽卡牌，还剩 ${remainingRolls} 次`}
           className="choice-roll"
-          disabled={rollUsed || rolling}
+          disabled={remainingRolls === 0 || rolling}
           onClick={roll}
-          title={rollUsed ? "本节点已使用" : "本节点仅一次，无需等待"}
+          title={remainingRolls === 0 ? "本节点已用完" : `本节点还可重抽 ${remainingRolls} 次`}
           type="button"
         >
           <span className="choice-roll__label">
             <ArrowsClockwise size={17} weight="bold" />
-            <span>{rolling ? "洗牌" : rollUsed ? "已用" : "ROLL"}</span>
+            <span>{rollPhase === "waiting" || rollLoading ? "发牌中" : remainingRolls === 0 ? "已用完" : `ROLL · ${remainingRolls}`}</span>
           </span>
         </button>
+        {rollError ? <small className="choice-roll__error" role="status">{rollError} · 可再次尝试</small> : null}
       </div>
       {detailState ? (
         <ChoiceDetail choice={detailState.choice} origin={detailState.origin} onClose={closeDetail} />

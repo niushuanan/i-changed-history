@@ -4,6 +4,9 @@ export type DeepSeekRequestKind =
   | "turn-primary"
   | "turn-repair"
   | "turn-recovery"
+  | "roll-primary"
+  | "roll-repair"
+  | "roll-recovery"
   | "ending-primary"
   | "ending-repair"
   | "ending-recovery";

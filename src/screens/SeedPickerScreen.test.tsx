@@ -1,343 +1,141 @@
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { browseHistorySeeds } from "../data/historySeeds";
-import { formatHistoricalYear } from "../data/historicalYear";
-import { EMPTY_FILTERS } from "../data/historyCatalog";
 import type { HistorySeed } from "../game/types";
 import {
+  chooseDestinySeed,
   DEFAULT_PICKER_CONTEXT,
   SeedPickerScreen,
   type PickerContext,
 } from "./SeedPickerScreen";
 
 const cards = browseHistorySeeds();
-const initialContext: PickerContext = {
-  mode: "filmstrip",
-  activeSeedId: cards[0].id,
-  filters: EMPTY_FILTERS,
-};
 
 function PickerHarness({
+  unlockedSeedIds = [],
   onSelect = vi.fn(),
+  onShowAnnouncement = vi.fn(),
   onToggleMute = vi.fn(),
-  muted = false,
 }: {
+  unlockedSeedIds?: readonly string[];
   onSelect?: (seed: HistorySeed) => void;
+  onShowAnnouncement?: () => void;
   onToggleMute?: () => void;
-  muted?: boolean;
 }) {
-  const [context, setContext] = useState<PickerContext>(initialContext);
-
+  const [context, setContext] = useState<PickerContext>(DEFAULT_PICKER_CONTEXT);
   return (
     <>
+      <output data-testid="picker-mode">{context.mode}</output>
       <output data-testid="active-seed-id">{context.activeSeedId}</output>
       <SeedPickerScreen
         context={context}
-        muted={muted}
+        muted={false}
+        unlockedSeedIds={unlockedSeedIds}
         onContextChange={setContext}
         onSelect={onSelect}
+        onShowAnnouncement={onShowAnnouncement}
         onToggleMute={onToggleMute}
       />
     </>
   );
 }
 
-describe("living history browser", () => {
+describe("destiny draw history entry", () => {
   beforeEach(() => {
-    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
-      configurable: true,
-      value: vi.fn(),
-    });
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.12);
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
-  it("defaults to only the complete chronological one-hundred-card filmstrip", () => {
-    expect(DEFAULT_PICKER_CONTEXT).toEqual(initialContext);
+  it("starts with one hidden destiny card instead of one hundred choices", () => {
     render(<PickerHarness />);
 
-    expect(screen.getByRole("button", { name: "首页设置" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("article")).toHaveLength(100);
-    expect(screen.getByText("（滑动可切换不同的历史瞬间）")).toBeVisible();
-    expect(screen.getByRole("navigation", { name: "历史年份，共 100 个节点" })).toBeVisible();
-    expect(screen.getByTestId("history-time-axis")).toHaveAttribute("aria-hidden", "true");
-    const years = screen.getAllByTestId("history-card-year").map((node) => Number(node.getAttribute("data-year")));
-    expect(years).toEqual([...years].sort((left, right) => left - right));
-    expect(screen.getAllByText(formatHistoricalYear(years[0])).length).toBeGreaterThan(0);
-    expect(screen.queryByText(String(years[0]))).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
+    expect(screen.getByRole("article", { name: "尚未揭晓的命运卡牌" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "随机滚动时间线，共 100 个节点" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "抽取我的命运" })).toBeEnabled();
+    expect(screen.getByText("优先抽到尚未解锁的历史")).toBeVisible();
   });
 
-  it("uses the artistic product wordmark without the old instructional subtitle", () => {
-    render(<PickerHarness />);
+  it("rushes across the timeline then reveals exactly one unchanged history card", () => {
+    const onSelect = vi.fn();
+    render(<PickerHarness onSelect={onSelect} />);
 
-    const heading = screen.getByRole("heading", { level: 1, name: "哎！我改变了历史？" });
-    expect(heading).toHaveClass("seed-picker__wordmark");
-    expect(heading.querySelector("img")).toHaveAttribute("src", "/assets/brand/history-wordmark.png");
-    expect(screen.queryByText("选择你要闯入的瞬间")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "首页设置" })).toHaveClass("picker-tool");
+    fireEvent.click(screen.getByRole("button", { name: "抽取我的命运" }));
+    expect(screen.getByRole("article", { name: "命运卡牌正在显影" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "时间疾驰中" })).toBeDisabled();
+
+    act(() => vi.advanceTimersByTime(60));
+
+    const revealedCard = screen.getByRole("article");
+    const entry = within(revealedCard).getByRole("button", { name: /闯入这一刻/ });
+    expect(within(revealedCard).getByTestId("history-card-poster-stack")).toBeVisible();
+    expect(within(revealedCard).getByTestId("history-card-dossier")).toHaveAttribute("aria-label", "闯入信息");
+    expect(within(revealedCard).getByTestId("history-card-action")).toBe(entry);
+    expect(screen.getByRole("button", { name: "再抽一次命运" })).toBeEnabled();
+
+    fireEvent.click(entry);
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
+      id: screen.getByTestId("active-seed-id").textContent,
+    }));
   });
 
-  it("uses the selected mobile-game card anatomy without hiding the complete entry brief", () => {
-    render(<PickerHarness />);
+  it("prioritizes locked histories and avoids immediately repeating the current result", () => {
+    const current = cards[0];
+    const locked = cards[2];
+    expect(chooseDestinySeed(
+      cards.slice(0, 3),
+      [cards[0].id, cards[1].id],
+      current.id,
+      () => 0,
+    )).toBe(locked);
 
-    const firstCard = screen.getAllByRole("article")[0];
-    const posterStack = within(firstCard).getByTestId("history-card-poster-stack");
-    const scene = within(firstCard).getByTestId("history-card-scene");
-    expect(scene.querySelectorAll("img")).toHaveLength(1);
-    expect(posterStack).toContainElement(scene);
-
-    const yearRail = within(firstCard).getByTestId("history-card-year-rail");
-    expect(within(yearRail).getByTestId("history-card-year-era")).toHaveTextContent(cards[0].year < 0 ? "公元前" : "公元");
-    expect(within(yearRail).getByTestId("history-card-year-number")).toHaveTextContent(String(Math.abs(cards[0].year)));
-    expect(within(yearRail).getByTestId("history-card-year-suffix")).toHaveTextContent("年");
-    expect(within(firstCard).getByTestId("history-card-position")).toHaveTextContent(`1 / ${cards.length}`);
-
-    const dossier = within(firstCard).getByTestId("history-card-dossier");
-    expect(dossier).toHaveAttribute("aria-label", "闯入信息");
-    expect(dossier).toHaveTextContent(cards[0].eventName);
-    expect(dossier).toHaveTextContent(cards[0].location);
-    expect(dossier).toHaveTextContent(cards[0].role);
-    expect(dossier).toHaveTextContent(cards[0].decision);
-    expect(dossier).toHaveTextContent(cards[0].urgency);
-    expect(posterStack).toContainElement(dossier);
-    expect(scene.nextElementSibling).toBe(dossier);
-
-    const action = within(firstCard).getByTestId("history-card-action");
-    expect(action).toHaveAccessibleName(`闯入这一刻：${cards[0].eventName}`);
-    expect(dossier).not.toContainElement(action);
-    expect(posterStack.nextElementSibling).toBe(action);
+    const allUnlocked = cards.slice(0, 3).map((seed) => seed.id);
+    expect(chooseDestinySeed(cards.slice(0, 3), allUnlocked, current.id, () => 0)).toBe(cards[1]);
   });
 
-  it("keeps the year rail to a stable era-and-year format without month or day detail", () => {
-    const detailedCardIndex = cards.findIndex((seed) => (
-      seed.year > 0
-      && seed.dateLabel.startsWith(`${seed.year}年`)
-      && seed.dateLabel !== `${seed.year}年`
-    ));
-    expect(detailedCardIndex).toBeGreaterThanOrEqual(0);
-    render(<PickerHarness />);
+  it("shows only completed histories in the secondary archive", async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const unlocked = [cards[4].id, cards[11].id];
+    render(<PickerHarness unlockedSeedIds={unlocked} />);
 
-    const detailedSeed = cards[detailedCardIndex];
-    const year = within(screen.getAllByRole("article")[detailedCardIndex]).getByTestId("history-card-year");
-    const detail = detailedSeed.dateLabel.replace(`${detailedSeed.year}年`, "");
-    expect(year).toHaveAccessibleName(formatHistoricalYear(detailedSeed.year));
-    expect(year).toHaveTextContent(`公元${detailedSeed.year}年`);
-    expect(year).not.toHaveTextContent(detail);
-    expect(
-      Array.from(within(year).getByTestId("history-card-year-era").children).map((node) => node.textContent),
-    ).toEqual(["公", "元"]);
-    expect(
-      Array.from(within(year).getByTestId("history-card-year-number").children).map((node) => node.textContent),
-    ).toEqual(Array.from(String(detailedSeed.year)));
-    expect(year.tagName).toBe("DIV");
-    expect(year).not.toHaveAttribute("datetime");
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /已解锁档案/ }));
+
+    expect(screen.getByTestId("picker-mode")).toHaveTextContent("archive");
+    expect(screen.getByRole("heading", { name: "已解锁 2 个瞬间" })).toBeVisible();
+    expect(screen.getByRole("button", { name: new RegExp(cards[4].eventName) })).toBeVisible();
+    expect(screen.getByRole("button", { name: new RegExp(cards[11].eventName) })).toBeVisible();
+    expect(screen.queryByText(cards[0].eventName)).not.toBeInTheDocument();
   });
 
-  it("consolidates filmstrip, grid, and audio into one dismissible settings menu", async () => {
+  it("keeps audio and the player-facing rules inside one settings menu", async () => {
+    vi.useRealTimers();
     const user = userEvent.setup();
     const onToggleMute = vi.fn();
-    render(<PickerHarness onToggleMute={onToggleMute} />);
+    const onShowAnnouncement = vi.fn();
+    render(
+      <PickerHarness
+        onToggleMute={onToggleMute}
+        onShowAnnouncement={onShowAnnouncement}
+      />,
+    );
 
-    const settings = screen.getByRole("button", { name: "首页设置" });
-    await user.click(settings);
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitem", { name: /玩法公告/ }));
+    expect(onShowAnnouncement).toHaveBeenCalledOnce();
 
-    expect(settings).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("menu", { name: "首页设置菜单" })).toBeVisible();
-    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("menuitemradio", { name: /表格/ })).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByRole("menuitemcheckbox", { name: /声音/ })).toHaveAttribute("aria-checked", "true");
-
-    const filmstripItem = screen.getByRole("menuitemradio", { name: /胶片/ });
-    const gridItem = screen.getByRole("menuitemradio", { name: /表格/ });
-    const audioItem = screen.getByRole("menuitemcheckbox", { name: /声音/ });
-    expect(filmstripItem).toHaveFocus();
-    await user.keyboard("{ArrowDown}");
-    expect(gridItem).toHaveFocus();
-    await user.keyboard("{End}");
-    expect(audioItem).toHaveFocus();
-    await user.keyboard("{Home}");
-    expect(filmstripItem).toHaveFocus();
-
-    await user.click(audioItem);
+    await user.click(screen.getByRole("button", { name: "首页设置" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /声音/ }));
     expect(onToggleMute).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
-
-    await user.click(settings);
-    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveFocus();
-    await user.keyboard("{Escape}");
-    expect(settings).toHaveAttribute("aria-expanded", "false");
-    expect(settings).toHaveFocus();
-    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
-  });
-
-  it("dismisses the settings menu when keyboard focus tabs away", async () => {
-    const user = userEvent.setup();
-    render(<PickerHarness />);
-
-    const settings = screen.getByRole("button", { name: "首页设置" });
-    await user.click(settings);
-    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveFocus();
-    await user.tab();
-    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
-    expect(settings).not.toHaveFocus();
-
-    await user.click(settings);
-    expect(screen.getByRole("menuitemradio", { name: /胶片/ })).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(screen.queryByRole("menu", { name: "首页设置菜单" })).not.toBeInTheDocument();
-  });
-
-  it("keeps the eleventh item current while switching filmstrip to grid and back", async () => {
-    const user = userEvent.setup();
-    const target = cards[10];
-    render(<PickerHarness />);
-
-    await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
-    const currentGridCard = screen.getByRole("button", { name: new RegExp(target.eventName) });
-    expect(currentGridCard).toHaveAttribute("aria-current", "true");
-    expect(currentGridCard.scrollIntoView).toHaveBeenCalled();
-    expect(screen.queryAllByRole("article")).toHaveLength(0);
-    expect(screen.queryByRole("navigation", { name: "历史年份，共 100 个节点" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /胶片/ }));
-    expect(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` })).toHaveAttribute("aria-current", "step");
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-  });
-
-  it("synchronizes card scrolling with the stable active seed id", () => {
-    render(<PickerHarness />);
-
-    const carousel = screen.getByLabelText("按时间排列的历史瞬间");
-    fireEvent.scroll(carousel, { target: { scrollLeft: 312 * 20 } });
-
-    expect(screen.getByRole("button", { name: `定位到${formatHistoricalYear(cards[20].year)}` })).toHaveAttribute("aria-current", "step");
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(cards[20].id);
-  });
-
-  it("centers a clicked card from its rendered container offsets without exposing an intermediate active state", async () => {
-    const user = userEvent.setup();
-    const targetIndex = 11;
-    const target = cards[targetIndex];
-    render(<PickerHarness />);
-
-    const carousel = screen.getByLabelText("按时间排列的历史瞬间");
-    const renderedCards = Array.from(carousel.children) as HTMLElement[];
-    Object.defineProperty(carousel, "clientWidth", { configurable: true, value: 390 });
-    Object.defineProperty(renderedCards[0], "offsetLeft", { configurable: true, value: 493 });
-    Object.defineProperty(renderedCards[1], "offsetLeft", { configurable: true, value: 799 });
-    Object.defineProperty(renderedCards[targetIndex], "offsetLeft", { configurable: true, value: 493 + targetIndex * 306 });
-    Object.defineProperty(renderedCards[targetIndex], "clientWidth", { configurable: true, value: 294 });
-    const scrollTo = vi.fn();
-    Object.defineProperty(carousel, "scrollTo", { configurable: true, value: scrollTo });
-
-    await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
-
-    expect(scrollTo).toHaveBeenCalledWith({ left: 3811, behavior: "auto" });
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-  });
-
-  it("resumes gesture sync after the programmatic card jump reaches its target", async () => {
-    const user = userEvent.setup();
-    const target = cards.at(-1)!;
-    render(<PickerHarness />);
-
-    const carousel = screen.getByLabelText("按时间排列的历史瞬间");
-    Object.defineProperty(carousel, "scrollTo", {
-      configurable: true,
-      value: vi.fn(),
-    });
-
-    await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-
-    fireEvent.scroll(carousel, { target: { scrollLeft: 312 * (cards.length - 1) } });
-    fireEvent.pointerDown(carousel);
-    fireEvent.scroll(carousel, { target: { scrollLeft: 312 * 15 } });
-
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(cards[15].id);
-  });
-
-  it("commits the exact filmstrip seed to the shared context when entering it", () => {
-    const onSelect = vi.fn();
-    const target = cards[1];
-    render(<PickerHarness onSelect={onSelect} />);
-
-    fireEvent.click(screen.getByRole("button", { name: `闯入这一刻：${target.eventName}` }));
-
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-    expect(onSelect).toHaveBeenCalledWith(target);
-  });
-
-  it("searches and combines time, region, and theme filters with AND", async () => {
-    const user = userEvent.setup();
-    render(<PickerHarness />);
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
-
-    expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "时间" })).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "地域" })).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "属性" })).toBeVisible();
-    expect(screen.getByText("100 个结果")).toBeVisible();
-
-    await user.type(screen.getByRole("searchbox", { name: "搜索历史瞬间" }), "马拉松");
-    await user.selectOptions(screen.getByRole("combobox", { name: "时间" }), "bce");
-    await user.selectOptions(screen.getByRole("combobox", { name: "地域" }), "world");
-    await user.selectOptions(screen.getByRole("combobox", { name: "属性" }), "military");
-
-    expect(screen.getByText("1 个结果")).toBeVisible();
-    expect(screen.getByRole("button", { name: /马拉松战役/ })).toBeVisible();
-    expect(screen.queryByRole("button", { name: /亚历山大高加米拉/ })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "清除筛选" }));
-    expect(screen.getByText("100 个结果")).toBeVisible();
-    expect(screen.getByRole("searchbox", { name: "搜索历史瞬间" })).toHaveValue("");
-    expect(screen.queryByRole("button", { name: "清除筛选" })).not.toBeInTheDocument();
-  });
-
-  it("preserves a filtered-out active seed and restores its current marker after clearing", async () => {
-    const user = userEvent.setup();
-    const target = cards[10];
-    render(<PickerHarness />);
-
-    await user.click(screen.getByRole("button", { name: `定位到${formatHistoricalYear(target.year)}` }));
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
-    const initiallyCurrentCard = screen.getByRole("button", { name: new RegExp(target.eventName) });
-    const scrollIntoView = vi.mocked(initiallyCurrentCard.scrollIntoView);
-    scrollIntoView.mockClear();
-    await user.type(screen.getByRole("searchbox", { name: "搜索历史瞬间" }), "不存在的历史瞬间");
-
-    expect(screen.getByText("没有符合条件的历史瞬间")).toBeVisible();
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-    expect(scrollIntoView).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "清除筛选" }));
-
-    expect(screen.getByRole("button", { name: new RegExp(target.eventName) })).toHaveAttribute("aria-current", "true");
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
-  });
-
-  it("updates the active seed before selecting the exact grid item", async () => {
-    const user = userEvent.setup();
-    const onSelect = vi.fn();
-    const target = cards[12];
-    render(<PickerHarness onSelect={onSelect} />);
-    await user.click(screen.getByRole("button", { name: "首页设置" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /表格/ }));
-
-    await user.click(screen.getByRole("button", { name: new RegExp(target.eventName) }));
-
-    expect(screen.getByTestId("active-seed-id")).toHaveTextContent(target.id);
-    expect(onSelect).toHaveBeenCalledOnce();
-    expect(onSelect).toHaveBeenCalledWith(target);
   });
 });

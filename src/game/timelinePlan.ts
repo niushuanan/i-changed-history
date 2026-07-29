@@ -1,30 +1,21 @@
-export const DECISION_NODE_COUNT = 12;
-export const TOTAL_NODE_COUNT = 12;
+export const DECISION_NODE_COUNT = 4;
+export const TOTAL_NODE_COUNT = 4;
 export const FINAL_REPORT_YEAR = 2026;
 export const LAST_PLAYABLE_YEAR = FINAL_REPORT_YEAR - 1;
 
-export const DECISION_CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+export const DECISION_CHAPTERS = [1, 2, 3, 4] as const;
 export type DecisionChapter = (typeof DECISION_CHAPTERS)[number];
 export type TimelineChapter = DecisionChapter;
 
 export const CHAPTER_NAMES = {
   1: "历史现场",
   2: "三日余波",
-  3: "六周震荡",
-  4: "立足之年",
-  5: "声名渐起",
-  6: "执掌一方",
-  7: "生涯转折",
-  8: "盛年危局",
-  9: "守成之争",
-  10: "暮年抉择",
-  11: "最后布局",
-  12: "生命终章",
+  3: "人生转折",
+  4: "生命终章",
 } as const;
 
 export const JUMP_LABELS = [
-  "命运当日", "三日后", "六周后", "立足之年", "声名渐起", "执掌一方",
-  "生涯转折", "盛年危局", "守成之争", "暮年抉择", "最后布局", "生命终章",
+  "命运当日", "三日后", "人生转折", "最后抉择",
 ] as const;
 
 export type LifeStage = (typeof JUMP_LABELS)[number];
@@ -40,7 +31,7 @@ export type TimelineNode = {
   eraShift: boolean;
 };
 
-const LIFE_PROGRESS = [0, 0, 0, 0.02, 0.05, 0.11, 0.18, 0.28, 0.41, 0.57, 0.76, 1] as const;
+const LIFE_PROGRESS = [0, 0, 0.35, 1] as const;
 
 export function getTimelinePlan(startYear: number): readonly TimelineNode[] {
   const start = Math.min(startYear, LAST_PLAYABLE_YEAR);
@@ -50,7 +41,7 @@ export function getTimelinePlan(startYear: number): readonly TimelineNode[] {
 
   return LIFE_PROGRESS.map((progress, index) => {
     const chapter = (index + 1) as TimelineChapter;
-    const elapsedYears = index < 3 ? 0 : Math.round(lifespanYears * progress);
+    const elapsedYears = index < 2 ? 0 : Math.round(lifespanYears * progress);
     return {
       chapter,
       chapterName: CHAPTER_NAMES[chapter],
@@ -59,7 +50,7 @@ export function getTimelinePlan(startYear: number): readonly TimelineNode[] {
       targetYear: start + elapsedYears,
       protagonistAge: initialAge + elapsedYears,
       kind: "decision",
-      eraShift: chapter >= 4,
+      eraShift: chapter >= 3,
     };
   });
 }

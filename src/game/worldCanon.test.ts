@@ -63,12 +63,12 @@ describe("open causal canon", () => {
     expect(canon.activeMandates[0]).toMatchObject({ activeThroughChapter: 4, propagationMechanism: "登基诏书进入官署" });
   });
 
-  it("keeps five rewrites immutable while activating at most the previous three", () => {
-    const turns = [1, 2, 3, 4, 5].map((chapter) => customPlayed(chapter as DecisionChapter));
-    const canon = buildWorldCanon(turns, 6);
+  it("keeps four rewrites immutable while activating at most the previous three", () => {
+    const turns = [1, 2, 3, 4].map((chapter) => customPlayed(chapter as DecisionChapter));
+    const canon = buildWorldCanon(turns, 5);
 
-    expect(canon.immutableFacts.map((fact) => fact.chapter)).toEqual([1, 2, 3, 4, 5]);
-    expect(canon.activeMandates.map((mandate) => mandate.sourceChapter)).toEqual([3, 4, 5]);
+    expect(canon.immutableFacts.map((fact) => fact.chapter)).toEqual([1, 2, 3, 4]);
+    expect(canon.activeMandates.map((mandate) => mandate.sourceChapter)).toEqual([2, 3, 4]);
     expect(canon.activeMandates).toHaveLength(3);
   });
 

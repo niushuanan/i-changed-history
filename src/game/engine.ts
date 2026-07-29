@@ -1,6 +1,7 @@
 import type { GameScenario } from "./reducer";
 import {
   buildContinuationMessages,
+  buildRerollMessages,
   buildCustomActionMessages,
   buildBiographyMessages,
   buildContextualJsonRepairMessages,
@@ -13,12 +14,14 @@ import {
 import {
   parseAlternatePresent,
   parseBiographyReport,
+  parseChoiceSet,
   parseCustomActionResolution,
   extractFirstJsonObject,
   parseTimelineTurn,
   parseWorldReport,
   type AlternatePresent,
   type BiographyReport,
+  type ChoiceSet,
   type CustomActionResolution,
   type TimelineTurn,
 } from "./schema";
@@ -39,7 +42,7 @@ import { consequenceContradictsCanon } from "./worldCanon";
 import { buildNarrativeContext, type NarrativeContext } from "./narrativeContext";
 import { formatHistoricalYear } from "../data/historicalYear";
 
-type RepairTarget = "timeline_turn" | "biography_report" | "world_report" | "custom_action";
+type RepairTarget = "timeline_turn" | "choice_set" | "biography_report" | "world_report" | "custom_action";
 type Parser<T> = (raw: string) => T;
 
 export type GenerationOptions = {
@@ -85,6 +88,8 @@ export class StructuredGenerationError extends Error {
     super(
       target === "timeline_turn"
         ? "AI 返回的幕次结构仍不完整，请重新推演这一幕。"
+        : target === "choice_set"
+          ? "AI 没有发出完整的三张新牌，请再次 Roll。"
         : target === "custom_action"
           ? "AI 没有完成这次自由改命裁决，请重试。"
           : "AI 返回的结局结构仍不完整，请重新生成结局。",
@@ -206,7 +211,11 @@ async function requestValidated<T>(
       false,
       {
         reasoning: "fast",
-        requestKind: requestOptions.phase === "ending" ? "ending-repair" : "turn-repair",
+        requestKind: target === "choice_set"
+          ? "roll-repair"
+          : requestOptions.phase === "ending"
+            ? "ending-repair"
+            : "turn-repair",
       },
     );
     let repairedCandidate = repairedRaw;
@@ -227,7 +236,11 @@ async function requestValidated<T>(
         false,
         {
           reasoning: "high",
-          requestKind: requestOptions.phase === "ending" ? "ending-recovery" : "turn-recovery",
+          requestKind: target === "choice_set"
+            ? "roll-recovery"
+            : requestOptions.phase === "ending"
+              ? "ending-recovery"
+              : "turn-recovery",
         },
       );
       try {
@@ -290,7 +303,7 @@ function parseRequestedTurn(
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
     }
-    if (expectedChapter >= 4 && openingContext) {
+    if (expectedChapter >= 3 && openingContext) {
       const headlineKeepsOpeningPlot = turn.headline.includes(openingContext.eventName);
       const objectiveKeepsOpeningPlot = turn.immediateObjective.includes(openingContext.eventName)
         || [...turn.choices, ...turn.rollChoices].some((choice) => choice.label.includes(openingContext.eventName));
@@ -305,12 +318,12 @@ function parseRequestedTurn(
       if (staleFields.length > 0) {
         throw new FieldValidationError(
           staleFields,
-          "第四幕以后不能继续把开场事件或开场职位当作当前主线",
+          "第三幕以后不能继续把开场事件或开场职位当作当前主线",
         );
       }
     }
-    if (expectedChapter === 12 && /已经死|闭上眼|咽气|去世|生命结束/.test(turn.narrative)) {
-      throw new Error("第十二幕必须先让玩家完成最后一次选择，不能提前写死主角");
+    if (expectedChapter === 4 && /已经死|闭上眼|咽气|去世|生命结束/.test(turn.narrative)) {
+      throw new Error("第四幕必须先让玩家完成最后一次选择，不能提前写死主角");
     }
     const visibleCurrentHistory = [
       turn.headline,
@@ -336,7 +349,6 @@ function expectedYearLabel(scenario: GameScenario, chapter: DecisionChapter): st
   const node = getTimelineNode(chapter, scenario.seed.year);
   if (chapter === 1) return `${scenario.seed.dateLabel} · ${node.protagonistAge}岁`;
   if (chapter === 2) return `${formatHistoricalYear(scenario.seed.year)} · 三日后 · ${node.protagonistAge}岁`;
-  if (chapter === 3) return `${formatHistoricalYear(scenario.seed.year)} · 六周后 · ${node.protagonistAge}岁`;
   return `${formatHistoricalYear(node.targetYear)} · ${node.protagonistAge}岁`;
 }
 
@@ -402,7 +414,7 @@ function parseExpectedBiography(
       (item, index) => item.playerChoice === expectedHistoryTimeline[index]?.playerChoice,
     );
     if (!choicesMatch || biography.historyTimeline.length !== expectedHistoryTimeline.length) {
-      throw new Error("结局时间线没有按顺序保留玩家的十二次真实选择。");
+      throw new Error("结局时间线没有按顺序保留玩家的四次真实选择。");
     }
     const contradictedCanon = expectedHistoryTimeline.find((expected, index) =>
       expected.playerAuthored && consequenceContradictsCanon(
@@ -431,6 +443,22 @@ export async function generateNextTurn(
   return requestValidated(messages, completionOptions("turn", options, "fast", "turn-primary"), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon), { expectedChapter: chapter });
 }
 
+export async function generateRerolledChoices(
+  scenario: GameScenario,
+  playedTurns: readonly PlayedTurn[],
+  turn: TimelineTurn,
+  rollNumber: 2 | 3,
+  previousChoices: TimelineTurn["choices"],
+  options: GenerationOptions = {},
+): Promise<ChoiceSet> {
+  return requestValidated(
+    buildRerollMessages(scenario, playedTurns, turn, rollNumber, previousChoices),
+    completionOptions("turn", options, "fast", "roll-primary"),
+    "choice_set",
+    parseChoiceSet,
+  );
+}
+
 export async function generateEnding(
   scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
@@ -443,8 +471,8 @@ export async function generateEnding(
   }));
   const firstTurn = playedTurns[0]?.turn;
   const finalTurn = playedTurns[playedTurns.length - 1]?.turn;
-  if (!firstTurn || !finalTurn || playedTurns.length !== 12) {
-    throw new StructuredGenerationError("biography_report", new Error("结局需要完整的十二次决定"));
+  if (!firstTurn || !finalTurn || playedTurns.length !== 4) {
+    throw new StructuredGenerationError("biography_report", new Error("结局需要完整的四次决定"));
   }
   const biographyPromise = requestValidated(
     buildBiographyMessages(scenario, playedTurns),

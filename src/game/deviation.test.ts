@@ -9,24 +9,24 @@ import type { DecisionChapter } from "./timelinePlan";
 describe("deterministic historical deviation", () => {
   it("applies the fixed impact table and chapter multipliers", () => {
     expect(calculateStepImpact("nudge", 1)).toBe(3);
-    expect(calculateStepImpact("reform", 2)).toBe(12);
-    expect(calculateStepImpact("rupture", 5)).toBe(35);
+    expect(calculateStepImpact("reform", 2)).toBe(14);
+    expect(calculateStepImpact("rupture", 4)).toBe(48);
   });
 
-  it("keeps every one of the twelve decision nodes finite and progressively weightier", () => {
-    const impacts = Array.from({ length: 12 }, (_, index) =>
+  it("keeps all four decisions finite and progressively weightier", () => {
+    const impacts = Array.from({ length: 4 }, (_, index) =>
       calculateStepImpact("reform", (index + 1) as DecisionChapter),
     );
 
     expect(impacts.every(Number.isFinite)).toBe(true);
     expect(impacts).toEqual([...impacts].sort((left, right) => left - right));
-    expect(calculateDeviation(48, "rupture", 11).nextDeviation).toBeGreaterThan(48);
+    expect(calculateDeviation(48, "rupture", 4).nextDeviation).toBeGreaterThan(48);
   });
 
   it("compounds impact instead of adding scores", () => {
     expect(calculateDeviation(10, "reform", 2)).toEqual({
-      stepImpact: 12,
-      nextDeviation: 21,
+      stepImpact: 14,
+      nextDeviation: 23,
     });
     expect(calculateDeviation(100, "nudge", 1).nextDeviation).toBe(100);
   });

@@ -24,11 +24,11 @@ function stageFor(chapter: number, ending: boolean, customAction: boolean): Deve
       image: "/assets/generating-2026.webp",
       alt: "主角死后的历史正在延伸到 2026",
       title: "书写身后历史",
-      focus: "让十二次人生决定脱离本人，继续改变后来者",
+      focus: "让四次人生决定脱离本人，继续改变后来者",
       steps: ["完成主角生命终章", "追踪遗产如何流传", "写成 2026 世界报告"],
     };
   }
-  if (chapter >= 4) {
+  if (chapter >= 3) {
     return {
       image: "/assets/generating-relay.webp",
       alt: "同一个人的历史人生正在展开",
@@ -72,12 +72,12 @@ export function GeneratingScreen({
   const readableDraft = !ending && Boolean(draft?.headline && draft?.narrative);
 
   const stamp = customAction ? "下一幕" : ending ? "身后历史书写中" : "历史正在发生";
-  const kicker = ending ? "十二次决定已结束 · 身后历史" : customAction ? `第 ${chapter} 节点 · 结果已经写入` : `第 ${chapter} 节点 · 新历史正在成形`;
+  const kicker = ending ? "四次决定已结束 · 身后历史" : customAction ? `第 ${chapter} 节点 · 结果已经写入` : `第 ${chapter} 节点 · 新历史正在成形`;
   const note = progressStage === "repairing"
     ? "正在整理这一页，已经发生的历史不会改变"
     : progressStage === "validating"
       ? "下一幕即将开始"
-      : ending ? "十二次选择正在汇成最后两份历史" : customAction ? "下一幕即将开始" : "新的历史现场即将出现";
+      : ending ? "四次选择正在汇成最后两份历史" : customAction ? "下一幕即将开始" : "新的历史现场即将出现";
   const canonReceipt = customCanonText ? (
     <blockquote className="developing-canon">
       <strong>{customCanonText}</strong>

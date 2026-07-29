@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import { turnFixture } from "../test/fixtures";
-import { parseTimelineTurn } from "./schema";
+import { parseTimelineTurn, type TimelineTurn } from "./schema";
 import { createInitialGameState, gameReducer } from "./reducer";
 import { CHAPTER_NAMES } from "./timelinePlan";
 const turn = parseTimelineTurn(JSON.stringify(turnFixture));
@@ -11,12 +11,12 @@ const secondTurn = parseTimelineTurn(JSON.stringify({
   chapterName: CHAPTER_NAMES[2],
   previousEcho: turnFixture.choices[0].instantEcho,
 }));
-const twelfthTurn = parseTimelineTurn(JSON.stringify({
+const finalTurn = parseTimelineTurn(JSON.stringify({
   ...turnFixture,
-  chapter: 12,
+  chapter: 4,
   chapterName: "生命终章",
   protagonistAge: 70,
-  lifeStage: "生命终章",
+  lifeStage: "最后抉择",
   previousEcho: turnFixture.choices[0].instantEcho,
 }));
 
@@ -46,20 +46,35 @@ describe("single-life choice-only game reducer", () => {
     expect(chosen.playedTurns[0]).not.toHaveProperty("customIntervention");
   });
 
-  it("reveals the prefetched second trio only once and commits from that trio", () => {
+  it("reveals one prepared trio, then requests two live trios and commits the latest cards", () => {
     const started = gameReducer(createInitialGameState(), {
       type: "START_SCENARIO",
       seed: HISTORY_SEEDS[0],
     });
     const firstRoll = gameReducer(started, { type: "ROLL_CHOICES" });
-    const ignoredSecondRoll = gameReducer(firstRoll, { type: "ROLL_CHOICES" });
+    expect(firstRoll).toMatchObject({ rollCount: 1, rollLoading: false, request: null });
 
-    expect(firstRoll.rollUsed).toBe(true);
-    expect(ignoredSecondRoll).toBe(firstRoll);
+    const liveRequest = gameReducer(firstRoll, { type: "ROLL_CHOICES" });
+    expect(liveRequest).toMatchObject({
+      rollCount: 1,
+      rollLoading: true,
+      request: { kind: "roll-choices", rollNumber: 2 },
+    });
 
-    const chosen = gameReducer(firstRoll, { type: "COMMIT_AI_CHOICE", choiceId: "B" });
+    const liveChoices = turn.choices.map((choice) => ({
+      ...choice,
+      label: `${choice.label}，这是第二次现场发牌`,
+    })) as TimelineTurn["choices"];
+    const secondRoll = gameReducer(liveRequest, {
+      type: "ROLL_CHOICES_RESOLVED",
+      requestId: liveRequest.request!.id,
+      choices: liveChoices,
+    });
+    expect(secondRoll).toMatchObject({ rollCount: 2, rollLoading: false, request: null });
+
+    const chosen = gameReducer(secondRoll, { type: "COMMIT_AI_CHOICE", choiceId: "B" });
     expect(chosen.playedTurns[0].selectedChoiceLabel)
-      .toBe(started.currentTurn?.rollChoices[1].label);
+      .toBe(liveChoices[1].label);
   });
 
   it("records the full canonical AI choice instead of its compact display label", () => {
@@ -86,21 +101,25 @@ describe("single-life choice-only game reducer", () => {
     expect(chosen.echo?.choiceLabel).toBe(canonical);
   });
 
-  it("restarts at the complete historical filmstrip", () => {
+  it("restarts at the destiny draw while preserving unlocked histories", () => {
     const selecting = createInitialGameState();
-    const started = gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] });
+    const started = {
+      ...gameReducer(selecting, { type: "START_SCENARIO", seed: HISTORY_SEEDS[0] }),
+      unlockedSeedIds: [HISTORY_SEEDS[1].id],
+    };
     const restarted = gameReducer(started, { type: "RESTART" });
     expect(restarted.phase).toBe("selecting");
     expect(restarted.scenario).toBeNull();
+    expect(restarted.unlockedSeedIds).toEqual([HISTORY_SEEDS[1].id]);
   });
 
-  it("requests the posthumous 2026 report only after the twelfth player decision", () => {
+  it("requests the posthumous 2026 report only after the fourth player decision", () => {
     const state = {
       ...createInitialGameState(),
       phase: "event" as const,
       scenario: { seed: HISTORY_SEEDS[0] },
-      currentTurn: twelfthTurn,
-      playedTurns: Array.from({ length: 11 }, () => ({
+      currentTurn: finalTurn,
+      playedTurns: Array.from({ length: 3 }, () => ({
         turn,
         selectedChoiceId: "A" as const,
         selectedChoiceLabel: turn.choices[0].label,
@@ -110,7 +129,7 @@ describe("single-life choice-only game reducer", () => {
     };
 
     const chosen = gameReducer(state, { type: "COMMIT_AI_CHOICE", choiceId: "A" });
-    expect(chosen.playedTurns).toHaveLength(12);
+    expect(chosen.playedTurns).toHaveLength(4);
     expect(chosen.request).toMatchObject({ kind: "ending" });
   });
 
@@ -202,13 +221,13 @@ describe("single-life choice-only game reducer", () => {
     });
   });
 
-  it("commits a twelfth-node rewrite before requesting the ending", () => {
+  it("commits the fourth-node rewrite before requesting the ending", () => {
     const state = {
       ...createInitialGameState(),
       phase: "event" as const,
       scenario: { seed: HISTORY_SEEDS[0] },
-      currentTurn: twelfthTurn,
-      playedTurns: Array.from({ length: 11 }, () => ({
+      currentTurn: finalTurn,
+      playedTurns: Array.from({ length: 3 }, () => ({
         turn,
         selectedChoiceId: "A" as const,
         selectedChoiceLabel: turn.choices[0].label,

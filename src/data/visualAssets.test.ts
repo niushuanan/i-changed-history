@@ -4,12 +4,12 @@ import { historyAssetForSeed, visualAssetForTurn } from "./visualAssets";
 
 describe("timeline scene selection", () => {
   it("never puts modern technology into an early-modern century jump", () => {
-    expect(visualAssetForTurn({ chapter: 8, visualTone: "space", yearLabel: "1700 年" }))
+    expect(visualAssetForTurn({ chapter: 3, visualTone: "space", yearLabel: "1700 年" }))
       .toBe("/assets/stage-early-modern.webp");
   });
 
   it("uses contemporary scenes once the simulation approaches 2026", () => {
-    expect(visualAssetForTurn({ chapter: 11, visualTone: "ancient", yearLabel: "2025 年" }))
+    expect(visualAssetForTurn({ chapter: 4, visualTone: "ancient", yearLabel: "2025 年" }))
       .toBe("/assets/stage-2026.webp");
   });
 

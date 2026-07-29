@@ -148,7 +148,7 @@ export function createEpicAudioController(options: EpicAudioOptions = {}): EpicA
     },
     stop,
     setChapter(chapter) {
-      targetVolume = chapter === "result" ? 0.24 : Math.min(0.52, 0.3 + chapter * 0.02);
+      targetVolume = chapter === "result" ? 0.24 : Math.min(0.52, 0.3 + chapter * 0.025);
       fadeToTarget();
     },
     isMuted() {

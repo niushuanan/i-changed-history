@@ -21,7 +21,8 @@ describe("roguelike history cards", () => {
         muted
         onChoose={vi.fn()}
         onRoll={vi.fn()}
-        rollUsed={false}
+        rollCount={0}
+        rollLoading={false}
       />,
     );
 
@@ -34,7 +35,7 @@ describe("roguelike history cards", () => {
     expect(container.querySelector(".choice-roll__deck")).not.toBeInTheDocument();
     expect(container.querySelector(".choice-roll__label")).toHaveTextContent("ROLL");
     expect(screen.queryByText(/人格|ENFP|INTP/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" })).toBeEnabled();
   });
 
   it("commits exactly one card only after an upward swipe crosses the threshold", () => {
@@ -45,7 +46,8 @@ describe("roguelike history cards", () => {
         muted
         onChoose={onChoose}
         onRoll={vi.fn()}
-        rollUsed={false}
+        rollCount={0}
+        rollLoading={false}
       />,
     );
 
@@ -77,7 +79,8 @@ describe("roguelike history cards", () => {
         muted
         onChoose={onChoose}
         onRoll={vi.fn()}
-        rollUsed={false}
+        rollCount={0}
+        rollLoading={false}
       />,
     );
 
@@ -116,7 +119,8 @@ describe("roguelike history cards", () => {
         muted
         onChoose={onChoose}
         onRoll={vi.fn()}
-        rollUsed={false}
+        rollCount={0}
+        rollLoading={false}
       />,
     );
 
@@ -154,7 +158,8 @@ describe("roguelike history cards", () => {
         muted
         onChoose={vi.fn()}
         onRoll={vi.fn()}
-        rollUsed={false}
+        rollCount={0}
+        rollLoading={false}
       />,
     );
 
@@ -168,7 +173,7 @@ describe("roguelike history cards", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("reveals the prepared second trio once and never asks the model to wait", () => {
+  it("reveals the prepared trio instantly, then exposes two live rolls", () => {
     const onRoll = vi.fn();
     const { rerender } = render(
       <ChoiceList
@@ -176,11 +181,12 @@ describe("roguelike history cards", () => {
         muted
         onChoose={vi.fn()}
         onRoll={onRoll}
-        rollUsed={false}
+        rollCount={0}
+        rollLoading={false}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" }));
+    fireEvent.click(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" }));
     expect(onRoll).not.toHaveBeenCalled();
     expect(document.querySelector(".rogue-choice-table")).toHaveClass("is-collecting");
     act(() => vi.advanceTimersByTime(190));
@@ -192,13 +198,57 @@ describe("roguelike history cards", () => {
         muted
         onChoose={vi.fn()}
         onRoll={onRoll}
-        rollUsed
+        rollCount={1}
+        rollLoading={false}
       />,
     );
-    const usedButton = screen.getByRole("button", { name: "本节点已经重抽过一次" });
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.getByRole("button", { name: "重抽卡牌，还剩 2 次" })).toBeEnabled();
+
+    rerender(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={onRoll}
+        rollCount={1}
+        rollLoading
+      />,
+    );
+    expect(screen.getByRole("button", { name: "AI 正在现场发牌" })).toBeDisabled();
+
+    rerender(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={onRoll}
+        rollCount={3}
+        rollLoading={false}
+      />,
+    );
+    const usedButton = screen.getByRole("button", { name: "本节点三次重抽已经用完" });
     expect(usedButton).toBeDisabled();
-    fireEvent.click(usedButton);
-    act(() => vi.runOnlyPendingTimers());
     expect(onRoll).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the current cards playable and exposes an in-place live Roll retry", () => {
+    render(
+      <ChoiceList
+        choices={choices}
+        muted
+        onChoose={vi.fn()}
+        onRoll={vi.fn()}
+        rollCount={1}
+        rollLoading={false}
+        rollError="新牌暂时没有发出来，点击 ROLL 再试。"
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("新牌暂时没有发出来，点击 ROLL 再试。");
+    expect(screen.getByRole("button", { name: "重抽卡牌，还剩 2 次" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /循史牌/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /破局牌/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /天外牌/ })).toBeEnabled();
   });
 });

@@ -59,7 +59,10 @@ function HistoryContextDialog({
 export function TimelineEventScreen({
   turn,
   deviation,
-  rollUsed,
+  rollCount = 0,
+  dynamicChoices = null,
+  rollLoading = false,
+  rollError,
   muted,
   onChoose,
   onRoll,
@@ -68,7 +71,10 @@ export function TimelineEventScreen({
 }: {
   turn: TimelineTurn;
   deviation: number;
-  rollUsed: boolean;
+  rollCount?: number;
+  dynamicChoices?: TimelineTurn["choices"] | null;
+  rollLoading?: boolean;
+  rollError?: string | null;
   muted: boolean;
   onChoose: (id: "A" | "B" | "C") => void;
   onRoll: () => void;
@@ -77,7 +83,11 @@ export function TimelineEventScreen({
 }) {
   const [historyContextOpen, setHistoryContextOpen] = useState(false);
   const [cardCommitting, setCardCommitting] = useState(false);
-  const visibleChoices = rollUsed ? turn.rollChoices : turn.choices;
+  const visibleChoices = rollCount === 0
+    ? turn.choices
+    : rollCount === 1
+      ? turn.rollChoices
+      : dynamicChoices ?? turn.rollChoices;
   const visibleCopyLength = [
     turn.headline,
     turn.narrative,
@@ -134,7 +144,7 @@ export function TimelineEventScreen({
         <section className="decision-zone" role="group" aria-label="本幕决定">
           <h2>
             <span>抽一张，改写这一刻</span>
-            <em>上划打出 · 按住读牌</em>
+            <em>上划打出 · 按住读牌 · 每幕可 Roll 3 次</em>
           </h2>
           <ChoiceList
             choices={visibleChoices}
@@ -142,7 +152,9 @@ export function TimelineEventScreen({
             onChoose={onChoose}
             onCommitVisualStart={() => setCardCommitting(true)}
             onRoll={onRoll}
-            rollUsed={rollUsed}
+            rollCount={rollCount}
+            rollLoading={rollLoading}
+            rollError={rollError}
           />
         </section>
         <button

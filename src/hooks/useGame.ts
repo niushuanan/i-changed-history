@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { generateEnding, generateNextTurn } from "../game/engine";
+import { generateEnding, generateNextTurn, generateRerolledChoices } from "../game/engine";
 import {
   createInitialGameState,
   gameReducer,
@@ -17,6 +17,7 @@ import type {
 
 export type UseGameDependencies = {
   generateNextTurn: typeof generateNextTurn;
+  generateRerolledChoices: typeof generateRerolledChoices;
   generateEnding: typeof generateEnding;
   loadSnapshot: () => GameState | null;
   saveSnapshot: (state: GameState) => boolean;
@@ -34,6 +35,7 @@ const PROGRESS_RANK: Record<DeepSeekProgressStage, number> = {
 function resolveDependencies(overrides: Partial<UseGameDependencies>): UseGameDependencies {
   return {
     generateNextTurn,
+    generateRerolledChoices,
     generateEnding,
     loadSnapshot: () => loadGameSnapshot(),
     saveSnapshot: (state) => saveGameSnapshot(state),
@@ -111,6 +113,29 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
 
     const run = async () => {
       try {
+        if (request.kind === "roll-choices") {
+          if (!state.currentTurn) throw new Error("当前历史现场已经离开，无法继续发牌。");
+          const choices = await dependencies.generateRerolledChoices(
+            scenario,
+            state.playedTurns,
+            state.currentTurn,
+            request.rollNumber,
+            state.dynamicChoices ?? state.currentTurn.rollChoices,
+            {
+              signal: controller.signal,
+              onProgress,
+              onMetrics,
+            },
+          );
+          if (active) {
+            dispatch({
+              type: "ROLL_CHOICES_RESOLVED",
+              requestId: request.id,
+              choices,
+            });
+          }
+          return;
+        }
         if (request.kind === "next-turn") {
           const turn = await dependencies.generateNextTurn(scenario, state.playedTurns, request.targetChapter, {
             signal: controller.signal,
@@ -130,7 +155,16 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
         if (active) dispatch({ type: "ENDING_RESOLVED", requestId: request.id, ending });
       } catch (error) {
         if (!active) return;
-        dispatch({ type: "REQUEST_FAILED", requestId: request.id, ...errorDetails(error) });
+        const details = errorDetails(error);
+        if (request.kind === "roll-choices") {
+          dispatch({
+            type: "ROLL_CHOICES_FAILED",
+            requestId: request.id,
+            message: "新牌暂时没有发出来，点击 ROLL 再试。",
+          });
+        } else {
+          dispatch({ type: "REQUEST_FAILED", requestId: request.id, ...details });
+        }
       }
     };
 

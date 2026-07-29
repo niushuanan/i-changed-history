@@ -84,10 +84,10 @@ export const turnFixture = {
 export const endingFixture = {
   worldName: "公议纪元",
   frontPageHeadline: "跨洲公议院通过第两千份城市自治章程",
-  vernacularBiography: "沈砚，江夏人。赤壁之夜，他从一名军需官起步，十二次在帝国裂缝中作出决定。他见过胜利，也亲手承担制度落地的代价，最终没有称王，却让公开质询成为后世共同的规则。",
-  classicalBiography: "沈砚者，江夏人也。初掌赤壁军需，临难断事。凡十二决，或救一城，或更一制，功过相随。终不王而法传后世。太史公曰：人之一念，亦可移天下之势。",
+  vernacularBiography: "沈砚，江夏人。赤壁之夜，他从一名军需官起步，四次在帝国裂缝中作出决定。他见过胜利，也亲手承担制度落地的代价，最终没有称王，却让公开质询成为后世共同的规则。",
+  classicalBiography: "沈砚者，江夏人也。初掌赤壁军需，临难断事。凡四决，或救一城，或更一制，功过相随。终不王而法传后世。太史公曰：人之一念，亦可移天下之势。",
   protagonistName: "沈砚",
-  lifespanSummary: "沈砚从赤壁军需官走到公议制度的奠基者，一生十二次把个人选择写进公共秩序。",
+  lifespanSummary: "沈砚从赤壁军需官走到公议制度的奠基者，一生四次把个人选择写进公共秩序。",
   deathScene: {
     yearLabel: "254 年冬",
     age: 70,
@@ -95,7 +95,7 @@ export const endingFixture = {
     finalMoment: "沈砚听完最后一项表决结果，在晨钟响起时闭上眼睛。",
     lastingLegacy: "他留下的不是王位，而是一套任何城市都能质询权力的议事规则。",
   },
-  historyTimeline: Array.from({ length: 12 }, (_, index) => ({
+  historyTimeline: Array.from({ length: 4 }, (_, index) => ({
     chapter: index + 1,
     yearLabel: `${index + 1}纪元`,
     playerChoice: `选择${index + 1}`,

@@ -4,13 +4,12 @@ import {
   selectLongRunSoakCases,
 } from "./soakCases";
 
-describe("roguelike long-run soak cases", () => {
-  it("covers ten distinct historical openings with four or five Rolls each", () => {
+describe("roguelike four-decision soak cases", () => {
+  it("covers ten distinct historical openings with every decision rolled", () => {
     expect(LONG_RUN_SOAK_CASES).toHaveLength(10);
     expect(new Set(LONG_RUN_SOAK_CASES.map((item) => item.seedId))).toHaveProperty("size", 10);
     LONG_RUN_SOAK_CASES.forEach((item) => {
-      expect(item.rollChapters.length).toBeGreaterThanOrEqual(4);
-      expect(item.rollChapters.length).toBeLessThanOrEqual(5);
+      expect(item.rollChapters).toHaveLength(4);
       expect(new Set(item.rollChapters).size).toBe(item.rollChapters.length);
     });
   });
@@ -23,7 +22,7 @@ describe("roguelike long-run soak cases", () => {
 
     expect(selected).toHaveLength(3);
     selected.forEach((item) => {
-      expect(item.rollChapters).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      expect(item.rollChapters).toEqual([1, 2, 3, 4]);
     });
   });
 

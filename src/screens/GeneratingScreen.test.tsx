@@ -19,7 +19,7 @@ describe("history developing room", () => {
   });
 
   it("uses the single-life continuation art after the immediate aftermath", () => {
-    render(<GeneratingScreen chapter={6} ending={false} onCancel={vi.fn()} />);
+    render(<GeneratingScreen chapter={3} ending={false} onCancel={vi.fn()} />);
     expect(screen.getByRole("img", { name: "同一个人的历史人生正在展开" })).toHaveAttribute("src", "/assets/generating-relay.webp");
     expect(screen.getByText("人生进入下一幕")).toBeVisible();
     expect(screen.getByTestId("developing-motion")).toBeInTheDocument();
@@ -27,7 +27,7 @@ describe("history developing room", () => {
   });
 
   it("uses the 2026 convergence art for the ending", () => {
-    render(<GeneratingScreen chapter={12} ending onCancel={vi.fn()} />);
+    render(<GeneratingScreen chapter={4} ending onCancel={vi.fn()} />);
     expect(screen.getByRole("img", { name: "主角死后的历史正在延伸到 2026" })).toHaveAttribute("src", "/assets/generating-2026.webp");
     expect(screen.getByText("书写身后历史")).toBeVisible();
   });

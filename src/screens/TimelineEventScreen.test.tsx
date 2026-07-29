@@ -27,7 +27,8 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={turn}
       deviation={18}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
@@ -60,7 +61,7 @@ describe("clear change event screen", () => {
     expect(document.querySelectorAll(".choice-card")).toHaveLength(3);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText(/直接改写结果/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" })).toBeVisible();
     expect(within(proof).getByText(/粮仓账本改变了长安市民的米价/)).toBeVisible();
     expect(container.querySelector(".event-screen")).toHaveAttribute("data-density", "compact");
     expect(screen.getByRole("button", { name: "关闭历史对照" })).toBeVisible();
@@ -68,12 +69,13 @@ describe("clear change event screen", () => {
     expect(screen.queryByRole("dialog", { name: "历史对照" })).not.toBeInTheDocument();
   });
 
-  it("removes free input and exposes one zero-wait roll", () => {
+  it("removes free input and exposes three rolls", () => {
     const onRoll = vi.fn();
     render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={onRoll}
@@ -85,8 +87,8 @@ describe("clear change event screen", () => {
     expect(screen.getByRole("button", { name: /循史牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).toHaveTextContent("ROLL");
-    expect(screen.getByRole("button", { name: "立即重抽三张预生成卡牌" })).not.toHaveTextContent("无需等待");
+    expect(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" })).toHaveTextContent("ROLL · 3");
+    expect(screen.getByText(/每幕可 Roll 3 次/)).toBeVisible();
   });
 
   it("moves the complete event surface into its exit transition before committing", () => {
@@ -95,7 +97,8 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={onChoose}
       onRoll={vi.fn()}
@@ -119,7 +122,8 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
@@ -142,7 +146,8 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={openingTurn}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
@@ -179,7 +184,8 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={denseTurn}
       deviation={36}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
@@ -207,7 +213,8 @@ describe("clear change event screen", () => {
     const { container } = render(<TimelineEventScreen
       turn={richOpening}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
@@ -237,7 +244,8 @@ describe("clear change event screen", () => {
     render(<TimelineEventScreen
       turn={turn}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
@@ -263,7 +271,8 @@ describe("clear change event screen", () => {
     render(<TimelineEventScreen
       turn={turn}
       deviation={0}
-      rollUsed={false}
+      rollCount={0}
+      rollLoading={false}
       muted
       onChoose={vi.fn()}
       onRoll={vi.fn()}
