@@ -116,7 +116,8 @@ describe("complete four-decision player journey", () => {
     }
 
     expect(await screen.findByRole("heading", { name: "沈砚列传" })).toBeVisible();
-    expect(screen.getByText("一生四决")).toBeVisible();
+    expect(screen.getByText("一生纪事")).toBeVisible();
+    expect(screen.queryByText("一生四决")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByRole("heading", { name: "公议纪元" })).toBeVisible();
     expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(endingFixture.ordinaryLife2026.join("；"));

@@ -108,7 +108,7 @@ describe("DeepSeek proxy contract", () => {
       stream: true,
       stream_options: { include_usage: true },
       response_format: { type: "json_object" },
-      max_tokens: 8192,
+      max_tokens: 4096,
       thinking: { type: "disabled" },
     });
   });
@@ -118,7 +118,7 @@ describe("DeepSeek proxy contract", () => {
     expect(buildDeepSeekRequestBody(parsed!)).toMatchObject({
       thinking: { type: "enabled" },
       reasoning_effort: "high",
-      max_tokens: 8192,
+      max_tokens: 4096,
     });
   });
 
@@ -154,12 +154,16 @@ describe("DeepSeek proxy contract", () => {
 
   it("accepts both four-decision ending writers and rejects the obsolete twelve-decision protocol", () => {
     const scenario = { seed: HISTORY_SEEDS[0] };
-    expect(parseProxyEnvelope(endingEnvelope(
+    const biography = parseProxyEnvelope(endingEnvelope(
       buildBiographyMessages(scenario, endingPlayedTurns),
-    ))).not.toBeNull();
-    expect(parseProxyEnvelope(endingEnvelope(
+    ));
+    const world = parseProxyEnvelope(endingEnvelope(
       buildWorldReportMessages(scenario, endingPlayedTurns),
-    ))).not.toBeNull();
+    ));
+    expect(biography).not.toBeNull();
+    expect(world).not.toBeNull();
+    expect(buildDeepSeekRequestBody(biography!)).toMatchObject({ max_tokens: 2048 });
+    expect(buildDeepSeekRequestBody(world!)).toMatchObject({ max_tokens: 2048 });
     expect(parseProxyEnvelope(endingEnvelope([
       { role: "system", content: TIMELINE_SYSTEM_PROMPT },
       {

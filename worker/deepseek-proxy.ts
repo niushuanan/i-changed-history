@@ -1,4 +1,5 @@
 import {
+  ENDING_SYSTEM_PROMPT,
   ENDING_BIOGRAPHY_TASK_PREFIX,
   ENDING_WORLD_TASK_PREFIX,
   TIMELINE_SYSTEM_PROMPT,
@@ -15,6 +16,7 @@ const RATE_LIMIT_RETENTION_MS = 2 * 24 * 60 * MINUTE_MS;
 const DEFAULT_GUEST_MINUTE_LIMIT = 120;
 const DEFAULT_IP_MINUTE_LIMIT = 1_800;
 const DEFAULT_GLOBAL_MINUTE_LIMIT = 2_400;
+const OUTPUT_TOKEN_BUDGET = { turn: 4096, ending: 2048 } as const;
 
 const REQUEST_KINDS = new Set([
   "turn-primary",
@@ -120,7 +122,7 @@ function allowedUserTask(content: string): boolean {
   if (typeof task !== "string") return false;
   return [
     "生成第 ",
-    "为当前同一历史现场发出第 ",
+    "为当前现场发出第",
     "玩家正在直接写入一条新的历史结果。",
     ENDING_BIOGRAPHY_TASK_PREFIX,
     ENDING_WORLD_TASK_PREFIX,
@@ -155,7 +157,8 @@ export function parseProxyEnvelope(value: unknown): DeepSeekProxyEnvelope | null
 
   const messages = value.messages;
   if (messages.length !== 2 && messages.length !== 3) return null;
-  if (messages[0].role !== "system" || messages[0].content !== TIMELINE_SYSTEM_PROMPT) return null;
+  const expectedSystem = value.phase === "ending" ? ENDING_SYSTEM_PROMPT : TIMELINE_SYSTEM_PROMPT;
+  if (messages[0].role !== "system" || messages[0].content !== expectedSystem) return null;
   if (messages.at(-1)?.role !== "user" || !allowedUserTask(messages.at(-1)?.content ?? "")) return null;
   if (messages.length === 3) {
     if (messages[1].role !== "system" || !validTimelineProtocol(messages[1].content)) return null;
@@ -174,7 +177,7 @@ export function buildDeepSeekRequestBody(envelope: DeepSeekProxyEnvelope, model 
     response_format: { type: "json_object" },
     stream: true,
     stream_options: { include_usage: true },
-    max_tokens: 8192,
+    max_tokens: OUTPUT_TOKEN_BUDGET[envelope.phase],
   } as const;
 
   return envelope.reasoning === "fast"

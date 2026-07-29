@@ -46,7 +46,7 @@ describe("local official DeepSeek transport", () => {
       stream: true,
       stream_options: { include_usage: true },
       thinking: { type: "disabled" },
-      max_tokens: 8192,
+      max_tokens: 4096,
       messages,
     });
   });

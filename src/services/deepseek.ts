@@ -35,6 +35,7 @@ const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
 const MAX_RETRY_DELAY_MS = 15_000;
 const MAX_ATTEMPTS = RETRY_BASE_DELAYS_MS.length + 1;
+const OUTPUT_TOKEN_BUDGET = { turn: 4096, ending: 2048 } as const;
 
 function nodeEnvironmentValue(name: string): string | undefined {
   if (typeof process === "undefined") return undefined;
@@ -46,6 +47,7 @@ function directRequestBody(
   messages: readonly ChatMessage[],
   reasoning: DeepSeekReasoning,
   model: string,
+  phase: CompletionOptions["phase"],
 ) {
   const shared = {
     model,
@@ -57,12 +59,12 @@ function directRequestBody(
   } as const;
 
   return reasoning === "fast"
-    ? { ...shared, thinking: { type: "disabled" }, max_tokens: 8192 } as const
+    ? { ...shared, thinking: { type: "disabled" }, max_tokens: OUTPUT_TOKEN_BUDGET[phase] } as const
     : {
         ...shared,
         thinking: { type: "enabled" },
         reasoning_effort: "high",
-        max_tokens: 8192,
+        max_tokens: OUTPUT_TOKEN_BUDGET[phase],
       } as const;
 }
 
@@ -111,7 +113,7 @@ function transportRequest(
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     } as Record<string, string>,
-    body: directRequestBody(messages, reasoning, model),
+    body: directRequestBody(messages, reasoning, model, options.phase),
   } as const;
 }
 

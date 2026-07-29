@@ -20,6 +20,19 @@ const endingPlayedTurns = endingFixture.historyTimeline.map((item, index) => ({
   turn: parseTimelineTurn(JSON.stringify({ ...turnFixture, chapter: index + 1, chapterName: CHAPTER_NAMES[(index + 1) as DecisionChapter], protagonistAge: getTimelineNode((index + 1) as DecisionChapter, scenario.seed.year).protagonistAge, lifeStage: getTimelineNode((index + 1) as DecisionChapter, scenario.seed.year).lifeStage, previousEcho: index === 0 ? null : turnFixture.choices[0].instantEcho })),
   selectedChoiceId: "A" as const, selectedChoiceLabel: item.playerChoice, selectedDeviationClass: "nudge" as const, resolvedEcho: turnFixture.choices[0].instantEcho,
 }));
+const biographyFixture = {
+  lifeStory: endingFixture.lifeStory,
+  protagonistName: endingFixture.protagonistName,
+  lifespanSummary: endingFixture.lifespanSummary,
+  deathScene: endingFixture.deathScene,
+};
+const worldReportFixture = {
+  worldName: endingFixture.worldName,
+  frontPageHeadline: endingFixture.frontPageHeadline,
+  ordinaryLife2026: endingFixture.ordinaryLife2026,
+  posthumousChronicle: endingFixture.posthumousChronicle,
+  closingPassage: endingFixture.closingPassage,
+};
 
 function completion(content = '{"ok":true}') {
   return new Response(JSON.stringify({ id: "test", choices: [{ message: { role: "assistant", content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -356,7 +369,12 @@ describe("DeepSeek transport and structured generation", () => {
     const bodies = fetcher.mock.calls.map((call) => JSON.parse(call[1].body));
     expect(bodies[0].reasoning).toBe("fast");
     expect(bodies[1].reasoning).toBe("fast");
-    expect(bodies[2]).toMatchObject({ reasoning: "high" });
+    expect(bodies[2]).toMatchObject({ reasoning: "fast" });
+    const recoveryPayload = JSON.parse(bodies[2].messages.at(-1).content);
+    expect(recoveryPayload.details).toMatchObject({
+      patchOnly: true,
+      repairFields: ["headline"],
+    });
   });
 
   it("reports a terminal recovery failure without inventing a local scene", async () => {
@@ -604,7 +622,7 @@ describe("DeepSeek transport and structured generation", () => {
     expect(ending.historyTimeline.map((item) => item.playerChoice)).toEqual(endingPlayedTurns.map((item) => item.selectedChoiceLabel));
   });
 
-  it("keeps four long custom choices authoritative without duplicating them in consequences", async () => {
+  it("keeps four long custom choices authoritative without asking the model to restate them", async () => {
     const customPlayedTurns = endingPlayedTurns.map((played, index) => {
       const result = `第${index + 1}幕我亲自颁布的新制度已经在全国生效并由各地官署执行`;
       return {
@@ -618,40 +636,13 @@ describe("DeepSeek transport and structured generation", () => {
         causalMechanism: `第${index + 1}幕诏令进入全国官署`,
       };
     });
-    const biography = {
-      vernacularBiography: endingFixture.vernacularBiography,
-      classicalBiography: endingFixture.classicalBiography,
-      protagonistName: endingFixture.protagonistName,
-      lifespanSummary: endingFixture.lifespanSummary,
-      deathScene: endingFixture.deathScene,
-      historyTimeline: endingFixture.historyTimeline.map((item, index) => ({
-        ...item,
-        playerChoice: "模型无需复述玩家原句",
-        consequence: `第${index + 1}项决定推动新的权力与生活秩序落地。`,
-      })),
-    };
-    const worldReport = {
-      worldName: endingFixture.worldName,
-      frontPageHeadline: endingFixture.frontPageHeadline,
-      causalChains: endingFixture.causalChains,
-      ordinaryLife2026: endingFixture.ordinaryLife2026,
-      posthumousChronicle: endingFixture.posthumousChronicle,
-      closingPassage: endingFixture.closingPassage,
-      greatestGain: endingFixture.greatestGain,
-      hiddenPrice: endingFixture.hiddenPrice,
-      strangestDetail: endingFixture.strangestDetail,
-      biggestBeneficiary: endingFixture.biggestBeneficiary,
-      biggestLoser: endingFixture.biggestLoser,
-      rewriteLevel: endingFixture.rewriteLevel,
-      plausibilityScore: endingFixture.plausibilityScore,
-      plausibilityReason: endingFixture.plausibilityReason,
-      shareLine: endingFixture.shareLine,
-    };
+    const biography = biographyFixture;
+    const worldReport = worldReportFixture;
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
-      const userPayload = body.messages.at(-1).content;
+      const userPayload = JSON.parse(body.messages.at(-1).content);
       return Promise.resolve(completion(JSON.stringify(
-        userPayload.includes('"lifeRecord"') ? biography : worldReport,
+        userPayload.outputContract?.compactShape?.includes('"b"') ? biography : worldReport,
       )));
     });
     vi.stubGlobal("fetch", fetcher);
@@ -660,37 +651,17 @@ describe("DeepSeek transport and structured generation", () => {
 
     expect(ending.historyTimeline.map((item) => item.playerChoice))
       .toEqual(customPlayedTurns.map((item) => item.selectedChoiceLabel));
-    expect(ending.historyTimeline[0].consequence).not.toContain(customPlayedTurns[0].selectedChoiceLabel);
+    expect(ending.historyTimeline[0].consequence).toContain(customPlayedTurns[0].resolvedEcho.directResult);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("repairs a cut 2026 chronicle field without rewriting the valid world report", async () => {
-    const biography = {
-      vernacularBiography: endingFixture.vernacularBiography,
-      classicalBiography: endingFixture.classicalBiography,
-      protagonistName: endingFixture.protagonistName,
-      lifespanSummary: endingFixture.lifespanSummary,
-      deathScene: endingFixture.deathScene,
-      historyTimeline: endingFixture.historyTimeline,
-    };
+    const biography = biographyFixture;
     const incompleteWorldReport = {
-      worldName: endingFixture.worldName,
-      frontPageHeadline: endingFixture.frontPageHeadline,
-      causalChains: endingFixture.causalChains,
-      ordinaryLife2026: endingFixture.ordinaryLife2026,
+      ...worldReportFixture,
       posthumousChronicle: endingFixture.posthumousChronicle.map((item, index) => index === 0
         ? { ...item, narrative: "主角死后，旧部把仓法交给地方官府，官府随后正式" }
         : item),
-      closingPassage: endingFixture.closingPassage,
-      greatestGain: endingFixture.greatestGain,
-      hiddenPrice: endingFixture.hiddenPrice,
-      strangestDetail: endingFixture.strangestDetail,
-      biggestBeneficiary: endingFixture.biggestBeneficiary,
-      biggestLoser: endingFixture.biggestLoser,
-      rewriteLevel: endingFixture.rewriteLevel,
-      plausibilityScore: endingFixture.plausibilityScore,
-      plausibilityReason: endingFixture.plausibilityReason,
-      shareLine: endingFixture.shareLine,
     };
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
@@ -723,31 +694,8 @@ describe("DeepSeek transport and structured generation", () => {
   });
 
   it("starts the biography and 2026 report requests concurrently before merging them", async () => {
-    const biography = {
-      vernacularBiography: endingFixture.vernacularBiography,
-      classicalBiography: endingFixture.classicalBiography,
-      protagonistName: endingFixture.protagonistName,
-      lifespanSummary: endingFixture.lifespanSummary,
-      deathScene: endingFixture.deathScene,
-      historyTimeline: endingFixture.historyTimeline,
-    };
-    const worldReport = {
-      worldName: endingFixture.worldName,
-      frontPageHeadline: endingFixture.frontPageHeadline,
-      causalChains: endingFixture.causalChains,
-      ordinaryLife2026: endingFixture.ordinaryLife2026,
-      posthumousChronicle: endingFixture.posthumousChronicle,
-      closingPassage: endingFixture.closingPassage,
-      greatestGain: endingFixture.greatestGain,
-      hiddenPrice: endingFixture.hiddenPrice,
-      strangestDetail: endingFixture.strangestDetail,
-      biggestBeneficiary: endingFixture.biggestBeneficiary,
-      biggestLoser: endingFixture.biggestLoser,
-      rewriteLevel: endingFixture.rewriteLevel,
-      plausibilityScore: endingFixture.plausibilityScore,
-      plausibilityReason: endingFixture.plausibilityReason,
-      shareLine: endingFixture.shareLine,
-    };
+    const biography = biographyFixture;
+    const worldReport = worldReportFixture;
     const resolvers: Array<(response: Response) => void> = [];
     const fetcher = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => resolvers.push(resolve)));
     vi.stubGlobal("fetch", fetcher);
@@ -776,10 +724,7 @@ describe("DeepSeek transport and structured generation", () => {
     } : played);
     const contradictory = {
       ...endingFixture,
-      historyTimeline: endingFixture.historyTimeline.map((item, index) => ({
-        ...item,
-        consequence: index === 0 ? "称帝计划最终失败，旧君继续统治" : item.consequence,
-      })),
+      lifeStory: "沈砚曾试图称帝，但称帝计划最终失败，旧君继续统治。后来他在流亡中度过余生。",
     };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(completion(JSON.stringify(contradictory))));
     vi.stubGlobal("fetch", fetcher);

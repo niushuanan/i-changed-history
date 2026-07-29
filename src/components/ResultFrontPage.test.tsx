@@ -7,6 +7,16 @@ import { ResultFrontPage } from "./ResultFrontPage";
 afterEach(cleanup);
 
 describe("ResultFrontPage", () => {
+  it("shows one natural-language life story without repeating the four decisions", () => {
+    const result = alternatePresentSchema.parse(endingFixture);
+    render(<ResultFrontPage result={result} page="biography" />);
+
+    expect(screen.getByText("一生纪事")).toBeVisible();
+    expect(screen.getByText(result.lifeStory)).toBeVisible();
+    expect(screen.queryByText("一生四决")).not.toBeInTheDocument();
+    expect(screen.queryByText("史臣曰 · 文言")).not.toBeInTheDocument();
+  });
+
   it("renders the three ordinary-life details as one natural paragraph", () => {
     const result = alternatePresentSchema.parse(endingFixture);
     render(<ResultFrontPage result={result} page="world" />);

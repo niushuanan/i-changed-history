@@ -19,6 +19,8 @@ import { GameAnnouncement } from "./components/GameAnnouncement";
 import { historyAssetForSeed, visualAssetForTurn } from "./data/visualAssets";
 import "./styles/game.css";
 
+const REPORT_SHARE_LINE = "我在《哎！我改变了历史？》走完了一条平行时间线。";
+
 export function App() {
   const game = useGame();
   const { state } = game;
@@ -34,7 +36,7 @@ export function App() {
     if (!(target instanceof HTMLElement)) throw new Error("未找到可导出的报告。");
     return prepareReportImage(target, {
       worldName: result.worldName,
-      shareLine: result.shareLine,
+      shareLine: REPORT_SHARE_LINE,
       page,
     });
   };

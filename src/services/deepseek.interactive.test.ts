@@ -87,7 +87,7 @@ describe("Interactive Space DeepSeek transport", () => {
       type: "text",
       stream: true,
       model: "deepseek-v4-flash",
-      maxTokens: 8192,
+      maxTokens: 4096,
       messages: [
         { role: "system", content: "只返回 JSON" },
         { role: "user", content: "继续历史" },

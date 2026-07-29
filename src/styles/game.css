@@ -1725,20 +1725,11 @@
 .biography-death { padding: 10px 0; border-bottom: 1px solid var(--ink); }
 .biography-death span { color: var(--red); font-size: 12px; font-weight: 900; }
 .biography-death p { margin: 5px 0 0; font-family: var(--serif); font-size: 14px; line-height: 1.5; }
-.biography-decisions { padding: 11px 0; }
-.biography-decisions h2,
 .biography-prose span,
 .world-report__ordinary h2 { margin: 0 0 7px; font-family: var(--serif); font-size: 18px; }
-.biography-decisions ol { margin: 0; padding: 0; list-style: none; border-top: 1px solid #aaa399; }
-.biography-decisions li { padding: 8px 0; display: grid; grid-template-columns: 27px 80px minmax(0, 1fr); gap: 1px 5px; border-bottom: 1px solid #c5beb2; }
-.biography-decisions li b { grid-row: 1 / span 2; color: var(--red); font-family: var(--serif); }
-.biography-decisions time { color: #6b655d; font-size: 11px; }
-.biography-decisions strong { font-family: var(--serif); font-size: 13px; }
-.biography-decisions p { grid-column: 2 / -1; margin: 0; font-size: 12px; line-height: 1.45; }
 .biography-prose > div { padding: 12px 0; border-top: 3px double var(--ink); }
 .biography-prose span { display: block; color: var(--red); font-weight: 900; }
-.biography-prose p,
-.biography-prose .is-classical p { margin: 0; font-family: var(--serif); font-size: 15px; line-height: 1.75; }
+.biography-prose p { margin: 0; font-family: var(--serif); font-size: 15px; line-height: 1.75; }
 
 .result-screen.is-world .result-report-capture { overflow-y: auto; }
 .world-report { min-height: 100%; padding: 12px 15px 18px; }
@@ -1758,7 +1749,6 @@
 .world-report__ordinary p { margin: 0; padding-left: 8px; border-left: 3px solid var(--teal); font-size: 12px; line-height: 1.5; }
 .world-report__closing { padding-top: 9px; }
 .world-report__closing p { margin: 0; font-family: var(--serif); font-size: 14px; line-height: 1.55; }
-.world-report__closing blockquote { margin: 7px 0 0; padding: 7px 9px; border: 1px solid var(--red); color: var(--red-dark); font-family: var(--serif); font-size: 14px; font-weight: 900; line-height: 1.45; transform: none; }
 .result-actions { padding: 7px 12px 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; background: #171614; }
 .result-actions .primary-command,
 .result-actions .secondary-command { min-height: 40px; margin: 0; font-size: 13px; }

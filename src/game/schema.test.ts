@@ -300,11 +300,12 @@ describe("structured timeline parsing", () => {
       .toBe(tenSentences);
   });
 
-  it("rejects a newly generated prehistory without enough complete context", () => {
-    expect(() => parseTimelineTurn(JSON.stringify({
+  it("accepts one complete scene sentence without forcing a repair call", () => {
+    const narrative = "宫门已经关闭，援军抵达城外，主角必须在鼓声停下前交出军令。";
+    expect(parseTimelineTurn(JSON.stringify({
       ...turnFixture,
-      narrative: `${"局".repeat(100)}。`,
-    }))).toThrow(/至少两句完整叙事/);
+      narrative,
+    })).narrative).toBe(narrative);
   });
 
   it("injects active player canon ahead of model ledger without changing scene prose", () => {
@@ -860,10 +861,10 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(raw, { expectedYearLabel: "195年" })).toThrow(/时代不符/);
   });
 
-  it("requires four decisions, a death scene, four posthumous chapters, and three ordinary-life details", () => {
+  it("requires a client-owned four-decision record, a death scene, four posthumous chapters, and three ordinary-life details", () => {
     expect(parseAlternatePresent(JSON.stringify(endingFixture))).toMatchObject({
       worldName: "公议纪元",
-      plausibilityScore: 78,
+      protagonistName: "沈砚",
     });
     expect(() =>
       parseAlternatePresent(JSON.stringify({ ...endingFixture, ordinaryLife2026: ["只有一条"] })),
@@ -871,11 +872,6 @@ describe("structured timeline parsing", () => {
     expect(() =>
       parseAlternatePresent(
         JSON.stringify({ ...endingFixture, historyTimeline: endingFixture.historyTimeline.slice(0, 3) }),
-      ),
-    ).toThrow();
-    expect(() =>
-      parseAlternatePresent(
-        JSON.stringify({ ...endingFixture, causalChains: endingFixture.causalChains.slice(0, 2) }),
       ),
     ).toThrow();
   });
@@ -889,8 +885,6 @@ describe("structured timeline parsing", () => {
     }));
     const raw = JSON.stringify({
       ...endingFixture,
-      rewriteLevel: 82,
-      plausibilityScore: "78",
       closingPassage,
       posthumousChronicle,
     });
@@ -900,8 +894,6 @@ describe("structured timeline parsing", () => {
       expect(item.narrative.length).toBeGreaterThan(54);
       expect(item.inheritedChange.length).toBeGreaterThan(42);
     });
-    expect(report.rewriteLevel).toBe("82");
-    expect(report.plausibilityScore).toBe(78);
     expect(report.closingPassage).toBe(closingPassage);
     expect(report.posthumousChronicle).toEqual(posthumousChronicle);
   });
@@ -949,6 +941,49 @@ describe("structured timeline parsing", () => {
     expect(() => parseWorldReport(raw)).toThrow(/生活细节.*完整句/);
   });
 
+  it("adds harmless terminal punctuation to complete ending sentences locally", () => {
+    const parsed = parseWorldReport(JSON.stringify({
+      ...endingFixture,
+      ordinaryLife2026: [
+        "通勤者乘公共驿路列车准时上班",
+        ...endingFixture.ordinaryLife2026.slice(1),
+      ],
+    }));
+
+    expect(parsed.ordinaryLife2026[0]).toBe("通勤者乘公共驿路列车准时上班。");
+  });
+
+  it("accepts compact tuple repairs under their full ending field names", () => {
+    const biography = parseBiographyReport(JSON.stringify({
+      b: endingFixture.lifeStory,
+      s: endingFixture.lifespanSummary,
+      deathScene: [
+        endingFixture.deathScene.place,
+        endingFixture.deathScene.finalMoment,
+        endingFixture.deathScene.lastingLegacy,
+      ],
+    }), {
+      expectedProtagonistName: endingFixture.protagonistName,
+      expectedDeathYearLabel: endingFixture.deathScene.yearLabel,
+      expectedDeathAge: endingFixture.deathScene.age,
+    });
+    const world = parseWorldReport(JSON.stringify({
+      n: endingFixture.worldName,
+      h: endingFixture.frontPageHeadline,
+      posthumousChronicle: endingFixture.posthumousChronicle.map((item) => [
+        item.period,
+        item.title,
+        item.narrative,
+        item.inheritedChange,
+      ]),
+      o: endingFixture.ordinaryLife2026,
+      e: endingFixture.closingPassage,
+    }));
+
+    expect(biography.deathScene).toEqual(endingFixture.deathScene);
+    expect(world.posthumousChronicle).toEqual(endingFixture.posthumousChronicle);
+  });
+
   it("preserves a complete legacy paragraph beyond the former local truncation limit", () => {
     const lastingLegacy = "他留下的制度仍被后世沿用。".repeat(10);
     expect([...lastingLegacy].length).toBeGreaterThan(120);
@@ -970,61 +1005,6 @@ describe("structured timeline parsing", () => {
         lastingLegacy: "因为地方官府开始。",
       },
     }))).toThrow(/身后遗产.*完整句/);
-  });
-
-  it("rejects a dangling 2026 share sentence", () => {
-    expect(() => parseWorldReport(JSON.stringify({
-      ...endingFixture,
-      shareLine: "因为地方官府开始。",
-    }))).toThrow(/分享语.*完整句/);
-  });
-
-  it.each([
-    "地方官府把。",
-    "地方官府将。",
-    "地方官府向。",
-    "地方官府并。",
-    "地方官府因为。",
-  ])("rejects a report sentence that stops on a dangling grammar word: %s", (shareLine) => {
-    expect(() => parseWorldReport(JSON.stringify({
-      ...endingFixture,
-      shareLine,
-    }))).toThrow(/分享语.*完整句/);
-  });
-
-  it.each([
-    "地方官府把账簿。",
-    "地方官府将新法。",
-    "因为粮价上涨，地方官府把账簿。",
-    "地方官府把改革方案。",
-    "因为粮价上涨，地方官府账簿。",
-  ])("rejects a report sentence whose final disposal structure has no predicate: %s", (shareLine) => {
-    expect(() => parseWorldReport(JSON.stringify({
-      ...endingFixture,
-      shareLine,
-    }))).toThrow(/分享语.*完整句/);
-  });
-
-  it.each([
-    "士兵点燃火把。",
-    "他成为一代名将。",
-    "制度改变历史走向。",
-    "议案最终获得通过。",
-    "两地完成合并。",
-    "法案最终通过。",
-    "他最终晋升上将。",
-    "教育成为他的毕生志向。",
-    "两派最终火并。",
-    "地方官府把账簿公开。",
-    "地方官府将新法推广全国。",
-    "他将成为一代名将。",
-    "地方官府将改革制度。",
-    "后世将开放市场。",
-  ])("keeps a complete report sentence whose final character also forms a real word: %s", (shareLine) => {
-    expect(parseWorldReport(JSON.stringify({
-      ...endingFixture,
-      shareLine,
-    })).shareLine).toBe(shareLine);
   });
 
   it("never turns an unfinished conditional clause into a complete causal field at a comma", () => {
@@ -1056,11 +1036,11 @@ describe("structured timeline parsing", () => {
     expect(parseWorldReport(raw).ordinaryLife2026[0]).toBe("城市法案经公议院正式通过。");
   });
 
-  it("rejects ordinary-life details shorter than 12 or longer than 18 characters", () => {
-    const shortDetail = "市民乘列车准时上班。";
-    const longDetail = "学生在课堂公开质询交通年度总预算方案。";
-    expect(shortDetail).toHaveLength(10);
-    expect(longDetail).toHaveLength(19);
+  it("rejects ordinary-life details shorter than 10 or pathologically long", () => {
+    const shortDetail = "市民乘车上班。";
+    const longDetail = "学生在课堂公开质询城市交通年度总预算方案并追问每项公共开支具体情况。".repeat(3);
+    expect(shortDetail.length).toBeLessThan(10);
+    expect(longDetail.length).toBeGreaterThan(72);
 
     expect(() => parseWorldReport(JSON.stringify({
       ...endingFixture,
@@ -1072,17 +1052,44 @@ describe("structured timeline parsing", () => {
     }))).toThrow();
   });
 
-  it("accepts ordinary-life details at the 12 and 18 character boundaries", () => {
-    const minimumDetail = "市民乘驿路列车准时上班。";
+  it("accepts ordinary-life details in the presentation-safe range", () => {
+    const minimumDetail = "市民乘列车准时上班。";
     const maximumDetail = "学生在课堂公开质询交通年度预算方案。";
-    expect(minimumDetail).toHaveLength(12);
-    expect(maximumDetail).toHaveLength(18);
+    expect(minimumDetail).toHaveLength(10);
+    expect(maximumDetail.length).toBeLessThanOrEqual(30);
 
     const report = parseWorldReport(JSON.stringify({
       ...endingFixture,
       ordinaryLife2026: [minimumDetail, maximumDetail, endingFixture.ordinaryLife2026[2]],
     }));
     expect(report.ordinaryLife2026.slice(0, 2)).toEqual([minimumDetail, maximumDetail]);
+  });
+
+  it("keeps the first three eras and final 2026 era when the model over-delivers one", () => {
+    const extraEra = {
+      period: "第五个时代",
+      title: "短暂岔路",
+      narrative: "中间一代曾短暂偏离这套制度。",
+      inheritedChange: "旧规则仍留在地方。",
+    };
+    const compact = {
+      n: endingFixture.worldName,
+      h: endingFixture.frontPageHeadline,
+      p: [
+        ...endingFixture.posthumousChronicle.slice(0, 3),
+        extraEra,
+        endingFixture.posthumousChronicle[3],
+      ].map((item) => [item.period, item.title, item.narrative, item.inheritedChange]),
+      o: endingFixture.ordinaryLife2026,
+      e: endingFixture.closingPassage,
+    };
+
+    const parsed = parseWorldReport(JSON.stringify(compact));
+
+    expect(parsed.posthumousChronicle.map((item) => item.period)).toEqual([
+      ...endingFixture.posthumousChronicle.slice(0, 3).map((item) => item.period),
+      endingFixture.posthumousChronicle[3].period,
+    ]);
   });
 
   it("rebuilds string-only ending timeline entries from authoritative played turns", () => {

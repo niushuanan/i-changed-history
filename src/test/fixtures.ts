@@ -84,8 +84,7 @@ export const turnFixture = {
 export const endingFixture = {
   worldName: "公议纪元",
   frontPageHeadline: "跨洲公议院通过第两千份城市自治章程",
-  vernacularBiography: "沈砚，江夏人。赤壁之夜，他从一名军需官起步，四次在帝国裂缝中作出决定。他见过胜利，也亲手承担制度落地的代价，最终没有称王，却让公开质询成为后世共同的规则。",
-  classicalBiography: "沈砚者，江夏人也。初掌赤壁军需，临难断事。凡四决，或救一城，或更一制，功过相随。终不王而法传后世。太史公曰：人之一念，亦可移天下之势。",
+  lifeStory: "沈砚生在江夏，赤壁之夜从一名军需官起步，四次在帝国裂缝中作出决定。他见过胜利，也亲手承担制度落地的代价，最终没有称王，却让公开质询成为后世共同的规则。",
   protagonistName: "沈砚",
   lifespanSummary: "沈砚从赤壁军需官走到公议制度的奠基者，一生四次把个人选择写进公共秩序。",
   deathScene: {
@@ -101,11 +100,6 @@ export const endingFixture = {
     playerChoice: `选择${index + 1}`,
     consequence: `后果${index + 1}已经发生。`,
   })),
-  causalChains: [
-    { origin: "公开遗诏", transformation: "摄政议会", payoff: "城市自治" },
-    { origin: "共享道路", transformation: "跨洲税制", payoff: "公共交通" },
-    { origin: "承认地方语言", transformation: "多语教育", payoff: "翻译网络" },
-  ],
   ordinaryLife2026: ["通勤者乘公共驿路列车准时上班。", "家庭凭多语身份证跨城办理日常事务。", "学生在课堂公开质询城市交通预算。"],
   posthumousChronicle: [
     { period: "他死后十年", title: "继承者争夺解释权", narrative: "旧部把他的手稿拆成互相冲突的制度版本。", inheritedChange: "公开质询仍成为所有派系都不敢废除的底线。" },
@@ -114,13 +108,4 @@ export const endingFixture = {
     { period: "2026 年", title: "陌生人仍在使用他的遗产", narrative: "没有人能完整复述沈砚的一生，但每个人都活在他的选择之后。", inheritedChange: "权力必须留下可供普通人追问的记录。" },
   ],
   closingPassage: "沈砚没有看见 2026 年。那一年，人们仍在争论他的制度，却已无法想象一个决定不必留下回执的世界。",
-  greatestGain: "地方自治成为默认制度",
-  hiddenPrice: "跨洲协调极其缓慢",
-  strangestDetail: "婚礼要交换城市通行章",
-  biggestBeneficiary: "自治城市居民",
-  biggestLoser: "世袭总督",
-  rewriteLevel: "大陆改写",
-  plausibilityScore: 78,
-  plausibilityReason: "制度变化沿既有道路与继承危机扩散。",
-  shareLine: "我让帝国没有立刻分裂，却创造了一个由城市投票的2026。",
 };

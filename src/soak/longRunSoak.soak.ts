@@ -84,7 +84,12 @@ const SOAK_CONCURRENCY = Math.max(1, Math.min(3, Number(process.env.SOAK_CONCURR
 const SOAK_CASE_IDS = (process.env.SOAK_CASE_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean);
 const SOAK_ALL_ROLL = process.env.SOAK_ALL_ROLL === "1";
 const SOAK_ENFORCE_LATENCY = process.env.SOAK_ENFORCE_LATENCY === "1";
-const SOAK_MIN_SUCCESS_RATE = Math.max(0.5, Math.min(1, Number(process.env.SOAK_MIN_SUCCESS_RATE ?? 0.9)));
+const SOAK_MIN_RUN_SUCCESS_RATE = Math.max(0.5, Math.min(1, Number(
+  process.env.SOAK_MIN_RUN_SUCCESS_RATE ?? process.env.SOAK_MIN_SUCCESS_RATE ?? 0.9,
+)));
+const SOAK_MIN_GENERATION_SUCCESS_RATE = Math.max(0.5, Math.min(1, Number(
+  process.env.SOAK_MIN_GENERATION_SUCCESS_RATE ?? 0.95,
+)));
 const BATCH_ID = process.env.SOAK_BATCH?.trim() || new Date().toISOString().replace(/[:.]/g, "-");
 const selectedCases = selectLongRunSoakCases({
   caseIds: SOAK_CASE_IDS,
@@ -342,9 +347,13 @@ describe("real DeepSeek four-decision full-run stability", () => {
       (sum, result) => sum + Math.max(0, result.completedChapters - 1),
       0,
     );
+    const plannedGenerationStages = selectedCases.length * 4;
+    const completedGenerationStages = completedGeneratedTurns
+      + results.filter((result) => result.ending !== undefined).length;
     const acceptance = {
-      runSuccessRateTarget: SOAK_MIN_SUCCESS_RATE,
-      generatedTurnSuccessRateTarget: SOAK_MIN_SUCCESS_RATE,
+      runSuccessRateTarget: SOAK_MIN_RUN_SUCCESS_RATE,
+      generatedTurnSuccessRateTarget: SOAK_MIN_GENERATION_SUCCESS_RATE,
+      generationStageSuccessRateTarget: SOAK_MIN_GENERATION_SUCCESS_RATE,
       runP50TargetMs: 326_000,
       turnP50TargetMs: 22_000,
       turnP90TargetMs: 35_000,
@@ -359,11 +368,14 @@ describe("real DeepSeek four-decision full-run stability", () => {
       runs: results.length,
       successes,
       successRate: successes / results.length,
-      requiredSuccesses: Math.ceil(results.length * SOAK_MIN_SUCCESS_RATE),
+      requiredSuccesses: Math.ceil(results.length * SOAK_MIN_RUN_SUCCESS_RATE),
       allRoll: SOAK_ALL_ROLL,
       plannedGeneratedTurns,
       completedGeneratedTurns,
       generatedTurnSuccessRate: completedGeneratedTurns / plannedGeneratedTurns,
+      plannedGenerationStages,
+      completedGenerationStages,
+      generationStageSuccessRate: completedGenerationStages / plannedGenerationStages,
       plannedRolls,
       totalRolls,
       successfulRunRolls,
@@ -419,7 +431,8 @@ describe("real DeepSeek four-decision full-run stability", () => {
     });
     expect(totalRolls).toBe(plannedRolls);
     expect(successes).toBeGreaterThanOrEqual(summary.requiredSuccesses);
-    expect(summary.generatedTurnSuccessRate).toBeGreaterThanOrEqual(SOAK_MIN_SUCCESS_RATE);
+    expect(summary.generatedTurnSuccessRate).toBeGreaterThanOrEqual(SOAK_MIN_GENERATION_SUCCESS_RATE);
+    expect(summary.generationStageSuccessRate).toBeGreaterThanOrEqual(SOAK_MIN_GENERATION_SUCCESS_RATE);
     expect(actionDurations.every((duration) => duration < 50)).toBe(true);
     expect(requestMetrics.every((metric) => /^(turn|ending)-/.test(metric.requestKind))).toBe(true);
     if ((SOAK_ENFORCE_LATENCY || selectedCases.length === 10) && successes >= summary.requiredSuccesses) {
