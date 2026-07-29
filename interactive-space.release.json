@@ -1,5 +1,5 @@
 {
-  "appId": "tt8b1afda71430200121",
+  "appId": "ttc88abe3757a063ed21",
   "aiEnabled": true,
   "chatModel": "deepseek-v4-flash-260425",
   "credentialMode": "platform-volcengine-api-key",
