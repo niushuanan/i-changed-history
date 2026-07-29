@@ -30,7 +30,7 @@ describe("local official DeepSeek transport", () => {
 
     await expect(requestCompletion(messages, {
       phase: "turn",
-      reasoning: "fast",
+      reasoning: "minimal",
       requestKind: "turn-primary",
     })).resolves.toBe('{"ok":true}');
 
@@ -57,7 +57,7 @@ describe("local official DeepSeek transport", () => {
     const fetcher = vi.fn().mockResolvedValue(completion());
     vi.stubGlobal("fetch", fetcher);
 
-    await requestCompletion(messages, { phase: "turn", reasoning: "fast" });
+    await requestCompletion(messages, { phase: "turn", reasoning: "minimal" });
 
     expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({
       Authorization: "Bearer project-local-key",
@@ -73,7 +73,7 @@ describe("local official DeepSeek transport", () => {
 
     await requestCompletion(messages, {
       phase: "turn",
-      reasoning: "fast",
+      reasoning: "minimal",
       requestKind: "turn-primary",
     });
 
@@ -87,7 +87,7 @@ describe("local official DeepSeek transport", () => {
       version: 1,
       phase: "turn",
       requestKind: "turn-primary",
-      reasoning: "fast",
+      reasoning: "minimal",
       messages,
     });
     expect(body).not.toHaveProperty("model");
@@ -102,7 +102,7 @@ describe("local official DeepSeek transport", () => {
 
     await expect(requestCompletion(messages, {
       phase: "turn",
-      reasoning: "fast",
+      reasoning: "minimal",
     })).rejects.toMatchObject({
       code: "missing_api_key",
     });

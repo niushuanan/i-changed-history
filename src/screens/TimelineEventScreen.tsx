@@ -26,7 +26,7 @@ function HistoryContextDialog({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header>
-          <div><span>二级阅读</span><h2>{title}</h2></div>
+          <div><h2>{title}</h2></div>
           <button type="button" aria-label={`关闭${title}`} onClick={onClose}><X size={20} /></button>
         </header>
         {isContinuation ? (
@@ -142,7 +142,7 @@ export function TimelineEventScreen({
 
         <section className="decision-zone" role="group" aria-label="本幕决定">
           <h2>
-            <em>上划打出 · 按住读牌 · 每幕可 Roll 3 次</em>
+            <em>上划出牌，长按预览</em>
           </h2>
           <ChoiceList
             choices={visibleChoices}

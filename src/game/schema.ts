@@ -54,7 +54,7 @@ const visualToneSchema = z.enum([
   "space",
   "digital",
 ]);
-const generationSourceSchema = z.enum(["fixed", "deepseek"]);
+const generationSourceSchema = z.enum(["fixed", "model"]);
 
 const echoSchema = z.object({
   directResult: playerFacingString,
@@ -805,7 +805,7 @@ function normalizeTimelineTurnCandidate(value: unknown): unknown {
 
   return {
     ...turn,
-    generationSource: turn.generationSource === "fixed" ? "fixed" : "deepseek",
+    generationSource: turn.generationSource === "fixed" ? "fixed" : "model",
     protagonistName: turn.protagonistName,
     protagonistAge: turn.protagonistAge ?? 24,
     lifeStage: turn.lifeStage ?? JUMP_LABELS[Math.max(0, Number(turn.chapter ?? 1) - 1)],
@@ -1086,7 +1086,7 @@ export function parseTimelineTurn(
   }
   const turn = timelineTurnSchema.parse(candidate ? {
     ...candidate,
-    generationSource: options.expectedGenerationSource ?? "deepseek",
+    generationSource: options.expectedGenerationSource ?? "model",
     ...(options.expectedChapter ? { chapter: options.expectedChapter, chapterName: CHAPTER_NAMES[options.expectedChapter] } : {}),
     ...(options.expectedYearLabel ? { yearLabel: options.expectedYearLabel } : {}),
     ...(options.expectedPreviousEcho ? { previousEcho: options.expectedPreviousEcho } : {}),

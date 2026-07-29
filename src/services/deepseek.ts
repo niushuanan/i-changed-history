@@ -3,30 +3,30 @@
 import type { ChatMessage } from "../game/prompts";
 import { OBJ, parse as parsePartialJson } from "partial-json";
 import {
-  DeepSeekError,
+  CompletionError,
   type CompletionOptions,
-  type DeepSeekErrorCode,
-  type DeepSeekPartialDraft,
-  type DeepSeekProgress,
-  type DeepSeekProgressStage,
-  type DeepSeekReasoning,
-  type DeepSeekRequestKind,
-  type DeepSeekRequestMetrics,
-  type DeepSeekUsage,
-} from "./deepseek-contract";
+  type CompletionErrorCode,
+  type CompletionPartialDraft,
+  type CompletionProgress,
+  type CompletionProgressStage,
+  type CompletionReasoningEffort,
+  type CompletionRequestKind,
+  type CompletionRequestMetrics,
+  type CompletionUsage,
+} from "./completion-contract";
 
-export { DeepSeekError } from "./deepseek-contract";
+export { CompletionError } from "./completion-contract";
 export type {
   CompletionOptions,
-  DeepSeekErrorCode,
-  DeepSeekPartialDraft,
-  DeepSeekProgress,
-  DeepSeekProgressStage,
-  DeepSeekReasoning,
-  DeepSeekRequestKind,
-  DeepSeekRequestMetrics,
-  DeepSeekUsage,
-} from "./deepseek-contract";
+  CompletionErrorCode,
+  CompletionPartialDraft,
+  CompletionProgress,
+  CompletionProgressStage,
+  CompletionReasoningEffort,
+  CompletionRequestKind,
+  CompletionRequestMetrics,
+  CompletionUsage,
+} from "./completion-contract";
 
 const DEEPSEEK_PROXY_ENDPOINT = "/api/deepseek/completions";
 const DEEPSEEK_DIRECT_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
@@ -45,7 +45,7 @@ function nodeEnvironmentValue(name: string): string | undefined {
 
 function directRequestBody(
   messages: readonly ChatMessage[],
-  reasoning: DeepSeekReasoning,
+  reasoning: CompletionReasoningEffort,
   model: string,
   phase: CompletionOptions["phase"],
 ) {
@@ -58,7 +58,7 @@ function directRequestBody(
     temperature: 0.7,
   } as const;
 
-  return reasoning === "fast"
+  return reasoning === "minimal"
     ? { ...shared, thinking: { type: "disabled" }, max_tokens: OUTPUT_TOKEN_BUDGET[phase] } as const
     : {
         ...shared,
@@ -75,8 +75,8 @@ function isBrowserTransport(): boolean {
 function proxyRequestBody(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
-  reasoning: DeepSeekReasoning,
-  requestKind: DeepSeekRequestKind,
+  reasoning: CompletionReasoningEffort,
+  requestKind: CompletionRequestKind,
 ) {
   return {
     version: 1,
@@ -90,8 +90,8 @@ function proxyRequestBody(
 function transportRequest(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
-  reasoning: DeepSeekReasoning,
-  requestKind: DeepSeekRequestKind,
+  reasoning: CompletionReasoningEffort,
+  requestKind: CompletionRequestKind,
 ) {
   const soakProxyBaseUrl = nodeEnvironmentValue("SOAK_PROXY_BASE_URL");
   if (isBrowserTransport() || soakProxyBaseUrl) {
@@ -110,7 +110,7 @@ function transportRequest(
 
   const key = nodeEnvironmentValue("VITE_DEEPSEEK_API_KEY")
     ?? nodeEnvironmentValue("DEEPSEEK_API_KEY");
-  if (!key) throw new DeepSeekError("missing_api_key", "未配置 DeepSeek API 密钥。");
+  if (!key) throw new CompletionError("missing_api_key", "未配置 DeepSeek API 密钥。");
   const model = nodeEnvironmentValue("DEEPSEEK_MODEL")
     ?? nodeEnvironmentValue("VITE_DEEPSEEK_MODEL")
     ?? DEFAULT_DEEPSEEK_MODEL;
@@ -130,7 +130,7 @@ function clockNow(): number {
 
 function reportMetrics(
   callback: CompletionOptions["onMetrics"],
-  metrics: DeepSeekRequestMetrics,
+  metrics: CompletionRequestMetrics,
 ): void {
   try {
     callback?.(metrics);
@@ -141,7 +141,7 @@ function reportMetrics(
 
 function reportPartial(
   callback: CompletionOptions["onPartial"],
-  draft: DeepSeekPartialDraft,
+  draft: CompletionPartialDraft,
 ): void {
   try {
     callback?.(draft);
@@ -162,17 +162,17 @@ function parseRetryAfterMs(response: Response): number | undefined {
   return Math.max(0, timestamp - Date.now());
 }
 
-function errorForResponse(response: Response): DeepSeekError {
+function errorForResponse(response: Response): CompletionError {
   const { status } = response;
   const retryAfterMs = parseRetryAfterMs(response);
   if (status === 401) {
-    return new DeepSeekError("unauthorized", "DeepSeek API 密钥无效，请检查后重试。", status);
+    return new CompletionError("unauthorized", "DeepSeek API 密钥无效，请检查后重试。", status);
   }
   if (status === 403) {
-    return new DeepSeekError("forbidden", "当前 DeepSeek API 密钥没有调用权限。", status);
+    return new CompletionError("forbidden", "当前 DeepSeek API 密钥没有调用权限。", status);
   }
   if (status === 429) {
-    return new DeepSeekError(
+    return new CompletionError(
       "rate_limited",
       "请求过于频繁，请稍后重新推演。",
       status,
@@ -181,19 +181,19 @@ function errorForResponse(response: Response): DeepSeekError {
     );
   }
   if (status >= 500) {
-    return new DeepSeekError(
+    return new CompletionError(
       "service_unavailable",
       "DeepSeek 服务暂时不可用，请重新推演这一幕。",
       status,
       retryAfterMs,
     );
   }
-  return new DeepSeekError("request_failed", "推演请求失败，请重新推演这一幕。", status);
+  return new CompletionError("request_failed", "推演请求失败，请重新推演这一幕。", status);
 }
 
-function isRetryable(error: unknown): error is DeepSeekError {
+function isRetryable(error: unknown): error is CompletionError {
   return (
-    error instanceof DeepSeekError &&
+    error instanceof CompletionError &&
     error.retryable &&
     ["rate_limited", "service_unavailable", "network"].includes(error.code)
   );
@@ -216,7 +216,7 @@ function retryDelayMs(attempt: number, retryAfterMs?: number): number {
 
 function waitBeforeRetry(attempt: number, retryAfterMs?: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) {
-    return Promise.reject(new DeepSeekError("aborted", "本次推演已取消。"));
+    return Promise.reject(new CompletionError("aborted", "本次推演已取消。"));
   }
 
   return new Promise((resolve, reject) => {
@@ -227,7 +227,7 @@ function waitBeforeRetry(attempt: number, retryAfterMs?: number, signal?: AbortS
 
     const handleAbort = () => {
       clearTimeout(timer);
-      reject(new DeepSeekError("aborted", "本次推演已取消。"));
+      reject(new CompletionError("aborted", "本次推演已取消。"));
     };
 
     signal?.addEventListener("abort", handleAbort, { once: true });
@@ -235,8 +235,8 @@ function waitBeforeRetry(attempt: number, retryAfterMs?: number, signal?: AbortS
 }
 
 function progressReporter(onProgress?: CompletionOptions["onProgress"]) {
-  const emitted = new Set<DeepSeekProgressStage>();
-  return (stage: DeepSeekProgressStage) => {
+  const emitted = new Set<CompletionProgressStage>();
+  return (stage: CompletionProgressStage) => {
     if (emitted.has(stage)) return;
     emitted.add(stage);
     try {
@@ -260,17 +260,17 @@ type CompletionReadResult = {
   content: string;
   firstReasoningTokenMs?: number;
   firstContentTokenMs?: number;
-  usage?: DeepSeekUsage;
+  usage?: CompletionUsage;
 };
 
 function numeric(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function normalizeUsage(value: unknown): DeepSeekUsage | undefined {
+function normalizeUsage(value: unknown): CompletionUsage | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const usage = value as RawUsage;
-  const normalized: DeepSeekUsage = {
+  const normalized: CompletionUsage = {
     promptTokens: numeric(usage.prompt_tokens),
     promptCacheHitTokens: numeric(usage.prompt_cache_hit_tokens),
     promptCacheMissTokens: numeric(usage.prompt_cache_miss_tokens),
@@ -281,7 +281,7 @@ function normalizeUsage(value: unknown): DeepSeekUsage | undefined {
   return Object.values(normalized).some((item) => item !== undefined) ? normalized : undefined;
 }
 
-function readablePartial(content: string): DeepSeekPartialDraft | null {
+function readablePartial(content: string): CompletionPartialDraft | null {
   let parsed: unknown;
   try {
     parsed = parsePartialJson(content, OBJ);
@@ -308,7 +308,7 @@ function readablePartial(content: string): DeepSeekPartialDraft | null {
 
 async function readJsonCompletion(
   response: Response,
-  report: (stage: DeepSeekProgressStage) => void,
+  report: (stage: CompletionProgressStage) => void,
   startedAt: number,
   onPartial?: CompletionOptions["onPartial"],
 ): Promise<CompletionReadResult> {
@@ -317,7 +317,7 @@ async function readJsonCompletion(
   const content = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices?.[0]
     ?.message?.content;
   if (typeof content !== "string" || content.trim() === "") {
-    throw new DeepSeekError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
+    throw new CompletionError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
   }
 
   report("writing");
@@ -341,12 +341,12 @@ function sseData(event: string): string | null {
 
 async function readStreamedCompletion(
   response: Response,
-  report: (stage: DeepSeekProgressStage) => void,
+  report: (stage: CompletionProgressStage) => void,
   startedAt: number,
   onPartial?: CompletionOptions["onPartial"],
 ): Promise<CompletionReadResult> {
   if (!response.body) {
-    throw new DeepSeekError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
+    throw new CompletionError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
   }
 
   const reader = response.body.getReader();
@@ -356,7 +356,7 @@ async function readStreamedCompletion(
   let finished = false;
   let firstReasoningTokenMs: number | undefined;
   let firstContentTokenMs: number | undefined;
-  let usage: DeepSeekUsage | undefined;
+  let usage: CompletionUsage | undefined;
   let lastDraft = "";
 
   const consume = (event: string) => {
@@ -377,13 +377,13 @@ async function readStreamedCompletion(
     try {
       chunk = JSON.parse(data) as typeof chunk;
     } catch {
-      throw new DeepSeekError("invalid_response", "DeepSeek 流式结果无法解析，请重新推演。");
+      throw new CompletionError("invalid_response", "DeepSeek 流式结果无法解析，请重新推演。");
     }
 
     usage = normalizeUsage(chunk.usage) ?? usage;
     const choice = chunk.choices?.[0];
     if (choice?.finish_reason === "length") {
-      throw new DeepSeekError("invalid_response", "DeepSeek 输出被截断，请重新推演。");
+      throw new CompletionError("invalid_response", "DeepSeek 输出被截断，请重新推演。");
     }
     if (typeof choice?.delta?.reasoning_content === "string" && choice.delta.reasoning_content) {
       firstReasoningTokenMs ??= clockNow() - startedAt;
@@ -423,7 +423,7 @@ async function readStreamedCompletion(
 
   if (!finished && buffer.trim()) consume(buffer);
   if (!content.trim()) {
-    throw new DeepSeekError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
+    throw new CompletionError("invalid_response", "DeepSeek 返回了空结果，请重新推演。");
   }
   report("validating");
   return { content, firstReasoningTokenMs, firstContentTokenMs, usage };
@@ -448,7 +448,7 @@ async function performRequest(
 ): Promise<string> {
   const externalSignal = options.signal;
   if (externalSignal?.aborted) {
-    throw new DeepSeekError("aborted", "本次推演已取消。");
+    throw new CompletionError("aborted", "本次推演已取消。");
   }
 
   const reasoning = options.reasoning ?? "high";
@@ -460,7 +460,7 @@ async function performRequest(
     messages: readonly ChatMessage[];
     response: string | null;
     timing: { totalMs: number; responseHeadersMs?: number; firstReasoningTokenMs?: number; firstContentTokenMs?: number };
-    usage?: DeepSeekUsage;
+    usage?: CompletionUsage;
     status?: number;
     error?: { code: string; message: string } | null;
   }) => {
@@ -513,16 +513,16 @@ async function performRequest(
       responseStatus = response.status;
     } catch (error) {
       if (timedOut) {
-        throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
+        throw new CompletionError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
       }
       if (externalSignal?.aborted) {
-        throw new DeepSeekError("aborted", "本次推演已取消。");
+        throw new CompletionError("aborted", "本次推演已取消。");
       }
-      throw new DeepSeekError("network", "网络连接中断，请重新推演这一幕。");
+      throw new CompletionError("network", "网络连接中断，请重新推演这一幕。");
     }
 
     if (timedOut) {
-      throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
+      throw new CompletionError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
     }
     if (!response.ok) throw errorForResponse(response);
 
@@ -531,16 +531,16 @@ async function performRequest(
       result = await readCompletion(response, options, startedAt);
     } catch (error) {
       if (timedOut) {
-        throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
+        throw new CompletionError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
       }
       if (externalSignal?.aborted) {
-        throw new DeepSeekError("aborted", "本次推演已取消。");
+        throw new CompletionError("aborted", "本次推演已取消。");
       }
       if (error instanceof TypeError || isAbortFailure(error)) {
-        throw new DeepSeekError("network", "网络连接中断，请重新推演这一幕。");
+        throw new CompletionError("network", "网络连接中断，请重新推演这一幕。");
       }
-      if (!(error instanceof DeepSeekError)) {
-        throw new DeepSeekError(
+      if (!(error instanceof CompletionError)) {
+        throw new CompletionError(
           "invalid_response",
           "DeepSeek 返回了无法读取的结果，请重新推演。",
         );
@@ -548,7 +548,7 @@ async function performRequest(
       throw error;
     }
     if (timedOut) {
-      throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
+      throw new CompletionError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
     }
     reportMetrics(options.onMetrics, {
       phase: options.phase,
@@ -573,9 +573,9 @@ async function performRequest(
     });
     return result.content;
   } catch (error) {
-    const normalized = error instanceof DeepSeekError
+    const normalized = error instanceof CompletionError
       ? error
-      : new DeepSeekError("request_failed", "推演请求失败，请重新推演这一幕。");
+      : new CompletionError("request_failed", "推演请求失败，请重新推演这一幕。");
     reportMetrics(options.onMetrics, {
       phase: options.phase,
       requestKind,
@@ -618,5 +618,5 @@ export async function requestCompletion(
     }
   }
 
-  throw new DeepSeekError("request_failed", "推演请求失败，请重新推演这一幕。");
+  throw new CompletionError("request_failed", "推演请求失败，请重新推演这一幕。");
 }

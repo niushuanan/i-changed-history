@@ -2,6 +2,7 @@
   "use strict";
 
   var MODEL_ID = "doubao-seed-2-0-lite-260428";
+  var REASONING_EFFORT = "minimal";
   var callButton = document.getElementById("call-button");
   var runtimeValue = document.getElementById("runtime-value");
   var runtimeDot = document.getElementById("runtime-dot");
@@ -97,6 +98,7 @@
       callAIChatCompletion({
         type: "text",
         model: MODEL_ID,
+        reasoning_effort: REASONING_EFFORT,
         stream: false,
         messages: [
           {

@@ -341,8 +341,8 @@ export function SeedPickerScreen({
                 <div className="destiny-card-back__frame">
                   <img src="/assets/cards/frame-regular-v2.webp" alt="" />
                   <span className="destiny-card-back__seal"><DiceFive size={42} weight="duotone" /></span>
-                  <strong>历史还没翻开</strong>
-                  <small>按下抽取，完整的历史卡会沿着时间一张张旋过</small>
+                  <strong>尚未揭晓</strong>
+                  <small>历史就此展开</small>
                 </div>
               </article>
             )}
@@ -350,7 +350,7 @@ export function SeedPickerScreen({
 
           {!revealed ? <div className={`destiny-actions destiny-actions--${drawState}`}>
             {drawState === "drawing" ? (
-              <span className="destiny-actions__motion" role="status">命运匀速掠过，即将揭晓</span>
+              <span className="destiny-actions__motion" role="status">历史流转，即将揭晓</span>
             ) : (
               <button
                 className="destiny-draw-button destiny-draw-button--primary"

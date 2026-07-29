@@ -11,8 +11,8 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: "../services/deepseek",
-        replacement: path.join(projectRoot, "src/services/deepseek.interactive.ts"),
+        find: "../services/completion",
+        replacement: path.join(projectRoot, "src/services/seed.interactive.ts"),
       },
       {
         find: "html-to-image",

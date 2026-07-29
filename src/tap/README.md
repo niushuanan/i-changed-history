@@ -53,4 +53,4 @@ tap.html ← onmessage → 内存数组 + localStorage 持久化 → 翻页展�
 ## 不包含在生产构建中
 
 - `npm run build` 默认不打包 `tap.html` 和 `src/tap/` 下的代码
-- 交互审核包使用 `vite.interactive.config.ts` + `deepseek.interactive.ts`，完全与此无关
+- 互动空间正式包使用 `vite.interactive.config.ts` + `seed.interactive.ts`，完全与此无关

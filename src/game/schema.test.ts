@@ -138,7 +138,7 @@ describe("structured timeline parsing", () => {
     });
     const parsed = parseTimelineTurn(raw);
     expect(parsed).not.toHaveProperty("metrics");
-    expect(parsed.generationSource).toBe("deepseek");
+    expect(parsed.generationSource).toBe("model");
   });
 
   it("drops legacy model fields that have no gameplay consumer", () => {

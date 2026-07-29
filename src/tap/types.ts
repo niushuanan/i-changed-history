@@ -27,6 +27,7 @@ export type TapRecord = {
 export type TapChannelMessage =
   | { type: "request"; payload: TapRecord }
   | { type: "sync-request" }
-  | { type: "sync-reply"; payload: TapRecord[] };
+  | { type: "sync-reply"; payload: TapRecord[] }
+  | { type: "clear" };
 
 export type TapTab = "input" | "output" | "metrics";

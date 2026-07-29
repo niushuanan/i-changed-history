@@ -31,7 +31,7 @@ function envelope(overrides: Partial<DeepSeekProxyEnvelope> = {}): DeepSeekProxy
     version: 1,
     phase: "turn",
     requestKind: "turn-primary",
-    reasoning: "fast",
+    reasoning: "minimal",
     messages: buildContinuationMessages(scenario, [playedTurn], 2),
     ...overrides,
   };
@@ -61,7 +61,7 @@ function rerollEnvelope(): DeepSeekProxyEnvelope {
     version: 1,
     phase: "turn",
     requestKind: "roll-primary",
-    reasoning: "fast",
+    reasoning: "minimal",
     messages: buildRerollMessages(
       scenario,
       endingPlayedTurns,

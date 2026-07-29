@@ -27,15 +27,15 @@ import {
   type WorldReport,
 } from "./schema";
 import {
-  DeepSeekError,
+  CompletionError,
   requestCompletion,
   type CompletionOptions,
-  type DeepSeekPartialDraft,
-  type DeepSeekProgressStage,
-  type DeepSeekRequestKind,
-  type DeepSeekRequestMetrics,
-  type DeepSeekReasoning,
-} from "../services/deepseek";
+  type CompletionPartialDraft,
+  type CompletionProgressStage,
+  type CompletionRequestKind,
+  type CompletionRequestMetrics,
+  type CompletionReasoningEffort,
+} from "../services/completion";
 import { getTimelineNode, type DecisionChapter } from "./timelinePlan";
 import { createFallbackCustomActionResolution } from "./fallbackTurn";
 import { buildCanonicalCustomResolution } from "./customCanon";
@@ -49,10 +49,10 @@ type Parser<T> = (raw: string) => T;
 
 export type GenerationOptions = {
   signal?: AbortSignal;
-  onProgress?: (stage: DeepSeekProgressStage) => void;
+  onProgress?: (stage: CompletionProgressStage) => void;
   onDiagnostic?: (diagnostic: GenerationDiagnostic) => void;
-  onPartial?: (draft: DeepSeekPartialDraft) => void;
-  onMetrics?: (metrics: DeepSeekRequestMetrics) => void;
+  onPartial?: (draft: CompletionPartialDraft) => void;
+  onMetrics?: (metrics: CompletionRequestMetrics) => void;
 };
 
 export type NextTurnGenerationOptions = GenerationOptions & {
@@ -85,6 +85,25 @@ class FieldValidationError extends Error {
     this.name = "FieldValidationError";
     this.issues = fields.map((field) => ({ path: [field], message }));
   }
+}
+
+const REPAIR_BACKOFF_MS = 1_200;
+const RECOVERY_BACKOFF_MS = 2_400;
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(
+      new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false),
+    );
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 const DEFAULT_TURN_POWER_IDS = ["blink-self", "stop-time"] as const;
@@ -216,7 +235,7 @@ async function requestValidated<T>(
   const complete = async (
     requestMessages: ChatMessage[],
     relayProgress = true,
-    override?: { reasoning: DeepSeekReasoning; requestKind: DeepSeekRequestKind },
+    override?: { reasoning: CompletionReasoningEffort; requestKind: CompletionRequestKind },
   ) => {
     try {
       return await requestCompletion(requestMessages, {
@@ -226,7 +245,7 @@ async function requestValidated<T>(
         onPartial: relayProgress ? requestOptions.onPartial : undefined,
       });
     } catch (error) {
-      if (error instanceof DeepSeekError && error.code === "invalid_response") {
+      if (error instanceof CompletionError && error.code === "invalid_response") {
         throw new StructuredGenerationError(target, error);
       }
       throw error;
@@ -245,6 +264,7 @@ async function requestValidated<T>(
       ...(patchOnly ? { repairFields } : {}),
     });
     requestOptions.onProgress?.({ stage: "repairing" });
+    await delay(REPAIR_BACKOFF_MS, requestOptions.signal);
     const repairedRaw = await complete(
       buildContextualJsonRepairMessages(messages, raw, target, {
         ...repairDetails,
@@ -253,7 +273,7 @@ async function requestValidated<T>(
       }),
       false,
       {
-        reasoning: "fast",
+        reasoning: "minimal",
         requestKind: target === "choice_set"
           ? "roll-repair"
           : requestOptions.phase === "ending"
@@ -271,6 +291,7 @@ async function requestValidated<T>(
       requestOptions.onProgress?.({ stage: "repairing" });
       const recoveryFields = repairableRootFields(repairError);
       const recoveryPatchOnly = recoveryFields !== null;
+      await delay(RECOVERY_BACKOFF_MS, requestOptions.signal);
       const recoveryRaw = await complete(
         buildContextualJsonRepairMessages(messages, repairedCandidate, target, {
           ...repairDetails,
@@ -281,7 +302,7 @@ async function requestValidated<T>(
         }),
         false,
         {
-          reasoning: recoveryPatchOnly ? "fast" : "high",
+          reasoning: recoveryPatchOnly ? "minimal" : "high",
           requestKind: target === "choice_set"
             ? "roll-recovery"
             : requestOptions.phase === "ending"
@@ -307,8 +328,8 @@ async function requestValidated<T>(
 function completionOptions(
   phase: CompletionOptions["phase"],
   options: GenerationOptions,
-  reasoning: DeepSeekReasoning,
-  requestKind: DeepSeekRequestKind,
+  reasoning: CompletionReasoningEffort,
+  requestKind: CompletionRequestKind,
 ): EngineCompletionOptions {
   return {
     phase,
@@ -521,7 +542,7 @@ export async function generateNextTurn(
   const protagonistName = playedTurns[0]?.turn.protagonistName;
   const customCanon = playedTurns.filter((turn) => turn.playerAuthored);
   const activePlayerCanon = buildNarrativeContext(playedTurns, chapter).activePlayerCanon;
-  return requestValidated(messages, completionOptions("turn", options, "fast", "turn-primary"), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon, options.assignedPowerIds), { expectedChapter: chapter });
+  return requestValidated(messages, completionOptions("turn", options, "minimal", "turn-primary"), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon, options.assignedPowerIds), { expectedChapter: chapter });
 }
 
 export async function generateRerolledChoices(
@@ -535,7 +556,7 @@ export async function generateRerolledChoices(
   const assignedPowerId = options.assignedPowerId ?? DEFAULT_ROLL_POWER_ID;
   return requestValidated(
     buildRerollMessages(scenario, playedTurns, turn, rollNumber, previousChoices, assignedPowerId),
-    completionOptions("turn", options, "fast", "roll-primary"),
+    completionOptions("turn", options, "minimal", "roll-primary"),
     "choice_set",
     (raw) => {
       const choices = parseChoiceSet(raw, options.assignedPowerId, turn.timePressure);
@@ -565,14 +586,14 @@ export async function generateEnding(
   }
   const biographyPromise = requestValidated(
     buildBiographyMessages(scenario, playedTurns),
-    completionOptions("ending", options, "fast", "ending-primary"),
+    completionOptions("ending", options, "minimal", "ending-primary"),
     "biography_report",
     parseExpectedBiography(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }),
     {},
   );
   const worldReportPromise = requestValidated(
     buildWorldReportMessages(scenario, playedTurns),
-    completionOptions("ending", options, "fast", "ending-primary"),
+    completionOptions("ending", options, "minimal", "ending-primary"),
     "world_report",
     parseExpectedWorldReport(finalTurn.yearLabel),
     {},

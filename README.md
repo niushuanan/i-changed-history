@@ -31,12 +31,12 @@
 | 环节 | 实现方式 |
 | --- | --- |
 | 100 张历史卡、随机入口与第一幕 | 本地固定数据，抽中后立即可玩 |
-| 第 2-4 幕 | DeepSeek `deepseek-v4-flash` 实时生成 |
+| 第 2-4 幕 | 当前运行环境的实时模型生成；互动空间固定为 Doubao Seed 2.0 Lite `minimal` 不思考模式 |
 | 六张决定牌 | 每幕同一次调用生成首组三张和 Roll 组三张；每组固定为循史、破局、天外，两张天外分别绑定不同的客户端指定能力 |
-| 第 2、3 次 Roll | DeepSeek 在当前现场实时生成全新的循史、破局、天外三张牌 |
+| 第 2、3 次 Roll | 当前运行环境的模型在同一现场实时生成全新的循史、破局、天外三张牌 |
 | 牌面与详情 | `displayLabel` 用于短牌面；完整 `label`、行动规格和即时结果用于长按详情与下一幕推演 |
-| 最终人物列传 | DeepSeek 独立生成 |
-| 2026 平行世界报告 | DeepSeek 与人物列传并发生成 |
+| 最终人物列传 | 当前运行环境的模型独立生成 |
+| 2026 平行世界报告 | 与人物列传并发生成 |
 
 第一幕固定，是为了让玩家抽中历史后立刻开始；每个历史快照预先拥有六张 AI 写成的天外候选，运行时随机取两张而不增加网络等待。真正需要开放推理的第 2 至第 4 幕、第二与第三次 Roll、以及最终报告由模型生成。实时 Roll 只换牌、不改写当前现场，失败时保留原牌、同一能力和次数并可直接重试。所有模型结果都使用 JSON Schema 风格契约和 Zod 校验。轻微字段错误只修复失败字段；无法修复时保留游戏进度并提供重试，不在本地伪造后续剧情。
 
@@ -66,7 +66,8 @@
 - `src/game/prompts.ts`：六张决定牌、续幕和结局提示协议
 - `src/game/engine.ts`：模型生成、校验和修复
 - `src/services/deepseek.ts`：浏览器同源代理传输、SSE 解析与 Node 长测直连传输
-- `src/services/deepseek.interactive.ts`：抖音互动空间 `tt.callAIChatCompletion` / 火山平台传输，固定使用火山方舟 Model ID `doubao-seed-2-0-lite-260428`
+- `src/services/completion.ts` 与 `src/services/completion-contract.ts`：运行环境无关的模型入口和通用传输契约
+- `src/services/seed.interactive.ts`：抖音互动空间 `tt.callAIChatCompletion` / 火山平台传输，固定使用火山方舟 Model ID `doubao-seed-2-0-lite-260428` 和 `reasoning_effort: "minimal"`
 - `src/components/ChoiceList.tsx`：三张卡牌、三次 Roll、长按详情和上划提交
 - `src/services/share.ts`：完整报告图片准备、移动系统分享与桌面下载
 - `src/hooks/useGame.ts`：请求、存档、音频与恢复编排
@@ -137,7 +138,7 @@ npm run build
 npm run build:interactive
 ```
 
-该命令会把完整 100 个历史开局、固定首幕、AI 续幕、音频和本地图片一起转换为互动空间运行时，通过平台 `tt.callAIChatCompletion` 调用 V4 Flash；随后优化全部移动端资源、检查 100 个剧本和图片均已入包、确认 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通网页构建并提交审核。
+该命令会把完整 100 个历史开局、固定首幕、AI 续幕、音频和本地图片一起转换为互动空间运行时，通过平台 `tt.callAIChatCompletion` 调用 Doubao Seed 2.0 Lite，并把所有续幕、Roll、修复、恢复和结局请求统一锁定为 `reasoning_effort: "minimal"` 的不思考快速模式；随后优化全部移动端资源、检查 100 个剧本和图片均已入包、拒绝任何 DeepSeek 运行时痕迹、确认 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通网页构建并提交审核。
 
 ## 密钥与部署
 
@@ -145,7 +146,7 @@ npm run build:interactive
 
 Sites 部署只通过运行时环境变量保存 Key，不把秘密写进 `.openai/hosting.json`。代理校验版本、同源、系统协议、阶段和请求类型，但不绑定具体中文任务句子，也不设置任何产品侧速率限制；它原样保留 SSE、取消、上游状态与 `Retry-After`。公开分享仍建议使用单独的低预算 Key，并在 DeepSeek 账户侧设置余额上限和告警。
 
-两种运行环境的 AI 传输矩阵和测试边界见 [`docs/ai-transports.md`](docs/ai-transports.md)：本地与 Sites 走 DeepSeek 官方接口，抖音互动空间走平台注入的 `tt.callAIChatCompletion`，二者复用同一套游戏协议和 Schema。
+两种运行环境的 AI 传输矩阵和测试边界见 [`docs/ai-transports.md`](docs/ai-transports.md)：本地与 Sites 走 DeepSeek 官方接口，抖音互动空间只走平台注入的 Seed 2.0 Lite `tt.callAIChatCompletion` 通道，二者复用同一套游戏协议和 Schema。
 
 ## LLM Tap：开发调试工具
 

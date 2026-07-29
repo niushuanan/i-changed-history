@@ -1,6 +1,6 @@
-export type DeepSeekReasoning = "fast" | "high";
+export type CompletionReasoningEffort = "minimal" | "high";
 
-export type DeepSeekRequestKind =
+export type CompletionRequestKind =
   | "turn-primary"
   | "turn-repair"
   | "turn-recovery"
@@ -11,7 +11,7 @@ export type DeepSeekRequestKind =
   | "ending-repair"
   | "ending-recovery";
 
-export type DeepSeekPartialDraft = Readonly<Partial<{
+export type CompletionPartialDraft = Readonly<Partial<{
   headline: string;
   narrative: string;
   location: string;
@@ -20,7 +20,7 @@ export type DeepSeekPartialDraft = Readonly<Partial<{
   timePressure: string;
 }>>;
 
-export type DeepSeekUsage = Readonly<{
+export type CompletionUsage = Readonly<{
   promptTokens?: number;
   promptCacheHitTokens?: number;
   promptCacheMissTokens?: number;
@@ -29,12 +29,12 @@ export type DeepSeekUsage = Readonly<{
   totalTokens?: number;
 }>;
 
-type DeepSeekPhase = "turn" | "ending";
+type CompletionPhase = "turn" | "ending";
 
-export type DeepSeekRequestMetrics = Readonly<{
-  phase: DeepSeekPhase;
-  requestKind: DeepSeekRequestKind;
-  reasoning: DeepSeekReasoning;
+export type CompletionRequestMetrics = Readonly<{
+  phase: CompletionPhase;
+  requestKind: CompletionRequestKind;
+  reasoning: CompletionReasoningEffort;
   attempt: number;
   outcome: "success" | "error";
   responseHeadersMs?: number;
@@ -42,11 +42,11 @@ export type DeepSeekRequestMetrics = Readonly<{
   firstContentTokenMs?: number;
   totalMs: number;
   status?: number;
-  usage?: DeepSeekUsage;
-  errorCode?: DeepSeekErrorCode;
+  usage?: CompletionUsage;
+  errorCode?: CompletionErrorCode;
 }>;
 
-export type DeepSeekErrorCode =
+export type CompletionErrorCode =
   | "missing_api_key"
   | "unauthorized"
   | "forbidden"
@@ -58,11 +58,11 @@ export type DeepSeekErrorCode =
   | "invalid_response"
   | "request_failed";
 
-export class DeepSeekError extends Error {
-  readonly name = "DeepSeekError";
+export class CompletionError extends Error {
+  readonly name = "CompletionError";
 
   constructor(
-    public readonly code: DeepSeekErrorCode,
+    public readonly code: CompletionErrorCode,
     message: string,
     public readonly status?: number,
     public readonly retryAfterMs?: number,
@@ -73,20 +73,20 @@ export class DeepSeekError extends Error {
 }
 
 export type CompletionOptions = {
-  phase: DeepSeekPhase;
-  reasoning?: DeepSeekReasoning;
-  requestKind?: DeepSeekRequestKind;
+  phase: CompletionPhase;
+  reasoning?: CompletionReasoningEffort;
+  requestKind?: CompletionRequestKind;
   signal?: AbortSignal;
-  onProgress?: (progress: DeepSeekProgress) => void;
-  onPartial?: (draft: DeepSeekPartialDraft) => void;
-  onMetrics?: (metrics: DeepSeekRequestMetrics) => void;
+  onProgress?: (progress: CompletionProgress) => void;
+  onPartial?: (draft: CompletionPartialDraft) => void;
+  onMetrics?: (metrics: CompletionRequestMetrics) => void;
 };
 
-export type DeepSeekProgressStage =
+export type CompletionProgressStage =
   | "connected"
   | "reasoning"
   | "writing"
   | "validating"
   | "repairing";
 
-export type DeepSeekProgress = { stage: DeepSeekProgressStage };
+export type CompletionProgress = { stage: CompletionProgressStage };

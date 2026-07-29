@@ -15,6 +15,7 @@ await access(path.join(outputRoot, "index.html"));
 if (
   releaseConfig.aiEnabled !== true
   || releaseConfig.chatModel !== "doubao-seed-2-0-lite-260428"
+  || releaseConfig.reasoningEffort !== "minimal"
   || releaseConfig.credentialMode !== "platform-volcengine-api-key"
   || releaseConfig.minimumDouyinVersion !== "39.5.0"
   || releaseConfig.aiDisclosureMinShortEdgePercent !== 5
@@ -22,7 +23,7 @@ if (
   || releaseConfig.packageType !== 1
   || releaseConfig.maxZipBytes !== 8 * 1024 * 1024
 ) {
-  throw new Error("Interactive release configuration must keep AI enabled, Doubao Seed 2.0 Lite, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
+  throw new Error("Interactive release configuration must keep AI enabled, Doubao Seed 2.0 Lite at minimal reasoning effort, platform credentials, Douyin 39.5.0+, a 5% AI disclosure, portrait mode, package type 1, and the 8MB limit.");
 }
 
 async function collectFiles(directory) {
@@ -97,6 +98,8 @@ for (const match of indexHtml.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
 const requiredRuntimeMarkers = [
   "callAIChatCompletion",
   "doubao-seed-2-0-lite-260428",
+  "reasoning_effort",
+  "minimal",
   "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",
@@ -110,6 +113,9 @@ if (!/\.seed-picker__ai-mark\{[^}]*font-size:20px/.test(bundledText)) {
 }
 if (bundledText.includes("游戏说明")) {
   throw new Error("Interactive runtime must use 体验说明 instead of 游戏说明.");
+}
+if (/deepseek/i.test(bundledText)) {
+  throw new Error("Interactive runtime must not retain DeepSeek provider names or transport traces.");
 }
 if (/\bsk-[A-Za-z0-9_-]{16,}\b/.test(bundledText)) {
   throw new Error("Interactive runtime must never embed an API key.");
@@ -143,6 +149,7 @@ console.log(JSON.stringify({
   missingScriptIds: 0,
   aiEnabled: releaseConfig.aiEnabled,
   chatModel: releaseConfig.chatModel,
+  reasoningEffort: releaseConfig.reasoningEffort,
   credentialMode: releaseConfig.credentialMode,
   minimumDouyinVersion: releaseConfig.minimumDouyinVersion,
   aiDisclosureMinShortEdgePercent: releaseConfig.aiDisclosureMinShortEdgePercent,

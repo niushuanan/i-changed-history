@@ -3,32 +3,34 @@
 import type { ChatMessage } from "../game/prompts";
 import { OBJ, parse as parsePartialJson } from "partial-json";
 import {
-  DeepSeekError,
+  CompletionError,
   type CompletionOptions,
-  type DeepSeekErrorCode,
-  type DeepSeekPartialDraft,
-  type DeepSeekProgress,
-  type DeepSeekProgressStage,
-  type DeepSeekReasoning,
-  type DeepSeekRequestKind,
-  type DeepSeekRequestMetrics,
-  type DeepSeekUsage,
-} from "./deepseek-contract";
+  type CompletionErrorCode,
+  type CompletionPartialDraft,
+  type CompletionProgress,
+  type CompletionProgressStage,
+  type CompletionReasoningEffort,
+  type CompletionRequestKind,
+  type CompletionRequestMetrics,
+  type CompletionUsage,
+} from "./completion-contract";
 
-export { DeepSeekError } from "./deepseek-contract";
+export { CompletionError } from "./completion-contract";
 export type {
   CompletionOptions,
-  DeepSeekErrorCode,
-  DeepSeekPartialDraft,
-  DeepSeekProgress,
-  DeepSeekProgressStage,
-  DeepSeekReasoning,
-  DeepSeekRequestKind,
-  DeepSeekRequestMetrics,
-  DeepSeekUsage,
-} from "./deepseek-contract";
+  CompletionErrorCode,
+  CompletionPartialDraft,
+  CompletionProgress,
+  CompletionProgressStage,
+  CompletionReasoningEffort,
+  CompletionRequestKind,
+  CompletionRequestMetrics,
+  CompletionUsage,
+} from "./completion-contract";
 
-const INTERACTIVE_SPACE_MODEL = "doubao-seed-2-0-lite-260428";
+const SEED_MODEL_ID = "doubao-seed-2-0-lite-260428";
+const SEED_REASONING_EFFORT = "minimal" as const;
+const SEED_TEMPERATURE = 0.7;
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
 const MAX_RETRY_DELAY_MS = 15_000;
@@ -62,6 +64,7 @@ type PlatformChatOptions = {
   type: "text";
   stream: boolean;
   model: string;
+  reasoning_effort: typeof SEED_REASONING_EFFORT;
   messages: Array<{ role: "system" | "user"; content: string }>;
   temperature: number;
   maxTokens: number;
@@ -114,10 +117,10 @@ function numeric(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function normalizeUsage(value: unknown): DeepSeekUsage | undefined {
+function normalizeUsage(value: unknown): CompletionUsage | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const usage = value as RawUsage;
-  const normalized: DeepSeekUsage = {
+  const normalized: CompletionUsage = {
     promptTokens: numeric(usage.prompt_tokens),
     promptCacheHitTokens: numeric(usage.prompt_cache_hit_tokens),
     promptCacheMissTokens: numeric(usage.prompt_cache_miss_tokens),
@@ -128,7 +131,7 @@ function normalizeUsage(value: unknown): DeepSeekUsage | undefined {
   return Object.values(normalized).some((item) => item !== undefined) ? normalized : undefined;
 }
 
-function readablePartial(content: string): DeepSeekPartialDraft | null {
+function readablePartial(content: string): CompletionPartialDraft | null {
   let parsed: unknown;
   try {
     parsed = parsePartialJson(content, OBJ);
@@ -166,7 +169,7 @@ function readablePartial(content: string): DeepSeekPartialDraft | null {
 
 function reportMetrics(
   callback: CompletionOptions["onMetrics"],
-  metrics: DeepSeekRequestMetrics,
+  metrics: CompletionRequestMetrics,
 ): void {
   try {
     callback?.(metrics);
@@ -177,7 +180,7 @@ function reportMetrics(
 
 function reportPartial(
   callback: CompletionOptions["onPartial"],
-  draft: DeepSeekPartialDraft,
+  draft: CompletionPartialDraft,
 ): void {
   try {
     callback?.(draft);
@@ -187,8 +190,8 @@ function reportPartial(
 }
 
 function progressReporter(onProgress?: CompletionOptions["onProgress"]) {
-  const emitted = new Set<DeepSeekProgressStage>();
-  return (stage: DeepSeekProgressStage) => {
+  const emitted = new Set<CompletionProgressStage>();
+  return (stage: CompletionProgressStage) => {
     if (emitted.has(stage)) return;
     emitted.add(stage);
     try {
@@ -213,7 +216,7 @@ function responseData(result: PlatformSuccess | PlatformFailure): string | undef
   return "data" in result && typeof result.data === "string" ? result.data : undefined;
 }
 
-function platformError(error: PlatformFailure): DeepSeekError {
+function platformError(error: PlatformFailure): CompletionError {
   const status = errorNumber(error);
   const message = typeof error.errMsg === "string" ? error.errMsg : "";
   const lowerMessage = message.toLowerCase();
@@ -230,7 +233,7 @@ function platformError(error: PlatformFailure): DeepSeekError {
     || message.includes("服务账号")
     || message.includes("未配置")
   ) {
-    return new DeepSeekError(
+    return new CompletionError(
       "missing_api_key",
       `互动空间账号的火山方舟凭据不可用${suffix}，请检查平台 AI 服务配置后重试。`,
       status,
@@ -239,7 +242,7 @@ function platformError(error: PlatformFailure): DeepSeekError {
     );
   }
   if (status === 401) {
-    return new DeepSeekError(
+    return new CompletionError(
       "unauthorized",
       `互动空间 AI 服务鉴权失败${suffix}，请重新配置火山方舟 API Key。`,
       status,
@@ -248,7 +251,7 @@ function platformError(error: PlatformFailure): DeepSeekError {
     );
   }
   if (status === 403) {
-    return new DeepSeekError(
+    return new CompletionError(
       "forbidden",
       `当前火山账号没有调用该模型的权限${suffix}，请确认模型已开通。`,
       status,
@@ -257,17 +260,17 @@ function platformError(error: PlatformFailure): DeepSeekError {
     );
   }
   if (status === 429 || message.includes("频繁") || lowerMessage.includes("rate limit")) {
-    return new DeepSeekError("rate_limited", `请求过于频繁${suffix}，请稍后重新推演。`, status);
+    return new CompletionError("rate_limited", `请求过于频繁${suffix}，请稍后重新推演。`, status);
   }
   if (errorType === "U") {
-    return new DeepSeekError("aborted", `本次推演已取消${suffix}。`, status, undefined, false);
+    return new CompletionError("aborted", `本次推演已取消${suffix}。`, status, undefined, false);
   }
   if (
     errorType === "F"
     || errorType === "I"
     || (typeof status === "number" && status >= 500 && status <= 599)
   ) {
-    return new DeepSeekError(
+    return new CompletionError(
       "service_unavailable",
       message
         ? `互动空间 AI 服务暂时不可用${suffix}：${message}`
@@ -276,7 +279,7 @@ function platformError(error: PlatformFailure): DeepSeekError {
     );
   }
   if (errorType === "D") {
-    return new DeepSeekError(
+    return new CompletionError(
       "request_failed",
       message
         ? `互动空间 AI 调用失败${suffix}：${message}`
@@ -286,7 +289,7 @@ function platformError(error: PlatformFailure): DeepSeekError {
       false,
     );
   }
-  return new DeepSeekError(
+  return new CompletionError(
     "network",
     message
       ? `互动空间 AI 连接失败${suffix}：${message}`
@@ -295,9 +298,9 @@ function platformError(error: PlatformFailure): DeepSeekError {
   );
 }
 
-function isRetryable(error: unknown): error is DeepSeekError {
+function isRetryable(error: unknown): error is CompletionError {
   return (
-    error instanceof DeepSeekError
+    error instanceof CompletionError
     && error.retryable
     && ["rate_limited", "service_unavailable", "network"].includes(error.code)
   );
@@ -315,13 +318,13 @@ function waitBeforeRetry(
   signal?: AbortSignal,
 ): Promise<void> {
   if (signal?.aborted) {
-    return Promise.reject(new DeepSeekError("aborted", "本次推演已取消。", undefined, undefined, false));
+    return Promise.reject(new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false));
   }
 
   return new Promise((resolve, reject) => {
     const handleAbort = () => {
       clearTimeout(timer);
-      reject(new DeepSeekError("aborted", "本次推演已取消。", undefined, undefined, false));
+      reject(new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false));
     };
     const timer = setTimeout(() => {
       signal?.removeEventListener("abort", handleAbort);
@@ -376,7 +379,7 @@ function performRequest(
   const runtime = platformRuntime();
   const callAIChatCompletion = runtime?.callAIChatCompletion;
   if (!callAIChatCompletion) {
-    return Promise.reject(new DeepSeekError(
+    return Promise.reject(new CompletionError(
       "service_unavailable",
       "当前环境没有互动空间 AI 能力，请使用抖音 39.5.0 或更高版本继续体验。",
       undefined,
@@ -385,10 +388,13 @@ function performRequest(
     ));
   }
   if (options.signal?.aborted) {
-    return Promise.reject(new DeepSeekError("aborted", "本次推演已取消。", undefined, undefined, false));
+    return Promise.reject(new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false));
   }
 
-  const reasoning = options.reasoning ?? "high";
+  // Interactive Space always runs Seed in its fastest documented no-thinking mode.
+  // The engine may request a higher recovery effort for other providers, but the
+  // Doubao package deliberately clamps every request to `minimal`.
+  const reasoning = SEED_REASONING_EFFORT;
   const requestKind = options.requestKind
     ?? (options.phase === "ending" ? "ending-primary" : "turn-primary");
   const startedAt = clockNow();
@@ -402,7 +408,7 @@ function performRequest(
     let firstCallbackMs: number | undefined;
     let firstReasoningTokenMs: number | undefined;
     let firstContentTokenMs: number | undefined;
-    let usage: DeepSeekUsage | undefined;
+    let usage: CompletionUsage | undefined;
 
     const cleanup = () => {
       clearTimeout(timeout);
@@ -412,7 +418,7 @@ function performRequest(
     const finishSuccess = () => {
       if (settled) return;
       if (!content.trim()) {
-        finishError(new DeepSeekError(
+        finishError(new CompletionError(
           "invalid_response",
           "互动空间 AI 返回了空结果，请重新推演。",
           undefined,
@@ -439,7 +445,7 @@ function performRequest(
       resolve(content);
     };
 
-    const finishError = (error: DeepSeekError) => {
+    const finishError = (error: CompletionError) => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -481,7 +487,7 @@ function performRequest(
       } catch {
         // The client-owned cancellation state is authoritative.
       }
-      finishError(new DeepSeekError("aborted", "本次推演已取消。", undefined, undefined, false));
+      finishError(new CompletionError("aborted", "本次推演已取消。", undefined, undefined, false));
     };
 
     const timeout = setTimeout(() => {
@@ -490,7 +496,7 @@ function performRequest(
       } catch {
         // Timeout still rejects locally when the platform task has no abort method.
       }
-      finishError(new DeepSeekError(
+      finishError(new CompletionError(
         "timeout",
         "这次推演等待时间过长，请重新推演这一幕。",
         undefined,
@@ -505,12 +511,13 @@ function performRequest(
       task = callAIChatCompletion({
         type: "text",
         stream,
-        model: INTERACTIVE_SPACE_MODEL,
+        model: SEED_MODEL_ID,
+        reasoning_effort: SEED_REASONING_EFFORT,
         messages: messages.map(({ role, content: messageContent }) => ({
           role,
           content: messageContent,
         })),
-        temperature: 0.7,
+        temperature: SEED_TEMPERATURE,
         maxTokens: OUTPUT_TOKEN_BUDGET[options.phase],
         onSSE(event) {
           if (settled) return;
@@ -539,7 +546,7 @@ function performRequest(
           usage = normalizeUsage(payload.usage) ?? usage;
           const choice = payload.choices?.[0];
           if (choice?.finish_reason === "length") {
-            finishError(new DeepSeekError(
+            finishError(new CompletionError(
               "invalid_response",
               "互动空间 AI 输出被截断，请重新推演。",
               undefined,
@@ -583,9 +590,9 @@ function performRequest(
         },
       });
     } catch (error) {
-      finishError(error instanceof DeepSeekError
+      finishError(error instanceof CompletionError
         ? error
-        : new DeepSeekError(
+        : new CompletionError(
             "request_failed",
             error instanceof Error && error.message
               ? `互动空间 AI 能力启动失败：${error.message}`
@@ -609,7 +616,7 @@ export async function requestCompletion(
     } catch (error) {
       if (
         stream
-        && error instanceof DeepSeekError
+        && error instanceof CompletionError
         && error.code === "invalid_response"
         && attempt < MAX_ATTEMPTS - 1
       ) {
@@ -624,7 +631,7 @@ export async function requestCompletion(
     }
   }
 
-  throw new DeepSeekError(
+  throw new CompletionError(
     "request_failed",
     "推演请求失败，请重新推演这一幕。",
     undefined,

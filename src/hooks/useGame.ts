@@ -11,10 +11,10 @@ import { createEpicAudioController, type EpicAudioController } from "../services
 import { playCardSound, preloadCardSounds, type CardSound } from "../services/cardAudio";
 import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 import type {
-  DeepSeekPartialDraft,
-  DeepSeekProgressStage,
-  DeepSeekRequestMetrics,
-} from "../services/deepseek";
+  CompletionPartialDraft,
+  CompletionProgressStage,
+  CompletionRequestMetrics,
+} from "../services/completion";
 
 export type UseGameDependencies = {
   generateNextTurn: typeof generateNextTurn;
@@ -25,7 +25,7 @@ export type UseGameDependencies = {
   audio: EpicAudioController;
 };
 
-const PROGRESS_RANK: Record<DeepSeekProgressStage, number> = {
+const PROGRESS_RANK: Record<CompletionProgressStage, number> = {
   connected: 0,
   reasoning: 1,
   writing: 2,
@@ -87,10 +87,10 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   const requestControllerRef = useRef<AbortController | null>(null);
   const audioUnlockRef = useRef(false);
   const [muted, setMutedState] = useState(() => dependencies.audio.isMuted());
-  const [generationStage, setGenerationStage] = useState<DeepSeekProgressStage>("connected");
-  const [generationDraft, setGenerationDraft] = useState<DeepSeekPartialDraft | null>(null);
-  const [generationMetrics, setGenerationMetrics] = useState<readonly DeepSeekRequestMetrics[]>([]);
-  const generationStageRef = useRef<DeepSeekProgressStage>("connected");
+  const [generationStage, setGenerationStage] = useState<CompletionProgressStage>("connected");
+  const [generationDraft, setGenerationDraft] = useState<CompletionPartialDraft | null>(null);
+  const [generationMetrics, setGenerationMetrics] = useState<readonly CompletionRequestMetrics[]>([]);
+  const generationStageRef = useRef<CompletionProgressStage>("connected");
 
   useLayoutEffect(() => {
     dependencies.saveSnapshot(state);
@@ -116,16 +116,16 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
     generationStageRef.current = "connected";
     setGenerationStage("connected");
     setGenerationDraft(null);
-    const onProgress = (stage: DeepSeekProgressStage) => {
+    const onProgress = (stage: CompletionProgressStage) => {
       if (!active || PROGRESS_RANK[stage] < PROGRESS_RANK[generationStageRef.current]) return;
       generationStageRef.current = stage;
       setGenerationStage(stage);
     };
-    const onPartial = (draft: DeepSeekPartialDraft) => {
+    const onPartial = (draft: CompletionPartialDraft) => {
       if (!active) return;
       setGenerationDraft((current) => ({ ...current, ...draft }));
     };
-    const onMetrics = (metrics: DeepSeekRequestMetrics) => {
+    const onMetrics = (metrics: CompletionRequestMetrics) => {
       if (!active) return;
       setGenerationMetrics((current) => [...current.slice(-49), metrics]);
     };

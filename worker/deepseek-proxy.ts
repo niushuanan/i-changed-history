@@ -42,7 +42,7 @@ export type DeepSeekProxyEnvelope = Readonly<{
     | "ending-primary"
     | "ending-repair"
     | "ending-recovery";
-  reasoning: "fast" | "high";
+  reasoning: "minimal" | "high";
   messages: readonly ProxyMessage[];
 }>;
 
@@ -91,7 +91,7 @@ export function parseProxyEnvelope(value: unknown): DeepSeekProxyEnvelope | null
   if (!isRecord(value)) return null;
   if (value.version !== 1) return null;
   if (value.phase !== "turn" && value.phase !== "ending") return null;
-  if (value.reasoning !== "fast" && value.reasoning !== "high") return null;
+  if (value.reasoning !== "minimal" && value.reasoning !== "high") return null;
   if (typeof value.requestKind !== "string" || !REQUEST_KINDS.has(value.requestKind)) return null;
   if (
     value.phase === "turn"
@@ -126,7 +126,7 @@ export function buildDeepSeekRequestBody(envelope: DeepSeekProxyEnvelope, model 
     max_tokens: OUTPUT_TOKEN_BUDGET[envelope.phase],
   } as const;
 
-  return envelope.reasoning === "fast"
+  return envelope.reasoning === "minimal"
     ? { ...shared, thinking: { type: "disabled" } } as const
     : {
         ...shared,

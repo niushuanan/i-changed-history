@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Aperture, ArrowRight, Check, Circle, CircleNotch } from "@phosphor-icons/react";
-import type { DeepSeekPartialDraft, DeepSeekProgressStage } from "../services/deepseek";
+import type { CompletionPartialDraft, CompletionProgressStage } from "../services/completion";
 import { ATMOSPHERE_PHRASES, POLISHING_PHRASES, STEP1_PHRASES, STEP2_PHRASES, STEP3_PHRASES } from "../data/generatingPhrases";
 
 type DevelopingStage = {
@@ -63,8 +63,8 @@ export function GeneratingScreen({
   ending: boolean;
   customAction?: boolean;
   customCanonText?: string;
-  progressStage?: DeepSeekProgressStage;
-  draft?: DeepSeekPartialDraft;
+  progressStage?: CompletionProgressStage;
+  draft?: CompletionPartialDraft;
   ready?: boolean;
   onContinue?: () => void;
   onCancel: () => void;

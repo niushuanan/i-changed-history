@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   requestCompletion,
-  type DeepSeekProgressStage,
-} from "./deepseek.interactive";
+  type CompletionProgressStage,
+} from "./seed.interactive";
 
 type CapturedOptions = {
   type: string;
   stream: boolean;
   model: string;
+  reasoning_effort: "minimal";
   maxTokens: number;
   messages: Array<{ role: string; content: string }>;
   onSSE: (event: { eventName: string; data: string }) => void;
@@ -38,7 +39,7 @@ afterEach(() => {
 
 describe("Interactive Space Ark transport", () => {
   it("concatenates the official raw-text SSE fragments from the platform runtime", async () => {
-    const stages: DeepSeekProgressStage[] = [];
+    const stages: CompletionProgressStage[] = [];
     const drafts: Array<{ headline?: string }> = [];
     const call = installRuntime((options) => {
       options.onSSE({
@@ -67,7 +68,7 @@ describe("Interactive Space Ark transport", () => {
       ],
       {
         phase: "turn",
-        reasoning: "fast",
+        reasoning: "minimal",
         onProgress: ({ stage }) => stages.push(stage),
         onPartial: (draft) => drafts.push(draft),
       },
@@ -82,6 +83,7 @@ describe("Interactive Space Ark transport", () => {
       type: "text",
       stream: true,
       model: "doubao-seed-2-0-lite-260428",
+      reasoning_effort: "minimal",
       maxTokens: 4096,
       messages: [
         { role: "system", content: "只返回 JSON" },
@@ -92,8 +94,34 @@ describe("Interactive Space Ark transport", () => {
     expect(drafts.some((draft) => draft.headline === "新局面")).toBe(true);
   });
 
+  it("forces every Seed request to the minimal no-thinking mode", async () => {
+    const metrics: Array<{ reasoning: string }> = [];
+    const call = installRuntime((options) => {
+      options.success({
+        errMsg: "callAIChatCompletion:ok",
+        data: "{\"headline\":\"最速模式\",\"narrative\":\"直接生成正文。\"}",
+      });
+    });
+
+    await expect(requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      {
+        phase: "turn",
+        reasoning: "high",
+        onMetrics: (item) => metrics.push(item),
+      },
+    )).resolves.toContain("直接生成正文");
+
+    expect(call.mock.calls[0]?.[0]).toMatchObject({
+      model: "doubao-seed-2-0-lite-260428",
+      reasoning_effort: "minimal",
+    });
+    expect(call.mock.calls[0]?.[0]).not.toHaveProperty("thinking");
+    expect(metrics).toEqual([expect.objectContaining({ reasoning: "minimal" })]);
+  });
+
   it("keeps compatibility with provider-shaped SSE payloads", async () => {
-    const stages: DeepSeekProgressStage[] = [];
+    const stages: CompletionProgressStage[] = [];
     const call = installRuntime((options) => {
       options.onSSE({
         eventName: "message",
@@ -121,7 +149,7 @@ describe("Interactive Space Ark transport", () => {
       [{ role: "user", content: "继续历史" }],
       {
         phase: "turn",
-        reasoning: "fast",
+        reasoning: "minimal",
         onProgress: ({ stage }) => stages.push(stage),
       },
     )).resolves.toBe("{\"headline\":\"旧版兼容\",\"narrative\":\"仍能完成。\"}");
@@ -168,6 +196,10 @@ describe("Interactive Space Ark transport", () => {
     )).resolves.toContain("同一请求已经可靠完成");
     expect(call).toHaveBeenCalledTimes(2);
     expect(call.mock.calls.map(([options]) => options.stream)).toEqual([true, false]);
+    expect(call.mock.calls.map(([options]) => options.reasoning_effort)).toEqual([
+      "minimal",
+      "minimal",
+    ]);
   });
 
   it("surfaces the platform API-key configuration error without retrying", async () => {

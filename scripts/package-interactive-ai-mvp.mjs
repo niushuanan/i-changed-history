@@ -29,6 +29,7 @@ async function collectFiles(directory, relativeDirectory = "") {
 
 const files = await collectFiles(sourceRoot);
 const packageEntries = {};
+let bundledSource = "";
 
 for (const { absolutePath, relativePath } of files) {
   const content = await readFile(absolutePath);
@@ -39,6 +40,7 @@ for (const { absolutePath, relativePath } of files) {
   ) {
     throw new Error(`Interactive AI MVP contains a forbidden network reference: ${relativePath}`);
   }
+  bundledSource += `\n${source}`;
   packageEntries[relativePath] = [
     new Uint8Array(content),
     { mtime: deterministicMtime },
@@ -47,6 +49,16 @@ for (const { absolutePath, relativePath } of files) {
 
 if (!packageEntries["index.html"]) {
   throw new Error("Interactive AI MVP must contain index.html at its root.");
+}
+if (
+  !bundledSource.includes("doubao-seed-2-0-lite-260428")
+  || !bundledSource.includes("reasoning_effort")
+  || !bundledSource.includes("minimal")
+) {
+  throw new Error("Interactive AI MVP must use Doubao Seed 2.0 Lite with minimal reasoning effort.");
+}
+if (/deepseek/i.test(bundledSource)) {
+  throw new Error("Interactive AI MVP must not contain DeepSeek provider traces.");
 }
 
 await mkdir(releaseRoot, { recursive: true });
@@ -71,5 +83,6 @@ console.log(JSON.stringify({
   maxZipBytes,
   md5: createHash("md5").update(await readFile(zipPath)).digest("hex"),
   model: "doubao-seed-2-0-lite-260428",
+  reasoningEffort: "minimal",
   stream: false,
 }, null, 2));

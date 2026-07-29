@@ -16,7 +16,7 @@ import type { PlayedTurn } from "../game/prompts";
 import type { GameScenario } from "../game/reducer";
 import type { AlternatePresent, TimelineTurn } from "../game/schema";
 import type { DecisionChapter } from "../game/timelinePlan";
-import type { DeepSeekPartialDraft, DeepSeekRequestMetrics } from "../services/deepseek";
+import type { CompletionPartialDraft, CompletionRequestMetrics } from "../services/completion";
 import {
   createScenarioPowerRun,
   drawPowerIds,
@@ -71,7 +71,7 @@ type RunResult = {
   manualRetries: number;
   endingMs?: number;
   diagnostics: GenerationDiagnostic[];
-  requestMetrics: DeepSeekRequestMetrics[];
+  requestMetrics: CompletionRequestMetrics[];
   failures: StepFailure[];
   nodes: NodeResult[];
   ending?: AlternatePresent;
@@ -145,7 +145,7 @@ function verifyNextTurn(
   expectedChapter: Exclude<DecisionChapter, 1>,
 ): number[] {
   expect(nextTurn.chapter).toBe(expectedChapter);
-  expect(nextTurn.generationSource).toBe("deepseek");
+  expect(nextTurn.generationSource).toBe("model");
   expect(nextTurn.protagonistName).toBe(playedTurns[0].turn.protagonistName);
   expect(nextTurn.protagonistAge).toBeGreaterThanOrEqual(playedTurns.at(-1)!.turn.protagonistAge);
 
@@ -236,7 +236,7 @@ async function runGame(
             onDiagnostic: (diagnostic) => run.diagnostics.push(diagnostic),
             onMetrics: (metrics) => run.requestMetrics.push(metrics),
             assignedPowerIds,
-            onPartial: (draft: DeepSeekPartialDraft) => {
+            onPartial: (draft: CompletionPartialDraft) => {
               if (firstReadableMs === undefined && draft.headline && draft.narrative) {
                 firstReadableMs = Date.now() - requestStartedAt;
               }
