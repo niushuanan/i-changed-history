@@ -1,7 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { getFixedOpening } from "../data/fixedOpenings";
+import {
+  getFixedOpening,
+  getFixedOpeningPowerIds,
+} from "../data/fixedOpenings";
 import { HISTORY_SEEDS } from "../data/historySeeds";
 import {
   generateEnding,
@@ -14,6 +17,11 @@ import type { GameScenario } from "../game/reducer";
 import type { AlternatePresent, TimelineTurn } from "../game/schema";
 import type { DecisionChapter } from "../game/timelinePlan";
 import type { DeepSeekPartialDraft, DeepSeekRequestMetrics } from "../services/deepseek";
+import {
+  createScenarioPowerRun,
+  drawPowerIds,
+  type PowerId,
+} from "../game/powers";
 import {
   selectLongRunSoakCases,
   type LongRunSoakCase,
@@ -119,6 +127,7 @@ function cardPlayedTurn(turn: TimelineTurn, runIndex: number, rolled: boolean): 
     selectedChoiceId: choice.id,
     selectedChoiceLabel: choice.label,
     selectedDeviationClass: choice.deviationClass,
+    selectedPowerId: choice.powerId,
     resolvedEcho: choice.instantEcho,
   };
 }
@@ -168,7 +177,10 @@ async function runGame(
   };
 
   try {
-    let currentTurn = getFixedOpening(seed);
+    const powerRun = createScenarioPowerRun(getFixedOpeningPowerIds(seed));
+    let remainingPowerIds = powerRun.remainingPowerIds;
+    const usedPowerIds = [...powerRun.usedPowerIds];
+    let currentTurn = getFixedOpening(seed, powerRun.openingPowerIds);
     const playedTurns: PlayedTurn[] = [];
 
     for (let chapter = 1; chapter <= 4; chapter += 1) {
@@ -177,6 +189,9 @@ async function runGame(
       const actionStartedAt = Date.now();
       expect(currentTurn.choices).toHaveLength(3);
       expect(currentTurn.rollChoices).toHaveLength(3);
+      expect(currentTurn.choices[2].powerId).toBeDefined();
+      expect(currentTurn.rollChoices[2].powerId).toBeDefined();
+      expect(currentTurn.choices[2].powerId).not.toBe(currentTurn.rollChoices[2].powerId);
       const played = cardPlayedTurn(currentTurn, runIndex, rolled);
       if (rolled) run.rolledChoices.push(played.selectedChoiceLabel);
 
@@ -202,6 +217,10 @@ async function runGame(
 
       if (chapter < 4) {
         const nextChapter = (chapter + 1) as Exclude<DecisionChapter, 1>;
+        const allocation = drawPowerIds(remainingPowerIds, 2);
+        const assignedPowerIds = allocation.drawnPowerIds as [PowerId, PowerId];
+        remainingPowerIds = allocation.remainingPowerIds;
+        usedPowerIds.push(...assignedPowerIds);
         const requestStartedAt = Date.now();
         let firstReadableMs: number | undefined;
         const generated = await retryOnce(
@@ -209,6 +228,7 @@ async function runGame(
           () => generateNextTurn(scenario, playedTurns, nextChapter, {
             onDiagnostic: (diagnostic) => run.diagnostics.push(diagnostic),
             onMetrics: (metrics) => run.requestMetrics.push(metrics),
+            assignedPowerIds,
             onPartial: (draft: DeepSeekPartialDraft) => {
               if (firstReadableMs === undefined && draft.headline && draft.narrative) {
                 firstReadableMs = Date.now() - requestStartedAt;
@@ -218,6 +238,9 @@ async function runGame(
           run,
         );
         const activeCanonChapters = verifyNextTurn(generated.value, playedTurns, nextChapter);
+        expect(generated.value.choices[2].powerId).toBe(assignedPowerIds[0]);
+        expect(generated.value.rollChoices[2].powerId).toBe(assignedPowerIds[1]);
+        expect(new Set(usedPowerIds)).toHaveProperty("size", usedPowerIds.length);
         run.nodes.push({ ...node, activeCanonChapters, nextTurnMs: generated.durationMs, firstReadableMs: firstReadableMs ?? generated.durationMs });
         currentTurn = generated.value;
       } else {

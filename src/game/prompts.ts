@@ -10,6 +10,7 @@ import {
   TIMELINE_SYSTEM_PROMPT,
   TIMELINE_TURN_PROTOCOL,
 } from "./deepseekProtocol";
+import { powerPrompt, type PowerId } from "./powers";
 
 export type ChatMessage = Readonly<{ role: "system" | "user"; content: string }>;
 export type PlayedTurn = {
@@ -17,6 +18,7 @@ export type PlayedTurn = {
   selectedChoiceId: "A" | "B" | "C" | "custom";
   selectedChoiceLabel: string;
   selectedDeviationClass: DeviationClass;
+  selectedPowerId?: PowerId;
   resolvedEcho: NonNullable<TimelineTurn["previousEcho"]>;
   playerAuthored?: boolean;
   canonStatus?: "玩家钦定";
@@ -32,10 +34,12 @@ export type JsonRepairDetails = {
 };
 
 const SYSTEM: ChatMessage = { role: "system", content: TIMELINE_SYSTEM_PROMPT };
+const DEFAULT_PROMPT_POWER_IDS = ["blink-self", "stop-time"] as const;
+const DEFAULT_PROMPT_ROLL_POWER_ID = "teleport-crowd" as const;
 
 function scenarioPayload(scenario: GameScenario) {
   return {
-    playerContract: "玩家是现代中国人，但没有固定人格、职业或超能力；只能依靠常识、信息差和当前身份拥有的资源介入历史。",
+    playerContract: "玩家是现代中国人，没有固定人格或现代职业。A/B 牌只依靠当前身份与现场资源；C 牌由客户端临时授予 assignedPowers 指定的一项一次性超能力，玩家本人发动。",
     historyMoment: {
       id: scenario.seed.id,
       date: scenario.seed.dateLabel,
@@ -72,8 +76,8 @@ function turnContract() {
       timePressure: "24 个汉字以内；可感知的分钟、小时、天数或迫近事件",
       historicalAnchors: "2-4 个本幕实际出现的时代锚点，每项 32 字以内；优先真实人物、机构、地点、军队、法令、器物或著名事件，禁止只写抽象概念；输出前核对人物、机构与制度在目标年份仍在世、在任或确实存在，目标年份以 authoritativeTimelineNode.targetYear 为准；若因玩家正史改变则在 narrative 中说明",
       snapshotGrounding: "历史快照不是背景资料，而是本幕所有行动的边界。三张牌必须分别使用不同的具体杠杆；每张牌至少逐字使用一个本幕已经出现的具体人物、机构、地点、器物、命令或程序。不得用原定方案、新方案、现场众人、愿意跟随的人、负责执行的人等万能占位词逃避历史细节",
-      choices: "首组三张严格为 A/B/C。A=nudge：利用本幕正在运行的真实程序、身份权限或既有人物关系推进，但不要把循史写成等待、复核或照办；B=reform：借具体人物、证据、器物、传播通道或指挥链显著改史，不要把破局写成泛化的接管现场、另起人马或公开改令；C=rupture：让本幕已有器物、制度、传言、仪式或集体信念获得一种即使放到 2026 年也不可能自然发生的现实能力，直接击中当前瓶颈。删掉超现实机制后仍然能执行，就不是天外；instantEcho.directResult 必须证明规则已经改变。黑入、广播、泄密、伪造、破坏和使用更先进的普通技术都只能算破局，不算天外。禁止默认套用坦克、神兽、飞船或万能魔法。三张牌必须使用三种不同的现场杠杆，改变不同关系并让不同的人付代价。先像当事人开口，再从这句话中提取 actor、action、target、deadline；不要先按字段拼报告。每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字；label 为 18-42 字的完整决定，必须以具体的人、物、地点或已经发生的结果收尾，末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”或“向、对、把、将、让、以、从、与、和、及、但、且”。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec",
-      rollChoices: "第二组三张字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture，但必须继续开辟三种首组未使用的现场杠杆。六张牌不能只是同一动作换人、换动词或逐级加码；人物、对象、手段、直接结果和代价承担者都要拉开，尤其不能重复同一召唤、武器、器物或现实规则。牌名必须像玩家在现场会脱口而出的具体动作，不得用产品术语、历史评论、抽象政治口号或万能占位词。客户端会把本组作为第一次 Roll 的预先准备结果，经过洗牌动效后发出",
+      choices: "首组三张严格为 A/B/C。A=nudge：利用本幕正在运行的真实程序、身份权限或既有人物关系推进，但不要把循史写成等待、复核或照办；B=reform：借具体人物、证据、器物、传播通道或指挥链显著改史，不要把破局写成泛化的接管现场、另起人马或公开改令；C=rupture：只能使用 assignedPowers.choicesC 指定的超能力，powerId 必须逐字复制，actionSpec.actor 必须逐字为“你”。你要亲自把这项能力用在当前历史快照中的具体人物、器物、命令、地点和期限上；历史人物只能成为目标、盟友、对手或受影响者。必须完整兑现 exactRule 的范围、强度、对象和持续时间，决定胜负的核心动作就是普通人绝不可能做到的能力效果；禁止缩小成普通技巧，禁止只拿能力制造黑暗、混乱、注意力或掩护，再靠换文件、偷东西、传话等普通动作解决问题。不能更换能力、把能力写成比喻、只讨论能力，也不能用意外代价否定能力已经成功。三张牌必须使用三种不同的现场杠杆，改变不同关系并让不同的人付代价。先像当事人开口，再从这句话中提取 actor、action、target、deadline；不要先按字段拼报告。每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字；label 为完整决定，必须以具体的人、物、地点或已经发生的结果收尾，末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”或“向、对、把、将、让、以、从、与、和、及、但、且”。还需输出 intent、deviationClass、instantEcho、usesModernKnowledge、actionSpec；A/B 不得输出 powerId",
+      rollChoices: "第二组三张字段与 choices 完全相同，也严格为 A/B/C 和 nudge/reform/rupture，但必须继续开辟三种首组未使用的现场杠杆。rollChoices 的 C 只能使用 assignedPowers.rollChoicesC，powerId 必须逐字复制且 actionSpec.actor 必须逐字为“你”。六张牌不能只是同一动作换人、换动词或逐级加码；人物、对象、手段、直接结果和代价承担者都要拉开。牌名必须像玩家在现场会脱口而出的具体动作，不得用产品术语、历史评论、抽象政治口号或万能占位词。客户端会把本组作为第一次 Roll 的预先准备结果，经过洗牌动效后发出",
       instantEcho: "含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
       causalLedger: "最多三项，只写模型新增的普通因果，每项含 fact、causedByChapter、mustAffect，fact 与 mustAffect 控制在 28 字以内。客户端会优先注入 narrativeContext.activePlayerCanon；不要在这里机械复制玩家原文，活跃正史占满三项时返回空数组",
       visualTone: "ancient/exchange/print/revolution/industry/war/space/digital 之一",
@@ -93,12 +97,12 @@ function turnContract() {
       choices: [
         { id: "A", displayLabel: "藏起渡河名册", label: "趁巡检封门前，把漕运名册藏进盐袋交给码头脚夫", intent: "利用现场文书和交接程序保住一条退路", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "看守仓门的录事", action: "藏起名册并交给脚夫", target: "漕运名册", deadline: "巡检封门前" }, instantEcho: { directResult: "名册避开搜查送出仓门", unexpectedCost: "脚夫会被追查", beneficiary: "名册上的船户", payer: "替你带货的脚夫" } },
         { id: "B", displayLabel: "叫校尉提前落闸", label: "叫出守桥校尉真名，用他的旧债换来提前落闸", intent: "利用具体人情债改变关卡控制权", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "掌握旧债的录事", action: "以旧债逼校尉提前落闸", target: "守桥校尉", deadline: "追兵抵桥前" }, instantEcho: { directResult: "桥闸提前截住追兵", unexpectedCost: "校尉从此受你牵制", beneficiary: "桥外逃亡者", payer: "欠债的守桥校尉" } },
-        { id: "C", displayLabel: "让铜钟记住密谈", label: "敲响堂前铜钟，让钟声复述今夜听见的全部密谈", intent: "让现场器物获得记忆并公开秘密", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "站在钟架旁的录事", action: "敲钟并让钟声复述密谈", target: "堂前铜钟", deadline: "众人离堂前" }, instantEcho: { directResult: "铜钟当众复述全部密谈", unexpectedCost: "你的私语也被说出", beneficiary: "被蒙在鼓里的人", payer: "依靠密谈掌权的人" } },
+        { id: "C", powerId: "逐字复制 assignedPowers.choicesC.powerId", displayLabel: "发动指定能力", label: "你把指定能力用在本幕具体人物或器物上并完成不可撤销行动", intent: "用指定能力击中当前唯一瓶颈", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "你", action: "亲自发动指定能力完成具体动作", target: "本幕具体人物或器物", deadline: "本幕明确期限" }, instantEcho: { directResult: "能力立即造成可见且具体的成功结果", unexpectedCost: "成功之后由具体人物承担的代价", beneficiary: "具体受益者", payer: "具体承担者" } },
       ],
       rollChoices: [
         { id: "A", displayLabel: "调换两枚火漆印", label: "趁掌印官转身，调换红蓝火漆印让追查走错仓门", intent: "利用现场印记制造一次程序误判", deviationClass: "nudge", usesModernKnowledge: false, actionSpec: { actor: "熟悉封签的录事", action: "调换两枚火漆印", target: "仓门封签", deadline: "掌印官回身前" }, instantEcho: { directResult: "追查队先去了空仓", unexpectedCost: "真仓封签失去效力", beneficiary: "藏在真仓的人", payer: "负责封签的掌印官" } },
         { id: "B", displayLabel: "把账册塞给债主", label: "把私运账册塞给盐商债主，逼他带人堵住官船", intent: "让经济债务压过原有命令", deviationClass: "reform", usesModernKnowledge: false, actionSpec: { actor: "拿到账册的录事", action: "用账册逼盐商堵住官船", target: "盐商债主", deadline: "官船离岸前" }, instantEcho: { directResult: "盐商带人堵住官船", unexpectedCost: "账册落入商人手中", beneficiary: "被官船追捕的人", payer: "账册上的私运者" } },
-        { id: "C", displayLabel: "让河水拒载军令", label: "把军令投入河中，让河水拒绝承载写有杀令的船", intent: "让现场河流辨认并阻断杀戮命令", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "站在渡口的录事", action: "把军令投入河中改变载船规则", target: "渡口河水", deadline: "军船开航前" }, instantEcho: { directResult: "载有杀令的军船全部搁浅", unexpectedCost: "救援军令也无法过河", beneficiary: "河对岸被追捕的人", payer: "依靠军船传令的一方" } },
+        { id: "C", powerId: "逐字复制 assignedPowers.rollChoicesC.powerId", displayLabel: "发动另一能力", label: "你把另一项指定能力用在不同历史锚点上并立刻改写局面", intent: "用另一项能力开辟完全不同的行动路线", deviationClass: "rupture", usesModernKnowledge: false, actionSpec: { actor: "你", action: "亲自发动另一项指定能力", target: "本幕另一个具体人物或器物", deadline: "本幕明确期限" }, instantEcho: { directResult: "另一能力立即完成具体改变", unexpectedCost: "不否定成功的具体代价", beneficiary: "具体受益者", payer: "具体承担者" } },
       ],
       causalLedger: [{ fact: "因果事实", causedByChapter: 0, mustAffect: "后续对象" }], visualTone: "war",
     },
@@ -115,12 +119,13 @@ const TURN_PROTOCOL: ChatMessage = {
 };
 
 function selectedHistory(playedTurns: readonly PlayedTurn[]) {
-  return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass, resolvedEcho, playerAuthored, canonStatus, causalMechanism }) => ({
+  return playedTurns.map(({ turn, selectedChoiceId, selectedChoiceLabel, selectedDeviationClass, selectedPowerId, resolvedEcho, playerAuthored, canonStatus, causalMechanism }) => ({
     chapter: turn.chapter,
     yearLabel: turn.yearLabel,
     selectedChoiceId,
     selectedChoiceLabel,
     selectedDeviationClass,
+    selectedPower: selectedPowerId ? powerPrompt(selectedPowerId) : null,
     instantEcho: resolvedEcho,
     memorySummary: turn.memorySummary,
     role: turn.role,
@@ -147,14 +152,19 @@ function turnMessages(payload: unknown): ChatMessage[] {
   return [SYSTEM, TURN_PROTOCOL, { role: "user", content: JSON.stringify(payload) }];
 }
 
-export function buildContinuationMessages(scenario: GameScenario, playedTurns: readonly PlayedTurn[], chapter: ContinuationChapter): ChatMessage[] {
+export function buildContinuationMessages(
+  scenario: GameScenario,
+  playedTurns: readonly PlayedTurn[],
+  chapter: ContinuationChapter,
+  assignedPowerIds: readonly [PowerId, PowerId] = DEFAULT_PROMPT_POWER_IDS,
+): ChatMessage[] {
   const narrativeContext = buildNarrativeContext(playedTurns, chapter);
   const protagonist = playedTurns[0]?.turn;
   const latestPlayerFact = narrativeContext.activePlayerCanon[
     narrativeContext.activePlayerCanon.length - 1
   ];
   return turnMessages({
-    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。先在内部完成一次不输出的现场盘点：此刻有哪些具体人物与立场，谁能被说服、什么东西能被拿走、哪道命令或程序能被截断、主角凭当前身份实际够得到什么、最近决定留下了哪笔马上要偿还的债。再推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的玩家正史：worldStateChange 必须展示最近玩家正史已经造成的局面，causalBridge 必须写清它通过什么媒介抵达当前冲突。若 activePlayerCanon 非空，最新一条必须在 narrative、worldStateChange 或 causalBridge 中至少逐字写出一个核心人物、制度、地点、器物或动作名。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务；本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同。第 3 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。面向中国玩家；先给熟悉的真实历史锚点，再展开反事实后果。必须使用至少两个时代准确的真实锚点。一次性生成 choices 与 rollChoices 共六张牌，每张都逐字带出当前快照中的具体专名或实物，六张牌至少覆盖六种不同的现场杠杆，不是同一命令的温和版、强硬版和魔法版。每组三张仍按循史、破局、天外排列；天外牌必须从本幕已经出现的器物、制度、仪式、传言或群体信念中生长，直接改变当前瓶颈；删掉超现实机制后仍能执行，就不算天外，且两组三张不能复用同一种奇想机制。第 4 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。不要输出现场盘点或思考过程；输出前逐项确认 requiredFields 全部存在，尤其不得遗漏 timePressure、historicalAnchors、choices 与 rollChoices。`,
+    task: `生成第 ${chapter} 节点。不要从预设类别、通用模板或固定章节槽中选题。先在内部完成一次不输出的现场盘点：此刻有哪些具体人物与立场，谁能被说服、什么东西能被拿走、哪道命令或程序能被截断、主角凭当前身份实际够得到什么、最近决定留下了哪笔马上要偿还的债。再推演 narrativeContext 中全部决定的一阶、二阶和三阶后果，自行选择其中最意外、最重大、同时最能由同一主角亲手介入的一处真实历史冲突。它必须是当前平行世界的重大转折点，而不是普通日常，也不是上一事件换标题后的机械续集。主角必须仍是 authoritativeProtagonist.name 本人，年龄必须等于 authoritativeTimelineNode.protagonistAge；可以升迁、失势、结盟、迁居或改变阵营，但禁止换身体、转生、意识接力和让后代替他行动。narrativeContext.lifeIndex 与 playerCanon 是全部不可撤销正史，逐项承认，不得否认、降级、反转或假设玩家失败。narrativeContext.activePlayerCanon 是本幕必须继续兑现的玩家正史：worldStateChange 必须展示最近玩家正史已经造成的局面，causalBridge 必须写清它通过什么媒介抵达当前冲突。若 activePlayerCanon 非空，最新一条必须在 narrative、worldStateChange 或 causalBridge 中至少逐字写出一个核心人物、制度、地点、器物或动作名。允许留在同一地区，但最近三幕不能总围绕同一事件、同一敌人、同一任务；本幕标题不得与 recentScenes 最近三幕中的任何标题逐字相同。第 3 节点起，原始历史事件不得继续作为本幕主题、标题或当前任务，只能作为主角人生的因果源；本幕要由既有选择引发，却必须进入新的重要矛盾。面向中国玩家；先给熟悉的真实历史锚点，再展开反事实后果。必须使用至少两个时代准确的真实锚点。一次性生成 choices 与 rollChoices 共六张牌，每张都逐字带出当前快照中的具体专名或实物，六张牌至少覆盖六种不同的现场杠杆，不是同一命令的温和版、强硬版和超能力版。每组三张仍按循史、破局、天外排列；两张天外牌分别严格使用 assignedPowers 指定的不同能力，玩家本人发动，绝不能自行挑选或发明能力。第 4 节点是主角晚年的最后重大决定，但本幕只提供选择，不提前写他死亡。不要输出现场盘点或思考过程；输出前逐项确认 requiredFields 全部存在，尤其不得遗漏 timePressure、historicalAnchors、choices 与 rollChoices。`,
     ...scenarioPayload(scenario),
     authoritativeTimelineNode: getTimelineNode(chapter, scenario.seed.year),
     authoritativeProtagonist: {
@@ -164,6 +174,10 @@ export function buildContinuationMessages(scenario: GameScenario, playedTurns: r
       previousRole: playedTurns[playedTurns.length - 1]?.turn.role,
     },
     narrativeContext,
+    assignedPowers: {
+      choicesC: powerPrompt(assignedPowerIds[0]),
+      rollChoicesC: powerPrompt(assignedPowerIds[1]),
+    },
     latestPlayerFactForThisScene: latestPlayerFact ? {
       status: "已经发生，不可否认或弱化",
       sourceText: latestPlayerFact.sourceText,
@@ -192,6 +206,7 @@ export function buildRerollMessages(
   turn: TimelineTurn,
   rollNumber: 2 | 3,
   previousChoices: TimelineTurn["choices"],
+  assignedPowerId: PowerId = DEFAULT_PROMPT_ROLL_POWER_ID,
 ): ChatMessage[] {
   const previousChoicesArePrepared = previousChoices.every((choice, index) => (
     choice.displayLabel === turn.rollChoices[index]?.displayLabel
@@ -204,9 +219,10 @@ export function buildRerollMessages(
   ];
 
   return messages({
-    task: `为当前同一历史现场发出第 ${rollNumber} 次 Roll 的三张全新卡牌。不要续写场景，不要改变人物、年份、地点或已经发生的历史；只输出 choices。先在心里盘点 currentScene 与 historyMoment：谁能被说服、什么东西能被拿走、哪道命令或程序能被截断、主角凭当前身份够得到什么；不要输出盘点过程。三张牌严格依次为 A 循史、B 破局、C 天外。三张牌必须使用三种不同的现场杠杆，并与 allPreviouslySeenCards 的人物、对象、手段、直接结果和代价承担者明显不同。每张牌都要逐字带出至少一个当前快照中的专名或实物，像现场的人在说一个能立刻执行的主意，不像报告、评论或产品说明；禁止“夺取解释权、推进既有轨迹、改变历史走向、重塑秩序、综合施策、稳妥处置、原定方案、新方案、现场众人、愿意跟随的人”等万能话术。不要把循史写成等待、复核或照办；不要把破局写成泛化的接管现场、另起人马或越级下令。天外必须让本幕已有的具体器物、制度、仪式、传言或集体信念获得即使放到 2026 年也不可能自然发生的现实能力，直接击中当前瓶颈；删掉超现实机制后仍能成立，就不算天外，directResult 必须证明规则已经改变。黑入、广播、泄密、伪造或破坏都只是破局，不是天外；不要默认写坦克、神兽、飞船、召唤术，也不要只给旧奇想换名。`,
+    task: `为当前同一历史现场发出第 ${rollNumber} 次 Roll 的三张全新卡牌。不要续写场景，不要改变人物、年份、地点或已经发生的历史；只输出 choices。先在心里盘点 currentScene 与 historyMoment：谁能被说服、什么东西能被拿走、哪道命令或程序能被截断、主角凭当前身份够得到什么；不要输出盘点过程。三张牌严格依次为 A 循史、B 破局、C 天外。三张牌必须使用三种不同的现场杠杆，并与 allPreviouslySeenCards 的人物、对象、手段、直接结果和代价承担者明显不同。每张牌都要逐字带出至少一个当前快照中的专名或实物，像现场的人在说一个能立刻执行的主意，不像报告、评论或产品说明；禁止“夺取解释权、推进既有轨迹、改变历史走向、重塑秩序、综合施策、稳妥处置、原定方案、新方案、现场众人、愿意跟随的人”等万能话术。不要把循史写成等待、复核或照办；不要把破局写成泛化的接管现场、另起人马或越级下令。C 牌只能使用 assignedPower 指定的一项能力：powerId 必须逐字复制，actionSpec.actor 必须逐字为“你”，你要亲自把能力用在当前历史快照的具体人物、器物、命令或地点上。必须完整兑现 exactRule 的范围、强度、对象和持续时间，能力本身就是解决当前瓶颈的决胜动作；禁止只用能力制造黑暗、混乱、注意力或掩护，再靠普通动作解决问题。不能换能力、弱化成比喻、只讨论能力，代价也不能否定已经成功。`,
     ...scenarioPayload(scenario),
     playedHistory: selectedHistory(playedTurns),
+    assignedPower: powerPrompt(assignedPowerId),
     currentScene: {
       chapter: turn.chapter,
       headline: turn.headline,
@@ -228,6 +244,7 @@ export function buildRerollMessages(
       displayLabel: "4-12 个汉字，最多 16 字；自然动宾短语，玩家一眼知道要做什么",
       label: "18-42 字的完整具体决定；先写动作，再写对象与期限，不写抽象口号；必须以具体的人、物、地点或已经发生的结果收尾，末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”或“向、对、把、将、让、以、从、与、和、及、但、且”",
       requiredChoiceFields: ["id", "displayLabel", "label", "intent", "deviationClass", "usesModernKnowledge", "actionSpec", "instantEcho"],
+      powerRule: "只有 C 输出 powerId，并逐字等于 assignedPower.powerId；C 的 actor 逐字为你；A/B 不得输出 powerId",
       actionSpec: "必须含 actor、action、target、deadline，且能在当前现场执行",
       instantEcho: "必须含 directResult、unexpectedCost、beneficiary、payer，每项 24 字以内",
     },

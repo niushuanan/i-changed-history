@@ -8,15 +8,16 @@ import {
   storedChoiceSetSchema,
   storedTimelineTurnSchema,
 } from "../game/schema";
+import { isPowerId, type PowerId } from "../game/powers";
 
-export const GAME_STORAGE_KEY = "i-changed-history:session:v15";
+export const GAME_STORAGE_KEY = "i-changed-history:session:v16";
 export const UNLOCKED_HISTORY_STORAGE_KEY = "i-changed-history:unlocked:v1";
 const LEGACY_GAME_STORAGE_KEYS = [
-  "i-changed-history:session:v14", "i-changed-history:session:v13", "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
+  "i-changed-history:session:v15", "i-changed-history:session:v14", "i-changed-history:session:v13", "i-changed-history:session:v12", "i-changed-history:session:v11", "i-changed-history:session:v10", "i-changed-history:session:v9", "i-changed-history:session:v8",
   "i-changed-history:session:v7", "i-changed-history:session:v6", "i-changed-history:session:v5",
   "i-changed-history:session:v4",
 ] as const;
-const STORAGE_VERSION = 15;
+const STORAGE_VERSION = 16;
 const ACTIVE_HISTORY_SEED_IDS = new Set(HISTORY_SEEDS.map((seed) => seed.id));
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type StoredState = Omit<GameState, "pendingEnding" | "echo">;
@@ -35,6 +36,7 @@ const seedSchema = z.strictObject({
 });
 const scenarioSchema = z.strictObject({ seed: seedSchema });
 const deviationClass = z.enum(["nudge", "reform", "rupture"]);
+const powerIdSchema = z.custom<PowerId>(isPowerId, "未知超能力");
 const resolvedEchoSchema = z.strictObject({
   directResult: z.string(), unexpectedCost: z.string(), beneficiary: z.string(), payer: z.string(),
 });
@@ -43,21 +45,32 @@ const playedSchema = z.strictObject({
   selectedChoiceId: z.enum(["A", "B", "C", "custom"]),
   selectedChoiceLabel: z.string(),
   selectedDeviationClass: deviationClass,
+  selectedPowerId: powerIdSchema.optional(),
   resolvedEcho: resolvedEchoSchema,
   playerAuthored: z.boolean().optional(),
   canonStatus: z.literal("玩家钦定").optional(),
   causalMechanism: z.string().optional(),
 });
 const retrySchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(4) }),
+  z.strictObject({
+    kind: z.literal("next-turn"),
+    targetChapter: z.number().int().min(2).max(4),
+    powerIds: z.tuple([powerIdSchema, powerIdSchema]),
+  }),
   z.strictObject({ kind: z.literal("ending") }),
 ]);
 const requestSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("next-turn"), targetChapter: z.number().int().min(2).max(4), id: z.number().int().positive() }),
+  z.strictObject({
+    kind: z.literal("next-turn"),
+    targetChapter: z.number().int().min(2).max(4),
+    powerIds: z.tuple([powerIdSchema, powerIdSchema]),
+    id: z.number().int().positive(),
+  }),
   z.strictObject({ kind: z.literal("ending"), id: z.number().int().positive() }),
   z.strictObject({
     kind: z.literal("roll-choices"),
     rollNumber: z.union([z.literal(2), z.literal(3)]),
+    powerId: powerIdSchema,
     id: z.number().int().positive(),
   }),
 ]);
@@ -74,6 +87,9 @@ const stateSchema = z.strictObject({
   dynamicChoices: storedChoiceSetSchema.nullable().default(null),
   rollLoading: z.boolean().default(false),
   rollError: z.string().nullable().default(null),
+  remainingPowerIds: z.array(powerIdSchema).max(50),
+  usedPowerIds: z.array(powerIdSchema).max(50),
+  pendingRollPowerId: powerIdSchema.nullable(),
   unlockedSeedIds: z.array(z.string()).max(100).default([]),
   request: requestSchema.nullable(),
   pendingTurn: storedTimelineTurnSchema.nullable().default(null),
@@ -89,6 +105,9 @@ const stateSchema = z.strictObject({
   if (state.phase === "generating" && !state.request && !state.pendingTurn) context.addIssue({ code: "custom", message: "生成阶段缺少请求或待揭晓场景" });
   if (state.phase === "ending" && !state.request) context.addIssue({ code: "custom", message: "结局生成阶段缺少可恢复请求" });
   if (state.pendingTurn && state.phase !== "generating") context.addIssue({ code: "custom", message: "待揭晓场景只能停留在生成页" });
+  if (new Set([...state.remainingPowerIds, ...state.usedPowerIds]).size !== state.remainingPowerIds.length + state.usedPowerIds.length) {
+    context.addIssue({ code: "custom", message: "超能力抽取记录发生重复" });
+  }
 });
 const envelopeSchema = z.strictObject({ version: z.literal(STORAGE_VERSION), state: stateSchema });
 
@@ -101,6 +120,9 @@ function base(state: GameState) {
     dynamicChoices: state.dynamicChoices,
     rollLoading: state.rollLoading,
     rollError: state.rollError,
+    remainingPowerIds: state.remainingPowerIds,
+    usedPowerIds: state.usedPowerIds,
+    pendingRollPowerId: state.pendingRollPowerId,
     unlockedSeedIds: state.unlockedSeedIds,
     pendingTurn: state.pendingTurn,
     result: state.result, nextRequestId: state.nextRequestId,

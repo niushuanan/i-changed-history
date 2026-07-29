@@ -3,6 +3,21 @@ import { endingFixture, turnFixture } from "../test/fixtures";
 import { extractFirstJsonObject, parseAlternatePresent, parseBiographyReport, parseCustomActionResolution, parseTimelineTurn, parseWorldReport } from "./schema";
 
 describe("structured timeline parsing", () => {
+  it("preserves the assigned superpower identity on C cards", () => {
+    const parsed = parseTimelineTurn(JSON.stringify({
+      ...turnFixture,
+      choices: turnFixture.choices.map((choice) => (
+        choice.id === "C" ? { ...choice, powerId: "revive-dead" } : choice
+      )),
+      rollChoices: turnFixture.rollChoices.map((choice) => (
+        choice.id === "C" ? { ...choice, powerId: "blink-self" } : choice
+      )),
+    }));
+
+    expect(parsed.choices[2].powerId).toBe("revive-dead");
+    expect(parsed.rollChoices[2].powerId).toBe("blink-self");
+  });
+
   it("requires a separately generated Roll trio for live model turns", () => {
     const { rollChoices: _omitted, ...withoutRollChoices } = turnFixture;
     expect(() => parseTimelineTurn(JSON.stringify(withoutRollChoices), {

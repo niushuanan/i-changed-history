@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_SEEDS } from "../data/historySeeds";
-import { adjudicateCustomAction, generateEnding, generateNextTurn, StructuredGenerationError } from "../game/engine";
+import {
+  adjudicateCustomAction,
+  generateEnding,
+  generateNextTurn,
+  generateRerolledChoices,
+  StructuredGenerationError,
+} from "../game/engine";
 import { parseTimelineTurn } from "../game/schema";
 import { endingFixture, turnFixture } from "../test/fixtures";
 import { requestCompletion } from "./deepseek";
@@ -36,6 +42,19 @@ function streamedBytes(chunks: readonly Uint8Array[]) {
       controller.close();
     },
   }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+function choicesWithPower(
+  choices: readonly (typeof turnFixture.choices)[number][],
+  powerId: "blink-self" | "stop-time" | "teleport-crowd",
+) {
+  return choices.map((choice, index) => index === 2
+    ? {
+        ...choice,
+        powerId,
+        actionSpec: { ...choice.actionSpec, actor: "你" },
+      }
+    : choice);
 }
 
 describe("DeepSeek transport and structured generation", () => {
@@ -233,6 +252,49 @@ describe("DeepSeek transport and structured generation", () => {
 
     expect(result).toMatchObject({ generationSource: "deepseek" });
     expect(result).not.toHaveProperty("rippleLens");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts only the two exact client-assigned powers for a continuation", async () => {
+    const assigned = {
+      ...turnFixture,
+      chapter: 2,
+      chapterName: "三日余波",
+      lifeStage: "三日后",
+      previousEcho: turnFixture.choices[0].instantEcho,
+      choices: choicesWithPower(turnFixture.choices, "blink-self"),
+      rollChoices: choicesWithPower(turnFixture.rollChoices, "stop-time"),
+    };
+    const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify(assigned)));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await generateNextTurn(scenario, [playedTurn], 2, {
+      assignedPowerIds: ["blink-self", "stop-time"],
+    });
+
+    expect(result.choices[2]).toMatchObject({ powerId: "blink-self", actionSpec: { actor: "你" } });
+    expect(result.rollChoices[2]).toMatchObject({ powerId: "stop-time", actionSpec: { actor: "你" } });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a live Roll on the exact power assigned by the client", async () => {
+    const choices = choicesWithPower(turnFixture.choices, "teleport-crowd");
+    const fetcher = vi.fn().mockResolvedValue(completion(JSON.stringify({ choices })));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await generateRerolledChoices(
+      scenario,
+      [playedTurn],
+      firstTurn,
+      2,
+      firstTurn.rollChoices,
+      { assignedPowerId: "teleport-crowd" },
+    );
+
+    expect(result[2]).toMatchObject({
+      powerId: "teleport-crowd",
+      actionSpec: { actor: "你" },
+    });
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 

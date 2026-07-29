@@ -41,6 +41,7 @@ import { buildCanonicalCustomResolution } from "./customCanon";
 import { consequenceContradictsCanon } from "./worldCanon";
 import { buildNarrativeContext, type NarrativeContext } from "./narrativeContext";
 import { formatHistoricalYear } from "../data/historicalYear";
+import type { PowerId } from "./powers";
 
 type RepairTarget = "timeline_turn" | "choice_set" | "biography_report" | "world_report" | "custom_action";
 type Parser<T> = (raw: string) => T;
@@ -53,7 +54,12 @@ export type GenerationOptions = {
   onMetrics?: (metrics: DeepSeekRequestMetrics) => void;
 };
 
-export type NextTurnGenerationOptions = GenerationOptions;
+export type NextTurnGenerationOptions = GenerationOptions & {
+  assignedPowerIds?: readonly [PowerId, PowerId];
+};
+export type RerollGenerationOptions = GenerationOptions & {
+  assignedPowerId?: PowerId;
+};
 
 export type GenerationDiagnostic = Readonly<{
   target: RepairTarget;
@@ -77,6 +83,28 @@ class FieldValidationError extends Error {
     super(message);
     this.name = "FieldValidationError";
     this.issues = fields.map((field) => ({ path: [field], message }));
+  }
+}
+
+const DEFAULT_TURN_POWER_IDS = ["blink-self", "stop-time"] as const;
+const DEFAULT_ROLL_POWER_ID = "teleport-crowd" as const;
+
+function assertAssignedPowerChoice(
+  choices: TimelineTurn["choices"],
+  expectedPowerId: PowerId,
+  field: string,
+) {
+  const powerChoice = choices[2];
+  const invalidFields = [
+    ...(choices.slice(0, 2).some((choice) => choice.powerId !== undefined) ? [field] : []),
+    ...(powerChoice.powerId !== expectedPowerId ? [field] : []),
+    ...(powerChoice.actionSpec.actor !== "你" ? [field] : []),
+  ];
+  if (invalidFields.length > 0) {
+    throw new FieldValidationError(
+      invalidFields,
+      `${field} 的 C 牌必须由“你”发动客户端指定能力 ${expectedPowerId}，A/B 不得携带能力`,
+    );
   }
 }
 
@@ -283,6 +311,7 @@ function parseRequestedTurn(
   openingContext?: { eventName: string; role: string },
   customCanon: readonly PlayedTurn[] = [],
   activePlayerCanon: NarrativeContext["activePlayerCanon"] = [],
+  assignedPowerIds?: readonly [PowerId, PowerId],
 ): Parser<TimelineTurn> {
   return (raw) => {
     const authoritativeLedger = activePlayerCanon.map((canon) => ({
@@ -302,6 +331,10 @@ function parseRequestedTurn(
     });
     if (turn.chapter !== expectedChapter) {
       throw new Error(`模型返回了第 ${turn.chapter} 幕，而不是第 ${expectedChapter} 幕。`);
+    }
+    if (assignedPowerIds) {
+      assertAssignedPowerChoice(turn.choices, assignedPowerIds[0], "choices");
+      assertAssignedPowerChoice(turn.rollChoices, assignedPowerIds[1], "rollChoices");
     }
     if (expectedChapter >= 3 && openingContext) {
       const headlineKeepsOpeningPlot = turn.headline.includes(openingContext.eventName);
@@ -435,12 +468,17 @@ export async function generateNextTurn(
   chapter: Exclude<DecisionChapter, 1>,
   options: NextTurnGenerationOptions = {},
 ): Promise<TimelineTurn> {
-  const messages = buildContinuationMessages(scenario, playedTurns, chapter);
+  const messages = buildContinuationMessages(
+    scenario,
+    playedTurns,
+    chapter,
+    options.assignedPowerIds ?? DEFAULT_TURN_POWER_IDS,
+  );
   const node = getTimelineNode(chapter, scenario.seed.year);
   const protagonistName = playedTurns[0]?.turn.protagonistName;
   const customCanon = playedTurns.filter((turn) => turn.playerAuthored);
   const activePlayerCanon = buildNarrativeContext(playedTurns, chapter).activePlayerCanon;
-  return requestValidated(messages, completionOptions("turn", options, "fast", "turn-primary"), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon), { expectedChapter: chapter });
+  return requestValidated(messages, completionOptions("turn", options, "fast", "turn-primary"), "timeline_turn", parseRequestedTurn(chapter, expectedYearLabel(scenario, chapter), expectedPreviousEcho(playedTurns), { name: protagonistName, age: node.protagonistAge, lifeStage: node.lifeStage }, { eventName: scenario.seed.eventName, role: scenario.seed.role }, customCanon, activePlayerCanon, options.assignedPowerIds), { expectedChapter: chapter });
 }
 
 export async function generateRerolledChoices(
@@ -449,13 +487,20 @@ export async function generateRerolledChoices(
   turn: TimelineTurn,
   rollNumber: 2 | 3,
   previousChoices: TimelineTurn["choices"],
-  options: GenerationOptions = {},
+  options: RerollGenerationOptions = {},
 ): Promise<ChoiceSet> {
+  const assignedPowerId = options.assignedPowerId ?? DEFAULT_ROLL_POWER_ID;
   return requestValidated(
-    buildRerollMessages(scenario, playedTurns, turn, rollNumber, previousChoices),
+    buildRerollMessages(scenario, playedTurns, turn, rollNumber, previousChoices, assignedPowerId),
     completionOptions("turn", options, "fast", "roll-primary"),
     "choice_set",
-    parseChoiceSet,
+    (raw) => {
+      const choices = parseChoiceSet(raw);
+      if (options.assignedPowerId) {
+        assertAssignedPowerChoice(choices, assignedPowerId, "choices");
+      }
+      return choices;
+    },
   );
 }
 

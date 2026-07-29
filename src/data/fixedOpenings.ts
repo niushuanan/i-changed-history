@@ -1,7 +1,9 @@
 import { parseTimelineTurn, type TimelineTurn } from "../game/schema";
 import { getTimelineNode } from "../game/timelinePlan";
 import type { HistorySeed } from "../game/types";
+import type { PowerId } from "../game/powers";
 import { formatHistoricalYear } from "./historicalYear";
+import { FIXED_POWER_CHOICES } from "./fixedPowerChoices.generated";
 
 const PROTAGONIST_NAMES = [
   "沈砚", "陈潜", "顾衡", "陆昭", "谢临", "韩策", "程骁", "周砺", "许闻", "林澈",
@@ -90,124 +92,6 @@ function eventSubject(seed: HistorySeed): string {
   return clip(subject || clean(seed.eventName), 8);
 }
 
-const SURREAL_TEMPLATES = [
-  {
-    displayLabel: "让谎言现形",
-    label: (event: string) => `让${event}所有谎言化为黑烟并在期限前公开审判`,
-    intent: "改变语言与真相的物理规则",
-    actor: "你与被迫说真话的在场者",
-    action: "让谎言化为可见黑烟并公开核验",
-    result: "所有隐瞒当场留下可见证据",
-    cost: "沉默也会被误判为欺骗",
-    beneficiary: "长期被蒙蔽的人",
-    payer: "依赖秘密维系统治的人",
-  },
-  {
-    displayLabel: "借来明日记忆",
-    label: (event: string) => `让${event}众人先记住明日后果再于此刻重新表决`,
-    intent: "折叠记忆与时间的先后次序",
-    actor: "你与提前拥有明日记忆的众人",
-    action: "把明日后果写入众人记忆后重新表决",
-    result: "众人带着后果记忆重做决定",
-    cost: "真实经历与未来记忆开始混淆",
-    beneficiary: "原本无法预见代价的人",
-    payer: "靠信息差获利的权威",
-  },
-  {
-    displayLabel: "折叠地平线",
-    label: (event: string) => `折叠${event}两地距离让援军与粮秣同时抵达现场`,
-    intent: "改变空间距离与后勤秩序",
-    actor: "你与跨过折叠地平线的队伍",
-    action: "折叠两地距离并搬运援军粮秣",
-    result: "远方资源在一刻内抵达现场",
-    cost: "被折叠的边界再也无法稳定",
-    beneficiary: "原本等不到援助的人",
-    payer: "依靠地理封锁的一方",
-  },
-  {
-    displayLabel: "让文字拒绝服从",
-    label: (event: string) => `命令${event}所有文书自行删去谎言只保留真实条款`,
-    intent: "让文字获得拒绝虚假命令的能力",
-    actor: "你与突然觉醒的所有文字",
-    action: "让文书删去谎言并重排真实条款",
-    result: "伪令与密约在纸面自行消失",
-    cost: "私人书信也不再能够保密",
-    beneficiary: "被文书权力压制的人",
-    payer: "操纵档案与诏令的人",
-  },
-  {
-    displayLabel: "冻结一刻因果",
-    label: (event: string) => `冻结${event}一刻钟因果让所有人先看清每种结局`,
-    intent: "暂停因果并公开所有选择后果",
-    actor: "你与停在因果之外的现场众人",
-    action: "冻结一刻因果并展示每种结局",
-    result: "所有人同时看见各自选择的后果",
-    cost: "有人开始拒绝承担任何未知",
-    beneficiary: "过去无权知情的人",
-    payer: "依靠仓促决策的人",
-  },
-  {
-    displayLabel: "让誓言长出锁链",
-    label: (event: string) => `让${event}每句誓言化为锁链束缚违背承诺的人`,
-    intent: "把政治承诺变成不可逃避的实体",
-    actor: "你与被誓言锁链缠住的各方",
-    action: "让公开誓言化为约束违约者的锁链",
-    result: "所有承诺立即获得实体约束",
-    cost: "善意的变通也会触发惩罚",
-    beneficiary: "长期遭受背约的人",
-    payer: "习惯反复毁约的强者",
-  },
-  {
-    displayLabel: "唤醒器物作证",
-    label: (event: string) => `唤醒${event}关键器物让它们逐件陈述亲历的真相`,
-    intent: "让沉默的物证拥有记忆与证词",
-    actor: "你与突然能够作证的历史器物",
-    action: "唤醒关键器物并公开其全部记忆",
-    result: "现场物证逐件说出亲历事实",
-    cost: "无人还能隐藏器物见过的秘密",
-    beneficiary: "缺少人证的受害者",
-    payer: "销毁证词却保留器物的人",
-  },
-  {
-    displayLabel: "打开未来旁听席",
-    label: (event: string) => `打开${event}通往未来的旁听席让后世民众现场质询`,
-    intent: "让未来社会直接审视此刻的决定",
-    actor: "你与从未来旁听席发问的民众",
-    action: "打开未来旁听席并接受后世公开质询",
-    result: "后世民众当场参与这次决定",
-    cost: "当代秩序失去解释自己的特权",
-    beneficiary: "将承担长期后果的普通人",
-    payer: "只对当下负责的掌权者",
-  },
-] as const;
-
-function surrealChoice(seed: HistorySeed, offset: number): TimelineTurn["choices"][2] {
-  const eventKey = `${eventSubject(seed)}现场`;
-  const template = SURREAL_TEMPLATES[(seedHash(seed) + offset) % SURREAL_TEMPLATES.length];
-  const deadline = clip(clean(seed.urgency), 20);
-  const playerActor = `以${clip(seed.role, 18)}身份到场的你`;
-  return {
-    id: "C",
-    label: template.label(eventKey),
-    displayLabel: template.displayLabel,
-    intent: template.intent,
-    deviationClass: "rupture",
-    usesModernKnowledge: false,
-    actionSpec: {
-      actor: `${playerActor}，并联合${template.actor.replace(/^你与/, "")}`,
-      action: template.action,
-      target: clip(clean(seed.eventName), 28),
-      deadline,
-    },
-    instantEcho: {
-      directResult: template.result,
-      unexpectedCost: template.cost,
-      beneficiary: template.beneficiary,
-      payer: template.payer,
-    },
-  };
-}
-
 function fixedNarrative(seed: HistorySeed): string {
   const first = `${clip(clean(seed.baselineFacts[0]), 30)}，${clip(clean(seed.baselineFacts[1]), 28)}。`;
   const second = `${clip(clean(seed.baselineFacts[2]), 30)}，你以${clip(clean(seed.role), 22)}的身份抵达现场。`;
@@ -220,7 +104,10 @@ function fixedNarrative(seed: HistorySeed): string {
   return clip(narrative, 159).replace(/[，、]$/, "") + (clip(narrative, 159).endsWith("。") ? "" : "。");
 }
 
-function choices(seed: HistorySeed): TimelineTurn["choices"] {
+function choices(
+  seed: HistorySeed,
+  powerChoice: TimelineTurn["choices"][2],
+): TimelineTurn["choices"] {
   const originalAction = decisionAction(seed);
   const event = clean(seed.eventName);
   const eventKey = compactCompleteClause(event, 18, "这一历史现场");
@@ -299,11 +186,14 @@ function choices(seed: HistorySeed): TimelineTurn["choices"] {
         payer: `原先掌握${eventShort}执行权的人`,
       },
     },
-    surrealChoice(seed, 0),
+    powerChoice,
   ];
 }
 
-function rollChoices(seed: HistorySeed): TimelineTurn["rollChoices"] {
+function rollChoices(
+  seed: HistorySeed,
+  powerChoice: TimelineTurn["choices"][2],
+): TimelineTurn["rollChoices"] {
   const event = clean(seed.eventName);
   const eventKey = compactCompleteClause(event, 18, "这一历史现场");
   const eventShort = eventSubject(seed);
@@ -391,11 +281,34 @@ function rollChoices(seed: HistorySeed): TimelineTurn["rollChoices"] {
         payer: `原先掌握${eventShort}命令的人`,
       },
     },
-    surrealChoice(seed, 3),
+    powerChoice,
   ];
 }
 
-export function getFixedOpening(seed: HistorySeed): TimelineTurn {
+export function getFixedPowerChoicePool(
+  seed: HistorySeed,
+): readonly TimelineTurn["choices"][2][] {
+  const pool = (FIXED_POWER_CHOICES as Record<
+    string,
+    readonly TimelineTurn["choices"][2][]
+  >)[seed.id];
+  if (!pool || pool.length !== 6) {
+    throw new Error(`Fixed power choices are missing for ${seed.id}.`);
+  }
+  return pool;
+}
+
+export function getFixedOpeningPowerIds(seed: HistorySeed): PowerId[] {
+  return getFixedPowerChoicePool(seed).map((choice) => {
+    if (!choice.powerId) throw new Error(`Fixed power choice is missing powerId for ${seed.id}.`);
+    return choice.powerId;
+  });
+}
+
+export function getFixedOpening(
+  seed: HistorySeed,
+  openingPowerIds?: readonly [PowerId, PowerId],
+): TimelineTurn {
   const node = getTimelineNode(1, seed.year);
   const openingDateLabel = seed.year < 0
     ? formatHistoricalYear(seed.year)
@@ -404,6 +317,18 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
   const protagonistName = seed.perspective === "china"
     ? PROTAGONIST_NAMES[nameHash % 30]
     : PROTAGONIST_NAMES[30 + (nameHash % 20)];
+  const powerPool = getFixedPowerChoicePool(seed);
+  const selectedPowerIds = Array.isArray(openingPowerIds)
+    ? openingPowerIds
+    : [
+        powerPool[0].powerId,
+        powerPool[1].powerId,
+      ] as readonly [PowerId, PowerId];
+  const selectedPowerChoices = selectedPowerIds.map((powerId) => {
+    const choice = powerPool.find((candidate) => candidate.powerId === powerId);
+    if (!choice) throw new Error(`Power ${powerId} is not prepared for ${seed.id}.`);
+    return choice;
+  }) as [TimelineTurn["choices"][2], TimelineTurn["choices"][2]];
   const opening = {
     chapter: 1,
     chapterName: "历史现场",
@@ -423,8 +348,8 @@ export function getFixedOpening(seed: HistorySeed): TimelineTurn {
     baselineAnchor: clip(clean(seed.historicalOutcome), 54),
     historicalAnchors: seed.baselineFacts.map((fact) => clip(clean(fact), 32)),
     previousEcho: null,
-    choices: choices(seed),
-    rollChoices: rollChoices(seed),
+    choices: choices(seed, selectedPowerChoices[0]),
+    rollChoices: rollChoices(seed, selectedPowerChoices[1]),
     memorySummary: clip(`你在${seed.eventName}现场获得改变真实历史的决定权`, 54),
     causalLedger: [],
     visualTone: seed.visualTone,

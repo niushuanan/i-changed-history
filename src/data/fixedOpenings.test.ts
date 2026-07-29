@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { HISTORY_SEEDS } from "./historySeeds";
-import { getFixedOpening } from "./fixedOpenings";
+import {
+  getFixedOpening,
+  getFixedOpeningPowerIds,
+  getFixedPowerChoicePool,
+} from "./fixedOpenings";
 
 describe("fixed first turns", () => {
   it("provides one playable, schema-valid opening for every history card", () => {
-    const openings = HISTORY_SEEDS.map(getFixedOpening);
+    const openings = HISTORY_SEEDS.map((seed) => getFixedOpening(seed));
 
     expect(openings).toHaveLength(100);
     for (const [index, opening] of openings.entries()) {
@@ -60,15 +64,15 @@ describe("fixed first turns", () => {
   });
 
   it("keeps all opening card details as complete canonical clauses", () => {
-    const openings = HISTORY_SEEDS.map(getFixedOpening);
+    const openings = HISTORY_SEEDS.map((seed) => getFixedOpening(seed));
     const labels = openings.flatMap((opening) => opening.choices.map((choice) => choice.label));
     const allChoices = openings.flatMap((opening) => [...opening.choices, ...opening.rollChoices]);
     const apollo = openings[HISTORY_SEEDS.findIndex((seed) => seed.id === "apollo-11-1969")];
 
     expect(labels).toHaveLength(300);
-    expect(labels.every((label) => [...label].length <= 36)).toBe(true);
+    expect(labels.every((label) => label.trim().length > 0)).toBe(true);
     expect(labels.filter((label) => /(?:的|并|，以|而非中|出资补)$/.test(label))).toEqual([]);
-    expect(allChoices.every((choice) => [...choice.displayLabel].length >= 4 && [...choice.displayLabel].length <= 12)).toBe(true);
+    expect(allChoices.every((choice) => [...choice.displayLabel].length >= 4 && [...choice.displayLabel].length <= 16)).toBe(true);
     expect(allChoices.filter((choice) => /夺取现场解释权|照史推进原定命令|压到最后一刻|撕令夺权/.test(
       `${choice.displayLabel}${choice.label}`,
     ))).toEqual([]);
@@ -80,7 +84,12 @@ describe("fixed first turns", () => {
     const opening = getFixedOpening(wu);
     const allChoices = [...opening.choices, ...opening.rollChoices];
 
-    expect(allChoices.every((choice) => choice.actionSpec.actor.includes(opening.role.slice(0, 18)))).toBe(true);
+    expect(allChoices.filter((choice) => choice.id !== "C").every(
+      (choice) => choice.actionSpec.actor.includes(opening.role.slice(0, 18)),
+    )).toBe(true);
+    expect(allChoices.filter((choice) => choice.id === "C").every(
+      (choice) => choice.actionSpec.actor === "你" && Boolean(choice.powerId),
+    )).toBe(true);
     expect(allChoices.map((choice) => choice.actionSpec.actor).join(" ")).not.toMatch(
       /你与负责执行的人|你与愿意跟随的人|你与两名现场见证人|你与支持改令的人/,
     );
@@ -92,6 +101,41 @@ describe("fixed first turns", () => {
       opening.rollChoices[0].displayLabel,
       opening.rollChoices[1].displayLabel,
     ].every((label) => /武则天|称帝/.test(label))).toBe(true);
-    expect(opening.choices[2].label).toContain("武则天称帝现场");
+    expect(opening.choices[2].label).toMatch(/武则天|武后|洛阳|神都|则天|李旦/);
+  });
+
+  it("owns six distinct, concrete AI-authored power choices for every fixed history snapshot", () => {
+    for (const seed of HISTORY_SEEDS) {
+      const pool = getFixedPowerChoicePool(seed);
+      const powerIds = getFixedOpeningPowerIds(seed);
+
+      expect(pool).toHaveLength(6);
+      expect(new Set(powerIds)).toHaveProperty("size", 6);
+      expect(pool.every((choice) => (
+        choice.id === "C"
+        && choice.deviationClass === "rupture"
+        && choice.actionSpec.actor === "你"
+        && Boolean(choice.powerId)
+      ))).toBe(true);
+      expect(pool.map((choice) => `${choice.displayLabel}${choice.label}`).join(" ")).not.toMatch(
+        /让谎言现形|历史现场|被迫说真话|唤醒器物作证|改变历史走向|重塑秩序/,
+      );
+      powerIds.forEach((powerId, index) => {
+        const pairedPowerId = powerIds[(index + 1) % powerIds.length];
+        expect(() => getFixedOpening(seed, [powerId, pairedPowerId])).not.toThrow();
+      });
+    }
+  });
+
+  it("builds the opening with the exact two client-assigned powers", () => {
+    const seed = HISTORY_SEEDS.find((candidate) => candidate.id === "apollo-11-1969")!;
+    const candidateIds = getFixedOpeningPowerIds(seed);
+    const assigned = [candidateIds[4], candidateIds[2]] as const;
+    const opening = getFixedOpening(seed, assigned);
+
+    expect(opening.choices[2].powerId).toBe(assigned[0]);
+    expect(opening.rollChoices[2].powerId).toBe(assigned[1]);
+    expect(opening.choices[2].actionSpec.actor).toBe("你");
+    expect(opening.rollChoices[2].actionSpec.actor).toBe("你");
   });
 });

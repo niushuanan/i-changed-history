@@ -12,7 +12,7 @@ import { parseTimelineTurn } from "../game/schema";
 import { CHAPTER_NAMES, type DecisionChapter } from "../game/timelinePlan";
 function memoryStorage(initial?: Record<string, string>) { const data = new Map(Object.entries(initial ?? {})); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
-describe("v15 four-decision roguelike storage", () => {
+describe("v16 four-decision roguelike storage", () => {
   it("persists the historical picker and ignores old v1 sessions", () => {
     const storage = memoryStorage();
     const selecting = createInitialGameState();
@@ -99,7 +99,7 @@ describe("v15 four-decision roguelike storage", () => {
       request: null,
       unlockedSeedIds: [HISTORY_SEEDS[1].id],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":16');
     expect(legacy.getItem("i-changed-history:session:v5")).toBeNull();
   });
 
@@ -114,7 +114,30 @@ describe("v15 four-decision roguelike storage", () => {
       request: null,
       error: null,
     });
-    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
+    expect(storage.getItem(GAME_STORAGE_KEY)).toContain('"version":16');
+  });
+
+  it("persists the exact in-flight Roll power so refresh cannot redraw it", () => {
+    const storage = memoryStorage();
+    const opening = gameReducer(createInitialGameState(), {
+      type: "START_SCENARIO",
+      seed: HISTORY_SEEDS[0],
+    });
+    const prepared = gameReducer(opening, { type: "ROLL_CHOICES" });
+    const live = gameReducer(prepared, { type: "ROLL_CHOICES" });
+
+    expect(saveGameSnapshot(live, storage)).toBe(true);
+    expect(loadGameSnapshot(storage)).toMatchObject({
+      phase: "event",
+      rollLoading: true,
+      pendingRollPowerId: live.pendingRollPowerId,
+      request: {
+        kind: "roll-choices",
+        powerId: live.pendingRollPowerId,
+      },
+      usedPowerIds: live.usedPowerIds,
+      remainingPowerIds: live.remainingPowerIds,
+    });
   });
 
   it.each([
@@ -405,7 +428,7 @@ describe("v15 four-decision roguelike storage", () => {
       currentTurn: null,
       playedTurns: [],
     });
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":16');
     expect(legacy.getItem("i-changed-history:session:v6")).toBeNull();
   });
 
@@ -455,6 +478,6 @@ describe("v15 four-decision roguelike storage", () => {
       request: null,
     });
     expect(legacy.getItem("i-changed-history:session:v8")).toBeNull();
-    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":15');
+    expect(legacy.getItem(GAME_STORAGE_KEY)).toContain('"version":16');
   });
 });

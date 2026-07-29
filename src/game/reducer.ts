@@ -4,18 +4,35 @@ import type { AlternatePresent, CustomActionResolution, TimelineTurn } from "./s
 import type { HistorySeed } from "./types";
 import type { DecisionChapter } from "./timelinePlan";
 import { buildCanonicalCustomResolution } from "./customCanon";
-import { getFixedOpening } from "../data/fixedOpenings";
+import {
+  getFixedOpening,
+  getFixedOpeningPowerIds,
+} from "../data/fixedOpenings";
 import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
+import {
+  createScenarioPowerRun,
+  drawPowerIds,
+  shuffledPowerIds,
+  type PowerId,
+} from "./powers";
 
 export type GamePhase = "selecting" | "generating" | "event" | "echo" | "ending" | "result" | "error";
 export type GameScenario = { seed: HistorySeed };
 export type RetryIntent =
-  | { kind: "next-turn"; targetChapter: Exclude<DecisionChapter, 1> }
+  | {
+      kind: "next-turn";
+      targetChapter: Exclude<DecisionChapter, 1>;
+      powerIds: [PowerId, PowerId];
+    }
   | { kind: "ending" };
 export type RequestIntent =
   | (RetryIntent & { id: number })
-  | { kind: "roll-choices"; rollNumber: 2 | 3; id: number };
-type RequestWithoutId = RetryIntent | { kind: "roll-choices"; rollNumber: 2 | 3 };
+  | { kind: "roll-choices"; rollNumber: 2 | 3; powerId: PowerId; id: number };
+type RequestWithoutId = RetryIntent | {
+  kind: "roll-choices";
+  rollNumber: 2 | 3;
+  powerId: PowerId;
+};
 
 export type EchoState = {
   source: "ai_choice" | "custom_action";
@@ -44,6 +61,9 @@ export type GameState = {
   dynamicChoices: TimelineTurn["choices"] | null;
   rollLoading: boolean;
   rollError: string | null;
+  remainingPowerIds: PowerId[];
+  usedPowerIds: PowerId[];
+  pendingRollPowerId: PowerId | null;
   unlockedSeedIds: string[];
   echo: EchoState | null;
   request: RequestIntent | null;
@@ -55,7 +75,15 @@ export type GameState = {
 };
 
 export type GameAction =
-  | { type: "START_SCENARIO"; seed: HistorySeed }
+  | {
+      type: "START_SCENARIO";
+      seed: HistorySeed;
+      powerRun?: {
+        openingPowerIds: [PowerId, PowerId];
+        remainingPowerIds: PowerId[];
+        usedPowerIds: PowerId[];
+      };
+    }
   | { type: "ROLL_CHOICES" }
   | { type: "ROLL_CHOICES_RESOLVED"; requestId: number; choices: TimelineTurn["choices"] }
   | { type: "ROLL_CHOICES_FAILED"; requestId: number; message: string }
@@ -74,6 +102,7 @@ export function createInitialGameState(nextRequestId = 1): GameState {
     phase: "selecting", scenario: null, currentTurn: null, playedTurns: [],
     deviation: 0, lastImpact: 0, customActionsUsed: 0,
     rollCount: 0, dynamicChoices: null, rollLoading: false, rollError: null, unlockedSeedIds: [],
+    remainingPowerIds: [], usedPowerIds: [], pendingRollPowerId: null,
     echo: null, request: null,
     pendingTurn: null, pendingEnding: null, result: null, error: null, nextRequestId,
   };
@@ -99,26 +128,52 @@ function unlockCurrentScenario(state: GameState): string[] {
 function requestAfterChoice(state: GameState) {
   const chapter = state.currentTurn?.chapter;
   if (chapter === 4) return withRequest(state, { kind: "ending" });
-  if (!chapter) return { request: null, nextRequestId: state.nextRequestId };
-  return withRequest(state, { kind: "next-turn", targetChapter: (chapter + 1) as Exclude<DecisionChapter, 1> });
+  if (!chapter) return {
+    request: null,
+    nextRequestId: state.nextRequestId,
+    remainingPowerIds: state.remainingPowerIds,
+    usedPowerIds: state.usedPowerIds,
+  };
+  const availablePowerIds = state.remainingPowerIds.length >= 2
+    ? state.remainingPowerIds
+    : shuffledPowerIds().filter((powerId) => !state.usedPowerIds.includes(powerId));
+  const allocation = drawPowerIds(availablePowerIds, 2);
+  const powerIds = allocation.drawnPowerIds as [PowerId, PowerId];
+  return {
+    ...withRequest(state, {
+      kind: "next-turn",
+      targetChapter: (chapter + 1) as Exclude<DecisionChapter, 1>,
+      powerIds,
+    }),
+    remainingPowerIds: allocation.remainingPowerIds,
+    usedPowerIds: [...state.usedPowerIds, ...powerIds],
+  };
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "START_SCENARIO":
       if (state.phase !== "selecting") return state;
+      {
+        const powerRun = action.powerRun ?? createScenarioPowerRun(
+          getFixedOpeningPowerIds(action.seed),
+        );
       return {
         ...state,
         phase: "event",
         scenario: { seed: action.seed },
-        currentTurn: getFixedOpening(action.seed),
+        currentTurn: getFixedOpening(action.seed, powerRun.openingPowerIds),
         rollCount: 0,
         dynamicChoices: null,
         rollLoading: false,
         rollError: null,
+        remainingPowerIds: powerRun.remainingPowerIds,
+        usedPowerIds: powerRun.usedPowerIds,
+        pendingRollPowerId: null,
         request: null,
         error: null,
       };
+      }
     case "ROLL_CHOICES":
       if (state.phase !== "event" || !state.currentTurn || state.rollLoading || state.rollCount >= 3) return state;
       if (state.rollCount === 0) {
@@ -129,15 +184,35 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           rollError: null,
         };
       }
+      {
+        const allocation = state.pendingRollPowerId
+          ? {
+              drawnPowerIds: [state.pendingRollPowerId],
+              remainingPowerIds: state.remainingPowerIds,
+            }
+          : drawPowerIds(
+              state.remainingPowerIds.length > 0
+                ? state.remainingPowerIds
+                : shuffledPowerIds().filter((powerId) => !state.usedPowerIds.includes(powerId)),
+              1,
+            );
+        const powerId = allocation.drawnPowerIds[0];
       return {
         ...state,
         rollLoading: true,
         rollError: null,
+        remainingPowerIds: allocation.remainingPowerIds,
+        usedPowerIds: state.pendingRollPowerId
+          ? state.usedPowerIds
+          : [...state.usedPowerIds, powerId],
+        pendingRollPowerId: powerId,
         ...withRequest(state, {
           kind: "roll-choices",
           rollNumber: (state.rollCount + 1) as 2 | 3,
+          powerId,
         }),
       };
+      }
     case "ROLL_CHOICES_RESOLVED":
       if (
         state.phase !== "event"
@@ -150,6 +225,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         dynamicChoices: action.choices,
         rollLoading: false,
         rollError: null,
+        pendingRollPowerId: null,
         request: null,
       };
     case "ROLL_CHOICES_FAILED":
@@ -180,6 +256,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         selectedChoiceId: choice.id,
         selectedChoiceLabel: choice.label,
         selectedDeviationClass: choice.deviationClass,
+        selectedPowerId: choice.powerId,
         resolvedEcho: choice.instantEcho,
       };
       return {
@@ -273,6 +350,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         dynamicChoices: null,
         rollLoading: false,
         rollError: null,
+        pendingRollPowerId: null,
         pendingTurn: null,
         error: null,
       };
@@ -292,7 +370,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           code: action.code,
           message: action.message,
           retry: state.request.kind === "next-turn"
-            ? { kind: "next-turn", targetChapter: state.request.targetChapter }
+            ? {
+                kind: "next-turn",
+                targetChapter: state.request.targetChapter,
+                powerIds: state.request.powerIds,
+              }
             : { kind: state.request.kind },
         },
         request: null,

@@ -1,5 +1,6 @@
 import type { PlayedTurn } from "./prompts";
 import { buildWorldCanon } from "./worldCanon";
+import { powerPrompt, type PowerId } from "./powers";
 
 export type LifeIndexEntry = {
   chapter: number;
@@ -8,6 +9,8 @@ export type LifeIndexEntry = {
   role: string;
   location: string;
   decision: string;
+  powerId?: PowerId;
+  power?: ReturnType<typeof powerPrompt>;
   directResult: string;
 };
 
@@ -21,6 +24,8 @@ export type NarrativeContext = {
   activeConsequences: ReadonlyArray<{
     chapter: number;
     decision: string;
+    powerId?: PowerId;
+    power?: ReturnType<typeof powerPrompt>;
     directResult: string;
     unexpectedCost: string;
     beneficiary: string;
@@ -55,6 +60,12 @@ function lifeEntry(played: PlayedTurn): LifeIndexEntry {
     role: played.turn.role,
     location: played.turn.location,
     decision: played.selectedChoiceLabel,
+    ...(played.selectedPowerId
+      ? {
+          powerId: played.selectedPowerId,
+          power: powerPrompt(played.selectedPowerId),
+        }
+      : {}),
     directResult: played.resolvedEcho.directResult,
   };
 }
@@ -85,6 +96,12 @@ export function buildNarrativeContext(
     activeConsequences: playedTurns.slice(-3).map((played) => ({
       chapter: played.turn.chapter,
       decision: played.selectedChoiceLabel,
+      ...(played.selectedPowerId
+        ? {
+            powerId: played.selectedPowerId,
+            power: powerPrompt(played.selectedPowerId),
+          }
+        : {}),
       directResult: played.resolvedEcho.directResult,
       unexpectedCost: played.resolvedEcho.unexpectedCost,
       beneficiary: played.resolvedEcho.beneficiary,

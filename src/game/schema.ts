@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CHAPTER_NAMES, JUMP_LABELS, type DecisionChapter, type LifeStage } from "./timelinePlan";
 import { CUSTOM_ACTION_MAX_LENGTH } from "./limits";
+import { isPowerId, type PowerId } from "./powers";
 
 const requiredString = z.string().trim().min(1);
 const boundedString = (max: number) => requiredString.max(max);
@@ -204,6 +205,7 @@ const choiceFields = {
   displayLabel: boundedString(16),
   intent: requiredString,
   deviationClass: deviationClassSchema,
+  powerId: z.custom<PowerId>(isPowerId, "未知超能力").optional(),
   instantEcho: echoSchema,
   usesModernKnowledge: z.boolean(),
   actionSpec: actionSpecSchema,

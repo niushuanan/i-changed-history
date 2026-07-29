@@ -231,8 +231,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("displayLabel 为牌面标题");
     expect(protocol).toContain("第一次 Roll 的预先准备结果");
     expect(protocol).toContain("经过洗牌动效后发出");
-    expect(protocol).toContain("禁止默认套用坦克、神兽");
-    expect(protocol).toContain("不能重复同一召唤");
+    expect(protocol).toContain("assignedPowers.choicesC");
+    expect(protocol).toContain("actionSpec.actor 必须逐字为“你”");
     expect(protocol).toContain("只写真实历史的对应结果");
     expect(protocol).toContain('"causalBridge":"24-30 字的单个完整短句');
     expect(protocol).toContain("不要使用逗号或分号");
@@ -240,7 +240,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain('"divergenceProof":"42 字以内');
     expect(protocol).toContain("每个短字段必须以完整短句收尾");
     expect(protocol).toContain("目标年份仍在世、在任或确实存在");
-    expect(protocol).toContain("label 为 18-42 字");
+    expect(protocol).toContain("label 为完整决定");
     expect(protocol).toContain("每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字");
     expect(protocol).toContain('"intent"');
     expect(protocol).toContain("clientOwnedFields");
@@ -272,7 +272,7 @@ describe("modern traveler AI prompt contract", () => {
 
     expect(payload.task).toContain("第 2 次 Roll");
     expect(payload.task).toContain("只输出 choices");
-    expect(payload.task).toContain("不要默认写坦克、神兽、飞船、召唤术");
+    expect(payload.task).toContain("C 牌只能使用 assignedPower 指定的一项能力");
     expect(payload.task).toContain("像现场的人在说一个能立刻执行的主意");
     expect(payload.task).toContain("禁止“夺取解释权、推进既有轨迹");
     expect(payload.task).toContain("先在心里盘点 currentScene 与 historyMoment");
@@ -280,10 +280,15 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.task).toContain("逐字带出至少一个当前快照中的专名或实物");
     expect(payload.task).toContain("不要把循史写成等待");
     expect(payload.task).toContain("不要把破局写成泛化的接管现场");
-    expect(payload.task).toContain("天外必须让本幕已有的具体器物");
-    expect(payload.task).toContain("删掉超现实机制后仍能成立，就不算天外");
-    expect(payload.task).toContain("黑入、广播、泄密、伪造或破坏");
-    expect(payload.task).toContain("即使放到 2026 年也不可能自然发生");
+    expect(payload.task).toContain("powerId 必须逐字复制");
+    expect(payload.task).toContain("actionSpec.actor 必须逐字为“你”");
+    expect(payload.task).toContain("不能换能力、弱化成比喻");
+    expect(payload.task).toContain("能力本身就是解决当前瓶颈的决胜动作");
+    expect(payload.assignedPower).toMatchObject({
+      powerId: "teleport-crowd",
+      name: "百人迁跃",
+    });
+    expect(payload.outputContract.powerRule).toContain("A/B 不得输出 powerId");
     expect(payload.task).toContain("不要输出盘点过程");
     expect(payload.outputContract.label).toContain("必须以具体的人、物、地点或已经发生的结果收尾");
     expect(payload.outputContract.displayLabel).toContain("自然动宾短语");
@@ -308,8 +313,8 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("历史快照不是背景资料，而是本幕所有行动的边界");
     expect(protocol).toContain("三张牌必须分别使用不同的具体杠杆");
     expect(protocol).toContain("每张牌至少逐字使用一个本幕已经出现的具体人物、机构、地点、器物、命令或程序");
-    expect(protocol).toContain("删掉超现实机制后仍然能执行，就不是天外");
-    expect(protocol).toContain("即使放到 2026 年也不可能自然发生");
+    expect(protocol).toContain("只能使用 assignedPowers.choicesC 指定的超能力");
+    expect(protocol).toContain("不能更换能力、把能力写成比喻");
     expect(protocol).toContain("必须以具体的人、物、地点或已经发生的结果收尾");
     expect(protocol).toContain("末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”");
     expect(protocol).toContain("先像当事人开口，再从这句话中提取");
@@ -320,7 +325,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.task).toContain("先在内部完成一次不输出的现场盘点");
     expect(payload.task).toContain("谁能被说服、什么东西能被拿走");
     expect(payload.task).toContain("六张牌至少覆盖六种不同的现场杠杆");
-    expect(payload.task).toContain("删掉超现实机制后仍能执行，就不算天外");
+    expect(payload.task).toContain("两张天外牌分别严格使用 assignedPowers 指定的不同能力");
+    expect(payload.assignedPowers.choicesC.powerId).toBe("blink-self");
+    expect(payload.assignedPowers.rollChoicesC.powerId).toBe("stop-time");
     expect(payload.submissionChecklist.choices).toContain("不是同一动作换六种说法");
     expect(payload.submissionChecklist.choices).toContain("末尾不得停在连接词或待完成的动词");
   });

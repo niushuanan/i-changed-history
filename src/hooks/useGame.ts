@@ -144,6 +144,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
               signal: controller.signal,
               onProgress,
               onMetrics,
+              assignedPowerId: request.powerId,
             },
           );
           await waitForRollRitual(requestStartedAt, controller.signal);
@@ -162,6 +163,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
             onProgress,
             onPartial,
             onMetrics,
+            assignedPowerIds: request.powerIds,
           });
           if (active) dispatch({ type: "TURN_RESOLVED", requestId: request.id, turn });
           return;

@@ -77,6 +77,43 @@ describe("single-life choice-only game reducer", () => {
       .toBe(liveChoices[1].label);
   });
 
+  it("assigns every C card a distinct persisted power and reuses a failed Roll assignment", () => {
+    const started = gameReducer(createInitialGameState(), {
+      type: "START_SCENARIO",
+      seed: HISTORY_SEEDS[0],
+    });
+    const openingPowerIds = [
+      started.currentTurn!.choices[2].powerId,
+      started.currentTurn!.rollChoices[2].powerId,
+    ];
+
+    expect(new Set(openingPowerIds)).toHaveProperty("size", 2);
+    expect(started.usedPowerIds).toEqual(openingPowerIds);
+    expect(started.remainingPowerIds).toHaveLength(48);
+
+    const preparedRoll = gameReducer(started, { type: "ROLL_CHOICES" });
+    expect(preparedRoll.usedPowerIds).toEqual(started.usedPowerIds);
+
+    const liveRoll = gameReducer(preparedRoll, { type: "ROLL_CHOICES" });
+    expect(liveRoll.request).toMatchObject({
+      kind: "roll-choices",
+      powerId: liveRoll.pendingRollPowerId,
+    });
+    expect(liveRoll.usedPowerIds).toHaveLength(3);
+
+    const failed = gameReducer(liveRoll, {
+      type: "ROLL_CHOICES_FAILED",
+      requestId: liveRoll.request!.id,
+      message: "再试一次",
+    });
+    const retried = gameReducer(failed, { type: "ROLL_CHOICES" });
+    expect(retried.request).toMatchObject({
+      kind: "roll-choices",
+      powerId: liveRoll.pendingRollPowerId,
+    });
+    expect(retried.usedPowerIds).toEqual(liveRoll.usedPowerIds);
+  });
+
   it("records the full canonical AI choice instead of its compact display label", () => {
     const canonical = "召集所有仍然忠于朝廷的边军将领公开核验军令来源并要求他们在日落之前重新宣誓效忠";
     const longChoiceTurn = parseTimelineTurn(JSON.stringify({

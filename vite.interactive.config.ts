@@ -15,6 +15,10 @@ export default defineConfig({
         replacement: path.join(projectRoot, "src/data/historySeeds/interactive.ts"),
       },
       {
+        find: "./fixedPowerChoices.generated",
+        replacement: path.join(projectRoot, "src/data/fixedPowerChoices.interactive.generated.ts"),
+      },
+      {
         find: "../services/deepseek",
         replacement: path.join(projectRoot, "src/services/deepseek.interactive.ts"),
       },
