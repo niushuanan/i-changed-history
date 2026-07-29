@@ -4,12 +4,17 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { browseHistorySeeds } from "../data/historySeeds";
 import type { HistorySeed } from "../game/types";
+import { playCardSound } from "../services/cardAudio";
 import {
   chooseDestinySeed,
   DEFAULT_PICKER_CONTEXT,
   SeedPickerScreen,
   type PickerContext,
 } from "./SeedPickerScreen";
+
+vi.mock("../services/cardAudio", () => ({
+  playCardSound: vi.fn(),
+}));
 
 const cards = browseHistorySeeds();
 
@@ -46,6 +51,7 @@ describe("destiny draw history entry", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0.12);
+    vi.mocked(playCardSound).mockClear();
   });
 
   afterEach(() => {
@@ -58,6 +64,7 @@ describe("destiny draw history entry", () => {
     render(<PickerHarness />);
 
     expect(screen.getByRole("heading", { name: "哎！我改变了历史？" })).toBeVisible();
+    expect(screen.getByLabelText("本作品包含人工智能生成内容")).toHaveTextContent("AI 生成");
     expect(screen.getByRole("article", { name: "尚未揭晓的命运卡牌" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /闯入这一刻/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: /随机滚动时间线/ })).not.toBeInTheDocument();
@@ -71,6 +78,7 @@ describe("destiny draw history entry", () => {
     const timeoutSpy = vi.spyOn(window, "setTimeout");
 
     fireEvent.click(screen.getByRole("button", { name: "随机抽一个开局" }));
+    expect(playCardSound).toHaveBeenCalledWith("page-turn", false);
     expect(screen.getByTestId("destiny-carousel")).toBeVisible();
     expect(container.querySelectorAll(".destiny-carousel__card")).toHaveLength(5);
     expect(container.querySelectorAll(".destiny-carousel .history-card__poster-stack")).toHaveLength(5);
@@ -98,6 +106,7 @@ describe("destiny draw history entry", () => {
     expect(screen.getByRole("button", { name: "换一个开局" })).toBeEnabled();
 
     fireEvent.click(entry);
+    expect(playCardSound).toHaveBeenCalledWith("enter-history", false);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
       id: screen.getByTestId("active-seed-id").textContent,
     }));

@@ -71,8 +71,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(laterContinuation).toHaveLength(3);
     expect(continuation[0]).toEqual(laterContinuation[0]);
     expect(continuation[1]).toEqual(laterContinuation[1]);
-    expect(continuation[1].content).toContain("requiredFields");
-    expect(continuation[2].content).not.toContain("exactShapeExample");
+    expect(continuation[1].content).toContain("wireShape");
+    expect(continuation[1].content).toContain("compactShapeExample");
+    expect(continuation[2].content).not.toContain("compactShapeExample");
   });
 
   it("serializes one compact narrative context instead of duplicated histories", () => {
@@ -104,13 +105,15 @@ describe("modern traveler AI prompt contract", () => {
     const biography = buildBiographyMessages(scenario, played).at(-1)!.content;
     const worldReport = buildWorldReportMessages(scenario, played).at(-1)!.content;
 
-    expect(biography).toContain("vernacularBiography");
-    expect(biography).toContain("historyTimeline");
+    expect(biography).toContain('"compactShape"');
+    expect(biography).toContain("白话列传");
+    expect(biography).toContain("第一幕后果");
     expect(biography).not.toContain("ordinaryLife2026");
-    expect(worldReport).toContain("ordinaryLife2026");
-    expect(worldReport).toContain("posthumousChronicle");
-    expect(worldReport).toContain("narrative 为 35-96 个汉字");
-    expect(worldReport).toContain("inheritedChange 为 18-64 个汉字");
+    expect(worldReport).toContain('"compactShape"');
+    expect(worldReport).toContain("生活句");
+    expect(worldReport).toContain("时代叙事");
+    expect(worldReport).toContain("时代叙事 18-28 个汉字");
+    expect(worldReport).toContain("继承结果 10-16 个汉字");
     expect(worldReport).toContain("不得截断句子来满足字数");
     expect(worldReport).not.toContain("vernacularBiography");
   });
@@ -125,7 +128,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(worldReport).toContain("完整生活短句");
     expect(worldReport).toContain("优先写成 12—16 字");
     expect(worldReport).toContain("孩子每天用纸鹤支付早餐费。");
-    expect(worldReport).toContain("身后时代 narrative 优先写成 35—88 字");
+    expect(worldReport).toContain("身后时代叙事优先写成 20—25 字");
   });
 
   it("forces one aging protagonist through butterfly-effect topic changes", () => {
@@ -141,8 +144,9 @@ describe("modern traveler AI prompt contract", () => {
     expect(continuation).toContain("不要从预设类别、通用模板或固定章节槽中选题");
     expect(continuation).toContain("一阶、二阶和三阶后果");
     expect(protocol).toContain("usesModernKnowledge");
-    expect(protocol).toContain("完整 JSON 控制在 1400 个汉字左右");
-    expect(protocol).toContain('"rollChoices"');
+    expect(protocol).toContain("只返回 s、c、r 三个根字段");
+    expect(protocol).toContain("s 必须恰好九项");
+    expect(protocol).toContain('"r":"第一次 Roll 的三张紧凑牌"');
     expect(continuation).not.toContain("authoritativePivotalBrief");
     expect(protocol).toContain("historicalAnchors");
     expect(protocol).toContain("actionSpec");
@@ -188,7 +192,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("divergenceProof");
     expect(continuation).toContain("自行选择其中最意外、最重大");
     expect(continuation).toContain("不得否认、降级、反转");
-    expect(continuation).toContain("尤其不得遗漏 timePressure、historicalAnchors");
+    expect(continuation).toContain("逐项确认 s、c、r 完整");
     const continuationPayload = JSON.parse(continuation);
     expect(continuationPayload.latestPlayerFactForThisScene).toMatchObject({
       status: "已经发生，不可否认或弱化",
@@ -222,29 +226,30 @@ describe("modern traveler AI prompt contract", () => {
     const parsedTurn = parseTimelineTurn(JSON.stringify(turnFixture));
     const played = [{ turn: parsedTurn, selectedChoiceId: "A" as const, selectedChoiceLabel: parsedTurn.choices[0].label, selectedDeviationClass: "nudge" as const, resolvedEcho: parsedTurn.choices[0].instantEcho }];
     const protocol = buildContinuationMessages(scenario, played, 2)[1].content;
-    expect(protocol).toContain("完整 JSON 控制在 1400 个汉字左右");
-    expect(protocol).toContain("55-110 个汉字");
+    expect(protocol).toContain("紧凑传输只删除重复键名");
+    expect(protocol).toContain("55-85 个汉字");
     expect(protocol).toContain("二至三句");
     expect(protocol).toContain("上一决定造成的局面");
     expect(protocol).toContain("一个可见历史锚点");
     expect(protocol).toContain("失败代价");
-    expect(protocol).toContain("displayLabel 为牌面标题");
+    expect(protocol).toContain("displayLabel 4-7 字");
+    expect(protocol).toContain("action 与完整 label 相同");
     expect(protocol).toContain("第一次 Roll 的预先准备结果");
-    expect(protocol).toContain("经过洗牌动效后发出");
+    expect(protocol).toContain("第一次 Roll 的预先准备结果");
     expect(protocol).toContain("assignedPowers.choicesC");
-    expect(protocol).toContain("actionSpec.actor 必须逐字为“你”");
+    expect(protocol).toContain("actor 必须逐字为“你”");
     expect(protocol).toContain("只写真实历史的对应结果");
-    expect(protocol).toContain('"causalBridge":"24-30 字的单个完整短句');
+    expect(protocol).toContain('"causalBridge":"18-24 字的单个完整短句');
     expect(protocol).toContain("不要使用逗号或分号");
-    expect(protocol).toContain('"worldStateChange":"30 字以内');
-    expect(protocol).toContain('"divergenceProof":"42 字以内');
+    expect(protocol).toContain('"worldStateChange":"24 字以内');
+    expect(protocol).toContain('"divergenceProof":"32 字以内');
     expect(protocol).toContain("每个短字段必须以完整短句收尾");
-    expect(protocol).toContain("目标年份仍在世、在任或确实存在");
-    expect(protocol).toContain("label 为完整决定");
-    expect(protocol).toContain("每张 displayLabel 为牌面标题，也是自然的动宾短语，4-12 个汉字");
+    expect(protocol).toContain("targetYear 时仍在世、在任或确实存在");
+    expect(protocol).toContain("会原样进入玩家正史的完整决定");
+    expect(protocol).toContain("每张牌固定为 [displayLabel,label");
     expect(protocol).toContain("所有字段值面向中国玩家，必须使用自然中文");
     expect(protocol).toContain("不得写 reverse-cause 等超能力 ID");
-    expect(protocol).toContain('"intent"');
+    expect(protocol).toContain("不要输出 id、intent、deviationClass");
     expect(protocol).toContain("clientOwnedFields");
     expect(protocol).toContain("禁止输出");
   });
@@ -273,7 +278,7 @@ describe("modern traveler AI prompt contract", () => {
     const payload = JSON.parse(messages.at(-1)!.content);
 
     expect(payload.task).toContain("第 2 次 Roll");
-    expect(payload.task).toContain("只输出 choices");
+    expect(payload.task).toContain("只输出紧凑字段 c");
     expect(payload.task).toContain("C 牌只能使用 assignedPower 指定的一项能力");
     expect(payload.task).toContain("像现场的人在说一个能立刻执行的主意");
     expect(payload.task).toContain("禁止“夺取解释权、推进既有轨迹");
@@ -285,15 +290,15 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.task).toContain("A 不得阻止、逆转、拖延、换掉掌权者或偷换结果");
     expect(payload.task).toContain("B 必须改变既有轨道的控制点、命令方向或结果");
     expect(payload.sceneTrajectoryContract.optionA).toContain("执行并完成当前既有轨道");
-    expect(payload.task).toContain("powerId 必须逐字复制");
-    expect(payload.task).toContain("actionSpec.actor 必须逐字为“你”");
+    expect(payload.task).toContain("不要输出英文 powerId");
+    expect(payload.task).toContain("actor 必须逐字为“你”");
     expect(payload.task).toContain("不能换能力、弱化成比喻");
     expect(payload.task).toContain("能力本身就是解决当前瓶颈的决胜动作");
     expect(payload.assignedPower).toMatchObject({
       powerId: "teleport-crowd",
       name: "百人迁跃",
     });
-    expect(payload.outputContract.powerRule).toContain("A/B 不得输出 powerId");
+    expect(payload.outputContract.powerRule).toContain("客户端会按 C 牌位置权威注入");
     expect(payload.outputContract.playerFacingLanguage).toContain("字段值只写自然中文");
     expect(payload.outputContract.playerFacingLanguage).toContain("能力只写 assignedPower.name");
     expect(payload.task).toContain("不要输出盘点过程");
@@ -321,12 +326,12 @@ describe("modern traveler AI prompt contract", () => {
     expect(protocol).toContain("三张牌必须分别使用不同的具体杠杆");
     expect(protocol).toContain("每张牌至少逐字使用一个本幕已经出现的具体人物、机构、地点、器物、命令或程序");
     expect(protocol).toContain("只能使用 assignedPowers.choicesC 指定的超能力");
-    expect(protocol).toContain("不能更换能力、把能力写成比喻");
+    expect(protocol).toContain("完整兑现 exactRule");
     expect(protocol).toContain("必须以具体的人、物、地点或已经发生的结果收尾");
-    expect(protocol).toContain("末尾不得是“的、同时、随后、转而、改为、试图、准备、意图、而非”");
-    expect(protocol).toContain("先像当事人开口，再从这句话中提取");
+    expect(protocol).toContain("以具体的人、物、地点或已经发生的结果收尾");
+    expect(protocol).toContain("先像当事人开口，再提取四段行动字段");
     expect(protocol).toContain("原定方案、新方案、现场众人、愿意跟随的人");
-    expect(protocol).toContain("exactShapeExample 只示意字段结构");
+    expect(protocol).toContain("compactShapeExample");
     expect(protocol).toContain("循史与温和程度无关");
     expect(protocol).toContain("A 不得阻止、逆转、拖延到期限后");
     expect(protocol).toContain("不得让主角死亡、被处死、失去意识、终身监禁");
@@ -339,7 +344,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(payload.assignedPowers.choicesC.powerId).toBe("blink-self");
     expect(payload.assignedPowers.rollChoicesC.powerId).toBe("stop-time");
     expect(payload.submissionChecklist.choices).toContain("不是同一动作换六种说法");
-    expect(payload.submissionChecklist.choices).toContain("末尾不得停在连接词或待完成的动词");
+    expect(payload.submissionChecklist.choices).toContain("以具体对象或已完成结果收尾");
     expect(payload.sceneTrajectoryContract.optionA).toContain("让这条既有轨道真正落地");
     expect(payload.sceneTrajectoryContract.optionB).toContain("改变既有轨道");
     expect(protocol).toContain("他必须能以同一身体继续完成下一幕");

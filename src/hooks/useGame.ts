@@ -8,6 +8,7 @@ import {
 import { getDeviationStage } from "../game/deviation";
 import type { HistorySeed } from "../game/types";
 import { createEpicAudioController, type EpicAudioController } from "../services/audio";
+import { preloadCardSounds } from "../services/cardAudio";
 import { loadGameSnapshot, saveGameSnapshot } from "../services/storage";
 import type {
   DeepSeekPartialDraft,
@@ -210,6 +211,7 @@ export function useGame(overrides: Partial<UseGameDependencies> = {}) {
   }, [dependencies]);
 
   const startExperience = useCallback(async () => {
+    preloadCardSounds();
     if (audioUnlockRef.current) return true;
     audioUnlockRef.current = true;
     const started = await dependencies.audio.start();

@@ -53,6 +53,7 @@ function directRequestBody(
     response_format: { type: "json_object" },
     stream: true,
     stream_options: { include_usage: true },
+    temperature: 0.7,
   } as const;
 
   return reasoning === "fast"
@@ -282,8 +283,17 @@ function readablePartial(content: string): DeepSeekPartialDraft | null {
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
   const record = parsed as Record<string, unknown>;
   const draft: Record<string, string> = {};
+  const compactScene = Array.isArray(record.s) ? record.s : null;
+  const compactFields = compactScene ? {
+    headline: compactScene[0],
+    narrative: compactScene[1],
+    location: compactScene[2],
+    role: compactScene[3],
+    timePressure: compactScene[4],
+  } : {};
   for (const field of ["headline", "narrative", "location", "role", "immediateObjective", "timePressure"] as const) {
-    if (typeof record[field] === "string" && record[field].trim()) draft[field] = record[field].trim();
+    const value = record[field] ?? compactFields[field as keyof typeof compactFields];
+    if (typeof value === "string" && value.trim()) draft[field] = value.trim();
   }
   return Object.keys(draft).length > 0 ? draft : null;
 }
@@ -494,7 +504,7 @@ async function performRequest(
       responseStatus = response.status;
     } catch (error) {
       if (timedOut) {
-        throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
+        throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
       }
       if (externalSignal?.aborted) {
         throw new DeepSeekError("aborted", "本次推演已取消。");
@@ -503,7 +513,7 @@ async function performRequest(
     }
 
     if (timedOut) {
-      throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
+      throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
     }
     if (!response.ok) throw errorForResponse(response);
 
@@ -512,7 +522,7 @@ async function performRequest(
       result = await readCompletion(response, options, startedAt);
     } catch (error) {
       if (timedOut) {
-        throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
+        throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
       }
       if (externalSignal?.aborted) {
         throw new DeepSeekError("aborted", "本次推演已取消。");
@@ -529,7 +539,7 @@ async function performRequest(
       throw error;
     }
     if (timedOut) {
-      throw new DeepSeekError("timeout", "这次深度推演时间过长，请重新推演这一幕。");
+      throw new DeepSeekError("timeout", "这次推演等待时间过长，请重新推演这一幕。");
     }
     reportMetrics(options.onMetrics, {
       phase: options.phase,

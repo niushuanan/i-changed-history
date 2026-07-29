@@ -129,7 +129,7 @@ npm run build
 
 需要真实验证四次人生抉择、每幕预生成 Roll 和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。默认十个不同开局都在四幕使用 Roll；设置 `SOAK_ALL_ROLL=1` 可对指定开局执行同样的全幕门禁。长测在 Node 环境读取同一组服务端变量并直连 DeepSeek，把脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行；第二、第三次实时 Roll 的请求与失败重试由组件和应用集成测试独立覆盖。
 
-## 抖音互动空间审核包
+## 抖音互动空间完整包
 
 仓库只维护完整 100 剧本版本。提交抖音审核前统一运行：
 
@@ -137,7 +137,7 @@ npm run build
 npm run build:interactive
 ```
 
-该命令只在互动空间构建阶段把运行时卡组替换为古腾堡印刷、伽利略《星空使者》和阿波罗 11 号三个低敏剧本；完整源码和普通产品构建仍保留全部 100 个。脚本会删除其余 97 张历史图、扫描最终 JS 是否泄漏其他剧本、优化移动端资源、检查 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通构建并提交审核。
+该命令会把完整 100 个历史开局、固定首幕、AI 续幕、音频和本地图片一起转换为互动空间运行时，通过平台 `tt.callAIChatCompletion` 调用 V4 Flash；随后优化全部移动端资源、检查 100 个剧本和图片均已入包、确认 ZIP 不超过 8MB，并生成 `release/i-changed-history-interactive-space.zip`。不要手工压缩普通网页构建并提交审核。
 
 ## 密钥与部署
 

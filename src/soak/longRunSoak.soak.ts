@@ -351,6 +351,7 @@ describe("real DeepSeek four-decision full-run stability", () => {
       firstReadableP50TargetMs: 8_000,
       firstReadableP90TargetMs: 15_000,
       primaryRepairRateTarget: 0.1,
+      generationMaxTargetMs: 10_000,
     };
     const summary = {
       batchId: BATCH_ID,
@@ -373,6 +374,10 @@ describe("real DeepSeek four-decision full-run stability", () => {
         firstReadable: latencySummary(firstReadableDurations),
         rollReveal: latencySummary(actionDurations),
         ending: latencySummary(endingDurations),
+      },
+      tenSecondTarget: {
+        nextTurnMet: turnDurations.length > 0 && Math.max(...turnDurations) <= 10_000,
+        endingMet: endingDurations.length > 0 && Math.max(...endingDurations) <= 10_000,
       },
       generatedTurns,
       primaryInvalids,

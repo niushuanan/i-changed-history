@@ -5,13 +5,7 @@ import { createServer } from "vite";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(root, "src", "data", "fixedPowerChoices.generated.ts");
-const interactiveOutputPath = path.join(root, "src", "data", "fixedPowerChoices.interactive.generated.ts");
 const checkpointPath = path.join(root, "tmp", "fixed-power-progress.json");
-const interactiveSeedIds = new Set([
-  "gutenberg-bible-1455",
-  "galileo-1610",
-  "apollo-11-1969",
-]);
 const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
 
 const vite = await createServer({
@@ -313,11 +307,6 @@ function sourceFor(entries) {
 }
 
 const source = sourceFor(results);
-const interactiveSource = sourceFor(
-  results.filter(([seedId]) => interactiveSeedIds.has(seedId)),
-);
 await fs.writeFile(outputPath, source, "utf8");
-await fs.writeFile(interactiveOutputPath, interactiveSource, "utf8");
 await fs.rm(checkpointPath, { force: true });
 process.stdout.write(`Wrote ${outputPath}\n`);
-process.stdout.write(`Wrote ${interactiveOutputPath}\n`);

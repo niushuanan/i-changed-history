@@ -672,7 +672,7 @@ describe("DeepSeek transport and structured generation", () => {
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
       const payload = JSON.parse(body.messages.at(-1).content);
-      if (payload.outputContract?.requiredFields?.includes("vernacularBiography")) {
+      if (payload.outputContract?.compactShape?.includes('"b"')) {
         return Promise.resolve(completion(JSON.stringify(biography)));
       }
       if (payload.details?.repairFields?.includes("posthumousChronicle")) {

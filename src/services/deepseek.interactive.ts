@@ -61,6 +61,7 @@ type PlatformChatOptions = {
   stream: true;
   model: string;
   messages: Array<{ role: "system" | "user"; content: string }>;
+  temperature: number;
   maxTokens: number;
   onSSE: (event: PlatformSseEvent) => void;
   success: (result: PlatformSuccess) => void;
@@ -129,6 +130,14 @@ function readablePartial(content: string): DeepSeekPartialDraft | null {
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
   const record = parsed as Record<string, unknown>;
   const draft: Record<string, string> = {};
+  const compactScene = Array.isArray(record.s) ? record.s : null;
+  const compactFields = compactScene ? {
+    headline: compactScene[0],
+    narrative: compactScene[1],
+    location: compactScene[2],
+    role: compactScene[3],
+    timePressure: compactScene[4],
+  } : {};
   for (
     const field of [
       "headline",
@@ -139,8 +148,9 @@ function readablePartial(content: string): DeepSeekPartialDraft | null {
       "timePressure",
     ] as const
   ) {
-    if (typeof record[field] === "string" && record[field].trim()) {
-      draft[field] = record[field].trim();
+    const value = record[field] ?? compactFields[field as keyof typeof compactFields];
+    if (typeof value === "string" && value.trim()) {
+      draft[field] = value.trim();
     }
   }
   return Object.keys(draft).length > 0 ? draft : null;
@@ -408,7 +418,7 @@ function performRequest(
       }
       finishError(new DeepSeekError(
         "timeout",
-        "这次深度推演时间过长，请重新推演这一幕。",
+        "这次推演等待时间过长，请重新推演这一幕。",
         undefined,
         undefined,
         false,
@@ -426,6 +436,7 @@ function performRequest(
           role,
           content: messageContent,
         })),
+        temperature: 0.7,
         maxTokens: 8192,
         onSSE(event) {
           if (settled) return;

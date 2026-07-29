@@ -267,7 +267,14 @@ function ChoiceCard({
       setCommitting(true);
       setArmed(false);
       onCommitStart(choice.id);
-      playCardSound("commit", muted);
+      playCardSound(
+        choice.deviationClass === "nudge"
+          ? "swipe-regular"
+          : choice.deviationClass === "reform"
+            ? "swipe-radical"
+            : "swipe-surreal",
+        muted,
+      );
       window.requestAnimationFrame(() => {
         writeCardOffset(-Math.max(560, window.innerHeight * 1.02));
       });

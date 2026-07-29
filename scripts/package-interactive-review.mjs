@@ -16,7 +16,7 @@ const releaseConfig = JSON.parse(await readFile(
 const maxZipBytes = releaseConfig.maxZipBytes;
 
 function runNode(label, relativeScript, args = []) {
-  console.log(`\n[interactive review] ${label}`);
+  console.log(`\n[interactive release] ${label}`);
   const result = spawnSync(
     process.execPath,
     [path.join(projectRoot, relativeScript), ...args],
@@ -59,14 +59,14 @@ async function removePlatformMetadata(directory) {
 }
 
 runNode(
-  "build the three-script runtime",
+  "build the complete 100-script runtime",
   "node_modules/vite/bin/vite.js",
   ["build", "--config", "vite.interactive.config.ts"],
 );
-runNode("remove non-review assets", "scripts/prepare-interactive-build.mjs");
+runNode("prepare platform-safe assets", "scripts/prepare-interactive-build.mjs");
 runNode("optimize mobile assets", "scripts/optimize-interactive-assets.mjs");
 await removePlatformMetadata(outputRoot);
-runNode("verify the three-script boundary", "scripts/verify-interactive-review-build.mjs");
+runNode("verify the complete product package", "scripts/verify-interactive-review-build.mjs");
 
 await mkdir(releaseRoot, { recursive: true });
 await rm(zipPath, { force: true });
@@ -82,12 +82,12 @@ await writeFile(zipPath, archive);
 
 const zipBytes = (await stat(zipPath)).size;
 if (zipBytes > maxZipBytes) {
-  throw new Error(`Interactive review ZIP is ${zipBytes} bytes; expected at most ${maxZipBytes} bytes.`);
+  throw new Error(`Interactive release ZIP is ${zipBytes} bytes; expected at most ${maxZipBytes} bytes.`);
 }
 
 const unpackedEntries = Object.keys(unzipSync(new Uint8Array(await readFile(zipPath))));
 if (!unpackedEntries.includes("index.html")) {
-  throw new Error("Interactive review ZIP must contain index.html at its root.");
+  throw new Error("Interactive release ZIP must contain index.html at its root.");
 }
 
 console.log(JSON.stringify({

@@ -1,7 +1,6 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { INTERACTIVE_REVIEW_HISTORY_IDS } from "./interactive-review-catalog.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.join(projectRoot, "dist-interactive");
@@ -9,7 +8,6 @@ const historyModulesRoot = path.join(projectRoot, "src/data/historySeeds/scripts
 const historyAssetsRoot = path.join(outputRoot, "assets/history");
 const releaseConfigPath = path.join(projectRoot, "interactive-space.release.json");
 const textExtensions = new Set([".css", ".html", ".js", ".json", ".svg"]);
-const allowedIds = new Set(INTERACTIVE_REVIEW_HISTORY_IDS);
 const releaseConfig = JSON.parse(await readFile(releaseConfigPath, "utf8"));
 
 await access(path.join(outputRoot, "index.html"));
@@ -43,13 +41,15 @@ const moduleIds = (await readdir(historyModulesRoot, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
-const forbiddenIds = moduleIds.filter((id) => !allowedIds.has(id));
+if (moduleIds.length !== 100 || new Set(moduleIds).size !== 100) {
+  throw new Error(`Interactive release must contain the complete 100-script catalogue; source has ${moduleIds.length}.`);
+}
 
 const packagedHistoryIds = (await readdir(historyAssetsRoot, { withFileTypes: true }))
   .filter((entry) => entry.isFile() && path.extname(entry.name) === ".webp")
   .map((entry) => path.basename(entry.name, ".webp"))
   .sort();
-const expectedIds = [...INTERACTIVE_REVIEW_HISTORY_IDS].sort();
+const expectedIds = [...moduleIds];
 
 if (JSON.stringify(packagedHistoryIds) !== JSON.stringify(expectedIds)) {
   throw new Error(
@@ -97,6 +97,7 @@ const requiredRuntimeMarkers = [
   "deepseek-v4-flash",
   "AI 生成 · V4 Flash",
   "AI 辅助创作 · 固定开场",
+  "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",
 ];
@@ -106,9 +107,6 @@ if (missingRuntimeMarkers.length > 0) {
 }
 if (bundledText.includes("游戏说明")) {
   throw new Error("Interactive runtime must use 体验说明 instead of 游戏说明.");
-}
-if (bundledText.includes("100 个历史现场，随机抽一个开局")) {
-  throw new Error("Interactive runtime must describe its three packaged histories instead of claiming 100.");
 }
 if (/\bsk-[A-Za-z0-9_-]{16,}\b/.test(bundledText)) {
   throw new Error("Interactive runtime must never embed an API key.");
@@ -130,21 +128,16 @@ if (runtimeViolations.length > 0) {
   throw new Error(`Interactive runtime contains forbidden capability markers: ${runtimeViolations.join(", ")}.`);
 }
 
-const missingAllowedIds = INTERACTIVE_REVIEW_HISTORY_IDS.filter((id) => !bundledText.includes(id));
-if (missingAllowedIds.length > 0) {
-  throw new Error(`Interactive package is missing approved scripts: ${missingAllowedIds.join(", ")}.`);
-}
-
-const leakedForbiddenIds = forbiddenIds.filter((id) => bundledText.includes(id));
-if (leakedForbiddenIds.length > 0) {
-  throw new Error(`Interactive package leaked non-review scripts: ${leakedForbiddenIds.join(", ")}.`);
+const missingScriptIds = moduleIds.filter((id) => !bundledText.includes(id));
+if (missingScriptIds.length > 0) {
+  throw new Error(`Interactive package is missing product scripts: ${missingScriptIds.join(", ")}.`);
 }
 
 console.log(JSON.stringify({
   sourceCatalogueSize: moduleIds.length,
-  packagedScriptIds: INTERACTIVE_REVIEW_HISTORY_IDS,
-  packagedHistoryImages: packagedHistoryIds,
-  forbiddenScriptLeaks: 0,
+  packagedScriptCount: moduleIds.length,
+  packagedHistoryImageCount: packagedHistoryIds.length,
+  missingScriptIds: 0,
   aiEnabled: releaseConfig.aiEnabled,
   chatModel: releaseConfig.chatModel,
   credentialMode: releaseConfig.credentialMode,

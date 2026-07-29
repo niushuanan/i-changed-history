@@ -139,7 +139,7 @@ export function SeedPickerScreen({
     setDrawState("drawing");
     setPreviousPreviewIndex(startIndex);
     setDrawTick(0);
-    playCardSound("roll", muted);
+    playCardSound("page-turn", muted);
 
     const forwardDistance = HISTORY_CARDS.length
       + ((targetIndex - startIndex + HISTORY_CARDS.length) % HISTORY_CARDS.length);
@@ -204,6 +204,13 @@ export function SeedPickerScreen({
         <h1 className="seed-picker__wordmark">
           <img src="/assets/brand/history-wordmark.png" alt="哎！我改变了历史？" />
         </h1>
+        <small
+          className="seed-picker__ai-mark"
+          aria-label="本作品包含人工智能生成内容"
+        >
+          <i aria-hidden="true" />
+          AI 生成
+        </small>
         <div className="seed-picker__settings" ref={settingsRef}>
           <button
             ref={settingsTriggerRef}
@@ -260,7 +267,10 @@ export function SeedPickerScreen({
                   position={previewIndex + 1}
                   total={HISTORY_CARDS.length}
                   eager
-                  onSelect={() => onSelect(previewSeed)}
+                  onSelect={() => {
+                    playCardSound("enter-history", muted);
+                    onSelect(previewSeed);
+                  }}
                 />
                 <button
                   className="destiny-draw-button destiny-draw-button--secondary"
@@ -381,6 +391,7 @@ export function SeedPickerScreen({
                   seed={seed}
                   isCurrent={seed.id === context.activeSeedId}
                   onSelect={(selected) => {
+                    playCardSound("enter-history", muted);
                     onContextChange({ ...context, activeSeedId: selected.id });
                     onSelect(selected);
                   }}

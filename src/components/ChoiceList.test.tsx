@@ -1,13 +1,21 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseTimelineTurn } from "../game/schema";
+import { playCardSound } from "../services/cardAudio";
 import { turnFixture } from "../test/fixtures";
 import { ChoiceList } from "./ChoiceList";
+
+vi.mock("../services/cardAudio", () => ({
+  playCardSound: vi.fn(),
+}));
 
 describe("roguelike history cards", () => {
   const choices = parseTimelineTurn(JSON.stringify(turnFixture)).choices;
 
-  beforeEach(() => vi.useFakeTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(playCardSound).mockClear();
+  });
   afterEach(() => {
     cleanup();
     vi.runOnlyPendingTimers();
@@ -18,7 +26,7 @@ describe("roguelike history cards", () => {
     const { container } = render(
       <ChoiceList
         choices={choices}
-        muted
+        muted={false}
         onChoose={vi.fn()}
         onRoll={vi.fn()}
         rollCount={0}
@@ -71,6 +79,32 @@ describe("roguelike history cards", () => {
     act(() => vi.advanceTimersByTime(500));
     expect(onChoose).toHaveBeenCalledTimes(1);
     expect(onChoose).toHaveBeenCalledWith("A");
+  });
+
+  it.each([
+    ["循史牌", "swipe-regular"],
+    ["破局牌", "swipe-radical"],
+    ["天外牌", "swipe-surreal"],
+  ] as const)("gives %s its own swipe sound", (accessibleName, sound) => {
+    render(
+      <ChoiceList
+        choices={choices}
+        muted={false}
+        onChoose={vi.fn()}
+        onRoll={vi.fn()}
+        rollCount={0}
+        rollLoading={false}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: new RegExp(accessibleName) });
+    act(() => {
+      fireEvent.pointerDown(card, { clientY: 220, pointerId: 9 });
+      fireEvent.pointerMove(card, { clientY: 120, pointerId: 9 });
+      fireEvent.pointerUp(card, { clientY: 120, pointerId: 9 });
+    });
+
+    expect(playCardSound).toHaveBeenCalledWith(sound, false);
   });
 
   it("never commits a card when the browser cancels the pointer gesture", () => {
@@ -180,7 +214,7 @@ describe("roguelike history cards", () => {
     const { rerender } = render(
       <ChoiceList
         choices={choices}
-        muted
+        muted={false}
         onChoose={vi.fn()}
         onRoll={onRoll}
         rollCount={0}
@@ -189,6 +223,7 @@ describe("roguelike history cards", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" }));
+    expect(playCardSound).toHaveBeenCalledWith("roll", false);
     expect(onRoll).not.toHaveBeenCalled();
     expect(document.querySelector(".rogue-choice-table")).toHaveClass("is-collecting");
     act(() => vi.advanceTimersByTime(900));

@@ -24,6 +24,7 @@ import {
   type ChoiceSet,
   type CustomActionResolution,
   type TimelineTurn,
+  type WorldReport,
 } from "./schema";
 import {
   DeepSeekError,
@@ -176,11 +177,37 @@ function mergeAiFieldPatch(originalRaw: string, patchRaw: string, fields: readon
 
   const originalRecord = original as Record<string, unknown>;
   const patchRecord = patch as Record<string, unknown>;
-  const acceptedPatch = Object.fromEntries(
-    fields
-      .filter((field) => Object.prototype.hasOwnProperty.call(patchRecord, field))
-      .map((field) => [field, patchRecord[field]]),
-  );
+  const compactAliases: Record<string, string> = {
+    vernacularBiography: "b",
+    classicalBiography: "c",
+    lifespanSummary: "s",
+    deathScene: "d",
+    historyTimeline: "t",
+    worldName: "n",
+    frontPageHeadline: "h",
+    posthumousChronicle: "p",
+    causalChains: "c",
+    ordinaryLife2026: "o",
+    closingPassage: "e",
+    greatestGain: "g",
+    hiddenPrice: "x",
+    strangestDetail: "z",
+    biggestBeneficiary: "i",
+    biggestLoser: "l",
+    rewriteLevel: "r",
+    plausibilityScore: "q",
+    plausibilityReason: "u",
+    shareLine: "a",
+  };
+  const acceptedPatch = Object.fromEntries(fields.flatMap((field) => {
+    if (Object.prototype.hasOwnProperty.call(patchRecord, field)) {
+      return [[field, patchRecord[field]]];
+    }
+    const alias = compactAliases[field];
+    return alias && Object.prototype.hasOwnProperty.call(patchRecord, alias)
+      ? [[field, patchRecord[alias]]]
+      : [];
+  }));
   return JSON.stringify({ ...originalRecord, ...acceptedPatch });
 }
 
@@ -327,6 +354,7 @@ function parseRequestedTurn(
       expectedProtagonistAge: expectedProtagonist?.age,
       expectedLifeStage: expectedProtagonist?.lifeStage,
       expectedCausalLedger: authoritativeLedger,
+      expectedPowerIds: assignedPowerIds,
       requireRollChoices: true,
     });
     if (turn.chapter !== expectedChapter) {
@@ -355,7 +383,11 @@ function parseRequestedTurn(
         );
       }
     }
-    if (expectedChapter === 4 && /已经死|闭上眼|咽气|去世|生命结束/.test(turn.narrative)) {
+    const escapedProtagonistName = expectedProtagonist?.name?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const protagonistDeathPattern = new RegExp(
+      `(?:你|主角${escapedProtagonistName ? `|${escapedProtagonistName}` : ""}).{0,10}(?:已经死|闭上眼|咽气|去世|生命结束)`,
+    );
+    if (expectedChapter === 4 && protagonistDeathPattern.test(turn.narrative)) {
       throw new Error("第四幕必须先让玩家完成最后一次选择，不能提前写死主角");
     }
     const visibleCurrentHistory = [
@@ -462,6 +494,24 @@ function parseExpectedBiography(
   };
 }
 
+function parseExpectedWorldReport(deathYearLabel: string): Parser<WorldReport> {
+  const expectedDeathYear = deathYearLabel.match(/\d{3,4}/)?.[0];
+  return (raw) => {
+    const report = parseWorldReport(raw);
+    if (!expectedDeathYear) return report;
+    const claimedDeathYears = [...report.closingPassage.matchAll(
+      /(\d{3,4})年.{0,6}(?:去世|病逝|死亡|离世|辞世)/g,
+    )].map((match) => match[1]);
+    if (claimedDeathYears.some((year) => year !== expectedDeathYear)) {
+      throw new FieldValidationError(
+        ["closingPassage"],
+        `小说尾声必须沿用主角死亡年份 ${expectedDeathYear} 年`,
+      );
+    }
+    return report;
+  };
+}
+
 export async function generateNextTurn(
   scenario: GameScenario,
   playedTurns: readonly PlayedTurn[],
@@ -495,7 +545,7 @@ export async function generateRerolledChoices(
     completionOptions("turn", options, "fast", "roll-primary"),
     "choice_set",
     (raw) => {
-      const choices = parseChoiceSet(raw);
+      const choices = parseChoiceSet(raw, options.assignedPowerId, turn.timePressure);
       if (options.assignedPowerId) {
         assertAssignedPowerChoice(choices, assignedPowerId, "choices");
       }
@@ -521,16 +571,16 @@ export async function generateEnding(
   }
   const biographyPromise = requestValidated(
     buildBiographyMessages(scenario, playedTurns),
-    completionOptions("ending", options, "high", "ending-primary"),
+    completionOptions("ending", options, "fast", "ending-primary"),
     "biography_report",
     parseExpectedBiography(expectedHistoryTimeline, { name: firstTurn.protagonistName, deathYearLabel: finalTurn.yearLabel, deathAge: finalTurn.protagonistAge }),
     {},
   );
   const worldReportPromise = requestValidated(
     buildWorldReportMessages(scenario, playedTurns),
-    completionOptions("ending", options, "high", "ending-primary"),
+    completionOptions("ending", options, "fast", "ending-primary"),
     "world_report",
-    parseWorldReport,
+    parseExpectedWorldReport(finalTurn.yearLabel),
     {},
   );
   const [biography, worldReport] = await Promise.all([biographyPromise, worldReportPromise]);

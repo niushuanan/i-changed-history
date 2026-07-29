@@ -778,6 +778,27 @@
   object-position: left center;
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .28));
 }
+.seed-picker__ai-mark {
+  position: absolute;
+  right: 70px;
+  bottom: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(226, 216, 194, .64);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+.seed-picker__ai-mark i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(194, 71, 56, .86);
+  box-shadow: 0 0 0 1px rgba(7, 7, 6, .72);
+}
 .picker-tool,
 .picker-tool-group {
   height: 44px;

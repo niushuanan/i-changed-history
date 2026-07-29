@@ -1,7 +1,6 @@
 import { access, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { INTERACTIVE_REVIEW_HISTORY_IDS } from "./interactive-review-catalog.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.join(projectRoot, "dist-interactive");
@@ -12,7 +11,6 @@ const removableFiles = [
   "audio/CREDITS.md",
 ];
 const textExtensions = new Set([".css", ".html", ".js", ".json", ".svg"]);
-const reviewHistoryImageIds = new Set(INTERACTIVE_REVIEW_HISTORY_IDS);
 
 if (
   path.dirname(outputRoot) !== projectRoot
@@ -25,14 +23,6 @@ await access(path.join(outputRoot, "index.html"));
 
 for (const relativePath of removableFiles) {
   await rm(path.join(outputRoot, relativePath), { force: true });
-}
-
-const historyAssetRoot = path.join(outputRoot, "assets/history");
-for (const entry of await readdir(historyAssetRoot, { withFileTypes: true })) {
-  if (!entry.isFile() || path.extname(entry.name) !== ".webp") continue;
-  if (!reviewHistoryImageIds.has(path.basename(entry.name, ".webp"))) {
-    await rm(path.join(historyAssetRoot, entry.name));
-  }
 }
 
 async function collectFiles(directory) {

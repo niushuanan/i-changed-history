@@ -5,13 +5,7 @@ import { createServer, loadEnv } from "vite";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(root, "src", "data", "fixedOpeningChoices.generated.ts");
-const interactiveOutputPath = path.join(root, "src", "data", "fixedOpeningChoices.interactive.generated.ts");
 const checkpointPath = path.join(root, "tmp", "fixed-opening-choice-progress.json");
-const interactiveSeedIds = new Set([
-  "gutenberg-bible-1455",
-  "galileo-1610",
-  "apollo-11-1969",
-]);
 let localEnv = {};
 try {
   localEnv = Object.fromEntries(
@@ -564,11 +558,5 @@ function sourceFor(entries) {
 }
 
 await fs.writeFile(outputPath, sourceFor(results), "utf8");
-await fs.writeFile(
-  interactiveOutputPath,
-  sourceFor(results.filter(([seedId]) => interactiveSeedIds.has(seedId))),
-  "utf8",
-);
 await fs.rm(checkpointPath, { force: true });
 process.stdout.write(`Wrote ${outputPath}\n`);
-process.stdout.write(`Wrote ${interactiveOutputPath}\n`);

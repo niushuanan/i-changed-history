@@ -21,7 +21,7 @@ const completeReportSentence = (max: number, label: string, min = 1) => z.string
     if (!/[。！？!?](?:[”"』」）)])?$/.test(value)) return false;
     const withoutClosing = value.replace(/[”"』」）)]*$/, "").trim();
     const withoutTerminal = withoutClosing.replace(/[。！？!?]+$/, "").trim();
-    return isCompleteSentenceBody(withoutTerminal);
+    return isCompleteReportSentenceBody(withoutTerminal);
   },
   `${label}必须以完整句结束，不能停在半句话中`,
 );
@@ -161,6 +161,11 @@ function isCompleteSentenceBody(value: string): boolean {
   if (DEPENDENT_SENTENCE_START_PATTERN.test(value) && !hasIndependentMainClause(value)) return false;
   const clause = finalClause(value);
   return !endsWithDanglingGrammar(clause) && !hasDanglingDisposalStructure(clause);
+}
+
+function isCompleteReportSentenceBody(value: string): boolean {
+  if (!value || DEPENDENT_SENTENCE_START_PATTERN.test(value)) return false;
+  return !endsWithDanglingGrammar(value) && !hasDanglingDisposalStructure(value);
 }
 
 function finalSentenceBody(value: string): string {
@@ -401,6 +406,126 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+type CompactChoiceTuple = [
+  displayLabel: unknown,
+  label: unknown,
+  actionSpecOrTarget: unknown,
+  instantEchoOrDeadline: unknown,
+  compactInstantEcho?: unknown,
+];
+
+function expandCompactChoice(
+  value: unknown,
+  index: number,
+  expectedPowerId?: PowerId,
+  inheritedDeadline?: unknown,
+): unknown {
+  const tuple = Array.isArray(value) ? value as CompactChoiceTuple : null;
+  if (!tuple || tuple.length < 4) {
+    const record = asRecord(value);
+    if (!record) return value;
+    return index === 2 && expectedPowerId
+      ? { ...record, powerId: expectedPowerId }
+      : record;
+  }
+
+  const isLowLatencyShape = !Array.isArray(tuple[2]);
+  const action = Array.isArray(tuple[2]) ? tuple[2] : [];
+  const echoSource = isLowLatencyShape
+    ? (Array.isArray(tuple[3]) ? tuple[3] : tuple[4])
+    : tuple[3];
+  const echo = Array.isArray(echoSource) ? echoSource : [];
+  const label = tuple[1];
+  return {
+    displayLabel: tuple[0],
+    label,
+    intent: label,
+    usesModernKnowledge: false,
+    actionSpec: {
+      actor: isLowLatencyShape ? "你" : action[0],
+      action: isLowLatencyShape ? label : action[1],
+      target: isLowLatencyShape ? tuple[2] : action[2],
+      deadline: isLowLatencyShape
+        ? (Array.isArray(tuple[3]) ? inheritedDeadline : tuple[3])
+        : action[3],
+    },
+    instantEcho: {
+      directResult: echo[0],
+      unexpectedCost: echo[1],
+      beneficiary: echo[2],
+      payer: echo[3],
+    },
+    ...(index === 2 && expectedPowerId ? { powerId: expectedPowerId } : {}),
+  };
+}
+
+function expandCompactChoiceSet(
+  value: unknown,
+  expectedPowerId?: PowerId,
+  inheritedDeadline?: unknown,
+): unknown {
+  return Array.isArray(value)
+    ? value.map((choice, index) => expandCompactChoice(
+        choice,
+        index,
+        expectedPowerId,
+        inheritedDeadline,
+      ))
+    : value;
+}
+
+function expandCompactLedger(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((entry) => {
+    if (!Array.isArray(entry)) return entry;
+    return {
+      fact: entry[0],
+      causedByChapter: entry[1],
+      mustAffect: entry[2],
+    };
+  });
+}
+
+function expandCompactTimelineTurn(
+  value: unknown,
+  expectedPowerIds?: readonly [PowerId, PowerId],
+): unknown {
+  const record = asRecord(value);
+  if (!record) return value;
+  const scene = Array.isArray(record.s) ? record.s : null;
+  const compactChoices = record.c;
+  const compactRollChoices = record.r;
+  const compactLedger = record.g;
+  const lowLatencyScene = scene?.length === 9;
+  return {
+    ...record,
+    ...(scene ? {
+      headline: scene[0],
+      narrative: scene[1],
+      location: scene[2],
+      role: scene[3],
+      timePressure: scene[4],
+      causalBridge: scene[5],
+      worldStateChange: scene[6],
+      divergenceProof: scene[7],
+      historicalAnchors: lowLatencyScene ? [scene[2], scene[3]] : scene[8],
+      visualTone: lowLatencyScene ? scene[8] : scene[9],
+      protagonistName: scene[10],
+    } : {}),
+    ...(compactChoices !== undefined ? {
+      choices: expandCompactChoiceSet(compactChoices, expectedPowerIds?.[0], scene?.[4]),
+    } : {}),
+    ...(compactRollChoices !== undefined ? {
+      rollChoices: expandCompactChoiceSet(compactRollChoices, expectedPowerIds?.[1], scene?.[4]),
+    } : {}),
+    ...(compactLedger !== undefined ? {
+      causalLedger: expandCompactLedger(compactLedger),
+    } : (scene || compactChoices !== undefined || compactRollChoices !== undefined)
+      ? { causalLedger: [] }
+      : {}),
+  };
+}
+
 function joinStringArray(value: unknown): unknown {
   return Array.isArray(value) && value.every((item) => typeof item === "string")
     ? value.join("；")
@@ -445,6 +570,74 @@ function normalizeWorldReportCandidate(value: unknown): unknown {
     ...report,
     rewriteLevel: coerceDisplayString(report.rewriteLevel),
     plausibilityScore,
+  };
+}
+
+function expandCompactBiographyCandidate(value: unknown): unknown {
+  const report = asRecord(value);
+  if (!report || report.b === undefined) return value;
+  const death = Array.isArray(report.d) ? report.d : [];
+  const timeline = Array.isArray(report.t)
+    ? report.t.map((item) => {
+        const tuple = Array.isArray(item) ? item : [item];
+        return { consequence: tuple[0] };
+      })
+    : report.t;
+  return {
+    ...report,
+    vernacularBiography: report.vernacularBiography ?? report.b,
+    classicalBiography: report.classicalBiography ?? report.c,
+    lifespanSummary: report.lifespanSummary ?? report.s,
+    deathScene: report.deathScene ?? {
+      place: death[0],
+      finalMoment: death[1],
+      lastingLegacy: death[2],
+    },
+    historyTimeline: report.historyTimeline ?? timeline,
+  };
+}
+
+function expandCompactWorldReportCandidate(value: unknown): unknown {
+  const report = asRecord(value);
+  if (!report || report.n === undefined) return value;
+  const chronicles = Array.isArray(report.p)
+    ? report.p.map((item) => {
+        const tuple = Array.isArray(item) ? item : [];
+        return {
+          period: tuple[0],
+          title: tuple[1],
+          narrative: tuple[2],
+          inheritedChange: tuple[3],
+        };
+      })
+    : report.p;
+  const chains = Array.isArray(report.c)
+    ? report.c.map((item) => {
+        const tuple = Array.isArray(item) ? item : [];
+        return {
+          origin: tuple[0],
+          transformation: tuple[1],
+          payoff: tuple[2],
+        };
+      })
+    : report.c;
+  return {
+    ...report,
+    worldName: report.worldName ?? report.n,
+    frontPageHeadline: report.frontPageHeadline ?? report.h,
+    posthumousChronicle: report.posthumousChronicle ?? chronicles,
+    causalChains: report.causalChains ?? chains,
+    ordinaryLife2026: report.ordinaryLife2026 ?? report.o,
+    closingPassage: report.closingPassage ?? report.e,
+    greatestGain: report.greatestGain ?? report.g,
+    hiddenPrice: report.hiddenPrice ?? report.x,
+    strangestDetail: report.strangestDetail ?? report.z,
+    biggestBeneficiary: report.biggestBeneficiary ?? report.i,
+    biggestLoser: report.biggestLoser ?? report.l,
+    rewriteLevel: report.rewriteLevel ?? report.r,
+    plausibilityScore: report.plausibilityScore ?? report.q,
+    plausibilityReason: report.plausibilityReason ?? report.u,
+    shareLine: report.shareLine ?? report.a,
   };
 }
 
@@ -670,8 +863,8 @@ const biographyFields = {
 const posthumousChronicleItemSchema = z.object({
   period: boundedPlayerFacingString(18),
   title: boundedPlayerFacingString(22),
-  narrative: completeReportSentence(128, "身后时代叙事"),
-  inheritedChange: completeReportSentence(96, "时代遗产结论"),
+  narrative: completeReportSentence(320, "身后时代叙事"),
+  inheritedChange: completeReportSentence(240, "时代遗产结论"),
 });
 
 const worldReportFields = {
@@ -799,6 +992,7 @@ export type TimelineTurnParseOptions = {
   expectedLifeStage?: LifeStage;
   expectedGenerationSource?: TimelineTurn["generationSource"];
   expectedCausalLedger?: TimelineTurn["causalLedger"];
+  expectedPowerIds?: readonly [PowerId, PowerId];
   requireRollChoices?: boolean;
 };
 export type ExpectedHistoryTimelineItem = {
@@ -884,7 +1078,7 @@ export function parseTimelineTurn(
   options: TimelineTurnParseOptions = {},
 ): TimelineTurn {
   const parsed = parseJsonObject(raw);
-  const candidate = asRecord(parsed);
+  const candidate = asRecord(expandCompactTimelineTurn(parsed, options.expectedPowerIds));
   if (options.requireRollChoices && !Array.isArray(candidate?.rollChoices)) {
     throw new Error("模型响应缺少预生成的第二组三张卡牌 rollChoices");
   }
@@ -912,10 +1106,17 @@ export function parseCustomActionResolution(raw: string): CustomActionResolution
   return customActionResolutionSchema.parse(parseJsonObject(raw));
 }
 
-export function parseChoiceSet(raw: string): ChoiceSet {
+export function parseChoiceSet(
+  raw: string,
+  expectedPowerId?: PowerId,
+  expectedDeadline?: string,
+): ChoiceSet {
   const parsed = parseJsonObject(raw);
   const candidate = asRecord(parsed);
-  const choices = choicesSchema.parse(normalizeChoiceSet(candidate?.choices ?? parsed));
+  const compactCandidate = candidate?.c ?? candidate?.choices ?? parsed;
+  const choices = choicesSchema.parse(normalizeChoiceSet(
+    expandCompactChoiceSet(compactCandidate, expectedPowerId, expectedDeadline),
+  ));
   if (new Set(choices.map((choice) => choice.deviationClass)).size !== 3) {
     throw new Error("现场发出的三张牌必须恰好覆盖循史、破局和天外三种强度");
   }
@@ -926,7 +1127,7 @@ export function parseBiographyReport(
   raw: string,
   options: AlternatePresentParseOptions = {},
 ): BiographyReport {
-  const parsed = parseJsonObject(raw);
+  const parsed = expandCompactBiographyCandidate(parseJsonObject(raw));
   const candidate = asRecord(parsed);
   if (!candidate) return biographyReportSchema.parse(parsed);
   const expected = options.expectedHistoryTimeline;
@@ -960,7 +1161,9 @@ export function parseBiographyReport(
 }
 
 export function parseWorldReport(raw: string): WorldReport {
-  return worldReportSchema.parse(parseJsonObject(raw));
+  return worldReportSchema.parse(
+    normalizeWorldReportCandidate(expandCompactWorldReportCandidate(parseJsonObject(raw))),
+  );
 }
 
 export function parseAlternatePresent(

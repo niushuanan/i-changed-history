@@ -433,6 +433,63 @@ describe("structured timeline parsing", () => {
     expect(normalized.choices[0].usesModernKnowledge).toBe(true);
   });
 
+  it("expands the compact low-latency wire format without losing player-facing copy", () => {
+    const fullTurn = parseTimelineTurn(JSON.stringify(turnFixture));
+    const compactChoice = (choice: (typeof fullTurn.choices)[number]) => [
+      choice.displayLabel,
+      choice.label,
+      choice.actionSpec.target,
+      [
+        choice.instantEcho.directResult,
+        choice.instantEcho.unexpectedCost,
+        choice.instantEcho.beneficiary,
+        choice.instantEcho.payer,
+      ],
+    ];
+    const parsed = parseTimelineTurn(JSON.stringify({
+      s: [
+        turnFixture.headline,
+        turnFixture.narrative,
+        turnFixture.location,
+        turnFixture.role,
+        turnFixture.timePressure,
+        turnFixture.causalBridge,
+        turnFixture.worldStateChange,
+        turnFixture.divergenceProof,
+        turnFixture.historicalAnchors,
+        turnFixture.visualTone,
+      ],
+      c: fullTurn.choices.map(compactChoice),
+      r: fullTurn.rollChoices.map(compactChoice),
+      g: turnFixture.causalLedger.map((entry) => [
+        entry.fact,
+        entry.causedByChapter,
+        entry.mustAffect,
+      ]),
+    }), {
+      expectedChapter: turnFixture.chapter,
+      expectedYearLabel: turnFixture.yearLabel,
+      expectedPreviousEcho: turnFixture.previousEcho ?? undefined,
+      expectedProtagonistName: turnFixture.protagonistName,
+      expectedProtagonistAge: turnFixture.protagonistAge,
+      expectedLifeStage: turnFixture.lifeStage,
+      expectedPowerIds: ["blink-self", "stop-time"],
+      requireRollChoices: true,
+    });
+
+    expect(parsed.headline).toBe(turnFixture.headline);
+    expect(parsed.choices[0].label).toBe(fullTurn.choices[0].label);
+    expect(parsed.choices[0].actionSpec).toEqual({
+      actor: "你",
+      action: fullTurn.choices[0].label,
+      target: fullTurn.choices[0].actionSpec.target,
+      deadline: turnFixture.timePressure,
+    });
+    expect(parsed.choices[2].powerId).toBe("blink-self");
+    expect(parsed.rollChoices[2].powerId).toBe("stop-time");
+    expect(parsed.causalLedger).toEqual(turnFixture.causalLedger);
+  });
+
   it("normalizes positional choice authority without trimming nested action copy", () => {
     const parsed = parseTimelineTurn(JSON.stringify({
       ...turnFixture,
