@@ -33,6 +33,7 @@ const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
 const MAX_RETRY_DELAY_MS = 15_000;
 const MAX_ATTEMPTS = RETRY_BASE_DELAYS_MS.length + 1;
+const OUTPUT_TOKEN_BUDGET = { turn: 4096, ending: 2048 } as const;
 
 type PlatformSuccess = {
   errMsg?: unknown;
@@ -437,7 +438,7 @@ function performRequest(
           content: messageContent,
         })),
         temperature: 0.7,
-        maxTokens: 8192,
+        maxTokens: OUTPUT_TOKEN_BUDGET[options.phase],
         onSSE(event) {
           if (settled) return;
           markConnected();

@@ -6,8 +6,7 @@ function BiographyPage({ result }: { result: AlternatePresent }) {
   return (
     <article className="result-front-page biography-report">
       <header className="report-masthead">
-        <span>穿越者列传 · 四决</span>
-        <small className="report-ai-mark">AI 生成 · V4 Flash</small>
+        <span>穿越者列传 · 一生</span>
         <h1>{result.protagonistName}列传</h1>
         <p>{result.lifespanSummary}</p>
       </header>
@@ -17,28 +16,10 @@ function BiographyPage({ result }: { result: AlternatePresent }) {
         <p>{result.deathScene.finalMoment}</p>
       </section>
 
-      <section className="biography-decisions" aria-label="一生四次决定">
-        <h2>一生四决</h2>
-        <ol>
-          {result.historyTimeline.map((item) => (
-            <li key={item.chapter}>
-              <b>{String(item.chapter).padStart(2, "0")}</b>
-              <time>{item.yearLabel}</time>
-              <strong>{item.playerChoice}</strong>
-              <p>{item.consequence}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
       <section className="biography-prose">
         <div>
-          <span>白话本纪</span>
-          <p>{result.vernacularBiography}</p>
-        </div>
-        <div className="is-classical">
-          <span>史臣曰 · 文言</span>
-          <p>{result.classicalBiography}</p>
+          <span>一生纪事</span>
+          <p>{result.lifeStory}</p>
         </div>
       </section>
     </article>
@@ -50,7 +31,6 @@ function WorldPage({ result }: { result: AlternatePresent }) {
     <article className="result-front-page world-report">
       <header className="report-masthead">
         <span>蝴蝶效应 · 截至 2026</span>
-        <small className="report-ai-mark">AI 生成 · V4 Flash</small>
         <h1>{result.worldName}</h1>
         <p>{result.frontPageHeadline}</p>
       </header>
@@ -78,7 +58,6 @@ function WorldPage({ result }: { result: AlternatePresent }) {
 
       <footer className="world-report__closing">
         <p>{result.closingPassage}</p>
-        <blockquote>{result.shareLine}</blockquote>
       </footer>
     </article>
   );

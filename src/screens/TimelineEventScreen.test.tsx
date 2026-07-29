@@ -51,7 +51,7 @@ describe("clear change event screen", () => {
     expect(within(proof).getByText("你的时间线")).toBeVisible();
     expect(within(proof).getByText("正史原本")).toBeVisible();
     expect(within(proof).getByText("为何改变")).toBeVisible();
-    expect(screen.getByText("AI 生成 · V4 Flash")).toBeVisible();
+    expect(screen.queryByText(/AI 辅助创作|AI 生成 · V4 Flash/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("世界指标")).not.toBeInTheDocument();
     expect(screen.queryByText(/意识接力：/)).not.toBeInTheDocument();
     expect(screen.queryByText(/历史锚点：/)).not.toBeInTheDocument();

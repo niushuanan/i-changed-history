@@ -17,7 +17,7 @@ const worker = {
   ): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api/deepseek/completions") {
-      return handleDeepSeekProxy(request, env, context);
+      return handleDeepSeekProxy(request, env);
     }
     return handler.fetch(request, env, context);
   },

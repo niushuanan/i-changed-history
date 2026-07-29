@@ -17,7 +17,7 @@ function prepared(page: "biography" | "world" = "biography"): PreparedReportImag
     objectUrl: `blob:${page}`,
     fileName: `${page}.png`,
     page,
-    shareLine: result.shareLine,
+    shareLine: "我在《哎！我改变了历史？》走完了一条平行时间线。",
   };
 }
 
@@ -155,8 +155,9 @@ describe("alternate present export", () => {
     const user = userEvent.setup();
     render(<AlternatePresentScreen {...screenProps()} />);
 
-    expect(screen.getByText("白话本纪")).toBeVisible();
-    expect(screen.getByText("史臣曰 · 文言")).toBeVisible();
+    expect(screen.getByText("一生纪事")).toBeVisible();
+    expect(screen.queryByText("一生四决")).not.toBeInTheDocument();
+    expect(screen.queryByText("史臣曰 · 文言")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "被改变的 2026" }));
     expect(screen.getByText(result.worldName)).toBeVisible();
     expect(screen.getByLabelText("2026普通人的一天")).toHaveTextContent(result.ordinaryLife2026.join("；"));

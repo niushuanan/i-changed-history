@@ -2,13 +2,13 @@
 
 ## 1. 这个项目是干什么的
 
-《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。循史不再等同于温和或少改变，而是让当前掌权者、命令方向与既有结果按时落地；它即使执行战争、政变或拒绝也属于循史，并且不会新增偏离度。100 个固定第一幕的两组 A/B 都在开发期由 DeepSeek V4 Flash 编写，A 逐条对照真实结局审校，B 才负责改变控制关系、命令或结果。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕再从该历史快照专属的六张 AI 天外候选里随机取两张，因此不增加任何首屏等待。牌面以 4-7 字为生成目标（schema 兼容上限 16），长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。所有面向玩家的生成文案必须使用自然中文：`powerId`、`deadline`、`actionSpec` 和 `reverse-cause` 一类协议字段或能力 ID 只能存在于结构化数据中，新输出一旦泄漏就进入字段修复，旧存档只把这些确定的机器词迁移成权威中文能力名；NASA、CERN、U-2 等真实历史专名缩写仍可保留。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待《史记》式人物列传和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
+《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。循史不再等同于温和或少改变，而是让当前掌权者、命令方向与既有结果按时落地；它即使执行战争、政变或拒绝也属于循史，并且不会新增偏离度。100 个固定第一幕的两组 A/B 都在开发期由 DeepSeek V4 Flash 编写，A 逐条对照真实结局审校，B 才负责改变控制关系、命令或结果。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕再从该历史快照专属的六张 AI 天外候选里随机取两张，因此不增加任何首屏等待。牌面以 4-7 字为生成目标（schema 兼容上限 16），长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。所有面向玩家的生成文案必须使用自然中文：`powerId`、`deadline`、`actionSpec` 和 `reverse-cause` 一类协议字段或能力 ID 只能存在于结构化数据中，新输出一旦泄漏就进入字段修复，旧存档只把这些确定的机器词迁移成权威中文能力名；NASA、CERN、U-2 等真实历史专名缩写仍可保留。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待自然普通话的《一生纪事》和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
 
-当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，并通过官方 `/v1/chat/completions` 原样流式转发 SSE；浏览器产物不再包含 API Key。localhost 使用开发者自己的 Key 并完全绕过公开站点 D1 配额；Sites 生产只对访客、共享出口 IP 与全站施加默认 120 / 1800 / 2400 加权单位的一分钟反滥用窗口，高推理恢复按 3 个单位计算，没有会把正常玩家锁死到第二天的每日硬封顶。内部短时 429 标记为可重试 `burst`，与 DeepSeek 上游 429 明确区分；过期分钟桶只保留两天，避免长期运行让 D1 无限增长。本地与 Node 长测优先读取项目 `.env.local` 的当前 Key，避免失效的系统环境 Key 覆盖用户刚配置的凭据。后续幕次使用九位场景数组加两组三牌数组的低延迟协议，只删除客户端已知的重复元数据，完整中文决定与结果仍由模型编写；常规幕次、并发双结局都走 V4 Flash 非思考快速路径；十秒只作为真实长测中的优化目标，不是运行时截止线，超过十秒的健康请求会继续流式生成，完整文案、字段修复和剧情连续性优先。Zod 继续校验结构化输出，前端公式继续计算历史偏离度，本地 CC0 配乐以低响度随章节缓慢变化，八项交互音效作为前景反馈并在播放时短暂压低配乐；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
+当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，并通过官方 `/v1/chat/completions` 原样流式转发 SSE；浏览器产物不再包含 API Key。localhost 和 Sites 都不设置产品侧访客、IP、全站、分钟或每日请求限额，也不再创建 D1 用量桶；通过版本、同源、系统协议、阶段、请求类型和 JSON 结构校验的游戏请求会立即转发。Worker 不再检查具体中文 `task` 文案，因此 prompt 演进不会再次触发产品侧 400；DeepSeek 上游仍可能按供应商容量或账户状态返回 429。互动空间完全绕过该 Worker，只通过 `tt.callAIChatCompletion` 使用平台托管的火山凭据。本地与 Node 长测优先读取项目 `.env.local` 的当前 Key，避免失效的系统环境 Key 覆盖用户刚配置的凭据；发布长测必须通过本地 Worker 代理运行，直连官方接口的 Node 长测只用于拆分上游故障，不能证明浏览器产品可用。后续幕次使用九位场景数组加两组三牌数组的低延迟协议，只传对连续性、校验或可见故事有真实消费方的上下文，完整中文决定与结果仍由模型编写；常规幕次使用 4096 输出 token，并发双结局各使用 2048，全部走 V4 Flash 非思考快速路径；十秒只作为真实长测中的优化目标，不是运行时截止线，超过十秒的健康请求会继续流式生成，完整文案、字段修复和剧情连续性优先。Zod 继续校验结构化输出，也会在本地补齐无语义变化的句末标点、接纳完整的自然长度，并在模型多写身后时代时保留最早三段与最终 2026 段；人物结局中的死亡年份和年龄由客户端权威渲染，模型只提供纯地点，若新响应或旧存档在地点前重复年龄，schema 会在显示前去重。前端公式继续计算历史偏离度，本地 CC0 配乐以低响度随章节缓慢变化，八项交互音效作为前景反馈并在播放时短暂压低配乐；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
 
 本地开发环境还提供独立的 `/tap.html` LLM Tap 调试页。浏览器端 DeepSeek 传输会通过同源 `BroadcastChannel("llm-tap-v1")` 旁路广播每次请求的完整输入、输出、状态、时序和 token 用量；调试页最多保存 200 条记录，支持请求翻页、输入/输出/指标切换、JSON 导出和清空。广播失败始终静默，不得影响游戏请求；`tap.html` 与 `src/tap/` 不进入普通生产构建和互动空间审核包。
 
-项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，模型固定 `deepseek-v4-flash`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页标题栏角落持续显示小型 `AI 生成` 标识，成品事件和两页报告显示更完整的 AI 来源标识，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
+项目只维护 `main` 上这一份完整 100 剧本源码。抖音互动空间包由 `npm run build:interactive` 从同一份代码即时生成：AI 传输在构建时替换为真实 `tt.callAIChatCompletion`，模型固定 `deepseek-v4-flash`，密钥只使用互动空间账号托管的火山引擎 API Key；全部 100 个历史开局、固定首幕和对应本地历史图均进入提交 ZIP。脚本检查完整剧本和图片数量、清理 macOS 元数据、优化全部移动资源、执行 8MB ZIP 闸门并生成待上传文件；首页标题栏角落保留小型 `AI 生成` 合规标识，事件现场和两页报告不再重复展示固定开场、AI 来源或模型版本，互动空间用 `体验说明` 避免平台禁用词。`interactive-space.release.json` 把 AppID、竖屏、ZIP、AI 开启、火山平台凭据和模型写成机器可查的发布契约，`20107` 会阻断提审。此前平台 AppID 和提审记录只属于历史发布记录，本次没有上传或改变平台状态。
 
 ## 2. 代码结构是什么
 
@@ -23,14 +23,13 @@
 - `src/services/`：DeepSeek 官方 / Sites Worker 传输、互动空间火山平台传输、带短时配乐 ducking 的前景卡牌音效、版本化当前局存储、独立永久解锁收藏、低响度史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
 - `tap.html` 与 `src/tap/`：仅供本地开发的 LLM Tap 独立 React 页面；通过同源 BroadcastChannel 接收 DeepSeek 输入、输出、时序、状态与 token 用量，并提供三视图、翻页、持久化、导出和清空。
 - `app/`：vinext App Router 页面、中文 metadata，以及禁止服务端预渲染现有浏览器游戏的 client-only 边界。
-- `worker/`：Sites Cloudflare Worker 入口、固定协议校验、localhost 限流旁路、Sites 一分钟 D1 反滥用容量、DeepSeek 服务端密钥注入和透明 SSE 转发。
-- `db/` 与 `drizzle/`：AI 请求限额表定义及 Sites 部署迁移。
-- `build/` 与 `.openai/hosting.json`：Sites 构建元数据打包和 D1 / R2 逻辑绑定。
+- `worker/`：Sites Cloudflare Worker 入口、稳定游戏协议校验、DeepSeek 服务端密钥注入和无产品侧限流的透明 SSE 转发。
+- `build/` 与 `.openai/hosting.json`：Sites 构建元数据、项目 ID 和无 D1 / R2 绑定的托管配置。
 - `src/screens/` 和 `src/components/`：从命运抽取、游戏说明、解锁档案、三卡牌桌、三次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
-- `src/components/CardCommitFlight.tsx`：脱离事件页裁剪层的页面最高层飞行、距产品顶部约 8px 的居中停驻、连续弧线轨道，以及 GPU 卡面裁切配合轻量纸灰粒子的无栅格消散。
+- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：手指拖动阶段即把完整卡面和文字镜像到 `body` 最高层，松手后无缝衔接距产品顶部约 8px 的居中飞行、连续弧线轨道，以及 GPU 卡面裁切配合轻量纸灰粒子的无栅格消散。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
 - `src/test/`：Vitest 初始化和可复用的幕次/结局夹具。
-- `src/soak/`：显式运行的真实 DeepSeek 四决策完整局压力测试；默认覆盖十个不同开局并在每幕选择预生成 Roll 组，也支持用 `SOAK_ALL_ROLL=1` 对指定开局执行相同的全幕与成功率门槛；报告记录每幕和双结局是否达到十秒优化目标，但不会因超过十秒中止健康生成，结果只写入被忽略的 `tmp/soak/`。第二、第三次实时 Roll 的请求、恢复与错误重试由 reducer、组件和应用集成测试覆盖。
+- `src/soak/`：显式运行的真实 DeepSeek 四决策完整局压力测试；至少以五个不同开局检验 20 个生成阶段中完成不少于 19 个、五局中完整双结局不少于四局，也支持用 `SOAK_ALL_ROLL=1` 对指定开局执行相同的全幕与成功率门槛。发布门禁通过 `SOAK_PROXY_BASE_URL` 让 Node 测试走浏览器同款本地 Worker 协议，并由 `SOAK_REQUIRE_PROXY=1` 强制拒绝误用直连模式；报告记录真实传输类型与每幕、双结局是否达到十秒优化目标，但不会因超过十秒中止健康生成，结果只写入被忽略的 `tmp/soak/`。第二、第三次实时 Roll 的请求、恢复与错误重试由 reducer、组件和应用集成测试覆盖。
 - `design/`：历史视觉稿与 360×667 / 390×844 真实浏览器验收截图。
 - `public/assets/` 与 `public/audio/`：历史场景图、三套原创透明卡面图标、CC0 史诗配乐、八项纸张/卡牌交互音效及完整授权来源记录。
 - `scripts/package-interactive-review.mjs`、`scripts/prepare-interactive-build.mjs`、`scripts/verify-interactive-review-build.mjs` 与 `scripts/optimize-interactive-assets.mjs`：构建包含全部 100 个剧本的平台运行时、检查完整剧本和历史图、优化移动资源、执行未压缩与 ZIP 双体积闸门，并生成唯一待提交 ZIP。
@@ -39,20 +38,20 @@
 - `scripts/generate-fixed-power-choices.mjs`：批量生成、校验并可断点续跑 100×6 张固定开局天外候选，输出网页与互动空间共用的全量权威数据；正常运行时不会调用它。
 - `docs/superpowers/`：Superpowers 收敛的产品规格和实施计划。
 
-实际数据流是：未显影卡牌 -> 客户端从尚未解锁的 100 节点池随机选择并预载候选历史图 -> 完整 `HistoryCard` 通过九段固定 180ms 节奏的 3D 轮盘旋转停靠，中心卡保持清晰，旧卡向左后方退场，新卡从右后方旋入 -> 轮盘停稳后才挂载 `闯入这一刻` 与紧邻的 `换一个开局` -> 客户端读取该历史已经由 AI 生成并审校的两组 A/B，再从该历史专属六张 C 候选中随机取两项能力，同时打乱剩余 48 项能力并把整个牌堆写进当前局存档 -> 同步装载固定第一幕、固定主角与两组三张牌 -> 玩家可直接选首组，也可第一次 Roll 在约 1.2 秒实体洗牌后无网络地换成预生成第二组；第二、第三次 Roll 先无放回取一项能力，再把它、当前现场和所有已看牌提交给模型，只接收新的 A/B/C 三张，并在请求成功或失败前保持可见洗牌过渡，失败重试继续使用同一个 `powerId` -> 长按查看完整字段，向上划出一张 -> reducer 把完整 `label`、能力 ID、偏离类型与即时结果固化为不可撤销 `WorldCanon`；A 不新增偏离度，B/C 才会继续推高改变 -> 结果页为下一幕预取两项不同能力 -> 第 2 至第 4 幕把全部已选牌压成分层叙事上下文，本地/Sites 通过官方 `/v1/chat/completions` 发起 SSE 推演，互动空间只由 `tt.callAIChatCompletion` 使用平台托管的火山凭据 -> 本地/Sites DeepSeek 传输完成或失败时同步尝试向 `llm-tap-v1` 广播完整调试记录，但不等待调试页也不让广播失败干扰游戏 -> Zod 校验人物连续性、两组三档牌、指定能力和因果账本，缺失可见文案时仅补失败字段 -> 第 4 张牌成为最后决定时立即写入独立永久解锁集合 -> 并发生成《史记》式白话/文言列传与 2026 蝴蝶效应报告 -> 合并报告并导出完整 2x PNG；玩家从档案再次选择该历史时，清空上一局并重新随机发放该历史的固定天外候选。
+实际数据流是：未显影卡牌 -> 客户端从尚未解锁的 100 节点池随机选择并预载候选历史图 -> 完整 `HistoryCard` 通过九段固定 180ms 节奏的 3D 轮盘旋转停靠，中心卡保持清晰，旧卡向左后方退场，新卡从右后方旋入 -> 轮盘停稳后才挂载 `闯入这一刻` 与紧邻的 `换一个开局` -> 客户端读取该历史已经由 AI 生成并审校的两组 A/B，再从该历史专属六张 C 候选中随机取两项能力，同时打乱剩余 48 项能力并把整个牌堆写进当前局存档 -> 同步装载固定第一幕、固定主角与两组三张牌 -> 玩家可直接选首组，也可第一次 Roll 在约 1.2 秒实体洗牌后无网络地换成预生成第二组；第二、第三次 Roll 先无放回取一项能力，再把它、当前现场和所有已看牌提交给模型，只接收新的 A/B/C 三张，并在请求成功或失败前保持可见洗牌过渡，失败重试继续使用同一个 `powerId` -> 长按查看完整字段，向上划出一张 -> reducer 把完整 `label`、能力 ID、偏离类型与即时结果固化为不可撤销 `WorldCanon`；A 不新增偏离度，B/C 才会继续推高改变 -> 结果页为下一幕预取两项不同能力 -> 第 2 至第 4 幕把全部已选牌压成分层叙事上下文，本地/Sites 通过官方 `/v1/chat/completions` 发起 SSE 推演，互动空间只由 `tt.callAIChatCompletion` 使用平台托管的火山凭据 -> 本地/Sites DeepSeek 传输完成或失败时同步尝试向 `llm-tap-v1` 广播完整调试记录，但不等待调试页也不让广播失败干扰游戏 -> Zod 校验人物连续性、两组三档牌、指定能力和因果账本，缺失可见文案时仅补失败字段 -> 第 4 张牌成为最后决定时立即写入独立永久解锁集合 -> 并发生成自然普通话《一生纪事》与 2026 蝴蝶效应报告，四次决定列表由客户端权威时间线保留但不在报告重复展示，分享语使用稳定产品文案 -> 合并报告并导出完整 2x PNG；玩家从档案再次选择该历史时，清空上一局并重新随机发放该历史的固定天外候选。
 
 ## 3. 关键入口在哪里
 
 - `app/page.tsx` 与 `app/game-client.tsx`：Sites 页面入口；用 `next/dynamic(..., { ssr: false })` 保证现有游戏只在浏览器挂载。
 - `app/layout.tsx`：中文根布局、站点 metadata 和两份全局样式入口。
 - `worker/index.ts`：Cloudflare Worker 总入口。
-- `worker/deepseek-proxy.ts`：固定游戏协议、DeepSeek 服务端代理、SSE 透传、取消、localhost 配额旁路和 Sites 分钟级 D1 反滥用入口。
+- `worker/deepseek-proxy.ts`：固定游戏协议、DeepSeek 服务端代理、SSE 透传、取消和无产品侧速率限制的请求转发入口。
 - `src/App.tsx`：根组件，负责首次游戏说明、命运抽取入口、游戏 phase 切换和结局导出。
 - `src/hooks/useGame.ts`：运行时编排入口。
 - `src/game/engine.ts`：结构化幕次与结局生成入口。
 - `src/game/powers.ts`：50 项超能力定义、无放回抽取和模型注入格式入口。
 - `src/game/schema.ts` 与 `src/game/reducer.ts`：六张首发牌、三次 Roll、动态牌组、永久解锁、存档状态和卡牌提交的权威入口。
-- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：三卡牌桌、固定卡框/中部独立滚动的顶层长按详情、上划提交、三次 Roll、即时音效，以及顶层固定轨道飞行与纸灰消散入口。
+- `src/components/ChoiceList.tsx` 与 `src/components/CardCommitFlight.tsx`：三卡牌桌、固定卡框/中部独立滚动的顶层长按详情、从拖动第一帧开始的顶层卡面镜像、上划提交、三次 Roll、即时音效，以及顶层固定轨道飞行与纸灰消散入口。
 - `src/services/audio.ts` 与 `src/services/cardAudio.ts`：低响度章节配乐、交互音效逐项增益、按音效时长自动压低并恢复配乐的混音入口。
 - `src/screens/SeedPickerScreen.tsx` 与 `src/components/GameAnnouncement.tsx`：百节点 3D 轮盘随机停靠、未显影/揭晓卡、已解锁档案和首次玩法说明入口。
 - `src/data/fixedOpenings.ts` 与 `src/data/fixedOpeningChoices.generated.ts`：100 张历史卡的固定第一幕，以及 AI 生成、历史语义审校后的两组循史/破局牌构建入口。
@@ -63,20 +62,65 @@
 - `src/services/storage.ts`：版本化当前局存档与独立永久解锁档案的保存、合并、旧版本迁移和损坏恢复入口。
 - `src/services/deepseek.ts`、`src/services/deepseek.interactive.ts` 与 `docs/ai-transports.md`：DeepSeek 官方、Sites 同源 Worker 和互动空间火山平台双通道入口与说明。
 - `tap.html` 与 `src/tap/main.tsx`：本地 LLM Tap 独立页面与 React 挂载入口；`src/tap/hooks/useTapChannel.ts` 负责调试广播、最多 200 条本地持久化、同步、导出和清空。
-- `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
+- `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker 本地开发配置。
 - `vite.interactive.config.ts`：互动空间纯静态 Vite 构建和 `tt.callAIChatCompletion` / 本地报告导出适配入口。
-- `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测继续读取服务端变量直连模型。
-- `.openai/hosting.json`：Sites 项目 ID 与 D1 / R2 逻辑绑定，绝不保存运行时密钥。
+- `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测可直连模型做上游诊断，发布门禁则必须通过本地 Worker 代理运行。
+- `.openai/hosting.json`：Sites 项目 ID 与空 D1 / R2 绑定，绝不保存运行时密钥。
 - `.trae/mcp.json`：比赛方 `interative_content_mcp` 的项目级发布配置。
 - `scripts/package-interactive-review.mjs`：抖音提审前唯一允许的打包入口，最终输出 `release/i-changed-history-interactive-space.zip`。
 - `interactive-space.release.json` 与 `docs/interactive-space-release-checklist.md`：火山 AI、模型、包体、AI 标识、官方校验与提审阻断规则入口。
 - `scripts/generate-fixed-opening-choices.mjs`：固定开场循史/破局的开发期 AI 生成、结构/历史语义审校、断点续跑和全量权威数据输出入口。
 - `scripts/generate-fixed-power-choices.mjs`：固定开局天外候选的开发期 AI 生成、校验、断点续跑和全量权威数据输出入口。
-- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run db:generate` 命令入口；其中 `build:interactive` 已固定为完整 100 剧本互动空间打包链路。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 和 `npm run build:interactive` 命令入口；其中 `build:interactive` 已固定为完整 100 剧本互动空间打包链路。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-30 00:21 - 用最新完整包覆盖互动空间并成功提交审核
+
+- 本次任务：把本地与远端一致的最新产品生成互动空间完整包，恢复已过期的平台 OAuth，覆盖原先被拒的旧版本，并真实提交新一轮审核。
+- 改了哪些文件：修改 `scripts/verify-interactive-review-build.mjs`、`docs/interactive-space-release-checklist.md` 和本文档；重新生成被 Git 忽略的 `dist-interactive/` 与 `release/i-changed-history-interactive-space.zip`。
+- 改了什么：发布门禁同步当前可见披露策略，只要求首页保留“本作品包含人工智能生成内容”，不再错误强制事件与报告出现已被产品删除的模型/来源标签。最新包包含 100 个剧本和 100 张历史图，AI 只走 `tt.callAIChatCompletion`，模型为 `deepseek-v4-flash`，AI 开关开启；ZIP 共 140 个文件、5,938,731 字节，MD5 为 `208ec4707ac219916d3cb4675b67830a`。平台 AppID `ttbb15cda8243f100b21` 已更新为准确标题 `哎！我改变了历史？`、四次选择的准确描述、竖屏新包，并从草稿成功提交为状态 `2`（审核中）。
+- 为什么这样改：上一版平台状态为审核拒绝且仍指向旧 ZIP；直接重提会继续审核旧内容。发布门禁又与刚确认的前端文案不一致，必须先让合规披露、构建产物和平台元数据指向同一真实版本，再提交审核。
+- 影响了哪些模块：影响互动空间发布校验、发布清单、平台作品包与审核状态；不改变浏览器产品、四幕三 Roll、AI 请求、存档、报告内容或首页 AI 合规标识。复核后第 1—3 节仍准确，无需调整。
+- 验证：`npm run build:interactive` 通过；仓库校验确认 100/100 剧本、100/100 历史图、禁止运行时标记 0、ZIP 小于 8MB；官方 `h5-validator` 对目录和最终 ZIP 的入口、大小、动态代码、网络请求、跳转、外链、内联事件、XSS、兼容性两轮均全部通过。平台更新后回读 AI 开启、MD5 与本地一致，提审接口返回“审核提交成功”，最终回读状态为 `2`。
+
+### 2026-07-30 00:09 - 收净事件页文案并让上划卡牌从拖动阶段全程置顶
+
+- 本次任务：按实机截图只处理五个前端问题：替换生成完成页的生硬系统文案，移除事件与报告中的 AI 来源/模型版本标签，隐藏事件页偏离度与顶层音量键，并彻底解决卡牌在手指上划阶段仍被事件文案裁住的问题。
+- 改了哪些文件：修改 `src/{App,components/ChoiceList,components/TimelineProgress,components/ResultFrontPage,screens/GeneratingScreen,screens/TimelineEventScreen}.tsx`、`src/styles/game.css` 及对应前端测试；同步更新 `AGENTS.md` 和本文档。
+- 改了什么：`现场已经写成 / 场景已经完成` 改为 `下一幕，就从这里开始 / 可以继续了`；事件和结局报告不再渲染 `AI 辅助创作 · 固定开场`、`AI 生成 · V4 Flash`；事件进度头只保留当前幕次和四段轨道，删除偏离百分比/阶段及游玩页音量按钮。上划手势一旦形成位移，完整卡面与实时文字便通过 `body` portal 进入最高层，原按钮只保留 pointer capture；松手后同层衔接既有弧线飞行与纸灰消散。
+- 为什么这样改：完成页应该告诉玩家下一步能做什么，而不是暴露制作过程；事件主页面只需要现场、决定和进度，不应被模型标签、数值解释和音量控件抢占。此前只有 pointerup 后的提交飞行位于顶层，pointermove 阶段的原卡仍受 `.event-body` 滚动裁剪，所以继续堆 `z-index` 无法解决；把拖动可视副本直接放到 `body` 顶层才覆盖完整手势生命周期。
+- 影响了哪些模块：只影响生成完成页、事件头、事件/报告可见标签和三类卡牌的上划视觉；不改变生成来源、偏离度计算、音频播放、首页设置中的音频入口、卡牌选择结果、四幕三 Roll、AI 请求、存档或结局内容。复核后第 1—3 节已同步刷新可见披露与卡牌动效入口。
+- 验证：按用户要求未运行额外测试、构建或浏览器验收，只完成精准前端修改与提交前静态差异复核。
+
+### 2026-07-30 00:03 - 移除产品侧 AI 限流并消除结局年龄重复
+
+- 本次任务：解释并修复 Worker 400 与互动空间火山通道的边界，按用户要求彻底移除产品自建速率约束，同时修复人物结局中“70 岁 · 70 岁”一类死亡年龄重复显示。
+- 改了哪些文件：修改 `worker/{deepseek-proxy,index}.ts`、`src/services/{deepseek,deepseek.test}.ts`、`src/server/deepseekProxyContract.test.ts`、`src/game/{prompts,prompts.test,schema,schema.test}.ts`、`src/components/ResultFrontPage.test.tsx`、`.env.example`、`.openai/hosting.json`、`package.json`、`package-lock.json`、`README.md`、`docs/ai-transports.md`、`AGENTS.md` 和本文档；删除 `db/`、`drizzle/` 与 `drizzle.config.ts` 的限流表、迁移和工具链。
+- 改了什么：Worker 不再按中文 `task` 前缀做白名单判断，只验证同源、版本、系统 prompt、阶段、请求类型、消息结构、体积和非空 JSON 任务，因此 prompt 文案演进不会再制造产品侧 400。访客、IP、全站、分钟和每日限流及其 Cookie、HMAC、D1 预留/退款、内部 429、环境变量、托管绑定、依赖和数据表全部移除；有效 Web 游戏请求立即转发，供应商 429 仍按 `Retry-After` 有限重试。互动空间继续绕过 Worker，原样使用 `tt.callAIChatCompletion` 和平台火山凭据。结局 prompt 现在要求死亡地点不含年份或年龄；schema 以客户端权威年龄为准，对新结果和旧存档中的地点前缀（如 `70岁 · 顺天府…`）统一去重后再渲染。
+- 为什么这样改：具体任务句子是会随产品迭代变化的内容，不是稳定安全协议，把它写进代理白名单会让合法产品请求被自己拒绝；用户规模目标也不应被产品自建配额误伤。真正需要服务端固定的是密钥、同源、协议身份、模型参数和请求形状。年龄、死亡年份同样已由客户端权威掌握，模型只需写地点，重复元数据既浪费输出也破坏报告阅读。
+- 影响了哪些模块：影响本地和 Sites Web 的 Worker 校验、AI 请求容量、上游 429 语义、Sites 托管绑定、依赖和结局字段归一；不改变 DeepSeek 模型、输出预算、重试次数、四幕三卡三 Roll、故事内容、存档正史、100 剧本或互动空间火山传输。
+- 验证：定向代理/传输/prompt/schema/报告回归 5 文件 135/135，全量 Vitest 39 文件 367/367、TypeScript、235 个运行时文件可移植性与 `git diff --check` 通过。强制经过本地 Worker 的五局真实长测为 5/5 完整局、20/20 生成阶段成功、29 次真实请求，无产品侧 400/429；首段可读 p50 3640ms，完整幕次 p50 8484ms。vinext 生产构建与完整 100 剧本互动空间构建通过；互动空间包仍固定 `tt.callAIChatCompletion`、`deepseek-v4-flash` 和平台火山凭据，ZIP 140 文件、5,938,347 字节、MD5 `9bd9d7c7cbf5e7e03faf402058e508bb`。本地 3003 冷启动返回 HTTP 200，最新页面控制台无 error/warning 并保持打开。
+
+### 2026-07-29 23:44 - 修复浏览器续幕协议被 Worker 拒绝
+
+- 本次任务：纠正用户首次实际游玩就出现“这条时间线还没有断”的严重回归，追到真实浏览器请求而不是继续用直连供应商的成功结果替产品链路背书，并建立无法绕过本地 Worker 的发布门禁。
+- 改了哪些文件：修改 `src/game/{deepseekProtocol,prompts}.ts`、`worker/deepseek-proxy.ts`、`src/server/deepseekProxyContract.test.ts`、`src/services/{deepseek,deepseek.direct.test}.ts`、`src/soak/longRunSoak.soak.ts`、`README.md`、`docs/ai-transports.md`、`AGENTS.md` 和本文档。
+- 改了什么：确认浏览器续幕请求在 4–31ms 内连续返回本地 400，原因是 Worker 仍只允许已经废弃的 `生成第 2 节点。` 假任务，而正式 prompt 发出无空格的 `生成第2幕。`。现将续幕任务前缀提取为 prompt 与 Worker 共用常量，Worker 只接受第 2–4 幕的真实格式；代理契约测试改为直接调用正式幕次、Roll、人物结局和 2026 报告构造器，并显式拒绝旧假协议。Node 长测新增本地 Worker 代理模式、匹配 Origin、传输类型报告和 `SOAK_REQUIRE_PROXY` 强制断言，不再允许直连供应商的长测冒充浏览器产品成功。
+- 为什么这样改：玩家需要的是四幕都能稳定生成的真实产品，不是某个绕开代理的 API 脚本成功。让协议生产者与验证者共享边界、让契约测试消费正式 prompt、让完整局门禁经过浏览器同款 Worker，才能同时消除本次确定性 400，并防止同类 prompt/allowlist 漂移再次被假测试隐藏。
+- 影响了哪些模块：影响本地浏览器和 Sites 的续幕代理验收、Node 真实长测传输模式、Worker 协议契约及发布流程；不改变四幕、三卡、三次 Roll、故事 prompt 内容、字段 schema、模型参数、重试策略、固定开场、视觉、音频、存档或互动空间火山通道。
+- 验证：正式 prompt 定向契约与传输回归 57/57；使用 `SOAK_PROXY_BASE_URL=http://localhost:3003` 和 `SOAK_REQUIRE_PROXY=1` 的真实五局长测全部经过本地 Worker，5/5 局完成、20/20 个生成阶段成功，31 次真实请求均返回 200；其中发生一次自动修复/恢复但最终无需玩家重试。幕次首段可读 p50 2658ms/p90 3279ms，完整幕次 p50 6075ms/p90 7956ms，双结局 p50 7938ms。全量 Vitest 39 文件 367/367、TypeScript、236 个运行时文件可移植性、vinext 生产构建、完整 100 剧本互动空间构建和 `git diff --check` 均通过；互动空间 ZIP 140 文件、5,938,154 字节、MD5 `e35ff043c5db6e6e5ec6b66361df55f9`。本地 3003 冷启动返回 HTTP 200，全新页面控制台无 error/warning，并保持最新产品打开。
+
+### 2026-07-29 23:28 - 压缩 AI 协议并消除结局格式失败
+
+- 本次任务：从全局收紧喂给 DeepSeek 的输入与输出，删除没有真实体验价值的结局字段，修复终局常出现“这条时间线还没有断”的结构失败，同时保留四幕、三卡、三次 Roll、故事连续性和完整可读报告；以五局二十生成阶段检验至少 95% 成功率。
+- 改了哪些文件：修改 `src/game/{deepseekProtocol,prompts,schema,engine}.ts` 及对应测试，修改 `src/services/{deepseek,deepseek.interactive}.ts`、`worker/deepseek-proxy.ts` 与传输契约测试，修改 `src/components/ResultFrontPage.tsx`、`src/screens/ErrorScreen.tsx`、`src/App.tsx`、样式与界面测试，修改 `src/soak/longRunSoak.soak.ts`、`README.md`、`docs/ai-transports.md`、`AGENTS.md` 和本文档。
+- 改了什么：把幕次稳定系统协议压成只含身份连续、正史、A/B/C、存活和 JSON 边界的短协议；动态输入只保留紧凑四次决定索引、最新结果/代价、最近后果、有效因果账和近三幕去重线索。第 4 幕样本输入由约 10189 字降至 3019，Roll 由 6646 降至 1743，人物结局由 3449 降至 1259，2026 报告由 4379 降至 1389。幕次/结局输出上限分别改为 4096/2048。人物页删除重复的“一生四决”和文言文，改为自然普通话“一生纪事”；模型不再生成时间线列表、因果指标、得失排名、可信度或分享语。局部修复现在能正确覆盖紧凑别名、嵌套数组和单个根字段，第二次仍使用快速字段修复；客户端只做补句号、接受完整自然长度、五个身后时代收成前三段加最终 2026 段等无叙事改写的结构归一。终局失败页明确说明四次决定已保存，并提供“继续生成结局”。
+- 为什么这样改：玩家付出的核心价值是四次不可撤销决定、自然有趣的因果故事和最终两页可读结果，不是让模型重复客户端已经拥有的时间线、生成不可见统计字段或为排版字数反复改写。旧链路把句号、18 字和紧凑别名合并错误误判成“整条时间线失败”，既增加 token 和延迟，也让已经完成的剧情看似丢失；新边界让 AI 专注创作，客户端负责确定性结构。
+- 影响了哪些模块：影响 Web、Sites Worker 与互动空间共用的幕次/双结局协议、输出预算、字段修复、报告结构、分享文案、错误提示和真实长测门槛；不改变四幕三卡三 Roll、固定第一幕、超能力、玩家决定正史、历史偏离、存档、永久解锁、模型、请求并发、视觉主系统或 100 剧本目录。
+- 验证：定向 schema/prompt/DeepSeek 回归 148/148；三轮五局真实 DeepSeek 长测均为 5/5 完整双结局、20/20 生成阶段成功。最终轮首段可读 p50 3017ms/p90 3670ms，幕次 p50 6117ms/p90 7609ms，健康结局约 5973–7560ms；少数时代地点或机器词内容安全重试仍可延长单局，但决定始终保存且未显示失败页。合入远端最新 Tap/重试提交后，全量 Vitest 39 文件 365/365、TypeScript、236 个运行时文件可移植性、vinext 生产构建、完整 100 剧本互动空间构建和 `git diff --check` 均通过；互动空间 ZIP 140 文件、5,938,125 字节、MD5 `d10f1eb49b9b2dcd4070f6ee7be257cf`，最终 commit 的本地 3003 冷启动返回 HTTP 200 并保持打开。
 
 ### 2026-07-29 22:48 - 让交互音效回到前景并重建详情牌阅读空间
 

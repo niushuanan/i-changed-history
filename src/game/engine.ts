@@ -197,26 +197,14 @@ function mergeAiFieldPatch(originalRaw: string, patchRaw: string, fields: readon
   const originalRecord = original as Record<string, unknown>;
   const patchRecord = patch as Record<string, unknown>;
   const compactAliases: Record<string, string> = {
-    vernacularBiography: "b",
-    classicalBiography: "c",
+    lifeStory: "b",
     lifespanSummary: "s",
     deathScene: "d",
-    historyTimeline: "t",
     worldName: "n",
     frontPageHeadline: "h",
     posthumousChronicle: "p",
-    causalChains: "c",
     ordinaryLife2026: "o",
     closingPassage: "e",
-    greatestGain: "g",
-    hiddenPrice: "x",
-    strangestDetail: "z",
-    biggestBeneficiary: "i",
-    biggestLoser: "l",
-    rewriteLevel: "r",
-    plausibilityScore: "q",
-    plausibilityReason: "u",
-    shareLine: "a",
   };
   const acceptedPatch = Object.fromEntries(fields.flatMap((field) => {
     if (Object.prototype.hasOwnProperty.call(patchRecord, field)) {
@@ -301,17 +289,20 @@ async function requestValidated<T>(
       diagnose({ stage: "repair_invalid", errors: summarizeValidationError(repairError) });
       diagnose({ stage: "recovery_started", errors: summarizeValidationError(repairError) });
       requestOptions.onProgress?.({ stage: "repairing" });
+      const recoveryFields = repairableRootFields(repairError);
+      const recoveryPatchOnly = recoveryFields !== null;
       await delay(RECOVERY_BACKOFF_MS, requestOptions.signal);
       const recoveryRaw = await complete(
         buildContextualJsonRepairMessages(messages, repairedCandidate, target, {
           ...repairDetails,
           validationErrors: summarizeValidationError(repairError),
-          patchOnly: false,
-          repairFields: undefined,
+          ...(recoveryPatchOnly
+            ? { patchOnly: true, repairFields: recoveryFields }
+            : { patchOnly: false, repairFields: undefined }),
         }),
         false,
         {
-          reasoning: "high",
+          reasoning: recoveryPatchOnly ? "fast" : "high",
           requestKind: target === "choice_set"
             ? "roll-recovery"
             : requestOptions.phase === "ending"
@@ -320,7 +311,10 @@ async function requestValidated<T>(
         },
       );
       try {
-        const recovered = parse(recoveryRaw);
+        const recoveryCandidate = recoveryPatchOnly
+          ? mergeAiFieldPatch(repairedCandidate, recoveryRaw, recoveryFields)
+          : recoveryRaw;
+        const recovered = parse(recoveryCandidate);
         diagnose({ stage: "recovery_succeeded", errors: [] });
         return recovered;
       } catch (recoveryError) {
@@ -486,26 +480,25 @@ export async function adjudicateCustomAction(
 }
 
 function parseExpectedBiography(
-  expectedHistoryTimeline: readonly { yearLabel: string; playerChoice: string; playerAuthored: boolean }[],
+  expectedHistoryTimeline: readonly { playerChoice: string; playerAuthored: boolean }[],
   protagonist: { name: string; deathYearLabel: string; deathAge: number },
 ): Parser<BiographyReport> {
   return (raw) => {
     const biography = parseBiographyReport(raw, {
-      expectedHistoryTimeline,
       expectedProtagonistName: protagonist.name,
       expectedDeathYearLabel: protagonist.deathYearLabel,
       expectedDeathAge: protagonist.deathAge,
     });
-    const choicesMatch = biography.historyTimeline.every(
-      (item, index) => item.playerChoice === expectedHistoryTimeline[index]?.playerChoice,
-    );
-    if (!choicesMatch || biography.historyTimeline.length !== expectedHistoryTimeline.length) {
-      throw new Error("结局时间线没有按顺序保留玩家的四次真实选择。");
-    }
-    const contradictedCanon = expectedHistoryTimeline.find((expected, index) =>
+    const visibleBiography = [
+      biography.lifeStory,
+      biography.lifespanSummary,
+      biography.deathScene.finalMoment,
+      biography.deathScene.lastingLegacy,
+    ].join("；");
+    const contradictedCanon = expectedHistoryTimeline.find((expected) =>
       expected.playerAuthored && consequenceContradictsCanon(
         expected.playerChoice,
-        biography.historyTimeline[index]?.consequence ?? "",
+        visibleBiography,
       ),
     );
     if (contradictedCanon) {
@@ -584,6 +577,7 @@ export async function generateEnding(
     yearLabel: playedTurn.turn.yearLabel,
     playerChoice: getPlayedTurnChoiceText(playedTurn),
     playerAuthored: playedTurn.playerAuthored === true || playedTurn.selectedChoiceId === "custom",
+    consequence: `${playedTurn.resolvedEcho.directResult.replace(/[。！？!?]+$/u, "")}，代价是${playedTurn.resolvedEcho.unexpectedCost.replace(/[。！？!?]+$/u, "")}。`,
   }));
   const firstTurn = playedTurns[0]?.turn;
   const finalTurn = playedTurns[playedTurns.length - 1]?.turn;
@@ -605,7 +599,13 @@ export async function generateEnding(
     {},
   );
   const [biography, worldReport] = await Promise.all([biographyPromise, worldReportPromise]);
-  return parseAlternatePresent(JSON.stringify({ ...biography, ...worldReport }), {
+  const historyTimeline = expectedHistoryTimeline.map((item, index) => ({
+    chapter: index + 1,
+    yearLabel: item.yearLabel,
+    playerChoice: item.playerChoice,
+    consequence: item.consequence,
+  }));
+  return parseAlternatePresent(JSON.stringify({ ...biography, ...worldReport, historyTimeline }), {
     expectedHistoryTimeline,
     expectedProtagonistName: firstTurn.protagonistName,
     expectedDeathYearLabel: finalTurn.yearLabel,

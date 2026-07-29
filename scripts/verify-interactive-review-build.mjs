@@ -95,8 +95,6 @@ for (const match of indexHtml.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
 const requiredRuntimeMarkers = [
   "callAIChatCompletion",
   "deepseek-v4-flash",
-  "AI 生成 · V4 Flash",
-  "AI 辅助创作 · 固定开场",
   "本作品包含人工智能生成内容",
   "体验说明",
   "个历史现场，随机抽一个开局",

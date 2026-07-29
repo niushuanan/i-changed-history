@@ -13,7 +13,19 @@ const playerFacingString = requiredString.refine(
   "玩家可见文案必须使用自然中文，不能泄漏内部字段名或超能力 ID",
 );
 const boundedPlayerFacingString = (max: number) => playerFacingString.max(max);
-const completeReportSentence = (max: number, label: string, min = 1) => z.string().trim().min(min).max(max).refine(
+const REPORT_INCOMPLETE_END_PATTERN = /(?:随后正式|仍未|尚未|开始|准备|准备通过|计划|等待|试图|意图|查阅)$/;
+
+function normalizeReportSentence(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || /[。！？!?](?:[”"』」）)])?$/.test(trimmed)) return trimmed;
+  if (REPORT_INCOMPLETE_END_PATTERN.test(trimmed)) return trimmed;
+  return isCompleteReportSentenceBody(trimmed) ? `${trimmed}。` : trimmed;
+}
+
+const completeReportSentence = (max: number, label: string, min = 1) => z.preprocess(
+  normalizeReportSentence,
+  z.string().trim().min(min).max(max).refine(
   (value) => !containsInternalPlayerCopy(value),
   `${label}不能泄漏内部字段名或超能力 ID`,
 ).refine(
@@ -24,7 +36,7 @@ const completeReportSentence = (max: number, label: string, min = 1) => z.string
     return isCompleteReportSentenceBody(withoutTerminal);
   },
   `${label}必须以完整句结束，不能停在半句话中`,
-);
+));
 const chapterSchema = z.number().int().min(1).max(4).transform((value) => value as DecisionChapter);
 const causalChapterSchema = z.number().int().min(0).max(4);
 const chapterNameSchema = z.enum([
@@ -164,8 +176,10 @@ function isCompleteSentenceBody(value: string): boolean {
 }
 
 function isCompleteReportSentenceBody(value: string): boolean {
-  if (!value || DEPENDENT_SENTENCE_START_PATTERN.test(value)) return false;
-  return !endsWithDanglingGrammar(value) && !hasDanglingDisposalStructure(value);
+  if (!value) return false;
+  if (DEPENDENT_SENTENCE_START_PATTERN.test(value) && !hasIndependentMainClause(value)) return false;
+  const clause = finalClause(value);
+  return !endsWithDanglingGrammar(clause) && !hasDanglingDisposalStructure(clause);
 }
 
 function finalSentenceBody(value: string): string {
@@ -250,9 +264,9 @@ const factualScanString = playerFacingString.refine(
 const richNarrativeSchema = narrativeTextSchema
   .refine((narrative) => {
     const sentenceCount = narrative.match(/[。！？!?]/g)?.length ?? 0;
-    return sentenceCount >= 2;
+    return sentenceCount >= 1;
   }, {
-    message: "现场前情需要至少两句完整叙事，并避免堆叠碎句",
+    message: "现场前情需要完整叙事",
   })
   .refine((narrative) => /[。！？!?](?:[”"』」）)])?$/.test(narrative), {
     message: "现场前情必须以完整句结束",
@@ -493,30 +507,31 @@ function expandCompactTimelineTurn(
   const record = asRecord(value);
   if (!record) return value;
   const scene = Array.isArray(record.s) ? record.s : null;
-  const compactChoices = record.c;
-  const compactRollChoices = record.r;
-  const compactLedger = record.g;
+  const compactChoices = record.choices ?? record.c;
+  const compactRollChoices = record.rollChoices ?? record.r;
+  const compactLedger = record.causalLedger ?? record.g;
+  const effectiveDeadline = record.timePressure ?? scene?.[4];
   const lowLatencyScene = scene?.length === 9;
   return {
     ...record,
     ...(scene ? {
-      headline: scene[0],
-      narrative: scene[1],
-      location: scene[2],
-      role: scene[3],
-      timePressure: scene[4],
-      causalBridge: scene[5],
-      worldStateChange: scene[6],
-      divergenceProof: scene[7],
-      historicalAnchors: lowLatencyScene ? [scene[2], scene[3]] : scene[8],
-      visualTone: lowLatencyScene ? scene[8] : scene[9],
-      protagonistName: scene[10],
+      headline: record.headline ?? scene[0],
+      narrative: record.narrative ?? scene[1],
+      location: record.location ?? scene[2],
+      role: record.role ?? scene[3],
+      timePressure: effectiveDeadline,
+      causalBridge: record.causalBridge ?? scene[5],
+      worldStateChange: record.worldStateChange ?? scene[6],
+      divergenceProof: record.divergenceProof ?? scene[7],
+      historicalAnchors: record.historicalAnchors ?? (lowLatencyScene ? [scene[2], scene[3]] : scene[8]),
+      visualTone: record.visualTone ?? (lowLatencyScene ? scene[8] : scene[9]),
+      protagonistName: record.protagonistName ?? scene[10],
     } : {}),
     ...(compactChoices !== undefined ? {
-      choices: expandCompactChoiceSet(compactChoices, expectedPowerIds?.[0], scene?.[4]),
+      choices: expandCompactChoiceSet(compactChoices, expectedPowerIds?.[0], effectiveDeadline),
     } : {}),
     ...(compactRollChoices !== undefined ? {
-      rollChoices: expandCompactChoiceSet(compactRollChoices, expectedPowerIds?.[1], scene?.[4]),
+      rollChoices: expandCompactChoiceSet(compactRollChoices, expectedPowerIds?.[1], effectiveDeadline),
     } : {}),
     ...(compactLedger !== undefined ? {
       causalLedger: expandCompactLedger(compactLedger),
@@ -548,96 +563,100 @@ function compactAiAuthoredClause(value: unknown, max: number): unknown {
   return [...pool].sort((left, right) => [...right].length - [...left].length)[0] ?? value;
 }
 
-function coerceDisplayString(value: unknown): unknown {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  const record = asRecord(value);
-  return record?.label ?? record?.value ?? value;
+function deathMetadataPattern(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/u)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+    .join("\\s*");
+}
+
+function normalizeDeathPlace(value: unknown, age: unknown, yearLabel: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const metadata = [
+    typeof yearLabel === "string" ? yearLabel : null,
+    typeof age === "number" ? `${age}岁` : null,
+  ].filter((item): item is string => Boolean(item));
+  let place = value.trim();
+  for (let pass = 0; pass < metadata.length; pass += 1) {
+    const before = place;
+    for (const item of metadata) {
+      place = place.replace(
+        new RegExp(`^\\s*${deathMetadataPattern(item)}(?:\\s*[·•・|｜/，,、—-]+)?\\s*`, "u"),
+        "",
+      );
+    }
+    if (place === before) break;
+  }
+  return place;
 }
 
 function normalizeBiographyReportCandidate(value: unknown): unknown {
-  return value;
+  const report = asRecord(value);
+  if (!report) return value;
+  const deathScene = asRecord(report.deathScene);
+  return {
+    ...report,
+    lifeStory: report.lifeStory ?? report.vernacularBiography,
+    ...(deathScene ? {
+      deathScene: {
+        ...deathScene,
+        place: normalizeDeathPlace(deathScene.place, deathScene.age, deathScene.yearLabel),
+      },
+    } : {}),
+  };
 }
 
 function normalizeWorldReportCandidate(value: unknown): unknown {
-  const report = asRecord(value);
-  if (!report) return value;
-  const plausibilityScore = typeof report.plausibilityScore === "string"
-    && report.plausibilityScore.trim() !== ""
-    ? Number(report.plausibilityScore)
-    : report.plausibilityScore;
-  return {
-    ...report,
-    rewriteLevel: coerceDisplayString(report.rewriteLevel),
-    plausibilityScore,
-  };
+  return value;
 }
 
 function expandCompactBiographyCandidate(value: unknown): unknown {
   const report = asRecord(value);
   if (!report || report.b === undefined) return value;
-  const death = Array.isArray(report.d) ? report.d : [];
-  const timeline = Array.isArray(report.t)
-    ? report.t.map((item) => {
-        const tuple = Array.isArray(item) ? item : [item];
-        return { consequence: tuple[0] };
-      })
-    : report.t;
+  const deathCandidate = report.deathScene ?? report.d;
+  const death = Array.isArray(deathCandidate) ? deathCandidate : null;
   return {
     ...report,
-    vernacularBiography: report.vernacularBiography ?? report.b,
-    classicalBiography: report.classicalBiography ?? report.c,
+    lifeStory: report.lifeStory ?? report.b,
     lifespanSummary: report.lifespanSummary ?? report.s,
-    deathScene: report.deathScene ?? {
-      place: death[0],
-      finalMoment: death[1],
-      lastingLegacy: death[2],
-    },
-    historyTimeline: report.historyTimeline ?? timeline,
+    deathScene: death
+      ? {
+          place: death[0],
+          finalMoment: death[1],
+          lastingLegacy: death[2],
+        }
+      : deathCandidate,
   };
 }
 
 function expandCompactWorldReportCandidate(value: unknown): unknown {
   const report = asRecord(value);
   if (!report || report.n === undefined) return value;
-  const chronicles = Array.isArray(report.p)
-    ? report.p.map((item) => {
+  const chronicleCandidate = report.posthumousChronicle ?? report.p;
+  const chronicleItems = Array.isArray(chronicleCandidate) && chronicleCandidate.length > 4
+    ? [...chronicleCandidate.slice(0, 3), chronicleCandidate.at(-1)]
+    : chronicleCandidate;
+  const chronicles = Array.isArray(chronicleItems)
+    ? chronicleItems.map((item) => {
         const tuple = Array.isArray(item) ? item : [];
-        return {
-          period: tuple[0],
-          title: tuple[1],
-          narrative: tuple[2],
-          inheritedChange: tuple[3],
-        };
+        return Array.isArray(item)
+          ? {
+              period: tuple[0],
+              title: tuple[1],
+              narrative: tuple[2],
+              inheritedChange: tuple[3],
+            }
+          : item;
       })
-    : report.p;
-  const chains = Array.isArray(report.c)
-    ? report.c.map((item) => {
-        const tuple = Array.isArray(item) ? item : [];
-        return {
-          origin: tuple[0],
-          transformation: tuple[1],
-          payoff: tuple[2],
-        };
-      })
-    : report.c;
+    : chronicleCandidate;
   return {
     ...report,
     worldName: report.worldName ?? report.n,
     frontPageHeadline: report.frontPageHeadline ?? report.h,
-    posthumousChronicle: report.posthumousChronicle ?? chronicles,
-    causalChains: report.causalChains ?? chains,
+    posthumousChronicle: chronicles,
     ordinaryLife2026: report.ordinaryLife2026 ?? report.o,
     closingPassage: report.closingPassage ?? report.e,
-    greatestGain: report.greatestGain ?? report.g,
-    hiddenPrice: report.hiddenPrice ?? report.x,
-    strangestDetail: report.strangestDetail ?? report.z,
-    biggestBeneficiary: report.biggestBeneficiary ?? report.i,
-    biggestLoser: report.biggestLoser ?? report.l,
-    rewriteLevel: report.rewriteLevel ?? report.r,
-    plausibilityScore: report.plausibilityScore ?? report.q,
-    plausibilityReason: report.plausibilityReason ?? report.u,
-    shareLine: report.shareLine ?? report.a,
   };
 }
 
@@ -839,15 +858,8 @@ const historyTimelineItemSchema = z.object({
   consequence: completeReportSentence(120, "决定后果"),
 });
 
-const causalChainSchema = z.object({
-  origin: playerFacingString,
-  transformation: playerFacingString,
-  payoff: playerFacingString,
-});
-
 const biographyFields = {
-    vernacularBiography: completeReportSentence(960, "白话列传"),
-    classicalBiography: completeReportSentence(720, "文言列传"),
+    lifeStory: completeReportSentence(720, "一生纪事"),
     protagonistName: boundedPlayerFacingString(16),
     lifespanSummary: completeReportSentence(240, "一生总述"),
     deathScene: z.object({
@@ -857,24 +869,22 @@ const biographyFields = {
       finalMoment: completeReportSentence(180, "临终场景"),
       lastingLegacy: completeReportSentence(180, "身后遗产"),
     }),
-    historyTimeline: z.array(historyTimelineItemSchema).length(4),
 } as const;
 
 const posthumousChronicleItemSchema = z.object({
-  period: boundedPlayerFacingString(18),
+  period: boundedPlayerFacingString(32),
   title: boundedPlayerFacingString(22),
   narrative: completeReportSentence(320, "身后时代叙事"),
   inheritedChange: completeReportSentence(240, "时代遗产结论"),
 });
 
 const worldReportFields = {
-    worldName: playerFacingString,
-    frontPageHeadline: playerFacingString,
-    causalChains: z.tuple([causalChainSchema, causalChainSchema, causalChainSchema]),
+    worldName: boundedPlayerFacingString(24),
+    frontPageHeadline: boundedPlayerFacingString(64),
     ordinaryLife2026: z.tuple([
-      completeReportSentence(18, "2026生活细节", 12),
-      completeReportSentence(18, "2026生活细节", 12),
-      completeReportSentence(18, "2026生活细节", 12),
+      completeReportSentence(72, "2026生活细节", 10),
+      completeReportSentence(72, "2026生活细节", 10),
+      completeReportSentence(72, "2026生活细节", 10),
     ]),
     posthumousChronicle: z.tuple([
       posthumousChronicleItemSchema,
@@ -883,15 +893,6 @@ const worldReportFields = {
       posthumousChronicleItemSchema,
     ]),
     closingPassage: completeReportSentence(320, "小说尾声"),
-    greatestGain: playerFacingString,
-    hiddenPrice: playerFacingString,
-    strangestDetail: playerFacingString,
-    biggestBeneficiary: playerFacingString,
-    biggestLoser: playerFacingString,
-    rewriteLevel: playerFacingString,
-    plausibilityScore: z.number().finite().min(0).max(100),
-    plausibilityReason: completeReportSentence(180, "可信度说明"),
-    shareLine: completeReportSentence(120, "分享语"),
 } as const;
 
 const biographyReportObjectSchema = z.object(biographyFields);
@@ -907,7 +908,11 @@ export const worldReportSchema = z.preprocess(
 );
 
 const alternatePresentObjectSchema = z
-  .object({ ...biographyFields, ...worldReportFields })
+  .object({
+    ...biographyFields,
+    ...worldReportFields,
+    historyTimeline: z.array(historyTimelineItemSchema).length(4),
+  })
   .superRefine((ending, context) => {
     ending.historyTimeline.forEach((item, index) => {
       if (item.chapter !== index + 1) {
@@ -924,8 +929,7 @@ const compatibleStoredAlternatePresentObjectSchema = z
   .object({
     ...biographyFields,
     ...worldReportFields,
-    vernacularBiography: playerFacingString.max(960),
-    classicalBiography: playerFacingString.max(720),
+    lifeStory: playerFacingString.max(720),
     lifespanSummary: playerFacingString.max(240),
     deathScene: z.object({
       yearLabel: playerFacingString,
@@ -946,14 +950,12 @@ const compatibleStoredAlternatePresentObjectSchema = z
       boundedPlayerFacingString(72),
     ]),
     posthumousChronicle: z.tuple([
-      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
-      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
-      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
-      z.object({ period: boundedPlayerFacingString(18), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(32), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(32), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(32), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
+      z.object({ period: boundedPlayerFacingString(32), title: boundedPlayerFacingString(22), narrative: boundedPlayerFacingString(128), inheritedChange: boundedPlayerFacingString(96) }),
     ]),
     closingPassage: playerFacingString.max(320),
-    plausibilityReason: playerFacingString,
-    shareLine: playerFacingString,
   })
   .superRefine((ending, context) => {
     ending.historyTimeline.forEach((item, index) => {
@@ -1130,21 +1132,7 @@ export function parseBiographyReport(
   const parsed = expandCompactBiographyCandidate(parseJsonObject(raw));
   const candidate = asRecord(parsed);
   if (!candidate) return biographyReportSchema.parse(parsed);
-  const expected = options.expectedHistoryTimeline;
   const deathScene = asRecord(candidate.deathScene);
-  const historyTimeline = expected && Array.isArray(candidate.historyTimeline)
-    ? candidate.historyTimeline.map((item, index) => {
-        const authoritative = expected[index];
-        if (!authoritative) return item;
-        const record = asRecord(item);
-        return {
-          ...(record ?? { consequence: item }),
-          chapter: index + 1,
-          yearLabel: authoritative.yearLabel,
-          playerChoice: authoritative.playerChoice,
-        };
-      })
-    : candidate.historyTimeline;
 
   return biographyReportSchema.parse({
     ...candidate,
@@ -1156,7 +1144,6 @@ export function parseBiographyReport(
         ...(options.expectedDeathAge !== undefined ? { age: options.expectedDeathAge } : {}),
       },
     } : {}),
-    historyTimeline,
   });
 }
 

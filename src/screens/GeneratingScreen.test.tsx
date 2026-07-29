@@ -117,7 +117,7 @@ describe("history developing room", () => {
       />,
     );
 
-    expect(screen.getByText("场景已经完成")).toBeVisible();
+    expect(screen.getByText("可以继续了")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "下一步" }));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
