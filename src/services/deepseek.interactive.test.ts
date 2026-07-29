@@ -149,6 +149,27 @@ describe("Interactive Space DeepSeek transport", () => {
     )).resolves.toContain("刷新后照常完成");
   });
 
+  it("falls back to the official non-stream response when a stream ends empty", async () => {
+    const call = installRuntime((options) => {
+      if (options.stream) {
+        options.complete({ errMsg: "callAIChatCompletion:ok" });
+        return;
+      }
+      options.success({
+        errMsg: "callAIChatCompletion:ok",
+        data: "{\"headline\":\"非流式接管\",\"narrative\":\"同一请求已经可靠完成。\"}",
+      });
+      options.complete({ errMsg: "callAIChatCompletion:ok" });
+    });
+
+    await expect(requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      { phase: "turn" },
+    )).resolves.toContain("同一请求已经可靠完成");
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(call.mock.calls.map(([options]) => options.stream)).toEqual([true, false]);
+  });
+
   it("surfaces the platform API-key configuration error without retrying", async () => {
     const call = installRuntime((options) => {
       options.fail({
@@ -164,6 +185,28 @@ describe("Interactive Space DeepSeek transport", () => {
       { phase: "turn" },
     )).rejects.toMatchObject({
       code: "missing_api_key",
+      message: expect.stringContaining("错误码 20107"),
+      retryable: false,
+    });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the platform developer error type and code for mobile diagnosis", async () => {
+    const call = installRuntime((options) => {
+      options.fail({
+        errMsg: "model is not activated",
+        errorCode: 40012,
+        errorType: "D",
+      });
+      options.complete({ errMsg: "callAIChatCompletion:fail" });
+    });
+
+    await expect(requestCompletion(
+      [{ role: "user", content: "继续历史" }],
+      { phase: "turn" },
+    )).rejects.toMatchObject({
+      code: "request_failed",
+      message: expect.stringContaining("类型 D · 错误码 40012"),
       retryable: false,
     });
     expect(call).toHaveBeenCalledTimes(1);

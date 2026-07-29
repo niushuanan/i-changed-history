@@ -60,7 +60,7 @@ type PlatformTask = {
 
 type PlatformChatOptions = {
   type: "text";
-  stream: true;
+  stream: boolean;
   model: string;
   messages: Array<{ role: "system" | "user"; content: string }>;
   temperature: number;
@@ -209,11 +209,20 @@ function errorNumber(error: PlatformFailure): number | undefined {
   return undefined;
 }
 
+function responseData(result: PlatformSuccess | PlatformFailure): string | undefined {
+  return "data" in result && typeof result.data === "string" ? result.data : undefined;
+}
+
 function platformError(error: PlatformFailure): DeepSeekError {
   const status = errorNumber(error);
   const message = typeof error.errMsg === "string" ? error.errMsg : "";
   const lowerMessage = message.toLowerCase();
   const errorType = typeof error.errorType === "string" ? error.errorType : "";
+  const reference = [
+    errorType ? `类型 ${errorType}` : "",
+    typeof status === "number" ? `错误码 ${status}` : "",
+  ].filter(Boolean).join(" · ");
+  const suffix = reference ? `（${reference}）` : "";
 
   if (
     status === 20107
@@ -223,35 +232,55 @@ function platformError(error: PlatformFailure): DeepSeekError {
   ) {
     return new DeepSeekError(
       "missing_api_key",
-      "互动空间账号尚未配置火山方舟 API Key，请完成平台 AI 服务配置后重试。",
+      `互动空间账号的火山方舟凭据不可用${suffix}，请检查平台 AI 服务配置后重试。`,
       status,
       undefined,
       false,
     );
   }
   if (status === 401) {
-    return new DeepSeekError("unauthorized", "互动空间 AI 服务鉴权失败，请重新授权。", status, undefined, false);
+    return new DeepSeekError(
+      "unauthorized",
+      `互动空间 AI 服务鉴权失败${suffix}，请重新配置火山方舟 API Key。`,
+      status,
+      undefined,
+      false,
+    );
   }
   if (status === 403) {
-    return new DeepSeekError("forbidden", "当前账号没有调用该模型的权限。", status, undefined, false);
+    return new DeepSeekError(
+      "forbidden",
+      `当前火山账号没有调用该模型的权限${suffix}，请确认模型已开通。`,
+      status,
+      undefined,
+      false,
+    );
   }
   if (status === 429 || message.includes("频繁") || lowerMessage.includes("rate limit")) {
-    return new DeepSeekError("rate_limited", "请求过于频繁，请稍后重新推演。", status);
+    return new DeepSeekError("rate_limited", `请求过于频繁${suffix}，请稍后重新推演。`, status);
   }
   if (errorType === "U") {
-    return new DeepSeekError("aborted", "本次推演已取消。", status, undefined, false);
+    return new DeepSeekError("aborted", `本次推演已取消${suffix}。`, status, undefined, false);
   }
   if (
     errorType === "F"
     || errorType === "I"
-    || (typeof status === "number" && status >= 500)
+    || (typeof status === "number" && status >= 500 && status <= 599)
   ) {
-    return new DeepSeekError("service_unavailable", "互动空间 AI 服务暂时不可用，请重新推演这一幕。", status);
+    return new DeepSeekError(
+      "service_unavailable",
+      message
+        ? `互动空间 AI 服务暂时不可用${suffix}：${message}`
+        : `互动空间 AI 服务暂时不可用${suffix}，请重新推演这一幕。`,
+      status,
+    );
   }
   if (errorType === "D") {
     return new DeepSeekError(
       "request_failed",
-      message ? `互动空间 AI 调用失败：${message}` : "互动空间 AI 调用参数无效。",
+      message
+        ? `互动空间 AI 调用失败${suffix}：${message}`
+        : `互动空间 AI 调用参数无效${suffix}。`,
       status,
       undefined,
       false,
@@ -259,7 +288,9 @@ function platformError(error: PlatformFailure): DeepSeekError {
   }
   return new DeepSeekError(
     "network",
-    message ? `互动空间 AI 连接失败：${message}` : "互动空间 AI 连接中断，请重新推演这一幕。",
+    message
+      ? `互动空间 AI 连接失败${suffix}：${message}`
+      : `互动空间 AI 连接中断${suffix}，请重新推演这一幕。`,
     status,
   );
 }
@@ -340,6 +371,7 @@ function performRequest(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
   attempt: number,
+  stream: boolean,
 ): Promise<string> {
   const runtime = platformRuntime();
   const callAIChatCompletion = runtime?.callAIChatCompletion;
@@ -472,7 +504,7 @@ function performRequest(
     try {
       task = callAIChatCompletion({
         type: "text",
-        stream: true,
+        stream,
         model: INTERACTIVE_SPACE_MODEL,
         messages: messages.map(({ role, content: messageContent }) => ({
           role,
@@ -524,21 +556,29 @@ function performRequest(
           const contentDelta = choice?.delta?.content;
           if (typeof contentDelta === "string") appendContent(contentDelta);
         },
-        success() {
+        success(result) {
           if (settled) return;
           markConnected();
+          const completeData = responseData(result);
+          if (!content && completeData) {
+            appendContent(completeData);
+          }
           finishSuccess();
         },
-        fail(error) {
+        fail(error = {}) {
           if (error.errorType === "I") {
             markConnected();
             return;
           }
           finishError(platformError(error));
         },
-        complete() {
+        complete(result) {
           if (settled) return;
           markConnected();
+          const completeData = responseData(result);
+          if (!content && completeData) {
+            appendContent(completeData);
+          }
           finishSuccess();
         },
       });
@@ -547,7 +587,9 @@ function performRequest(
         ? error
         : new DeepSeekError(
             "request_failed",
-            "互动空间 AI 能力启动失败，请重新推演这一幕。",
+            error instanceof Error && error.message
+              ? `互动空间 AI 能力启动失败：${error.message}`
+              : "互动空间 AI 能力启动失败，请重新推演这一幕。",
             undefined,
             undefined,
             false,
@@ -560,10 +602,20 @@ export async function requestCompletion(
   messages: readonly ChatMessage[],
   options: CompletionOptions,
 ): Promise<string> {
+  let stream = true;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await performRequest(messages, options, attempt + 1);
+      return await performRequest(messages, options, attempt + 1, stream);
     } catch (error) {
+      if (
+        stream
+        && error instanceof DeepSeekError
+        && error.code === "invalid_response"
+        && attempt < MAX_ATTEMPTS - 1
+      ) {
+        stream = false;
+        continue;
+      }
       if (attempt < MAX_ATTEMPTS - 1 && isRetryable(error)) {
         await waitBeforeRetry(attempt + 1, error.retryAfterMs, options.signal);
         continue;
