@@ -88,7 +88,7 @@ describe("clear change event screen", () => {
     expect(screen.getByRole("button", { name: /破局牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /天外牌/ })).toBeVisible();
     expect(screen.getByRole("button", { name: "重抽卡牌，还剩 3 次" })).toHaveTextContent("ROLL · 3");
-    expect(screen.getByText(/每幕可 Roll 3 次/)).toBeVisible();
+    expect(screen.getByText(/上划出牌，长按预览/)).toBeVisible();
     expect(screen.queryByText("抽一张，改写这一刻")).not.toBeInTheDocument();
     expect(screen.queryByText("上划选择")).not.toBeInTheDocument();
     expect(screen.queryByText("按住读牌")).not.toBeInTheDocument();

@@ -85,7 +85,7 @@ describe("destiny draw history entry", () => {
     expect(container.querySelector('.destiny-carousel__card[data-slot="current"]')).toBeTruthy();
     expect(container.querySelector('.destiny-carousel__card[data-slot="far-previous"]')).toBeTruthy();
     expect(container.querySelector('.destiny-carousel__card[data-slot="far-next"]')).toBeTruthy();
-    expect(screen.getByText("命运匀速掠过，即将揭晓")).toHaveAttribute("role", "status");
+    expect(screen.getByText("历史流转，即将揭晓")).toHaveAttribute("role", "status");
     const drawDelays = timeoutSpy.mock.calls
       .map(([, delay]) => Number(delay))
       .slice(0, 9);
