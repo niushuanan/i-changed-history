@@ -32,8 +32,8 @@ const DEEPSEEK_PROXY_ENDPOINT = "/api/deepseek/completions";
 const DEEPSEEK_DIRECT_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 const REQUEST_TIMEOUT_MS = 90_000;
-const RETRY_BASE_DELAYS_MS = [800, 1_800] as const;
-const MAX_RETRY_DELAY_MS = 8_000;
+const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
+const MAX_RETRY_DELAY_MS = 15_000;
 const MAX_ATTEMPTS = RETRY_BASE_DELAYS_MS.length + 1;
 
 function nodeEnvironmentValue(name: string): string | undefined {

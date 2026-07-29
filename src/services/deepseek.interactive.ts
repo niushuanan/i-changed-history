@@ -30,8 +30,8 @@ export type {
 
 const INTERACTIVE_SPACE_MODEL = "deepseek-v4-flash";
 const REQUEST_TIMEOUT_MS = 90_000;
-const RETRY_BASE_DELAYS_MS = [800, 1_800] as const;
-const MAX_RETRY_DELAY_MS = 8_000;
+const RETRY_BASE_DELAYS_MS = [3_000, 10_000] as const;
+const MAX_RETRY_DELAY_MS = 15_000;
 const MAX_ATTEMPTS = RETRY_BASE_DELAYS_MS.length + 1;
 
 type PlatformSuccess = {
