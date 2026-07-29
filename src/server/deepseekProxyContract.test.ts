@@ -13,10 +13,7 @@ import {
   buildDeepSeekRequestBody,
   handleDeepSeekProxy,
   parseProxyEnvelope,
-  publicRateLimitPolicy,
-  type D1DatabaseLike,
   type DeepSeekProxyEnvelope,
-  type WorkerExecutionContext,
 } from "../../worker/deepseek-proxy";
 
 const scenario = { seed: HISTORY_SEEDS[0] };
@@ -86,13 +83,6 @@ function proxyRequest(origin: string) {
   });
 }
 
-function workerContext(): WorkerExecutionContext {
-  return {
-    waitUntil: vi.fn(),
-    passThroughOnException: vi.fn(),
-  };
-}
-
 describe("DeepSeek proxy contract", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -139,7 +129,7 @@ describe("DeepSeek proxy contract", () => {
     } as Partial<DeepSeekProxyEnvelope>))).toBeNull();
   });
 
-  it("rejects the obsolete spaced-node task used by the former mock contract", () => {
+  it("accepts task wording changes when the stable game protocol still matches", () => {
     expect(parseProxyEnvelope(envelope({
       messages: [
         { role: "system", content: TIMELINE_SYSTEM_PROMPT },
@@ -149,10 +139,10 @@ describe("DeepSeek proxy contract", () => {
         },
         {
           role: "user",
-          content: JSON.stringify({ task: "生成第 2 节点。" }),
+          content: JSON.stringify({ task: "生成升级后的第二幕历史现场。" }),
         },
       ],
-    }))).toBeNull();
+    }))).not.toBeNull();
   });
 
   it("accepts live Roll requests as turn-phase AI generation", () => {
@@ -188,38 +178,7 @@ describe("DeepSeek proxy contract", () => {
     ]))).toBeNull();
   });
 
-  it("sizes the public minute window for hundreds of repeat players without a daily lockout", () => {
-    const database = {} as D1DatabaseLike;
-    const defaults = publicRateLimitPolicy({ DB: database });
-    expect(defaults).toEqual({
-      guestPerMinute: 120,
-      ipPerMinute: 1_800,
-      globalPerMinute: 2_400,
-    });
-    const sixHundredPlayersFinishingTogether = 600 * 2;
-    expect(defaults.guestPerMinute).toBeGreaterThan(13);
-    expect(defaults.ipPerMinute).toBeGreaterThanOrEqual(sixHundredPlayersFinishingTogether);
-    expect(defaults.globalPerMinute).toBeGreaterThanOrEqual(sixHundredPlayersFinishingTogether);
-    expect(publicRateLimitPolicy({
-      DB: database,
-      DEEPSEEK_GUEST_MINUTE_LIMIT: "240",
-      DEEPSEEK_IP_MINUTE_LIMIT: "3600",
-      DEEPSEEK_GLOBAL_MINUTE_LIMIT: "4800",
-    })).toEqual({
-      guestPerMinute: 240,
-      ipPerMinute: 3_600,
-      globalPerMinute: 4_800,
-    });
-  });
-
-  it("bypasses the public D1 limiter on localhost and still uses the local server key", async () => {
-    const prepare = vi.fn(() => {
-      throw new Error("local development must not touch the public rate-limit database");
-    });
-    const database = {
-      prepare,
-      batch: vi.fn(),
-    } as unknown as D1DatabaseLike;
+  it("uses the local server key without any application rate limiter", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response("data: [DONE]\n\n", {
       status: 200,
       headers: { "Content-Type": "text/event-stream" },
@@ -229,15 +188,12 @@ describe("DeepSeek proxy contract", () => {
     const response = await handleDeepSeekProxy(
       proxyRequest("http://localhost:3003"),
       {
-        DB: database,
         VITE_DEEPSEEK_API_KEY: "project-local-key",
         VITE_DEEPSEEK_MODEL: "deepseek-v4-flash",
       },
-      workerContext(),
     );
 
     expect(response.status).toBe(200);
-    expect(prepare).not.toHaveBeenCalled();
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
       headers: {
@@ -246,39 +202,40 @@ describe("DeepSeek proxy contract", () => {
     });
   });
 
-  it("uses a retryable minute burst response instead of a day-long production quota", async () => {
-    const statement = {
-      bind: vi.fn(),
-      run: vi.fn().mockResolvedValue({}),
-    };
-    statement.bind.mockReturnValue(statement);
-    const database = {
-      prepare: vi.fn(() => statement),
-      batch: vi.fn()
-        .mockResolvedValueOnce([
-          { results: [{ request_count: 121 }] },
-          { results: [{ request_count: 1 }] },
-          { results: [{ request_count: 1 }] },
-        ])
-        .mockResolvedValueOnce([]),
-    } as unknown as D1DatabaseLike;
-    const fetcher = vi.fn();
+  it("sends public product requests upstream without guest, IP, or global limits", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response("data: [DONE]\n\n", {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    }));
     vi.stubGlobal("fetch", fetcher);
 
     const response = await handleDeepSeekProxy(
       proxyRequest("https://history.example.com"),
       {
-        DB: database,
         DEEPSEEK_API_KEY: "server-key",
-        RATE_LIMIT_SALT: "a-long-production-only-rate-limit-salt",
       },
-      workerContext(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("X-History-Rate-Limit")).toBeNull();
+    expect(response.headers.get("Set-Cookie")).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes an upstream provider 429 through without adding an application limit header", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, {
+      status: 429,
+      headers: { "Retry-After": "2" },
+    }));
+    vi.stubGlobal("fetch", fetcher);
+
+    const response = await handleDeepSeekProxy(
+      proxyRequest("https://history.example.com"),
+      { DEEPSEEK_API_KEY: "server-key" },
     );
 
     expect(response.status).toBe(429);
-    expect(response.headers.get("X-History-Rate-Limit")).toBe("burst");
-    expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
-    expect(Number(response.headers.get("Retry-After"))).toBeLessThanOrEqual(60);
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(response.headers.get("Retry-After")).toBe("2");
+    expect(response.headers.get("X-History-Rate-Limit")).toBeNull();
   });
 });

@@ -109,6 +109,7 @@ describe("modern traveler AI prompt contract", () => {
     expect(biography).toContain('"compactShape"');
     expect(biography).toContain("一生纪事");
     expect(biography).toContain("自然普通话");
+    expect(biography).toContain("纯地点（不含年份、年龄或分隔符）");
     expect(biography).not.toContain("文言列传");
     expect(biography).not.toContain("第一幕后果");
     expect(biography).not.toContain("ordinaryLife2026");

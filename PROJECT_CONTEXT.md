@@ -4,7 +4,7 @@
 
 《哎！我改变了历史？》是一款移动端 AI 穿越历史肉鸽卡牌游戏。100 个著名真实历史转折点（中国 58、世界 42，覆盖公元前到现代）不再作为自由选择目录直接压给玩家：首页先显示未显影命运牌，玩家按下抽取后，完整档案海报卡在有纵深的 3D 轮盘里以固定节奏从右后方旋入、从左后方退场，随后随机揭晓一个历史现场；系统优先命中尚未通关的节点。抽取时不显示任何闯入或重抽按钮，停稳后才揭晓完整海报卡、主行动与紧邻其下的次级重抽，最后一张旋转卡与停稳卡保持完全一致的可见几何。玩家进入后立即装载该节点固定且经过 schema 校验的第一幕。每幕先展示循史、破局、天外三张牌并允许 Roll 三次：第一次经过约 1.2 秒实体洗牌仪式换成预生成第二组，第二和第三次在保持现场不变的前提下由 DeepSeek 实时生成新三张。循史不再等同于温和或少改变，而是让当前掌权者、命令方向与既有结果按时落地；它即使执行战争、政变或拒绝也属于循史，并且不会新增偏离度。100 个固定第一幕的两组 A/B 都在开发期由 DeepSeek V4 Flash 编写，A 逐条对照真实结局审校，B 才负责改变控制关系、命令或结果。天外牌不再由抽象奇想模板临场乱编，而是由客户端从 50 项彼此不同的超能力中整局无放回抽取，再要求 AI 把唯一指定能力深度用在本幕的真实人物、器物、命令、地点与期限上；固定第一幕再从该历史快照专属的六张 AI 天外候选里随机取两张，因此不增加任何首屏等待。牌面以 4-7 字为生成目标（schema 兼容上限 16），长按显示完整决定、行动规格、结果与代价，向上划出一张后把完整决定写入时间线；产品不提供自由输入或第四路径。所有面向玩家的生成文案必须使用自然中文：`powerId`、`deadline`、`actionSpec` 和 `reverse-cause` 一类协议字段或能力 ID 只能存在于结构化数据中，新输出一旦泄漏就进入字段修复，旧存档只把这些确定的机器词迁移成权威中文能力名；NASA、CERN、U-2 等真实历史专名缩写仍可保留。同一位固定姓名和身体的主角只经历命运当日、三日后、人生转折、最后抉择四次重大决定。第四次决定成为客户端正史时，该开局立即写入独立的永久“已解锁档案”，不等待自然普通话的《一生纪事》和延伸至 2026 的蝴蝶效应报告成功；已解锁档案可反复点击并从固定第一幕开始全新一局。产品没有人格测试、MBTI 标签或隐藏的自动选择时间线。
 
-当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，并通过官方 `/v1/chat/completions` 原样流式转发 SSE；浏览器产物不再包含 API Key。localhost 使用开发者自己的 Key 并完全绕过公开站点 D1 配额；Sites 生产只对访客、共享出口 IP 与全站施加默认 120 / 1800 / 2400 加权单位的一分钟反滥用窗口，高推理恢复按 3 个单位计算，没有会把正常玩家锁死到第二天的每日硬封顶。内部短时 429 标记为可重试 `burst`，与 DeepSeek 上游 429 明确区分；过期分钟桶只保留两天，避免长期运行让 D1 无限增长。本地与 Node 长测优先读取项目 `.env.local` 的当前 Key，避免失效的系统环境 Key 覆盖用户刚配置的凭据；发布长测必须通过本地 Worker 代理运行，直连官方接口的 Node 长测只用于拆分上游故障，不能证明浏览器产品可用。后续幕次使用九位场景数组加两组三牌数组的低延迟协议，只传对连续性、校验或可见故事有真实消费方的上下文，完整中文决定与结果仍由模型编写；常规幕次使用 4096 输出 token，并发双结局各使用 2048，全部走 V4 Flash 非思考快速路径；十秒只作为真实长测中的优化目标，不是运行时截止线，超过十秒的健康请求会继续流式生成，完整文案、字段修复和剧情连续性优先。Zod 继续校验结构化输出，也会在本地补齐无语义变化的句末标点、接纳完整的自然长度，并在模型多写身后时代时保留最早三段与最终 2026 段；前端公式继续计算历史偏离度，本地 CC0 配乐以低响度随章节缓慢变化，八项交互音效作为前景反馈并在播放时短暂压低配乐；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
+当前版本保留完整的浏览器端游戏，同时已经具备可公开分享的 Sites / Cloudflare Worker 托管架构：浏览器只向同源 `/api/deepseek/completions` 发送固定游戏协议，Worker 从运行时 secret 读取 DeepSeek `deepseek-v4-flash` 密钥，并通过官方 `/v1/chat/completions` 原样流式转发 SSE；浏览器产物不再包含 API Key。localhost 和 Sites 都不设置产品侧访客、IP、全站、分钟或每日请求限额，也不再创建 D1 用量桶；通过版本、同源、系统协议、阶段、请求类型和 JSON 结构校验的游戏请求会立即转发。Worker 不再检查具体中文 `task` 文案，因此 prompt 演进不会再次触发产品侧 400；DeepSeek 上游仍可能按供应商容量或账户状态返回 429。互动空间完全绕过该 Worker，只通过 `tt.callAIChatCompletion` 使用平台托管的火山凭据。本地与 Node 长测优先读取项目 `.env.local` 的当前 Key，避免失效的系统环境 Key 覆盖用户刚配置的凭据；发布长测必须通过本地 Worker 代理运行，直连官方接口的 Node 长测只用于拆分上游故障，不能证明浏览器产品可用。后续幕次使用九位场景数组加两组三牌数组的低延迟协议，只传对连续性、校验或可见故事有真实消费方的上下文，完整中文决定与结果仍由模型编写；常规幕次使用 4096 输出 token，并发双结局各使用 2048，全部走 V4 Flash 非思考快速路径；十秒只作为真实长测中的优化目标，不是运行时截止线，超过十秒的健康请求会继续流式生成，完整文案、字段修复和剧情连续性优先。Zod 继续校验结构化输出，也会在本地补齐无语义变化的句末标点、接纳完整的自然长度，并在模型多写身后时代时保留最早三段与最终 2026 段；人物结局中的死亡年份和年龄由客户端权威渲染，模型只提供纯地点，若新响应或旧存档在地点前重复年龄，schema 会在显示前去重。前端公式继续计算历史偏离度，本地 CC0 配乐以低响度随章节缓慢变化，八项交互音效作为前景反馈并在播放时短暂压低配乐；两页结局仍按完整滚动尺寸导出为 2x PNG，桌面端直接下载，移动 Web 通过第二次用户操作打开系统分享面板并保留 PNG 下载后备。当前局存档与永久解锁集合分别保存在浏览器 `localStorage`：局内状态可按版本淘汰，已解锁档案仍会恢复并参与后续随机优先级。
 
 本地开发环境还提供独立的 `/tap.html` LLM Tap 调试页。浏览器端 DeepSeek 传输会通过同源 `BroadcastChannel("llm-tap-v1")` 旁路广播每次请求的完整输入、输出、状态、时序和 token 用量；调试页最多保存 200 条记录，支持请求翻页、输入/输出/指标切换、JSON 导出和清空。广播失败始终静默，不得影响游戏请求；`tap.html` 与 `src/tap/` 不进入普通生产构建和互动空间审核包。
 
@@ -23,9 +23,8 @@
 - `src/services/`：DeepSeek 官方 / Sites Worker 传输、互动空间火山平台传输、带短时配乐 ducking 的前景卡牌音效、版本化当前局存储、独立永久解锁收藏、低响度史诗配乐，以及完整报告 PNG 的准备、系统分享、下载与资源回收。
 - `tap.html` 与 `src/tap/`：仅供本地开发的 LLM Tap 独立 React 页面；通过同源 BroadcastChannel 接收 DeepSeek 输入、输出、时序、状态与 token 用量，并提供三视图、翻页、持久化、导出和清空。
 - `app/`：vinext App Router 页面、中文 metadata，以及禁止服务端预渲染现有浏览器游戏的 client-only 边界。
-- `worker/`：Sites Cloudflare Worker 入口、固定协议校验、localhost 限流旁路、Sites 一分钟 D1 反滥用容量、DeepSeek 服务端密钥注入和透明 SSE 转发。
-- `db/` 与 `drizzle/`：AI 请求限额表定义及 Sites 部署迁移。
-- `build/` 与 `.openai/hosting.json`：Sites 构建元数据打包和 D1 / R2 逻辑绑定。
+- `worker/`：Sites Cloudflare Worker 入口、稳定游戏协议校验、DeepSeek 服务端密钥注入和无产品侧限流的透明 SSE 转发。
+- `build/` 与 `.openai/hosting.json`：Sites 构建元数据、项目 ID 和无 D1 / R2 绑定的托管配置。
 - `src/screens/` 和 `src/components/`：从命运抽取、游戏说明、解锁档案、三卡牌桌、三次 Roll、长按详情、上划提交，到同一主角死亡与 2026 身后历史报告的完整界面。
 - `src/components/CardCommitFlight.tsx`：脱离事件页裁剪层的页面最高层飞行、距产品顶部约 8px 的居中停驻、连续弧线轨道，以及 GPU 卡面裁切配合轻量纸灰粒子的无栅格消散。
 - `src/styles/`：煤黑、新闻纸、朱砂红、青绿和黄色构成的移动端视觉系统。
@@ -63,20 +62,29 @@
 - `src/services/storage.ts`：版本化当前局存档与独立永久解锁档案的保存、合并、旧版本迁移和损坏恢复入口。
 - `src/services/deepseek.ts`、`src/services/deepseek.interactive.ts` 与 `docs/ai-transports.md`：DeepSeek 官方、Sites 同源 Worker 和互动空间火山平台双通道入口与说明。
 - `tap.html` 与 `src/tap/main.tsx`：本地 LLM Tap 独立页面与 React 挂载入口；`src/tap/hooks/useTapChannel.ts` 负责调试广播、最多 200 条本地持久化、同步、导出和清空。
-- `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker / D1 本地绑定配置。
+- `vite.config.ts`：vinext、Sites metadata 和 Cloudflare Worker 本地开发配置。
 - `vite.interactive.config.ts`：互动空间纯静态 Vite 构建和 `tt.callAIChatCompletion` / 本地报告导出适配入口。
 - `vitest.config.mjs` 与 `vitest.soak.config.mjs`：普通 jsdom 回归与真实 DeepSeek 长局配置；Node 长测可直连模型做上游诊断，发布门禁则必须通过本地 Worker 代理运行。
-- `.openai/hosting.json`：Sites 项目 ID 与 D1 / R2 逻辑绑定，绝不保存运行时密钥。
+- `.openai/hosting.json`：Sites 项目 ID 与空 D1 / R2 绑定，绝不保存运行时密钥。
 - `.trae/mcp.json`：比赛方 `interative_content_mcp` 的项目级发布配置。
 - `scripts/package-interactive-review.mjs`：抖音提审前唯一允许的打包入口，最终输出 `release/i-changed-history-interactive-space.zip`。
 - `interactive-space.release.json` 与 `docs/interactive-space-release-checklist.md`：火山 AI、模型、包体、AI 标识、官方校验与提审阻断规则入口。
 - `scripts/generate-fixed-opening-choices.mjs`：固定开场循史/破局的开发期 AI 生成、结构/历史语义审校、断点续跑和全量权威数据输出入口。
 - `scripts/generate-fixed-power-choices.mjs`：固定开局天外候选的开发期 AI 生成、校验、断点续跑和全量权威数据输出入口。
-- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build`、`npm run build:interactive` 和 `npm run db:generate` 命令入口；其中 `build:interactive` 已固定为完整 100 剧本互动空间打包链路。
+- `package.json`：`npm run dev`、`npm test`、`npm run test:soak`、`npm run typecheck`、`npm run build` 和 `npm run build:interactive` 命令入口；其中 `build:interactive` 已固定为完整 100 剧本互动空间打包链路。
 - `design/selected-visual.md`：image-to-code 的目标稿和尺寸约束。
 - `.env.example`：DeepSeek 模型和本地密钥变量模板，不包含真实密钥。
 
 ## 4. 最近改了什么
+
+### 2026-07-30 00:03 - 移除产品侧 AI 限流并消除结局年龄重复
+
+- 本次任务：解释并修复 Worker 400 与互动空间火山通道的边界，按用户要求彻底移除产品自建速率约束，同时修复人物结局中“70 岁 · 70 岁”一类死亡年龄重复显示。
+- 改了哪些文件：修改 `worker/{deepseek-proxy,index}.ts`、`src/services/{deepseek,deepseek.test}.ts`、`src/server/deepseekProxyContract.test.ts`、`src/game/{prompts,prompts.test,schema,schema.test}.ts`、`src/components/ResultFrontPage.test.tsx`、`.env.example`、`.openai/hosting.json`、`package.json`、`package-lock.json`、`README.md`、`docs/ai-transports.md`、`AGENTS.md` 和本文档；删除 `db/`、`drizzle/` 与 `drizzle.config.ts` 的限流表、迁移和工具链。
+- 改了什么：Worker 不再按中文 `task` 前缀做白名单判断，只验证同源、版本、系统 prompt、阶段、请求类型、消息结构、体积和非空 JSON 任务，因此 prompt 文案演进不会再制造产品侧 400。访客、IP、全站、分钟和每日限流及其 Cookie、HMAC、D1 预留/退款、内部 429、环境变量、托管绑定、依赖和数据表全部移除；有效 Web 游戏请求立即转发，供应商 429 仍按 `Retry-After` 有限重试。互动空间继续绕过 Worker，原样使用 `tt.callAIChatCompletion` 和平台火山凭据。结局 prompt 现在要求死亡地点不含年份或年龄；schema 以客户端权威年龄为准，对新结果和旧存档中的地点前缀（如 `70岁 · 顺天府…`）统一去重后再渲染。
+- 为什么这样改：具体任务句子是会随产品迭代变化的内容，不是稳定安全协议，把它写进代理白名单会让合法产品请求被自己拒绝；用户规模目标也不应被产品自建配额误伤。真正需要服务端固定的是密钥、同源、协议身份、模型参数和请求形状。年龄、死亡年份同样已由客户端权威掌握，模型只需写地点，重复元数据既浪费输出也破坏报告阅读。
+- 影响了哪些模块：影响本地和 Sites Web 的 Worker 校验、AI 请求容量、上游 429 语义、Sites 托管绑定、依赖和结局字段归一；不改变 DeepSeek 模型、输出预算、重试次数、四幕三卡三 Roll、故事内容、存档正史、100 剧本或互动空间火山传输。
+- 验证：定向代理/传输/prompt/schema/报告回归 5 文件 135/135，全量 Vitest 39 文件 367/367、TypeScript、235 个运行时文件可移植性与 `git diff --check` 通过。强制经过本地 Worker 的五局真实长测为 5/5 完整局、20/20 生成阶段成功、29 次真实请求，无产品侧 400/429；首段可读 p50 3640ms，完整幕次 p50 8484ms。vinext 生产构建与完整 100 剧本互动空间构建通过；互动空间包仍固定 `tt.callAIChatCompletion`、`deepseek-v4-flash` 和平台火山凭据，ZIP 140 文件、5,938,347 字节、MD5 `9bd9d7c7cbf5e7e03faf402058e508bb`。本地 3003 冷启动返回 HTTP 200，最新页面控制台无 error/warning 并保持打开。
 
 ### 2026-07-29 23:44 - 修复浏览器续幕协议被 Worker 拒绝
 

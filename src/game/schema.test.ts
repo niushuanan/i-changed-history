@@ -984,6 +984,24 @@ describe("structured timeline parsing", () => {
     expect(world.posthumousChronicle).toEqual(endingFixture.posthumousChronicle);
   });
 
+  it("removes a repeated authoritative age from the generated death place", () => {
+    const biography = parseBiographyReport(JSON.stringify({
+      b: endingFixture.lifeStory,
+      s: endingFixture.lifespanSummary,
+      d: [
+        `${endingFixture.deathScene.yearLabel} · ${endingFixture.deathScene.age}岁 · ${endingFixture.deathScene.place}`,
+        endingFixture.deathScene.finalMoment,
+        endingFixture.deathScene.lastingLegacy,
+      ],
+    }), {
+      expectedProtagonistName: endingFixture.protagonistName,
+      expectedDeathYearLabel: endingFixture.deathScene.yearLabel,
+      expectedDeathAge: endingFixture.deathScene.age,
+    });
+
+    expect(biography.deathScene.place).toBe(endingFixture.deathScene.place);
+  });
+
   it("preserves a complete legacy paragraph beyond the former local truncation limit", () => {
     const lastingLegacy = "他留下的制度仍被后世沿用。".repeat(10);
     expect([...lastingLegacy].length).toBeGreaterThan(120);

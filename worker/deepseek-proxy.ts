@@ -1,8 +1,5 @@
 import {
-  CONTINUATION_TASK_PREFIX,
   ENDING_SYSTEM_PROMPT,
-  ENDING_BIOGRAPHY_TASK_PREFIX,
-  ENDING_WORLD_TASK_PREFIX,
   TIMELINE_SYSTEM_PROMPT,
   TIMELINE_TURN_PROTOCOL,
 } from "../src/game/deepseekProtocol";
@@ -11,12 +8,6 @@ const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const MAX_REQUEST_BYTES = 512 * 1024;
 const MAX_MESSAGE_CHARACTERS = 240_000;
-const GUEST_COOKIE = "history_guest";
-const MINUTE_MS = 60 * 1_000;
-const RATE_LIMIT_RETENTION_MS = 2 * 24 * 60 * MINUTE_MS;
-const DEFAULT_GUEST_MINUTE_LIMIT = 120;
-const DEFAULT_IP_MINUTE_LIMIT = 1_800;
-const DEFAULT_GLOBAL_MINUTE_LIMIT = 2_400;
 const OUTPUT_TOKEN_BUDGET = { turn: 4096, ending: 2048 } as const;
 
 const REQUEST_KINDS = new Set([
@@ -32,16 +23,6 @@ const REQUEST_KINDS = new Set([
 ]);
 
 type ProxyMessage = Readonly<{ role: "system" | "user"; content: string }>;
-
-export type D1PreparedStatementLike = {
-  bind(...values: unknown[]): D1PreparedStatementLike;
-  run(): Promise<unknown>;
-};
-
-export type D1DatabaseLike = {
-  prepare(query: string): D1PreparedStatementLike;
-  batch(statements: readonly D1PreparedStatementLike[]): Promise<ReadonlyArray<{ results: unknown[] }>>;
-};
 
 export type WorkerExecutionContext = {
   waitUntil(promise: Promise<unknown>): void;
@@ -66,37 +47,11 @@ export type DeepSeekProxyEnvelope = Readonly<{
 }>;
 
 export type DeepSeekProxyEnv = Readonly<{
-  DB: D1DatabaseLike;
   DEEPSEEK_API_KEY?: string;
   VITE_DEEPSEEK_API_KEY?: string;
   DEEPSEEK_MODEL?: string;
   VITE_DEEPSEEK_MODEL?: string;
-  RATE_LIMIT_SALT?: string;
-  DEEPSEEK_GUEST_MINUTE_LIMIT?: string;
-  DEEPSEEK_IP_MINUTE_LIMIT?: string;
-  DEEPSEEK_GLOBAL_MINUTE_LIMIT?: string;
 }>;
-
-export type PublicRateLimitPolicy = Readonly<{
-  guestPerMinute: number;
-  ipPerMinute: number;
-  globalPerMinute: number;
-}>;
-
-type RateLimitReservation = Readonly<{
-  bucket: string;
-  windowStart: number;
-  amount: number;
-  limit: number;
-  windowMs: number;
-}>;
-
-type GuestIdentity = Readonly<{
-  id: string;
-  setCookie?: string;
-}>;
-
-let rateLimitSchemaReady: Promise<void> | undefined;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -111,7 +66,7 @@ function isProxyMessage(value: unknown): value is ProxyMessage {
   );
 }
 
-function allowedUserTask(content: string): boolean {
+function validUserPayload(content: string): boolean {
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
@@ -120,17 +75,7 @@ function allowedUserTask(content: string): boolean {
   }
   if (!isRecord(parsed)) return false;
   const task = parsed.task;
-  if (typeof task !== "string") return false;
-  if ([2, 3, 4].some((chapter) => task.startsWith(`${CONTINUATION_TASK_PREFIX}${chapter}幕。`))) return true;
-  return [
-    "为当前现场发出第",
-    "玩家正在直接写入一条新的历史结果。",
-    ENDING_BIOGRAPHY_TASK_PREFIX,
-    ENDING_WORLD_TASK_PREFIX,
-    "修复下面的模型输出",
-    "上一输出只有部分字段校验失败。",
-    "上一输出校验失败。",
-  ].some((prefix) => task.startsWith(prefix));
+  return typeof task === "string" && task.trim().length > 0;
 }
 
 function validTimelineProtocol(content: string): boolean {
@@ -160,7 +105,7 @@ export function parseProxyEnvelope(value: unknown): DeepSeekProxyEnvelope | null
   if (messages.length !== 2 && messages.length !== 3) return null;
   const expectedSystem = value.phase === "ending" ? ENDING_SYSTEM_PROMPT : TIMELINE_SYSTEM_PROMPT;
   if (messages[0].role !== "system" || messages[0].content !== expectedSystem) return null;
-  if (messages.at(-1)?.role !== "user" || !allowedUserTask(messages.at(-1)?.content ?? "")) return null;
+  if (messages.at(-1)?.role !== "user" || !validUserPayload(messages.at(-1)?.content ?? "")) return null;
   if (messages.length === 3) {
     if (messages[1].role !== "system" || !validTimelineProtocol(messages[1].content)) return null;
   }
@@ -227,208 +172,7 @@ function runtimeValue(value: string | undefined): string | undefined {
   return normalized || undefined;
 }
 
-function cookieValues(request: Request): Map<string, string> {
-  const cookies = new Map<string, string>();
-  for (const item of request.headers.get("Cookie")?.split(";") ?? []) {
-    const separator = item.indexOf("=");
-    if (separator <= 0) continue;
-    cookies.set(item.slice(0, separator).trim(), decodeURIComponent(item.slice(separator + 1).trim()));
-  }
-  return cookies;
-}
-
-function toHex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function hmac(value: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return toHex(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
-}
-
-function constantTimeEqual(left: string, right: string): boolean {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  }
-  return difference === 0;
-}
-
-async function guestIdentity(request: Request, secret: string): Promise<GuestIdentity> {
-  const stored = cookieValues(request).get(GUEST_COOKIE);
-  if (stored) {
-    const separator = stored.lastIndexOf(".");
-    const id = stored.slice(0, separator);
-    const signature = stored.slice(separator + 1);
-    if (
-      separator > 0
-      && /^[a-f0-9-]{36}$/.test(id)
-      && constantTimeEqual(signature, await hmac(`guest:${id}`, secret))
-    ) {
-      return { id };
-    }
-  }
-
-  const id = crypto.randomUUID();
-  const signature = await hmac(`guest:${id}`, secret);
-  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-  return {
-    id,
-    setCookie: `${GUEST_COOKIE}=${encodeURIComponent(`${id}.${signature}`)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`,
-  };
-}
-
-function clientIp(request: Request): string {
-  return (
-    request.headers.get("CF-Connecting-IP")
-    ?? request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim()
-    ?? "unknown"
-  );
-}
-
-async function ensureRateLimitSchema(database: D1DatabaseLike): Promise<void> {
-  rateLimitSchemaReady ??= database.prepare(`
-    CREATE TABLE IF NOT EXISTS ai_rate_limits (
-      bucket TEXT NOT NULL,
-      window_start INTEGER NOT NULL,
-      request_count INTEGER NOT NULL DEFAULT 0,
-      updated_at INTEGER NOT NULL,
-      PRIMARY KEY (bucket, window_start)
-    )
-  `).run().then(() => database.prepare(`
-    DELETE FROM ai_rate_limits
-    WHERE window_start < ?
-  `).bind(Date.now() - RATE_LIMIT_RETENTION_MS).run()).then(() => undefined).catch((error) => {
-    rateLimitSchemaReady = undefined;
-    throw error;
-  });
-  return rateLimitSchemaReady;
-}
-
-function positiveInteger(value: string | undefined, fallback: number): number {
-  const configured = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(configured) && configured > 0 ? configured : fallback;
-}
-
-export function publicRateLimitPolicy(env: DeepSeekProxyEnv): PublicRateLimitPolicy {
-  return {
-    guestPerMinute: positiveInteger(
-      env.DEEPSEEK_GUEST_MINUTE_LIMIT,
-      DEFAULT_GUEST_MINUTE_LIMIT,
-    ),
-    ipPerMinute: positiveInteger(
-      env.DEEPSEEK_IP_MINUTE_LIMIT,
-      DEFAULT_IP_MINUTE_LIMIT,
-    ),
-    globalPerMinute: positiveInteger(
-      env.DEEPSEEK_GLOBAL_MINUTE_LIMIT,
-      DEFAULT_GLOBAL_MINUTE_LIMIT,
-    ),
-  };
-}
-
-async function reservationsFor(
-  request: Request,
-  env: DeepSeekProxyEnv,
-  guest: GuestIdentity,
-  salt: string,
-  reasoning: DeepSeekProxyEnvelope["reasoning"],
-): Promise<readonly RateLimitReservation[]> {
-  const now = Date.now();
-  const amount = reasoning === "high" ? 3 : 1;
-  const ipHash = await hmac(`ip:${clientIp(request)}`, salt);
-  const guestHash = await hmac(`guest-bucket:${guest.id}`, salt);
-  const minuteWindow = Math.floor(now / MINUTE_MS) * MINUTE_MS;
-  const policy = publicRateLimitPolicy(env);
-
-  return [
-    {
-      bucket: `guest:${guestHash}`,
-      windowStart: minuteWindow,
-      amount,
-      limit: policy.guestPerMinute,
-      windowMs: MINUTE_MS,
-    },
-    {
-      bucket: `ip:${ipHash}`,
-      windowStart: minuteWindow,
-      amount,
-      limit: policy.ipPerMinute,
-      windowMs: MINUTE_MS,
-    },
-    {
-      bucket: "global",
-      windowStart: minuteWindow,
-      amount,
-      limit: policy.globalPerMinute,
-      windowMs: MINUTE_MS,
-    },
-  ];
-}
-
-async function updateReservations(
-  database: D1DatabaseLike,
-  reservations: readonly RateLimitReservation[],
-): Promise<readonly number[]> {
-  const now = Date.now();
-  const statements = reservations.map((reservation) => database.prepare(`
-    INSERT INTO ai_rate_limits (bucket, window_start, request_count, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(bucket, window_start) DO UPDATE SET
-      request_count = request_count + excluded.request_count,
-      updated_at = excluded.updated_at
-    RETURNING request_count
-  `).bind(reservation.bucket, reservation.windowStart, reservation.amount, now));
-  const results = await database.batch(statements);
-  return results.map((result) => Number((result.results[0] as { request_count?: unknown } | undefined)?.request_count ?? 0));
-}
-
-async function refundReservations(
-  database: D1DatabaseLike,
-  reservations: readonly RateLimitReservation[],
-): Promise<void> {
-  await database.batch(reservations.map((reservation) => database.prepare(`
-    UPDATE ai_rate_limits
-    SET request_count = MAX(0, request_count - ?), updated_at = ?
-    WHERE bucket = ? AND window_start = ?
-  `).bind(reservation.amount, Date.now(), reservation.bucket, reservation.windowStart)));
-}
-
-async function reserveRateLimit(
-  request: Request,
-  env: DeepSeekProxyEnv,
-  guest: GuestIdentity,
-  salt: string,
-  reasoning: DeepSeekProxyEnvelope["reasoning"],
-): Promise<
-  | { allowed: true; reservations: readonly RateLimitReservation[] }
-  | { allowed: false; retryAfterSeconds: number }
-> {
-  await ensureRateLimitSchema(env.DB);
-  const reservations = await reservationsFor(request, env, guest, salt, reasoning);
-  const counts = await updateReservations(env.DB, reservations);
-  const denied = reservations
-    .map((reservation, index) => ({ reservation, count: counts[index] }))
-    .find(({ reservation, count }) => count > reservation.limit);
-
-  if (!denied) return { allowed: true, reservations };
-  await refundReservations(env.DB, reservations);
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.ceil((denied.reservation.windowStart + denied.reservation.windowMs - Date.now()) / 1_000),
-  );
-  return { allowed: false, retryAfterSeconds };
-}
-
-function proxyResponseHeaders(upstream: Response, setCookie?: string): Headers {
+function proxyResponseHeaders(upstream: Response): Headers {
   const headers = new Headers({
     "Cache-Control": "no-cache, no-store, no-transform",
     "Content-Type": upstream.headers.get("Content-Type") ?? "text/event-stream; charset=utf-8",
@@ -439,7 +183,6 @@ function proxyResponseHeaders(upstream: Response, setCookie?: string): Headers {
   const requestId = upstream.headers.get("X-Request-ID");
   if (retryAfter) headers.set("Retry-After", retryAfter);
   if (requestId) headers.set("X-Request-ID", requestId);
-  if (setCookie) headers.append("Set-Cookie", setCookie);
   return headers;
 }
 
@@ -475,7 +218,6 @@ function streamedBody(
 export async function handleDeepSeekProxy(
   request: Request,
   env: DeepSeekProxyEnv,
-  context: WorkerExecutionContext,
 ): Promise<Response> {
   if (request.method !== "POST") {
     return jsonError("Method not allowed.", 405, { Allow: "POST" });
@@ -518,34 +260,6 @@ export async function handleDeepSeekProxy(
     return jsonError("The history simulation service is not configured.", 503);
   }
 
-  let guest: GuestIdentity | undefined;
-  let reservations: readonly RateLimitReservation[] = [];
-  if (!localRequest) {
-    const salt = runtimeValue(env.RATE_LIMIT_SALT);
-    if (!salt) {
-      return jsonError("The history simulation limit is not configured.", 503);
-    }
-    guest = await guestIdentity(request, salt);
-    let reserved: Awaited<ReturnType<typeof reserveRateLimit>>;
-    try {
-      reserved = await reserveRateLimit(request, env, guest, salt, envelope.reasoning);
-    } catch {
-      return jsonError("The history simulation limit is temporarily unavailable.", 503);
-    }
-    if (!reserved.allowed) {
-      return jsonError(
-        "Too many history simulation requests.",
-        429,
-        {
-          "Retry-After": String(reserved.retryAfterSeconds),
-          "X-History-Rate-Limit": "burst",
-          ...(guest.setCookie ? { "Set-Cookie": guest.setCookie } : {}),
-        },
-      );
-    }
-    reservations = reserved.reservations;
-  }
-
   const abortController = new AbortController();
   const handleAbort = () => abortController.abort(request.signal.reason);
   request.signal.addEventListener("abort", handleAbort, { once: true });
@@ -573,20 +287,14 @@ export async function handleDeepSeekProxy(
   } catch (error) {
     cleanup();
     if (!request.signal.aborted) {
-      if (reservations.length > 0) {
-        context.waitUntil(refundReservations(env.DB, reservations));
-      }
       return jsonError("The history simulation service is unavailable.", 503);
     }
     throw error;
   }
 
-  const headers = proxyResponseHeaders(upstream, guest?.setCookie);
+  const headers = proxyResponseHeaders(upstream);
   if (!upstream.ok || !upstream.body) {
     cleanup();
-    if (reservations.length > 0) {
-      context.waitUntil(refundReservations(env.DB, reservations));
-    }
     return new Response(null, { status: upstream.status || 503, headers });
   }
 

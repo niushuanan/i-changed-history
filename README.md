@@ -44,7 +44,7 @@
 
 - React 19 + TypeScript + vinext（Next App Router / Vite）
 - Sites / Cloudflare Worker 同源代理 DeepSeek Chat Completions，SSE 流式响应；幕次 4096、每份结局 2048 token 输出上限
-- D1 匿名会话、IP 与全站三层用量限制；浏览器永远拿不到 DeepSeek API Key
+- Worker 不设置访客、IP、全站或时间窗口限流；浏览器永远拿不到 DeepSeek API Key
 - Zod 结构校验与字段级 AI 修复
 - reducer 驱动的可恢复游戏状态机
 - localStorage 存档、Web Audio 配乐、完整滚动尺寸的 2x PNG 结局导出
@@ -54,7 +54,7 @@
 主要入口：
 
 - `app/page.tsx` 与 `app/game-client.tsx`：Sites 页面入口与纯浏览器游戏边界
-- `worker/index.ts` 与 `worker/deepseek-proxy.ts`：Cloudflare Worker、透明流式模型代理和用量保护
+- `worker/index.ts` 与 `worker/deepseek-proxy.ts`：Cloudflare Worker、稳定游戏协议校验和透明流式模型代理
 - `src/data/historySeeds/index.ts`：100 个独立剧本模块的完整卡组聚合入口（中国 58 / 世界 42；中国节点全部早于 1949 年，并排除中共、中华人民共和国与“新中国”政治题材；苏联史保留在世界史中）
 - `src/data/historySeeds/scripts/<seed-id>/index.ts`：单个历史剧本，可独立删除、审查和测试
 - `src/screens/SeedPickerScreen.tsx`：随机命运抽取、匀速 3D 历史轮盘与可重复游玩的已解锁档案
@@ -93,13 +93,9 @@ cp .env.example .env.local
 ```dotenv
 DEEPSEEK_API_KEY=你的_DeepSeek_API_Key
 DEEPSEEK_MODEL=deepseek-v4-flash
-RATE_LIMIT_SALT=一段只放在服务端的随机长字符串
-DEEPSEEK_GUEST_MINUTE_LIMIT=120
-DEEPSEEK_IP_MINUTE_LIMIT=1800
-DEEPSEEK_GLOBAL_MINUTE_LIMIT=2400
 ```
 
-localhost 使用开发者自己的 Key，不进入公开站点的 D1 配额。Sites 生产环境没有访客、IP 或全站每日封顶，只用上述一分钟窗口阻挡异常突发；默认容量按数百名玩家、共享网络和结局双请求设计，生产可通过服务端变量继续扩容。
+localhost 使用开发者自己的 Key，Sites 使用服务端 Key。两者都不设置产品侧访客、IP、全站、分钟或每日请求限额；有效游戏请求立即转发，只有 DeepSeek 上游自身的容量或账户状态可能返回 429。
 
 启动：
 
@@ -131,7 +127,7 @@ npm run build
 
 `check:portability` 会扫描运行时文件并拒绝开发者个人目录。GitHub Actions 会在 Windows 和 Linux 上执行 `npm ci`、测试、类型检查和生产构建。
 
-需要真实验证四次人生抉择、每幕预生成 Roll 和双报告时，可在配置限额测试 Key 后显式运行 `npm run test:soak`。默认十个不同开局都在四幕使用 Roll；设置 `SOAK_ALL_ROLL=1` 可对指定开局执行同样的全幕门禁。发布门禁必须先运行本地产品，再用 `SOAK_PROXY_BASE_URL=http://localhost:3003 SOAK_REQUIRE_PROXY=1 npm run test:soak` 让全部长测请求经过浏览器实际使用的同源 Worker 协议；Node 直连 DeepSeek 只用于拆分上游故障，不能代替产品链路验收。脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行；第二、第三次实时 Roll 的请求与失败重试由组件和应用集成测试独立覆盖。
+需要真实验证四次人生抉择、每幕预生成 Roll 和双报告时，可在配置测试 Key 后显式运行 `npm run test:soak`。默认十个不同开局都在四幕使用 Roll；设置 `SOAK_ALL_ROLL=1` 可对指定开局执行同样的全幕门禁。发布门禁必须先运行本地产品，再用 `SOAK_PROXY_BASE_URL=http://localhost:3003 SOAK_REQUIRE_PROXY=1 npm run test:soak` 让全部长测请求经过浏览器实际使用的同源 Worker 协议；Node 直连 DeepSeek 只用于拆分上游故障，不能代替产品链路验收。脱敏结果写入已忽略的 `tmp/soak/`，不会随普通 `npm test` 自动执行；第二、第三次实时 Roll 的请求与失败重试由组件和应用集成测试独立覆盖。
 
 ## 抖音互动空间完整包
 
@@ -147,7 +143,7 @@ npm run build:interactive
 
 `.env.local` 已加入 `.gitignore`，不会提交到 GitHub。DeepSeek Key 只由 Worker 在请求时读取；浏览器只访问同源 `/api/deepseek/completions`，不会携带或下载 Bearer Key。构建前会清空旧产物，避免历史 Vite bundle 把旧 Key 带进发布包。
 
-Sites 部署通过运行时环境变量保存 Key 和限额盐值，不把秘密写进 `.openai/hosting.json`。代理只接受本游戏的固定协议，保留 SSE、取消、上游状态与 `Retry-After`，并用 D1 对分钟突发、匿名会话、IP 与全站日用量做原子计数。公开分享仍建议使用单独的低预算 Key，并在 DeepSeek 账户侧设置余额上限和告警。
+Sites 部署只通过运行时环境变量保存 Key，不把秘密写进 `.openai/hosting.json`。代理校验版本、同源、系统协议、阶段和请求类型，但不绑定具体中文任务句子，也不设置任何产品侧速率限制；它原样保留 SSE、取消、上游状态与 `Retry-After`。公开分享仍建议使用单独的低预算 Key，并在 DeepSeek 账户侧设置余额上限和告警。
 
 两种运行环境的 AI 传输矩阵和测试边界见 [`docs/ai-transports.md`](docs/ai-transports.md)：本地与 Sites 走 DeepSeek 官方接口，抖音互动空间走平台注入的 `tt.callAIChatCompletion`，二者复用同一套游戏协议和 Schema。
 

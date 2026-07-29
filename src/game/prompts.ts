@@ -314,7 +314,7 @@ export function buildBiographyMessages(scenario: GameScenario, playedTurns: read
       exactFields: "只输出 b、s、d",
       lifeStory: "190-250字，自然普通话，连贯有起伏，以主角死亡和完整句号收束",
       lifespanSummary: "22-36字完整短句",
-      deathScene: "d 恰好三项：地点、18-30字临终完整句、14-26字身后遗产完整句",
+      deathScene: "d 恰好三项：纯地点（不含年份、年龄或分隔符）、18-30字临终完整句、14-26字身后遗产完整句",
     },
   });
 }

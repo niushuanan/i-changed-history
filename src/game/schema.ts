@@ -563,12 +563,47 @@ function compactAiAuthoredClause(value: unknown, max: number): unknown {
   return [...pool].sort((left, right) => [...right].length - [...left].length)[0] ?? value;
 }
 
+function deathMetadataPattern(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/u)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+    .join("\\s*");
+}
+
+function normalizeDeathPlace(value: unknown, age: unknown, yearLabel: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const metadata = [
+    typeof yearLabel === "string" ? yearLabel : null,
+    typeof age === "number" ? `${age}岁` : null,
+  ].filter((item): item is string => Boolean(item));
+  let place = value.trim();
+  for (let pass = 0; pass < metadata.length; pass += 1) {
+    const before = place;
+    for (const item of metadata) {
+      place = place.replace(
+        new RegExp(`^\\s*${deathMetadataPattern(item)}(?:\\s*[·•・|｜/，,、—-]+)?\\s*`, "u"),
+        "",
+      );
+    }
+    if (place === before) break;
+  }
+  return place;
+}
+
 function normalizeBiographyReportCandidate(value: unknown): unknown {
   const report = asRecord(value);
   if (!report) return value;
+  const deathScene = asRecord(report.deathScene);
   return {
     ...report,
     lifeStory: report.lifeStory ?? report.vernacularBiography,
+    ...(deathScene ? {
+      deathScene: {
+        ...deathScene,
+        place: normalizeDeathPlace(deathScene.place, deathScene.age, deathScene.yearLabel),
+      },
+    } : {}),
   };
 }
 

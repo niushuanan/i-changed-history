@@ -21,14 +21,14 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 
 普通浏览器只请求同源 `/api/deepseek/completions`；本地 Worker 从环境变量读取密钥并请求 DeepSeek 官方接口。密钥不会写入卡牌数据、浏览器请求体或构建产物。
 
-localhost 使用开发者自己的 Key，因此完全绕过面向公开站点的 D1 反滥用配额。Sites 生产环境不设置访客、IP 或全站每日硬封顶，只保留一分钟窗口：默认每位访客 120、同一出口 IP 1800、全站 2400 个加权请求单位；高推理恢复按 3 个单位计，其余按 1 个单位计。短时命中只返回可重试的 `burst` 429，最长一分钟恢复。三个阈值分别可由 `DEEPSEEK_GUEST_MINUTE_LIMIT`、`DEEPSEEK_IP_MINUTE_LIMIT` 与 `DEEPSEEK_GLOBAL_MINUTE_LIMIT` 调整。
+localhost 使用开发者自己的 Key，Sites 使用服务端 Key。两者都不设置产品侧访客、IP、全站、分钟或每日请求限额，也不再依赖 D1 用量桶；每个通过稳定游戏协议校验的请求都会立即转发。Worker 的 400 只保留给无效 JSON、错误版本、跨站请求、错误系统协议、阶段或请求类型，具体中文 `task` 文案只要求存在，不参与白名单匹配。DeepSeek 上游仍可能因账户或供应商容量返回 429，客户端按其 `Retry-After` 做有限重试。互动空间完全绕过该 Worker，只使用平台注入的 `tt.callAIChatCompletion` 和火山凭据。
 
 ## 自动验证
 
 - `src/services/deepseek.direct.test.ts`：Node 环境验证 DeepSeek 官方地址、Bearer 鉴权、V4 Flash、JSON 流式协议与 fast 非思考模式，也验证发布长测能切换到本地 Worker 且不携带密钥或供应商参数。
 - `src/services/deepseek.test.ts`：浏览器环境验证同源 Worker 代理不会暴露密钥。
 - `src/services/deepseek.interactive.test.ts`：互动空间环境验证 `tt.callAIChatCompletion`、平台 SSE 和固定 V4 Flash。
-- `src/server/deepseekProxyContract.test.ts`：使用正式的幕次、Roll 和双结局 prompt 构造器生成请求，验证 Worker 接受产品真实协议并拒绝过期或伪造任务文本。
+- `src/server/deepseekProxyContract.test.ts`：使用正式的幕次、Roll 和双结局 prompt 构造器生成请求，验证 Worker 接受产品真实协议和任务文案演进、拒绝错误系统协议，并确认公开请求不经过产品侧限流。
 
 涉及 prompt、幕次任务、DeepSeek 传输或 Worker 协议的发布，先启动本地产品，再执行：
 

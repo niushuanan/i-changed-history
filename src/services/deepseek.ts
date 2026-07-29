@@ -172,13 +172,12 @@ function errorForResponse(response: Response): DeepSeekError {
     return new DeepSeekError("forbidden", "当前 DeepSeek API 密钥没有调用权限。", status);
   }
   if (status === 429) {
-    const quotaReached = response.headers.get("X-History-Rate-Limit") === "quota";
     return new DeepSeekError(
       "rate_limited",
       "请求过于频繁，请稍后重新推演。",
       status,
       retryAfterMs,
-      !quotaReached,
+      true,
     );
   }
   if (status >= 500) {
