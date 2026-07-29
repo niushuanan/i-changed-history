@@ -436,6 +436,38 @@ async function performRequest(
   const reasoning = options.reasoning ?? "high";
   const requestKind = options.requestKind
     ?? (options.phase === "ending" ? "ending-primary" : "turn-primary");
+  const TAP_CHANNEL = typeof BroadcastChannel !== "undefined" ? "llm-tap-v1" : null;
+  const broadcast = (payload: {
+    kind: string;
+    messages: readonly ChatMessage[];
+    response: string | null;
+    timing: { totalMs: number; responseHeadersMs?: number; firstReasoningTokenMs?: number; firstContentTokenMs?: number };
+    usage?: DeepSeekUsage;
+    status?: number;
+    error?: { code: string; message: string } | null;
+  }) => {
+    if (!TAP_CHANNEL) return;
+    try {
+      const channel = new BroadcastChannel(TAP_CHANNEL);
+      channel.postMessage({
+        type: "request",
+        payload: {
+          id: crypto.randomUUID(),
+          kind: payload.kind,
+          messages: payload.messages.map(m => ({ role: m.role, content: m.content })),
+          response: payload.response,
+          timing: payload.timing,
+          usage: payload.usage ?? null,
+          status: payload.status ?? 0,
+          error: payload.error ?? null,
+          timestamp: Date.now(),
+        },
+      });
+      channel.close();
+    } catch {
+      // Broadcast must never interrupt the request.
+    }
+  };
   const transport = transportRequest(messages, options, reasoning, requestKind);
   const startedAt = clockNow();
   let responseHeadersMs: number | undefined;
@@ -512,6 +544,14 @@ async function performRequest(
       status: responseStatus,
       usage: result.usage,
     });
+    broadcast({
+      kind: requestKind,
+      messages,
+      response: result.content,
+      timing: { totalMs: clockNow() - startedAt, responseHeadersMs, firstReasoningTokenMs: result.firstReasoningTokenMs, firstContentTokenMs: result.firstContentTokenMs },
+      usage: result.usage,
+      status: responseStatus,
+    });
     return result.content;
   } catch (error) {
     const normalized = error instanceof DeepSeekError
@@ -527,6 +567,14 @@ async function performRequest(
       totalMs: clockNow() - startedAt,
       status: responseStatus ?? normalized.status,
       errorCode: normalized.code,
+    });
+    broadcast({
+      kind: requestKind,
+      messages,
+      response: null,
+      timing: { totalMs: clockNow() - startedAt, responseHeadersMs },
+      status: responseStatus ?? normalized.status,
+      error: { code: normalized.code, message: normalized.message },
     });
     throw error;
   } finally {
