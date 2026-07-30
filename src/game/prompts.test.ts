@@ -106,14 +106,14 @@ describe("modern traveler AI prompt contract", () => {
     const biography = buildBiographyMessages(scenario, played).at(-1)!.content;
     const worldReport = buildWorldReportMessages(scenario, played).at(-1)!.content;
 
-    expect(biography).toContain('"compactShape"');
+    expect(biography).toContain("必须以以下格式输出");
     expect(biography).toContain("一生纪事");
     expect(biography).toContain("自然普通话");
     expect(biography).toContain("纯地点（不含年份、年龄或分隔符）");
     expect(biography).not.toContain("文言列传");
     expect(biography).not.toContain("第一幕后果");
     expect(biography).not.toContain("ordinaryLife2026");
-    expect(worldReport).toContain('"compactShape"');
+    expect(worldReport).toContain("必须以以下格式输出");
     expect(worldReport).toContain("生活句");
     expect(worldReport).toContain("时代叙事");
     expect(worldReport).toContain("时代叙事18-30字");
@@ -267,8 +267,8 @@ describe("modern traveler AI prompt contract", () => {
       name: "百人迁跃",
     });
     expect(payload.assignedPower).not.toHaveProperty("powerId");
-    expect(payload.outputContract.order).toContain("A循史、B破局、C天外");
-    expect(payload.outputContract.injected).toContain("actor=你");
+    expect(payload.outputContract).toContain("A循史、B破局、C天外");
+    expect(payload.outputContract).toContain("actor=你");
     expect(payload.seenCards).toHaveLength(6);
     expect(payload.currentScene.headline).toBe(parsedTurn.headline);
   });

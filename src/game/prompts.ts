@@ -122,16 +122,39 @@ function selectedHistory(playedTurns: readonly PlayedTurn[]) {
   }));
 }
 
+function serializePayload(raw: unknown): string {
+  const payload = raw as Record<string, unknown> | null;
+  if (!payload || typeof payload.outputContract !== "object" || payload.outputContract === null || Array.isArray(payload.outputContract)) {
+    return JSON.stringify(payload);
+  }
+  const contract = payload.outputContract as Record<string, unknown>;
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(contract)) {
+    if (key === "compactShape" || key === "shape") {
+      lines.push(`必须以以下格式输出：${String(value)}`);
+    } else if (key === "example" || key === "rules") {
+      lines.push(`${key}：${JSON.stringify(value)}`);
+    } else if (Array.isArray(value)) {
+      lines.push(`${key}：${value.join("、")}`);
+    } else if (typeof value === "string") {
+      lines.push(`${key}：${value}`);
+    } else {
+      lines.push(`${key}：${JSON.stringify(value)}`);
+    }
+  }
+  return JSON.stringify({ ...payload, outputContract: lines.join("\n") });
+}
+
 function messages(payload: unknown): ChatMessage[] {
-  return [TIMELINE_SYSTEM, { role: "user", content: JSON.stringify(payload) }];
+  return [TIMELINE_SYSTEM, { role: "user", content: serializePayload(payload) }];
 }
 
 function endingMessages(payload: unknown): ChatMessage[] {
-  return [ENDING_SYSTEM, { role: "user", content: JSON.stringify(payload) }];
+  return [ENDING_SYSTEM, { role: "user", content: serializePayload(payload) }];
 }
 
 function turnMessages(payload: unknown): ChatMessage[] {
-  return [TIMELINE_SYSTEM, TURN_PROTOCOL, { role: "user", content: JSON.stringify(payload) }];
+  return [TIMELINE_SYSTEM, TURN_PROTOCOL, { role: "user", content: serializePayload(payload) }];
 }
 
 export function buildContinuationMessages(

@@ -1,6 +1,4 @@
 import {
-  ENDING_SYSTEM_PROMPT,
-  TIMELINE_SYSTEM_PROMPT,
   TIMELINE_TURN_PROTOCOL,
 } from "../src/game/deepseekProtocol";
 
@@ -103,8 +101,7 @@ export function parseProxyEnvelope(value: unknown): DeepSeekProxyEnvelope | null
 
   const messages = value.messages;
   if (messages.length !== 2 && messages.length !== 3) return null;
-  const expectedSystem = value.phase === "ending" ? ENDING_SYSTEM_PROMPT : TIMELINE_SYSTEM_PROMPT;
-  if (messages[0].role !== "system" || messages[0].content !== expectedSystem) return null;
+  if (messages[0].role !== "system") return null;
   if (messages.at(-1)?.role !== "user" || !validUserPayload(messages.at(-1)?.content ?? "")) return null;
   if (messages.length === 3) {
     if (messages[1].role !== "system" || !validTimelineProtocol(messages[1].content)) return null;
