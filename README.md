@@ -175,6 +175,8 @@ deepseek.ts → BroadcastChannel("llm-tap-v1") → tap.html
 
 详细说明见 [`src/tap/README.md`](src/tap/README.md)。
 
+> 开发规划和长期路线见 [`docs/superpowers/plans/2026-07-30-long-term-roadmap.md`](docs/superpowers/plans/2026-07-30-long-term-roadmap.md)
+
 ## License
 
 代码用于黑客松原型展示。历史图片与音频的来源和授权说明见 `public/assets/CREDITS.md`、`public/assets/history/CREDITS.md` 和 `public/audio/CREDITS.md`。
