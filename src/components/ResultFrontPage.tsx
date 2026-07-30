@@ -12,7 +12,7 @@ function BiographyPage({ result }: { result: AlternatePresent }) {
       </header>
 
       <section className="biography-death">
-        <span>{result.deathScene.yearLabel} · {result.deathScene.age} 岁 · {result.deathScene.place}</span>
+        <span>{result.deathScene.yearLabel} · {result.deathScene.place}</span>
         <p>{result.deathScene.finalMoment}</p>
       </section>
 

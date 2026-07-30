@@ -17,20 +17,12 @@ describe("ResultFrontPage", () => {
     expect(screen.queryByText("史臣曰 · 文言")).not.toBeInTheDocument();
   });
 
-  it("shows the authoritative death age only once for legacy generated places", () => {
-    const result = alternatePresentSchema.parse({
-      ...endingFixture,
-      deathScene: {
-        ...endingFixture.deathScene,
-        place: `${endingFixture.deathScene.yearLabel} · ${endingFixture.deathScene.age}岁 · ${endingFixture.deathScene.place}`,
-      },
-    });
+  it("renders the death scene year label and place without a separate age segment", () => {
+    const result = alternatePresentSchema.parse(endingFixture);
     render(<ResultFrontPage result={result} page="biography" />);
 
-    expect(screen.getByText(
-      `${endingFixture.deathScene.yearLabel} · ${endingFixture.deathScene.age} 岁 · ${endingFixture.deathScene.place}`,
-    )).toBeVisible();
-    expect(screen.queryByText(new RegExp(`${endingFixture.deathScene.age}\\s*岁.*${endingFixture.deathScene.age}\\s*岁`))).not.toBeInTheDocument();
+    const expected = `${result.deathScene.yearLabel} · ${result.deathScene.place}`;
+    expect(screen.getByText(expected)).toBeVisible();
   });
 
   it("renders the three ordinary-life details as one natural paragraph", () => {
