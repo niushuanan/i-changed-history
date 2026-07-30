@@ -768,30 +768,17 @@
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .28));
 }
 .seed-picker__ai-mark {
-  width: 44px;
-  min-height: 48px;
-  padding: 3px 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(226, 216, 194, .42);
-  border-top-color: rgba(194, 71, 56, .9);
-  background: rgba(12, 11, 10, .88);
-  color: rgba(241, 235, 221, .92);
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: 0;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, .72);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .34);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(241, 235, 221, .45);
+  font-size: 11px;
+  font-weight: 500;
   pointer-events: none;
+  white-space: nowrap;
 }
-.seed-picker__ai-mark span {
-  margin: 0;
-  color: inherit;
-  font: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
-}
+.seed-picker__ai-mark span { color: inherit; font: inherit; }
 .picker-tool,
 .picker-tool-group {
   height: 44px;
