@@ -165,7 +165,6 @@ export function TimelineEventScreen({
           onClick={() => setHistoryContextOpen(true)}
         >
           <span>{turn.previousEcho ? "历史对照" : "正史切入口"}</span>
-          <strong>{turn.previousEcho ? "你的时间线 · 正史原本 · 改变原因" : "真实历史 · 可以改变的节点"}</strong>
           <ArrowRight size={16} weight="bold" />
         </button>
       </section>

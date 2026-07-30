@@ -19,9 +19,9 @@ describe("structured timeline parsing", () => {
     expect(() => parseTimelineTurn(JSON.stringify(leaking))).toThrow(/自然中文|超能力 ID/);
 
     const migrated = storedTimelineTurnSchema.parse(leaking);
-    expect(migrated.choices[2].displayLabel).toBe("颠倒一次因果");
-    expect(migrated.choices[2].label).toContain("颠倒一次因果");
-    expect(migrated.choices[2].actionSpec.deadline).toBe("最后期限");
+    expect(migrated.choices[2].displayLabel).toBe("取消一件事");
+    expect(migrated.choices[2].label).toContain("取消一件事");
+    expect(migrated.choices[2].actionSpec.deadline).toBe("期限");
   });
 
   it("preserves the assigned superpower identity on C cards", () => {

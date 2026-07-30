@@ -1,12 +1,12 @@
 import { POWER_CATALOGUE } from "./powers";
 
 const INTERNAL_TERM_REPLACEMENTS = [
-  [/\bresverse[\s_-]*cause\b/gi, "颠倒一次因果"],
+  [/\bresverse[\s_-]*cause\b/gi, "取消一件事"],
   [/\bactualHistory\b/gi, "真实历史"],
   [/\bactionsHistory\b/gi, "真实历史"],
   [/\bactionSpec\b/gi, "具体行动"],
-  [/\bdeadline\b/gi, "最后期限"],
-  [/\bunexpectedCost\b/gi, "隐藏代价"],
+  [/\bdeadline\b/gi, "期限"],
+  [/\bunexpectedCost\b/gi, "代价"],
   [/\bdirectResult\b/gi, "直接结果"],
   [/\bdeviationClass\b/gi, "行动类型"],
   [/\bcausedByChapter\b/gi, "起因幕次"],

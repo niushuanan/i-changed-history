@@ -1976,34 +1976,24 @@
   width: 100%;
   min-height: 40px;
   flex: 0 0 40px;
-  padding: 0 2px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 18px;
+  padding: 0 12px;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
   border: 0;
   border-top: 1px solid rgba(101, 170, 165, .52);
   background: transparent;
   color: #79b3ae;
-  text-align: left;
   cursor: pointer;
 }
 .history-context-trigger > span {
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
-  white-space: nowrap;
+  color: inherit;
 }
-.history-context-trigger > strong {
-  min-width: 0;
-  overflow: hidden;
-  color: #aaa9a4;
-  font-size: 11px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.history-context-trigger > svg { justify-self: end; }
+.history-context-trigger > svg { flex-shrink: 0; }
 .history-context-trigger:hover { color: #a3d0cc; }
 
 .history-context-backdrop {
@@ -2896,11 +2886,12 @@
   object-fit: contain;
 }
 .choice-detail header {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
 }
+.choice-detail header > div { width: 100%; text-align: center; }
 .choice-detail header span {
   color: var(--detail-accent);
   font-size: 12px;
@@ -2912,7 +2903,9 @@
   font-size: 27px;
 }
 .choice-detail header button {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 0;
+  top: 0;
   width: 38px;
   height: 38px;
   padding: 0;
@@ -2937,7 +2930,6 @@
 .choice-detail__scroll {
   min-height: 0;
   margin-top: 14px;
-  padding-right: 5px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -2981,6 +2973,9 @@
 .choice-detail dt {
   color: #8d8980;
   font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 900;
 }
 .choice-detail dd {

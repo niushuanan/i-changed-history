@@ -8,8 +8,8 @@ describe("player-facing text localization", () => {
   it("maps machine-only power IDs and schema labels to natural Chinese", () => {
     expect(localizeInternalPlayerCopy(
       "在deadline前发动 reverse-cause，并把 unexpectedCost 写进 actionSpec",
-    )).toBe("在最后期限前发动 颠倒一次因果，并把 隐藏代价 写进 具体行动");
-    expect(localizeInternalPlayerCopy("resverse cause")).toBe("颠倒一次因果");
+    )).toBe("在期限前发动 取消一件事，并把 代价 写进 具体行动");
+    expect(localizeInternalPlayerCopy("resverse cause")).toBe("取消一件事");
     expect(localizeInternalPlayerCopy("让actualHistory按时发生")).toBe("让真实历史按时发生");
   });
 

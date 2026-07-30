@@ -138,11 +138,11 @@ function ChoiceDetail({
         >
           <p className="choice-detail__canon">{choice.label}</p>
           <dl>
-            <div><dt>谁来做</dt><dd>{choice.actionSpec.actor}</dd></div>
-            <div><dt>作用于</dt><dd>{choice.actionSpec.target}</dd></div>
-            <div><dt>最后期限</dt><dd>{choice.actionSpec.deadline}</dd></div>
-            <div className="is-result"><dt>直接结果</dt><dd>{choice.instantEcho.directResult}</dd></div>
-            <div className="is-cost"><dt>隐藏代价</dt><dd>{choice.instantEcho.unexpectedCost}</dd></div>
+            <div><dt>执行者</dt><dd>{choice.actionSpec.actor}</dd></div>
+            <div><dt>对象</dt><dd>{choice.actionSpec.target}</dd></div>
+            <div><dt>期限</dt><dd>{choice.actionSpec.deadline}</dd></div>
+            <div className="is-result"><dt>结果</dt><dd>{choice.instantEcho.directResult}</dd></div>
+            <div className="is-cost"><dt>代价</dt><dd>{choice.instantEcho.unexpectedCost}</dd></div>
           </dl>
         </div>
         <small className="choice-detail__footer">

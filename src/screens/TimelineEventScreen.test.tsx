@@ -38,7 +38,7 @@ describe("clear change event screen", () => {
     expect(screen.queryByText("因果回执")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "历史对照" })).not.toBeInTheDocument();
     const comparisonTrigger = screen.getByRole("button", { name: "查看历史对照" });
-    expect(comparisonTrigger).toHaveTextContent("你的时间线 · 正史原本 · 改变原因");
+    expect(comparisonTrigger).toHaveTextContent("历史对照");
     fireEvent.click(comparisonTrigger);
 
     const dialog = screen.getByRole("dialog", { name: "历史对照" });
